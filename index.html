@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HRMS Auth Test</title>
+</head>
+<body>
+  <h2>Register</h2>
+  <form id="registerForm">
+    <input type="text" name="name" placeholder="Name" required /><br />
+    <input type="email" name="email" placeholder="Email" required /><br />
+    <input type="password" name="password" placeholder="Password" required /><br />
+    <button type="submit">Register</button>
+  </form>
+
+  <h2>Login</h2>
+  <form id="loginForm">
+    <input type="email" name="email" placeholder="Email" required /><br />
+    <input type="password" name="password" placeholder="Password" required /><br />
+    <button type="submit">Login</button>
+  </form>
+
+  <h2>Profile (Get Me)</h2>
+  <button onclick="getProfile()">Get Profile</button>
+
+  <h2>Logout</h2>
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    const baseUrl = "http://localhost:4000/api/v1/users";
+
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const body = Object.fromEntries(formData.entries());
+
+      const res = await fetch(`${baseUrl}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      alert(data.message || "Registered");
+    });
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const body = Object.fromEntries(formData.entries());
+
+      const res = await fetch(`${baseUrl}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      alert(data.message || "Logged in");
+    });
+
+    async function getProfile() {
+      const res = await fetch(`${baseUrl}/profile`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      alert(data.success ? JSON.stringify(data.user, null, 2) : data.message);
+    }
+
+    async function logout() {
+      const res = await fetch(`${baseUrl}/logout`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      alert(data.message || "Logged out");
+    }
+  </script>
+</body>
+</html>
