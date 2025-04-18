@@ -3,47 +3,17 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
     {
-        name: {
-            type: String,
-            required: true,
-        },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-        },
-        password: {
-            type: String,
-            required: true,
-        },
-        role: {
-            type: String,
-            required: true,
-            enum: ["employee", "admin", "hr"],
-            default: "employee",
-        },
-        isVerified: {
-            type: Boolean,
-            default: false,
-        },
-        verificationToken: {
-            type: String,
-        },
-        resetPasswordToken: {
-            type: String,
-        },
-        resetPasswordTokenExpires: {
-            type: Date,
-        },   
+        name: { type: String, required: true },
+        email: { type: String, unique: true, required: true },
+        password: { type: String, required: true },
+        role: { type: String, enum: ["admin", "hr", "employee"], default: "employee" },
+        isActive: { type: Boolean, default: true },
+        resetPasswordToken: { type: String },
+        resetPasswordExpires: { type: Date },
+        createdAt: { type: Date, default: Date.now }  
     },{timestamps: true}
     
 );
-
-userSchema.pre("save", async function (next) {
-    if (!this.isModified("password")) return next();
-    this.password = await bcrypt.hash(this.password, 10);
-    next();
-});
 
 const User = mongoose.model("User", userSchema);
 
