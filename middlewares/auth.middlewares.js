@@ -1,44 +1,21 @@
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../utils/jwt.js";
 
-export const isLoggedIn = (req, res, next) => {
-  try {
-    console.log("Cookies:", req.cookies);
-    const token = req.cookies?.token;
-
-    console.log("Token Found:", token ? "YES" : "NO");
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication failed. No token provided.",
-      });
+const authMiddleware = (allowedRoles = []) => {
+  return (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader)
+      return res.status(401).json({ message: "Access Denied: No Token Provided" });
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = verifyToken(token);
+      if (allowedRoles.length && !allowedRoles.includes(decoded.role))
+        return res.status(403).json({ message: "Access Forbidden: Insufficient Permissions" });
+      req.user = decoded;
+      next();
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid Token" });
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-
-    console.log("Authenticated user:", req.user);
-    next();
-  } catch (error) {
-    console.log("Auth middleware failure:", error.message);
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token has expired. Please log in again.",
-      });
-    }
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token. Please log in again.",
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
+  };
 };
+
+export default authMiddleware;
