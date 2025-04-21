@@ -4,7 +4,7 @@ import authMiddleware from "../middlewares/auth.middlewares.js";
 
 const router = Router();
 // Only an admin can register new users.
-router.post("/register", authMiddleware(["admin"]), register);
+router.post("/register", authMiddleware(["admin", "hr"]), register);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
