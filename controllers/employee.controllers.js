@@ -1,10 +1,8 @@
 import Employee from "../models/Employee.model.js";
-import User from "../models/User.model.js";
 
 export const createEmployee = async (req, res) => {
   try {
     const {
-      userId,
       employeeId,
       firstName,
       lastName,
@@ -31,17 +29,8 @@ export const createEmployee = async (req, res) => {
       joiningDate,
     } = req.body;
     
-    // check if user exists
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // check if user employee already created
-    const exists = await Employee.findOne({ userId });
-    if (exists) return res.status(400).json({ message: "Employee already created for this user" });
-
     // creating employee
     const employee = await Employee.create({
-      userId,
       employeeId,
       firstName,
       lastName,
