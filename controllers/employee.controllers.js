@@ -24,11 +24,27 @@ export const createEmployee = async (req, res) => {
       bankName,
       bankAccountNumber,
       bankIFSCCode,
-      employementType,
+      employmentType,
       reportingSupervisor,
       joiningDate,
     } = req.body;
     
+    // check if employeeId already exists
+    const existingEmployee = await Employee.findOne({
+      $or: [
+        { employeeId },
+        { email },
+        { aadhaarNumber },
+        { panNumber }
+      ]
+    });
+
+    if (existingEmployee) {
+      return res.status(400).json({
+        message: "Employee already exists with same employee ID, email, Aadhaar, or PAN."
+      });
+    }
+
     // creating employee
     const employee = await Employee.create({
       employeeId,
@@ -52,7 +68,7 @@ export const createEmployee = async (req, res) => {
       bankName,
       bankAccountNumber,
       bankIFSCCode,
-      employementType,
+      employmentType,
       reportingSupervisor,
       joiningDate
     });
