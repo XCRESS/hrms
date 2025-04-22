@@ -20,11 +20,11 @@ import {
 export default function CreateEmployeePage() {
   const [gender, setGender] = React.useState("");
   const [maritalStatus, setMaritalStatus] = React.useState("");
-  const [officeLocation, setOfficeLocation] = React.useState("");
+  const [officeAddress, setOfficeAddress] = React.useState("");
   const [paymentMode, setPaymentMode] = React.useState("");
   const [employmentType, setEmploymentType] = React.useState("");
   const [dateOfBirth, setDateOfBirth] = React.useState(null);
-  const [dateOfJoining, setDateOfJoining] = React.useState(null);
+  const [joiningDate, setJoiningDate] = React.useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,30 +32,30 @@ export default function CreateEmployeePage() {
     const form = e.target;
   
     const employeeData = {
+      employeeId: form.employeeId.value,
       firstName: form.firstname.value,
       lastName: form.lastname.value,
-      employeeId: form.employeeId.value,
+      gender,
+      dateOfBirth,
+      maritalStatus,
       email: form.email.value,
       phone: form.phone.value,
       address: form.address.value,
-      aadhaar: form.aadhaar.value,
+      aadhaarNumber: form.aadhaarNumber.value,
       panNumber: form.panNumber.value,
       fatherName: form.fatherName.value,
       motherName: form.motherName.value,
+      officeAddress,
       department: form.department.value,
       position: form.position.value,
       salary: parseFloat(form.salary.value),
+      paymentMode,
       bankName: form.bankName.value,
       bankAccountNumber: form.bankAccountNumber.value,
       bankIFSCCode: form.bankIFSCCode.value,
-      reportingSupervisor: form.reportingSupervisor.value,
-      gender,
-      maritalStatus,
-      officeLocation,
-      paymentMode,
       employmentType,
-      dateOfBirth,
-      dateOfJoining,
+      reportingSupervisor: form.reportingSupervisor.value,
+      joiningDate,
     };
   
     try {
@@ -150,10 +150,10 @@ export default function CreateEmployeePage() {
           />
         </LabelInputContainer>
         <LabelInputContainer className="mb-4">
-          <Label htmlFor="aadhaar">Aadhaar Number</Label>
+          <Label htmlFor="aadhaarNumber">Aadhaar Number</Label>
           <Input
-            id="aadhaar"
-            name="aadhaar"
+            id="aadhaarNumber"
+            name="aadhaarNumber"
             placeholder="12-digit Aadhaar number"
             type="text"
             pattern="\d{12}"
@@ -194,8 +194,8 @@ export default function CreateEmployeePage() {
           />
         </LabelInputContainer>
         <LabelInputContainer className="mt-4 mb-4">
-          <Label htmlFor="officeLocation">Office Location</Label> 
-          <Select name="officeLocation" onValueChange={setOfficeLocation}>
+          <Label htmlFor="officeAddress">Office Location</Label> 
+          <Select name="officeAddress" onValueChange={setOfficeAddress}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Office location" />
             </SelectTrigger>
@@ -234,7 +234,8 @@ export default function CreateEmployeePage() {
             placeholder="Enter Salary"
             type="number"
             min="0"
-            step="1000" // Optional: For specifying steps, if needed, e.g., in increments of 1000
+            step="1000"
+            required
           />
         </LabelInputContainer>
         <LabelInputContainer className="mt-4 mb-4">
@@ -256,6 +257,7 @@ export default function CreateEmployeePage() {
             name="bankName"
             placeholder="Enter Bank Name"
             type="text"
+            required
           />
         </LabelInputContainer>
         <LabelInputContainer className="mb-4">
@@ -267,6 +269,7 @@ export default function CreateEmployeePage() {
             type="number"
             min="5"
             max="18"
+            required
           />
         </LabelInputContainer>
         <LabelInputContainer className="mb-4">
@@ -277,6 +280,7 @@ export default function CreateEmployeePage() {
             placeholder="Enter IFSC Code"
             type="text"
             maxLength={11} // IFSC code typically has a length of 11 characters
+            required
           />
         </LabelInputContainer>
         <LabelInputContainer className="mt-4 mb-4">
@@ -301,7 +305,7 @@ export default function CreateEmployeePage() {
           />
         </LabelInputContainer>
         <LabelInputContainer className="mb-4">
-          <JoinDate selected={dateOfJoining} onChange={setDateOfJoining}/>
+          <JoinDate selected={joiningDate} onChange={setJoiningDate}/>
         </LabelInputContainer>
 
 

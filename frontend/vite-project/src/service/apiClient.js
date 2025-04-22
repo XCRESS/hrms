@@ -61,7 +61,7 @@ class ApiClient {
    
     async createEmployee(employeeData) {
       const token = sessionStorage.getItem("authToken"); // get token
-      return this.customFetch("/auth/employee", {
+      return this.customFetch("/employees/create", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -69,6 +69,17 @@ class ApiClient {
         body: JSON.stringify(employeeData),
       });
     }
+
+    async deleteEmployee(employeeId) {
+      const token = sessionStorage.getItem("authToken"); // get token
+      return this.customFetch(`/employees/delete/${employeeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
   }
   
   const apiClient = new ApiClient();
