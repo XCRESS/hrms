@@ -7,6 +7,8 @@ import Login from "./components/login-form.jsx";
 import Signup from "./components/singup-form.jsx";
 import ForgotPassword from "./components/forgotPassword.jsx";
 import CreateEmployee from './components/create-employee.jsx';
+import GetEmployee from './components/get-employee.jsx';
+import NotFound from './components/404page.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -16,7 +18,9 @@ createRoot(document.getElementById('root')).render(
         <Route path="/auth/login" element={<Login />} />
         <Route path="/auth/signup" element={<Signup />} />
         <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
-        <Route path="/auth/employee" element={<CreateEmployee />} />
+        <Route path="/employee/create" element={<CreateEmployee />} />
+        <Route path="/employee" element={<GetEmployee />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
