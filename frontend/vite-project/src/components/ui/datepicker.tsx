@@ -39,6 +39,7 @@ export default function DatePicker({ onDateChange }) {
               date > new Date() || date < new Date("1900-01-01")
             }
             initialFocus
+            defaultMonth={new Date(2000, 0, 1)} // << 🎯 open at January 2000
           />
         </PopoverContent>
       </Popover>

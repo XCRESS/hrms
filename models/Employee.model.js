@@ -83,7 +83,7 @@ const employeeSchema = new mongoose.Schema(
         },
         paymentMode: {
             type: String,
-            enum: ["bank transfer", "cheque", "cash"],
+            enum: ["bankTransfer", "cheque", "cash"],
             required: true,
         },
         bankName: {
@@ -100,7 +100,7 @@ const employeeSchema = new mongoose.Schema(
         },
         employmentType: {
             type: String,
-            enum: ["full time", "intern"],
+            enum: ["fulltime", "intern"],
             required: true,
         },
         reportingSupervisor:{
@@ -109,6 +109,16 @@ const employeeSchema = new mongoose.Schema(
         },
         joiningDate: {
             type: Date, 
+            required: true,
+        },
+        emergencyContactNumber: {
+            type: Number,
+            required: true,
+            minlength: 10,
+            maxlength: 10,
+        },
+        emergencyContactName: {
+            type: String,
             required: true,
         },
         isActive: {

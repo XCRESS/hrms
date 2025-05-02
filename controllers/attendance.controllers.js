@@ -1,5 +1,4 @@
 import Attendance from "../models/Attendance.model.js";
-import User from "../models/User.model.js";
 
 export const checkIn = async (req, res) => {
   try {

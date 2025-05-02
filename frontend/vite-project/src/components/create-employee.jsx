@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import DatePicker from "@/components/ui/datepicker";
 import JoinDate from "@/components/ui/dateOfJoining";
-import TracingBeam from "@/components/ui/tracing-beam";
 import apiClient from "../service/apiClient";
 import {
   Select,
@@ -16,7 +15,6 @@ import {
 } from "@/components/ui/select"
 
 
-
 export default function CreateEmployeePage() {
   const [gender, setGender] = React.useState("");
   const [maritalStatus, setMaritalStatus] = React.useState("");
@@ -25,6 +23,14 @@ export default function CreateEmployeePage() {
   const [employmentType, setEmploymentType] = React.useState("");
   const [dateOfBirth, setDateOfBirth] = React.useState(null);
   const [joiningDate, setJoiningDate] = React.useState(null);
+
+  // Update the date of birth when the user selects a new date
+  const handleDateChange = (date) => {
+    setDateOfBirth(date);
+  };
+  const handleJoinDateChange = (date) => {
+    setJoiningDate(date);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -56,18 +62,23 @@ export default function CreateEmployeePage() {
       employmentType,
       reportingSupervisor: form.reportingSupervisor.value,
       joiningDate,
+      emergencyContactName: form.emergencyContactName.value,
+      emergencyContactNumber: form.emergencyContactNumber.value,
     };
-  
+    
     try {
       const res = await apiClient.createEmployee(employeeData);
-      console.log("Employee created successfully", res);
+      console.log("Employee creation requested", res);
+      if (res.message === "Employee created") {
+        console.log("Employee created successfully");
+        alert("Employee created successfully");
+      }
     } catch (err) {
       console.error("Error creating employee", err);
     }
   };
   return (
-    <div className="shadow-input mb-90 mx-auto w-full max-w-md rounded-none bg-white p-4 md:rounded-2xl md:p-8 dark:bg-black">
-      <TracingBeam>
+    <div className="shadow-input mb-90 mx-auto w-full max-w-md rounded-none bg-white p-4 md:rounded-2xl md:p-8 dark:bg-zinc-800">
       <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-200">
         Fill Employee Details
       </h2>
@@ -93,7 +104,7 @@ export default function CreateEmployeePage() {
         <div className="mb-4 flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
           <LabelInputContainer>
             <Label htmlFor="dateOfBirth">D.O.B.</Label>
-            <DatePicker selected={dateOfBirth} onChange={setDateOfBirth}/>
+            <DatePicker onDateChange={handleDateChange} selected={dateOfBirth} onChange={setDateOfBirth}/>
           </LabelInputContainer>
           <LabelInputContainer>
             <Label htmlFor="gender">Gender</Label>
@@ -102,9 +113,9 @@ export default function CreateEmployeePage() {
                 <SelectValue placeholder="Gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </LabelInputContainer>
@@ -116,9 +127,9 @@ export default function CreateEmployeePage() {
               <SelectValue placeholder="Marital Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Single">Single</SelectItem>
-              <SelectItem value="Married">Married</SelectItem>
-              <SelectItem value="Divorced">Divorced</SelectItem>
+              <SelectItem value="single">Single</SelectItem>
+              <SelectItem value="married">Married</SelectItem>
+              <SelectItem value="divorced">Divorced</SelectItem>
             </SelectContent>
           </Select>
         </LabelInputContainer>
@@ -234,11 +245,11 @@ export default function CreateEmployeePage() {
             placeholder="Enter Salary"
             type="number"
             min="0"
-            step="1000"
             required
           />
         </LabelInputContainer>
         <LabelInputContainer className="mt-4 mb-4">
+        <Label htmlFor="paymentMode">Mode of Payment</Label> 
           <Select name="paymentMode" onValueChange={setPaymentMode}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Payment Mode" />
@@ -267,8 +278,8 @@ export default function CreateEmployeePage() {
             name="bankAccountNumber"
             placeholder="Enter Account Number"
             type="number"
-            min="5"
-            max="18"
+            minLength="5"
+            maxLength="18"
             required
           />
         </LabelInputContainer>
@@ -284,6 +295,7 @@ export default function CreateEmployeePage() {
           />
         </LabelInputContainer>
         <LabelInputContainer className="mt-4 mb-4">
+        <Label htmlFor="employmentType">Type of Employment</Label> 
           <Select name="employmentType" onValueChange={setEmploymentType}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Employment Type" />
@@ -305,7 +317,31 @@ export default function CreateEmployeePage() {
           />
         </LabelInputContainer>
         <LabelInputContainer className="mb-4">
-          <JoinDate selected={joiningDate} onChange={setJoiningDate}/>
+          <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
+          <Input
+            id="emergencyContactName"
+            name="emergencyContactName"
+            placeholder="Name"
+            type="text"
+            required
+          />
+        </LabelInputContainer>
+        <LabelInputContainer className="mb-4">
+          <Label htmlFor="emergencyContactNumber">Emergency Contact Number</Label>
+          <Input
+            id="emergencyContactNumber"
+            name="emergencyContactNumber"
+            placeholder="XXXXXXXXXX"
+            type="tel"
+            pattern="[0-9]{10}"
+            maxLength="10"
+            title="Enter a valid 10-digit phone number"
+            required
+          />
+        </LabelInputContainer>
+        <LabelInputContainer className="mb-4">
+          <Label htmlFor="joiningDate">Date of Joining</Label> 
+          <JoinDate onDateChange={handleJoinDateChange} selected={joiningDate} onChange={setJoiningDate}/>
         </LabelInputContainer>
 
 
@@ -320,7 +356,6 @@ export default function CreateEmployeePage() {
 
         <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
       </form>
-    </TracingBeam>
     </div>
   );
 }

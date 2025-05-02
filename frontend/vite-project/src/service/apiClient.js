@@ -70,6 +70,16 @@ class ApiClient {
       });
     }
 
+    async getEmployees() {
+      const token = sessionStorage.getItem("authToken"); // get token
+      return this.customFetch("/employees", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
     async deleteEmployee(employeeId) {
       const token = sessionStorage.getItem("authToken"); // get token
       return this.customFetch(`/employees/delete/${employeeId}`, {
