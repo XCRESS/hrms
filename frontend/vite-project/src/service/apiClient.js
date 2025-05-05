@@ -49,7 +49,13 @@ class ApiClient {
     }
   
     async getProfile() {
-      return this.customFetch("/auth/me");
+      const token = sessionStorage.getItem("authToken"); // get token
+      return this.customFetch("/employees/profile", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
     }
   
     async passwordChange(name, email, newPassword) {
