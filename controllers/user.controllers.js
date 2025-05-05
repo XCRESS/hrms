@@ -24,7 +24,7 @@ export const login = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-    const token = generateToken({ id: user._id, role: user.role });
+    const token = generateToken({ id: user._id, role: user.role, name: user.name, email: user.email });
     res.json({ success: true, message: "Login successful", token });
   } catch (err) {
     res.status(500).json({ message: "Login failed", error: err.message });

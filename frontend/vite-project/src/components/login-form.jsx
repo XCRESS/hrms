@@ -28,7 +28,7 @@ export default function LoginForm({ className, ...props }) {
       console.log("Login response: ", data);
       if (data.success) {
         sessionStorage.setItem("authToken", data.token);
-        navigate("/auth/signup");
+        navigate("/");
       } else {
         setError(data.message || "login failed");
       }

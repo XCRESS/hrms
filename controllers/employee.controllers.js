@@ -103,3 +103,14 @@ export const updateEmployee = async (req, res) => {
     res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
+
+export const getProfile = async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    const employee = await Employee.findOne({ email: userEmail });
+    if (!employee) return res.status(404).json({ message: "employee not found" });
+    res.status(200).json(employee);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching profile", error: err.message });
+  }
+};
