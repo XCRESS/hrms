@@ -11,7 +11,7 @@ const attendanceSchema = new mongoose.Schema({
     },
   checkIn: { type: Date },
   checkOut: { type: Date },
-  createdAt: { type: Date, default: Date.now }
+  reason: String,
 }, { timestamps: true });
 
 // Prevent duplicate attendance records per employee per day

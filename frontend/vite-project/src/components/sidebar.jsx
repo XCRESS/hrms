@@ -10,8 +10,14 @@ import {
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
  
 export default function SidebarDemo() {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    sessionStorage.removeItem("authToken");
+    navigate("/auth/login");
+  };
   const links = [
     {
       label: "Dashboard",
@@ -36,7 +42,7 @@ export default function SidebarDemo() {
     },
     {
       label: "Logout",
-      href: "#",
+      onClick: handleLogout,
       icon: (
         <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
       ),

@@ -39,7 +39,6 @@ export default function GetProfile() {
         return;
       }
       try {
-        console.log("Token in sessionStorage:", token);
         setLoading(true);
         const data = await apiClient.getProfile();
         setEmployee(data);

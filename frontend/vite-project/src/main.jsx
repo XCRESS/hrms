@@ -10,6 +10,7 @@ import CreateEmployee from './components/create-employee.jsx';
 import GetEmployee from './components/get-employee.jsx';
 import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
+import HRMSDashboard from './components/dashboard.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="/employee/create" element={<CreateEmployee />} />
         <Route path="/employee" element={<GetEmployee />} />
         <Route path="/employee/profile" element={<GetProfile />} />
+        <Route path="/dashboard" element={<HRMSDashboard/>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
