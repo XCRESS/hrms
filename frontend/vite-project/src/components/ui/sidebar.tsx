@@ -160,13 +160,20 @@ export const SidebarLink = ({
   className,
   ...props
 }: {
-  link: Links;
+  link: Links & { onClick?: () => void }; 
   className?: string;
 }) => {
   const { open, animate } = useSidebar();
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (link.onClick) {
+      e.preventDefault(); // Prevent default navigation if onClick is provided
+      link.onClick();     // Call the function (e.g. logout)
+    }
+  };
   return (
     <Link
       to={link.href}
+      onClick={handleClick}
       className={cn(
         "flex items-center justify-start gap-2  group/sidebar py-2",
         className
