@@ -96,6 +96,30 @@ class ApiClient {
       });
     }
 
+    // Check-in and Check-out
+    async checkIn(name) {
+      const token = sessionStorage.getItem("authToken"); // get token
+      return this.customFetch(`/attendance/checkin`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      });
+    }
+    async checkOut(name) {
+      const token = sessionStorage.getItem("authToken"); // get token
+      return this.customFetch(`/attendance/checkout/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      });
+    }
+
   }
   
   const apiClient = new ApiClient();

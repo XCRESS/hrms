@@ -11,19 +11,26 @@ import GetEmployee from './components/get-employee.jsx';
 import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';
+import SidebarDemo from './components/sidebar.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<App />} />
+        <Route path="/" element={<SidebarDemo />}>
+          {/* <Route path="/" element={<App />} /> */}
+          <Route path="/employee/create" element={<CreateEmployee />} />
+          <Route path="/employee" element={<GetEmployee />} />
+          <Route path="/employee/profile" element={<GetProfile />} />
+          <Route path="/dashboard" element={<HRMSDashboard/>} />
+        </Route>
+
+        {/* auth routes */}
         <Route path="/auth/login" element={<Login />} />
         <Route path="/auth/signup" element={<Signup />} />
         <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
-        <Route path="/employee/create" element={<CreateEmployee />} />
-        <Route path="/employee" element={<GetEmployee />} />
-        <Route path="/employee/profile" element={<GetProfile />} />
-        <Route path="/dashboard" element={<HRMSDashboard/>} />
+
+        {/* not found route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

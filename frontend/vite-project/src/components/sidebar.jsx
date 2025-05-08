@@ -11,8 +11,18 @@ import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import useAuth from "../hooks/authjwt";
+import { Outlet } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
  
 export default function SidebarDemo() {
+  const token = sessionStorage.getItem("authToken");
+  const location = useLocation();
+  if (!token) {
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+  }
+
+  const user = useAuth();
   const navigate = useNavigate();
   const handleLogout = () => {
     sessionStorage.removeItem("authToken");
@@ -21,7 +31,7 @@ export default function SidebarDemo() {
   const links = [
     {
       label: "Dashboard",
-      href: "/",
+      href: "/dashboard",
       icon: (
         <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
       ),
@@ -57,7 +67,7 @@ export default function SidebarDemo() {
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-between gap-10 z-50 border-r-1">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {open ? <Logo /> : <LogoIcon />}
             <div className="mt-8 flex flex-col gap-2">
@@ -69,9 +79,9 @@ export default function SidebarDemo() {
           <div>
             <SidebarLink
               link={{
-                label: "UserName",
-                href: "#",
-                icon: <Avatar name="UserName" />,
+                label: user?.name || "User",
+                href: "/",
+                icon: <Avatar name={user?.name || "User"} />,
                 // icon: (
                 //   <img
                 //     src="https://assets.aceternity.com/manu.png"
@@ -86,6 +96,20 @@ export default function SidebarDemo() {
           </div>
         </SidebarBody>
       </Sidebar>
+      <div className="flex-1 overflow-y-auto h-full">
+        <Outlet /> {/* This is where nested routes render */}
+      </div>
+      {/* Abstract background */}
+      {/* <div className="fixed pointer-events-none inset-0 z-0 opacity-5 dark:opacity-10">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <pattern id="pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+            <path d="M0 50 L50 0 L100 50 L50 100 Z" fill="none" stroke="currentColor" strokeWidth="1"></path>
+            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="1"></circle>
+          </pattern>
+          <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern)"></rect>
+        </svg>
+      </div> */}
+
     </div>
   );
 }
