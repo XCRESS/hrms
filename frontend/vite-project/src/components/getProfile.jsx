@@ -75,7 +75,7 @@ export default function GetProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-lg text-gray-700 dark:text-gray-300">Loading profile...</p>
@@ -97,9 +97,9 @@ export default function GetProfile() {
   if (!employee) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6">
+    <div className="min-h-screen w-full  bg-slate-50 dark:bg-slate-900 p-6">
       {/* Abstract background pattern */}
-      <div className="fixed inset-0 z-0 opacity-5 dark:opacity-10">
+      <div className="fixed pointer-events-none inset-0 -z-20 opacity-5 dark:opacity-10">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <pattern id="pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
             <path d="M0 50 L50 0 L100 50 L50 100 Z" fill="none" stroke="currentColor" strokeWidth="1"></path>
