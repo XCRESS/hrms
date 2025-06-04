@@ -85,10 +85,15 @@ export const reviewRegularization = async (req, res) => {
       if (!employeeDoc) {
         return res.status(404).json({ message: "Employee not found for regularization." });
       }
+      // Defensive: check required fields
+      if (!reg.requestedCheckIn) {
+        return res.status(400).json({ message: "Requested check-in time is required for attendance regularization." });
+      }
       let att = await Attendance.findOne({ employee: employeeDoc._id, date: reg.date });
       if (!att) {
         att = await Attendance.create({
           employee: employeeDoc._id,
+          employeeName: employeeDoc.firstName + " " + employeeDoc.lastName,
           date: reg.date,
           checkIn: reg.requestedCheckIn,
           checkOut: reg.requestedCheckOut,
@@ -100,11 +105,15 @@ export const reviewRegularization = async (req, res) => {
         if (reg.requestedCheckOut) att.checkOut = reg.requestedCheckOut;
         att.status = "present";
         att.reason = "Regularized by HR";
+        // Defensive: ensure employeeName is set
+        if (!att.employeeName) {
+          att.employeeName = employeeDoc.firstName + " " + employeeDoc.lastName;
+        }
         await att.save();
       }
     }
     res.json({ success: true, message: `Request ${status}`, reg });
   } catch (err) {
-    res.status(500).json({ message: "Failed to review request", error: err.message });
+    res.status(500).json({ message: "Failed to review request", error: err.message, stack: err.stack });
   }
 }; 
