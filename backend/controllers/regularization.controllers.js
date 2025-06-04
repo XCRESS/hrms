@@ -2,6 +2,7 @@ import RegularizationRequest from "../models/Regularization.model.js";
 import User from "../models/User.model.js";
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
+import moment from "moment-timezone";
 
 // Employee: Submit a regularization request
 export const requestRegularization = async (req, res) => {
@@ -16,12 +17,16 @@ export const requestRegularization = async (req, res) => {
     if (existing) {
       return res.status(400).json({ message: "A regularization request for this date is already pending." });
     }
+    // Parse as IST and store as UTC
+    const dateIST = moment.tz(date, "Asia/Kolkata").startOf("day").toDate();
+    const requestedCheckInIST = requestedCheckIn ? moment.tz(requestedCheckIn, "Asia/Kolkata").toDate() : undefined;
+    const requestedCheckOutIST = requestedCheckOut ? moment.tz(requestedCheckOut, "Asia/Kolkata").toDate() : undefined;
     const reg = await RegularizationRequest.create({
       employeeId: user.employeeId,
       user: user._id,
-      date: new Date(date),
-      requestedCheckIn: requestedCheckIn ? new Date(requestedCheckIn) : undefined,
-      requestedCheckOut: requestedCheckOut ? new Date(requestedCheckOut) : undefined,
+      date: dateIST,
+      requestedCheckIn: requestedCheckInIST,
+      requestedCheckOut: requestedCheckOutIST,
       reason
     });
     res.status(201).json({ success: true, message: "Regularization request submitted.", reg });
@@ -80,32 +85,32 @@ export const reviewRegularization = async (req, res) => {
     await reg.save();
     // If approved, update attendance
     if (status === "approved") {
-      // Find the Employee document by employeeId (string)
       const employeeDoc = await Employee.findOne({ employeeId: reg.employeeId });
       if (!employeeDoc) {
         return res.status(404).json({ message: "Employee not found for regularization." });
       }
-      // Defensive: check required fields
       if (!reg.requestedCheckIn) {
         return res.status(400).json({ message: "Requested check-in time is required for attendance regularization." });
       }
+      // Parse as IST and store as UTC
+      const checkInIST = reg.requestedCheckIn ? moment.tz(reg.requestedCheckIn, "Asia/Kolkata").toDate() : undefined;
+      const checkOutIST = reg.requestedCheckOut ? moment.tz(reg.requestedCheckOut, "Asia/Kolkata").toDate() : undefined;
       let att = await Attendance.findOne({ employee: employeeDoc._id, date: reg.date });
       if (!att) {
         att = await Attendance.create({
           employee: employeeDoc._id,
           employeeName: employeeDoc.firstName + " " + employeeDoc.lastName,
           date: reg.date,
-          checkIn: reg.requestedCheckIn,
-          checkOut: reg.requestedCheckOut,
+          checkIn: checkInIST,
+          checkOut: checkOutIST,
           status: "present",
           reason: "Regularized by HR"
         });
       } else {
-        if (reg.requestedCheckIn) att.checkIn = reg.requestedCheckIn;
-        if (reg.requestedCheckOut) att.checkOut = reg.requestedCheckOut;
+        if (checkInIST) att.checkIn = checkInIST;
+        if (checkOutIST) att.checkOut = checkOutIST;
         att.status = "present";
         att.reason = "Regularized by HR";
-        // Defensive: ensure employeeName is set
         if (!att.employeeName) {
           att.employeeName = employeeDoc.firstName + " " + employeeDoc.lastName;
         }
