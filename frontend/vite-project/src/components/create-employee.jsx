@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -13,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import useAuth from '../hooks/authjwt';
 
-
-export default function CreateEmployeePage() {
+export default function CreateEmployee() {
   const [gender, setGender] = React.useState("");
   const [maritalStatus, setMaritalStatus] = React.useState("");
   const [officeAddress, setOfficeAddress] = React.useState("");
@@ -23,6 +23,19 @@ export default function CreateEmployeePage() {
   const [employmentType, setEmploymentType] = React.useState("");
   const [dateOfBirth, setDateOfBirth] = React.useState(null);
   const [joiningDate, setJoiningDate] = React.useState(null);
+  const [form, setForm] = useState({ fullName: '', email: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  let user;
+  try {
+    user = useAuth();
+  } catch (err) {
+    return <div>Error: {String(err)}</div>;
+  }
+  if (!user || (user.role !== 'hr' && user.role !== 'admin')) {
+    return <div>Not authorized.</div>;
+  }
 
   // Update the date of birth when the user selects a new date
   const handleDateChange = (date) => {
@@ -32,49 +45,109 @@ export default function CreateEmployeePage() {
     setJoiningDate(date);
   };
 
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    const form = e.target;
-  
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    // Frontend validation for required dropdowns and dates
+    if (!gender) {
+      setError("Gender is required.");
+      setLoading(false);
+      return;
+    }
+    if (!dateOfBirth) {
+      setError("Date of Birth is required.");
+      setLoading(false);
+      return;
+    }
+    if (!maritalStatus) {
+      setError("Marital Status is required.");
+      setLoading(false);
+      return;
+    }
+    if (!officeAddress) {
+      setError("Office Address is required.");
+      setLoading(false);
+      return;
+    }
+    if (!paymentMode) {
+      setError("Payment Mode is required.");
+      setLoading(false);
+      return;
+    }
+    if (!employmentType) {
+      setError("Employment Type is required.");
+      setLoading(false);
+      return;
+    }
+    if (!joiningDate) {
+      setError("Joining Date is required.");
+      setLoading(false);
+      return;
+    }
+
+    // Build the full employee data object
     const employeeData = {
-      employeeId: form.employeeId.value,
-      firstName: form.firstname.value,
-      lastName: form.lastname.value,
+      employeeId: e.target.employeeId.value,
+      firstName: e.target.firstname.value,
+      lastName: e.target.lastname.value,
       gender,
-      dateOfBirth,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth).toISOString() : null,
       maritalStatus,
-      email: form.email.value,
-      phone: form.phone.value,
-      address: form.address.value,
-      aadhaarNumber: form.aadhaarNumber.value,
-      panNumber: form.panNumber.value,
-      fatherName: form.fatherName.value,
-      motherName: form.motherName.value,
+      email: e.target.email.value,
+      phone: e.target.phone.value ? Number(e.target.phone.value) : null,
+      address: e.target.address.value,
+      aadhaarNumber: e.target.aadhaarNumber.value ? Number(e.target.aadhaarNumber.value) : null,
+      panNumber: e.target.panNumber.value,
+      fatherName: e.target.fatherName.value,
+      motherName: e.target.motherName.value,
       officeAddress,
-      department: form.department.value,
-      position: form.position.value,
-      salary: parseFloat(form.salary.value),
+      department: e.target.department.value,
+      position: e.target.position.value,
+      salary: e.target.salary.value ? Number(e.target.salary.value) : null,
       paymentMode,
-      bankName: form.bankName.value,
-      bankAccountNumber: form.bankAccountNumber.value,
-      bankIFSCCode: form.bankIFSCCode.value,
+      bankName: e.target.bankName.value,
+      bankAccountNumber: e.target.bankAccountNumber.value ? Number(e.target.bankAccountNumber.value) : null,
+      bankIFSCCode: e.target.bankIFSCCode.value,
       employmentType,
-      reportingSupervisor: form.reportingSupervisor.value,
-      joiningDate,
-      emergencyContactName: form.emergencyContactName.value,
-      emergencyContactNumber: form.emergencyContactNumber.value,
+      reportingSupervisor: e.target.reportingSupervisor.value,
+      joiningDate: joiningDate ? new Date(joiningDate).toISOString() : null,
+      emergencyContactName: e.target.emergencyContactName.value,
+      emergencyContactNumber: e.target.emergencyContactNumber.value ? Number(e.target.emergencyContactNumber.value) : null,
     };
-    
+
     try {
+      console.log('Submitting employeeData:', employeeData); // Debug: log all fields
       const res = await apiClient.createEmployee(employeeData);
-      console.log("Employee creation requested", res);
-      if (res.message === "Employee created") {
-        console.log("Employee created successfully");
-        alert("Employee created successfully");
-      }
+      setSuccess('Employee created successfully!');
+      setError(null);
+      // Optionally reset form fields here
     } catch (err) {
-      console.error("Error creating employee", err);
+      console.error('API error:', err);
+      let errorMsg = 'Error creating employee.';
+      if (err?.data) {
+        if (err.data.message) errorMsg += ' ' + err.data.message;
+        if (err.data.errors) {
+          if (Array.isArray(err.data.errors)) {
+            errorMsg += ' ' + err.data.errors.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+          } else if (typeof err.data.errors === 'object') {
+            errorMsg += ' ' + Object.values(err.data.errors).join(', ');
+          }
+        }
+      } else if (err?.message) {
+        errorMsg += ' ' + err.message;
+      } else {
+        errorMsg += ' An unknown error occurred.';
+      }
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -344,8 +417,6 @@ export default function CreateEmployeePage() {
           <JoinDate onDateChange={handleJoinDateChange} selected={joiningDate} onChange={setJoiningDate}/>
         </LabelInputContainer>
 
-
-
         <button
           className="group/btn relative block mt-8 h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset]"
           type="submit"
@@ -356,6 +427,8 @@ export default function CreateEmployeePage() {
 
         <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
       </form>
+      {error && <div style={{color:'red'}}>{error}</div>}
+      {success && <div style={{color:'green'}}>{success}</div>}
     </div>
   );
 }

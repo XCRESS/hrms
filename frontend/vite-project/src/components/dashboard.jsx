@@ -18,8 +18,22 @@ import {
 } from "lucide-react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
+import LeaveRequestModal from "./LeaveRequestModal";
+import HelpDeskModal from "./HelpDeskModal";
+import { useTheme } from '../contexts/ThemeContext';
+import { useToast } from "./ui/toast.jsx";
+import RegularizationModal from "./dashboard/RegularizationModal";
 
-// Mock data (remains the same)
+// Import dashboard components from their subdirectory
+import Header from './dashboard/Header';
+import ActionButtons from './dashboard/ActionButtons';
+import AttendanceStats from './dashboard/AttendanceStats';
+import AttendanceTable from './dashboard/AttendanceTable'; 
+import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
+import WeeklySummary from './dashboard/WeeklySummary';
+import UpdatesSidebar from './dashboard/UpdatesSidebar';
+
+// Mock data for initial rendering only - will be replaced with real data from API
 const mockAttendanceData = [
   { status: "present", date: new Date(2025, 4, 6), checkIn: new Date(2025, 4, 6, 9, 5), checkOut: new Date(2025, 4, 6, 17, 30), reason: "" },
   { status: "present", date: new Date(2025, 4, 5), checkIn: new Date(2025, 4, 5, 8, 55), checkOut: new Date(2025, 4, 5, 18, 0), reason: "" },
@@ -37,266 +51,66 @@ const holidays = [
   { date: "May 27, 2025", name: "Memorial Day" },
 ];
 
-const DARK_MODE_KEY = 'hrms_dark_theme_professional_v2'; // Updated key for the new theme
-
-const applyDarkModeToDocument = (isDark) => {
-  if (isDark) {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
-};
-
-// --- Leave Request Modal ---
-const LeaveRequestModal = ({ isOpen, onClose, onSubmit }) => {
-  const [leaveType, setLeaveType] = useState("full-day");
-  const [leaveDate, setLeaveDate] = useState("");
-  const [leaveReason, setLeaveReason] = useState("");
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({ leaveType, leaveDate, leaveReason });
-    setLeaveType("full-day");
-    setLeaveDate("");
-    setLeaveReason("");
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Request Leave</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="leaveType" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Leave Type</label>
-            <div className="relative">
-              <select
-                id="leaveType"
-                value={leaveType}
-                onChange={(e) => setLeaveType(e.target.value)}
-                className="w-full appearance-none bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 pr-8"
-              >
-                <option value="full-day">Full Day</option>
-                <option value="half-day">Half Day</option>
-                <option value="sick-leave">Sick Leave</option>
-                <option value="vacation">Vacation</option>
-                <option value="personal">Personal Leave</option>
-              </select>
-              <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="leaveDate" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date</label>
-            <input
-              id="leaveDate"
-              type="date"
-              value={leaveDate}
-              onChange={(e) => setLeaveDate(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="leaveReason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason</label>
-            <textarea
-              id="leaveReason"
-              value={leaveReason}
-              onChange={(e) => setLeaveReason(e.target.value)}
-              placeholder="Provide a brief reason for your leave..."
-              rows="4"
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
-              required
-            />
-          </div>
-
-          <div className="flex justify-end items-center gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700/80 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:bg-cyan-500 dark:hover:bg-cyan-600 dark:focus:ring-cyan-700 rounded-lg transition-colors"
-            >
-              Submit Request
-            </button>
-          </div>
-        </form>
-      </div>
-      <style jsx global>{`
-        @keyframes modal-pop-in {
-          0% { transform: scale(0.95); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-modal-pop-in {
-          animation: modal-pop-in 0.3s ease-out forwards;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// --- Help Desk Modal ---
-const HelpDeskModal = ({ isOpen, onClose, onSubmit }) => {
-  const [inquiryTitle, setInquiryTitle] = useState("");
-  const [inquiryMessage, setInquiryMessage] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [isAnonymous, setIsAnonymous] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({ title: inquiryTitle, message: inquiryMessage, file: selectedFile, isAnonymous });
-    setInquiryTitle("");
-    setInquiryMessage("");
-    setSelectedFile(null);
-    setIsAnonymous(false);
-  };
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Submit an Inquiry</h2>
-           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="inquiryTitleModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Title</label>
-            <input
-              id="inquiryTitleModal"
-              type="text"
-              value={inquiryTitle}
-              onChange={(e) => setInquiryTitle(e.target.value)}
-              placeholder="e.g., Payroll issue, IT support"
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="inquiryMessageModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Message</label>
-            <textarea
-              id="inquiryMessageModal"
-              value={inquiryMessage}
-              onChange={(e) => setInquiryMessage(e.target.value)}
-              placeholder="Describe your issue or question in detail..."
-              rows="4"
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="fileAttachmentModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Attach File (Optional)</label>
-            <label
-              htmlFor="fileAttachmentInputModal"
-              className="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600/70 transition-colors"
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-8 h-8 mb-2 text-gray-500 dark:text-slate-400" />
-                <p className="mb-1 text-sm text-gray-500 dark:text-slate-400">
-                  <span className="font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-xs text-gray-500 dark:text-slate-500">PNG, JPG, PDF (MAX. 5MB)</p>
-              </div>
-              <input id="fileAttachmentInputModal" type="file" className="hidden" onChange={handleFileChange} />
-            </label>
-            {selectedFile && <p className="mt-2 text-xs text-gray-600 dark:text-slate-400">Selected: {selectedFile.name}</p>}
-          </div>
-
-          <div className="flex items-center">
-            <input
-              id="anonymousCheckModal"
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="w-4 h-4 text-cyan-600 bg-gray-100 border-gray-300 rounded focus:ring-cyan-500 dark:focus:ring-cyan-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
-            />
-            <label htmlFor="anonymousCheckModal" className="ml-2 text-sm font-medium text-gray-900 dark:text-slate-300">Submit Anonymously</label>
-          </div>
-
-          <div className="flex justify-end items-center gap-3 pt-4">
-             <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700/80 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:bg-cyan-500 dark:hover:bg-cyan-600 dark:focus:ring-cyan-700 rounded-lg transition-colors"
-            >
-              Send Inquiry
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-
 export default function HRMSDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkOutLoading, setCheckOutLoading] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [helpLoading, setHelpLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("announcements");
-  const [darkMode, setDarkMode] = useState(false); // Default to false, will be updated by useEffect
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [holidaysData, setHolidaysData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); // Track initial loading state
+  const [dailyCycleComplete, setDailyCycleComplete] = useState(false);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [helpInquiries, setHelpInquiries] = useState([]); // Add state for help inquiries
+  const [loadingLeaveRequests, setLoadingLeaveRequests] = useState(false);
+  const [loadingHelpInquiries, setLoadingHelpInquiries] = useState(false); // Add loading state for help inquiries
+  const [showRegularizationModal, setShowRegularizationModal] = useState(false);
+  const [regularizationRequests, setRegularizationRequests] = useState([]);
   const user = useAuth();
   const username = user?.name || "User";
+  const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
 
+  // Initialize and load data
   useEffect(() => {
-    const savedMode = localStorage.getItem(DARK_MODE_KEY);
-    let newModeIsDark;
-    if (savedMode !== null) {
-      newModeIsDark = savedMode === 'true';
-    } else {
-      newModeIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      localStorage.setItem(DARK_MODE_KEY, newModeIsDark.toString());
+    async function initializeData() {
+      try {
+        setIsLoading(true);
+        
+        // Try to connect to the server
+        const isServerAvailable = await apiClient.pingServer();
+        
+        if (!isServerAvailable) {
+          toast({
+            id: "server-unavailable",
+            variant: "error",
+            title: "Server Unavailable",
+            description: "Cannot connect to the server. Please try again later."
+          });
+        } else {
+          // Server is available, proceed with initialization
+          console.log("Server available, loading data");
+        }
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        toast({
+          id: "init-error",
+          variant: "error",
+          title: "Initialization Error",
+          description: "Failed to initialize the application."
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
-    setDarkMode(newModeIsDark);
-    applyDarkModeToDocument(newModeIsDark);
-  }, []);
-
-  const toggleDarkMode = () => {
-    const newDarkModeValue = !darkMode;
-    setDarkMode(newDarkModeValue);
-    localStorage.setItem(DARK_MODE_KEY, newDarkModeValue.toString());
-    applyDarkModeToDocument(newDarkModeValue);
-  };
+    
+    initializeData();
+  }, [toast]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -305,30 +119,595 @@ export default function HRMSDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const currentMonth = currentTime.getMonth();
-  const currentYear = currentTime.getFullYear();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  // Load data when initialization is complete
+  useEffect(() => {
+    // Don't attempt to load data if we're still initializing
+    if (isLoading) return;
+    
+    // For now, simulate check-in status - replace with actual API call
+    const checkInStatus = localStorage.getItem('isCheckedIn') === 'true';
+    setIsCheckedIn(checkInStatus);
+    
+    // Load data from API
+    console.log("Initial data loading - attempting to connect to backend database");
+    
+    const loadAllData = async () => {
+      try {
+        await Promise.all([
+          loadAttendanceData(),
+          loadHolidays(),
+          loadLeaveRequests(),
+          loadHelpInquiries(),
+          loadRegularizationRequests(),
+        ]);
+        console.log("Initial data loading complete");
+      } catch (error) {
+        console.error("Error during initial data loading:", error);
+        // Individual load functions will handle their own errors
+      }
+    };
+    
+    loadAllData();
+  }, [isLoading]);
+
+  // Check for daily cycle completion in local storage
+  useEffect(() => {
+    const cycleComplete = localStorage.getItem('dailyCycleComplete') === 'true';
+    setDailyCycleComplete(cycleComplete);
+    
+    // Reset the cycle on a new day
+    const resetDailyCycle = () => {
+      const now = new Date();
+      const lastReset = localStorage.getItem('lastCycleReset');
+      const today = now.toDateString();
+      
+      if (lastReset !== today) {
+        localStorage.setItem('dailyCycleComplete', 'false');
+        localStorage.setItem('isCheckedIn', 'false');
+        localStorage.setItem('lastCycleReset', today);
+        setDailyCycleComplete(false);
+        setIsCheckedIn(false);
+      }
+    };
+    
+    // Call immediately and set up interval to check periodically
+    resetDailyCycle();
+    const interval = setInterval(resetDailyCycle, 5 * 60 * 1000); // Check every 5 minutes
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadAttendanceData = async () => {
+    try {
+      // API call for attendance data
+      let params = { limit: 10 };
+      if (user && user.role === 'employee' && user.employeeId) {
+        params.employeeId = user.employeeId;
+      }
+      const response = await apiClient.getAttendanceRecords(params);
+      if (response.success && response.data && response.data.records && response.data.records.length > 0) {
+        setAttendanceData(response.data.records.map(record => ({
+          ...record,
+          date: new Date(record.date),
+          checkIn: record.checkIn ? new Date(record.checkIn) : null,
+          checkOut: record.checkOut ? new Date(record.checkOut) : null
+        })));
+      } else {
+        setAttendanceData([]);
+        toast({
+          id: "attendance-empty-" + new Date().getTime(),
+          variant: "warning",
+          title: "No Attendance Records",
+          description: "No attendance records found"
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load attendance data:", error);
+      if (error.status === 401 || error.status === 403) {
+        toast({
+          id: "auth-error-attendance",
+          variant: "warning",
+          title: "Authentication Error",
+          description: "Please log in again to access your data"
+        });
+      } else {
+        toast({
+          id: "attendance-error-fetch",
+          variant: "error",
+          title: "Failed to Fetch Data",
+          description: "Could not load attendance records"
+        });
+      }
+      setAttendanceData([]);
+    }
+  };
   
-  const presentDays = mockAttendanceData.filter(day => day.status === "present").length;
-  const absentDays = mockAttendanceData.filter(day => day.status === "absent").length;
-  const halfDays = mockAttendanceData.filter(day => day.status === "half-day").length;
-  const holidaysCount = holidays.length;
-
-  const handleCheckIn = async () => { setIsCheckedIn(true); console.log("Checked In"); };
-  const handleCheckOut = async () => { setIsCheckedIn(false); console.log("Checked Out"); };
-
-  const handleLeaveRequestSubmit = (data) => {
-    console.log("Leave request submitted:", data);
-    setShowLeaveModal(false);
+  const loadHolidays = async () => {
+    try {
+      // API call for holidays
+      const response = await apiClient.getHolidays();
+      if (response.success && response.data && response.data.holidays && response.data.holidays.length > 0) {
+        setHolidaysData(response.data.holidays);
+      } else {
+        // If no data is returned, use initial empty state
+        setHolidaysData([]);
+      }
+    } catch (error) {
+      console.error("Failed to load holidays:", error);
+      
+      // Show error only if it's not an authentication error (which is already shown)
+      if (error.status !== 401 && error.status !== 403) {
+        toast({
+          id: "holidays-error",
+          variant: "warning",
+          title: "Failed to Load Holidays",
+          description: "Could not load holiday data"
+        });
+      }
+      
+      // Set empty array if error
+      setHolidaysData([]);
+    }
   };
 
-  const handleHelpInquirySubmit = (data) => {
-    console.log("Inquiry submitted:", data);
-    setShowHelpModal(false);
+  const loadLeaveRequests = async () => {
+    try {
+      setLoadingLeaveRequests(true);
+      console.log("Loading leave requests");
+      
+      // Attempt to fetch leave requests from the database
+      try {
+        console.log("Attempting to fetch leave requests from database");
+        const response = await apiClient.getMyLeaves();
+        console.log("Leave API response:", response);
+        
+        // Check for different response structures (leaves vs data field)
+        const leavesData = response.leaves || (response.data ? response.data.leaves || response.data : null);
+        
+        if (response && response.success && leavesData) {
+          console.log("SUCCESS: Received leave data from API:", leavesData);
+          
+          // Format dates from string to Date objects
+          const formattedLeaves = leavesData.map(leave => ({
+            ...leave,
+            leaveDate: new Date(leave.leaveDate || leave.date || Date.now()),
+            createdAt: new Date(leave.createdAt || leave.created_at || leave.requestDate || Date.now())
+          }));
+          
+          // Use the data from the server
+          setLeaveRequests(formattedLeaves);
+        } else {
+          console.warn("API response was successful but lacks expected data structure:", response);
+          // Set empty array
+          setLeaveRequests([]);
+        }
+      } catch (error) {
+        console.error("Error fetching leaves from API:", error, "Status:", error.status);
+        
+        // Show appropriate error message
+        if (error.status === 401 || error.status === 403) {
+          console.warn("Authentication error");
+          
+          // Special case for missing employee ID
+          if (error.message && error.message.includes("Employee ID missing")) {
+            toast({
+              id: "missing-employee-id-leave",
+              variant: "warning",
+              title: "Profile Incomplete",
+              description: "Your employee profile is incomplete. Please contact HR to update your profile."
+            });
+          } else {
+            toast({
+              id: "auth-error-leave",
+              variant: "warning",
+              title: "Authentication Issue",
+              description: "Please log in again to access your data"
+            });
+          }
+        } else {
+          console.warn("Failed to fetch leave data");
+          toast({
+            id: "server-error-leave",
+            variant: "error",
+            title: "Connection Failed",
+            description: "Could not connect to the server. Please try again later."
+          });
+        }
+        
+        // Set empty array
+        setLeaveRequests([]);
+      }
+    } catch (error) {
+      console.error("Critical error loading leave requests:", error);
+      // Set empty array
+      setLeaveRequests([]);
+    } finally {
+      setLoadingLeaveRequests(false);
+    }
+  };
+
+  const loadHelpInquiries = async () => {
+    try {
+      setLoadingHelpInquiries(true);
+      console.log("Loading help inquiries");
+      
+      // Attempt to fetch help inquiries from database
+      try {
+        console.log("Attempting to fetch help inquiries from database");
+        const response = await apiClient.getMyInquiries();
+        console.log("Help API response:", response);
+        
+        // Check for different response structures (data vs inquiries field)
+        const inquiriesData = response.inquiries || (response.data ? response.data.inquiries || response.data : null);
+        
+        if (response && response.success && inquiriesData) {
+          console.log("SUCCESS: Received help data from API:", inquiriesData);
+          
+          // Format dates from string to Date objects
+          const formattedInquiries = inquiriesData.map(inquiry => ({
+            ...inquiry,
+            createdAt: new Date(inquiry.createdAt || inquiry.created_at || inquiry.date || Date.now())
+          }));
+          
+          // Use the data from the server
+          setHelpInquiries(formattedInquiries);
+        } else {
+          console.warn("API response was successful but lacks expected data structure:", response);
+          // Set empty array
+          setHelpInquiries([]);
+        }
+      } catch (error) {
+        console.error("Error fetching help inquiries from API:", error, "Status:", error.status);
+        
+        // Show appropriate error message
+        if (error.status === 401 || error.status === 403) {
+          console.warn("Authentication error");
+          
+          // Special case for missing employee ID
+          if (error.message && error.message.includes("Employee ID missing")) {
+            toast({
+              id: "missing-employee-id-help",
+              variant: "warning",
+              title: "Profile Incomplete",
+              description: "Your employee profile is incomplete. Please contact HR to update your profile."
+            });
+          } else {
+            toast({
+              id: "auth-error-help",
+              variant: "warning",
+              title: "Authentication Issue",
+              description: "Please log in again to access your data"
+            });
+          }
+        } else {
+          console.warn("Failed to fetch help data");
+          toast({
+            id: "server-error-help",
+            variant: "error", 
+            title: "Connection Failed",
+            description: "Could not connect to the server. Please try again later."
+          });
+        }
+        
+        // Set empty array
+        setHelpInquiries([]);
+      }
+    } catch (error) {
+      console.error("Critical error loading help inquiries:", error);
+      // Set empty array
+      setHelpInquiries([]);
+    } finally {
+      setLoadingHelpInquiries(false);
+    }
+  };
+
+  const loadRegularizationRequests = async () => {
+    try {
+      const res = await apiClient.getMyRegularizations();
+      setRegularizationRequests(res.regs || []);
+    } catch (err) {
+      setRegularizationRequests([]);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      console.log('Check in clicked');
+      setCheckInLoading(true);
+      
+      try {
+        const response = await apiClient.checkIn();
+        
+        if (response.success) {
+          setIsCheckedIn(true);
+          localStorage.setItem('isCheckedIn', 'true');
+          
+          toast({
+            id: "checkin-success-" + new Date().getTime(),
+            variant: "success",
+            title: "Checked In",
+            description: "You have successfully checked in for today."
+          });
+          
+          // Refresh attendance data
+          loadAttendanceData();
+        }
+      } catch (apiError) {
+        // Handle validation errors (like already checked in)
+        if (apiError.isValidationError || apiError.isExpectedValidation || apiError.message === "Already checked in for today") {
+          let description = apiError.message || "You have already checked in for today.";
+          if (apiError.message === "No linked employee profile found for user") {
+            description = "Your user account is not linked to an employee profile. Please contact HR.";
+          }
+          toast({
+            id: "checkin-validation-" + new Date().getTime(),
+            variant: "warning",
+            title: "Check-in Issue",
+            description
+          });
+          setIsCheckedIn(true);
+          localStorage.setItem('isCheckedIn', 'true');
+        } 
+        // Handle other errors
+        else {
+          console.error("Check-in error:", apiError);
+          toast({
+            id: "checkin-api-error-" + new Date().getTime(),
+            variant: "error",
+            title: "Check-in Failed",
+            description: apiError.message || "Failed to check in. Please try again."
+          });
+        }
+      }
+    } catch (error) {
+      // Only log truly unexpected errors
+      console.error("Critical check-in error:", error);
+      
+      toast({
+        id: "checkin-critical-error-" + new Date().getTime(),
+        variant: "error",
+        title: "Check-in Error",
+        description: "An unexpected error occurred."
+      });
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+  
+  const handleCheckOut = async () => {
+    if (!canCheckInOut) {
+      console.log('Check out not allowed: user not linked to employee or not an employee role.');
+      // Optionally, show a toast message to the user
+      toast({
+        id: "checkout-not-allowed-" + new Date().getTime(),
+        variant: "warning",
+        title: "Check-out Not Allowed",
+        description: "Only employees with a linked profile can check out."
+      });
+      return;
+    }
+    try {
+      console.log('Dashboard: Check out clicked'); // Renamed log for clarity
+      setCheckOutLoading(true);
+      
+      try {
+        const response = await apiClient.checkOut();
+        
+        if (response.success) {
+          setIsCheckedIn(false);
+          localStorage.setItem('isCheckedIn', 'false');
+          // Mark daily cycle as complete
+          setDailyCycleComplete(true);
+          localStorage.setItem('dailyCycleComplete', 'true');
+          
+          toast({
+            id: "checkout-success-" + new Date().getTime(),
+            variant: "success",
+            title: "Checked Out",
+            description: "You have successfully checked out for today."
+          });
+          
+          // Refresh attendance data
+          loadAttendanceData();
+        } else {
+          // Handle cases where API call is not successful but not an error (e.g. custom backend message)
+          toast({
+            id: "checkout-api-fail-" + new Date().getTime(),
+            variant: "warning",
+            title: "Check-out Issue",
+            description: response.message || "Could not complete check-out."
+          });
+        }
+      } catch (apiError) {
+        // Handle API errors (network, server, validation)
+        let description = apiError.message || "There was an issue with your check-out.";
+        if (apiError.message === "No linked employee profile found for user") {
+          description = "Your user account is not linked to an employee profile. Please contact HR.";
+        }
+        if (apiError.message === "No check-in record found for today") {
+          toast({
+            id: "checkout-validation-no-checkin-" + new Date().getTime(),
+            variant: "warning",
+            title: "Not Checked In",
+            description
+          });
+        } else if (apiError.message === "Already checked out for today") {
+          setIsCheckedIn(false);
+          localStorage.setItem('isCheckedIn', 'false');
+          setDailyCycleComplete(true);
+          localStorage.setItem('dailyCycleComplete', 'true');
+          toast({
+            id: "checkout-validation-already-out-" + new Date().getTime(),
+            variant: "warning",
+            title: "Already Checked Out",
+            description
+          });
+        } else {
+          toast({
+            id: "checkout-api-error-" + new Date().getTime(),
+            variant: "error",
+            title: "Check-out Failed",
+            description
+          });
+        }
+        console.error("Check-out error:", apiError);
+      }
+    } catch (error) {
+      // Only log truly unexpected errors
+      console.error("Critical check-out error:", error);
+      
+      toast({
+        id: "checkout-critical-error-" + new Date().getTime(),
+        variant: "error",
+        title: "Check-out Error",
+        description: "An unexpected error occurred."
+      });
+    } finally {
+      setCheckOutLoading(false);
+    }
+  };
+
+  const handleLeaveRequestSubmit = async (data) => {
+    try {
+      setLeaveLoading(true);
+      
+      const response = await apiClient.requestLeave(data);
+      
+      console.log("Leave request submitted:", response);
+      
+      toast({
+        id: "leave-success-" + new Date().getTime(),
+        variant: "success",
+        title: "Leave Request Submitted",
+        description: "Your leave request has been submitted successfully."
+      });
+      
+      // Refresh leave requests to show the new one
+      loadLeaveRequests();
+      
+      setShowLeaveModal(false);
+    } catch (error) {
+      console.error("Leave request failed:", error);
+      
+      toast({
+        id: "leave-error-" + new Date().getTime(),
+        variant: "error",
+        title: "Leave Request Failed",
+        description: error.message || "Failed to submit leave request. Please try again."
+      });
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
+  const handleHelpInquirySubmit = async (data) => {
+    try {
+      setHelpLoading(true);
+      
+      // Submit inquiry via API
+      const inquiryData = {
+        title: data.title,
+        message: data.message,
+        category: data.category || "technical",
+        priority: data.priority || "medium"
+      };
+      
+      const response = await apiClient.submitHelpInquiry(inquiryData);
+      
+      // Load updated help inquiries
+      loadHelpInquiries();
+      
+      toast({
+        id: "help-success-" + new Date().getTime(),
+        variant: "success",
+        title: "Inquiry Submitted",
+        description: "Your help desk inquiry has been successfully submitted."
+      });
+      
+      // Close modal after submission
+      setShowHelpModal(false);
+    } catch (error) {
+      console.error("Help inquiry submission failed:", error);
+      
+      toast({
+        id: "help-error-submit-" + new Date().getTime(),
+        variant: "error",
+        title: "Submission Failed",
+        description: error.message || "Failed to submit help inquiry. Please try again."
+      });
+    } finally {
+      setHelpLoading(false);
+    }
+  };
+
+  const retryConnection = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Check if the backend server is available
+      const isAvailable = await apiClient.pingServer();
+      
+      if (isAvailable) {
+        toast({
+          id: "server-reconnected-" + Date.now(),
+          variant: "success",
+          title: "Connected to Server",
+          description: "Successfully connected to the backend server."
+        });
+        
+        // Clear out old data
+        setLeaveRequests([]);
+        setHelpInquiries([]);
+        
+        // Reload all data after successful connection
+        await Promise.all([
+          loadAttendanceData(),
+          loadHolidays(),
+          loadLeaveRequests(),
+          loadHelpInquiries()
+        ]);
+        
+        console.log("Data refreshed from the server successfully");
+      } else {
+        toast({
+          id: "server-unavailable-" + Date.now(),
+          variant: "error",
+          title: "Connection Failed",
+          description: "Could not connect to the backend server."
+        });
+        
+        // Clear any existing data since we can't connect
+        setLeaveRequests([]);
+        setHelpInquiries([]);
+      }
+    } catch (error) {
+      console.error("Server retry connection failed:", error);
+      toast({
+        id: "server-error-" + Date.now(),
+        variant: "error",
+        title: "Connection Error",
+        description: error.message || "Failed to connect to server."
+      });
+      
+      // Clear any existing data
+      setLeaveRequests([]);
+      setHelpInquiries([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatDate = (date) => new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date);
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date) : "—";
+
+  const currentMonth = currentTime.getMonth();
+  const currentYear = currentTime.getFullYear();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  
+  const presentDays = attendanceData.filter(day => day.status === "present").length;
+  const absentDays = attendanceData.filter(day => day.status === "absent").length;
+  const halfDays = attendanceData.filter(day => day.status === "half-day").length;
+  const holidaysCount = holidaysData.length;
 
   const calculateAttendancePercentage = () => {
     const workingDays = daysInMonth - holidaysCount;
@@ -336,270 +715,121 @@ export default function HRMSDashboard() {
     return Math.min((presentDays / workingDays) * 100, 100).toFixed(1);
   };
 
+  // Add the leave type formatter helper function
+  const formatLeaveType = (type) => {
+    const types = {
+      "full-day": "Full Day",
+      "half-day": "Half Day",
+      "sick-leave": "Sick Leave",
+      "vacation": "Vacation",
+      "personal": "Personal Leave"
+    };
+    return types[type] || type;
+  };
+
+  // Only show check-in/out for users with a linked employee profile
+  const canCheckInOut = user && (user.employee || user.employeeId);
+
+  // Merge all requests for the LeaveRequestsTable
+  const allRequests = [
+    ...(leaveRequests || []).map(l => ({
+      ...l,
+      type: 'leave',
+      displayDate: l.leaveDate,
+      displayReason: l.leaveReason || l.reason || '',
+      status: l.status || 'pending',
+    })),
+    ...(helpInquiries || []).map(h => ({
+      ...h,
+      type: 'help',
+      displayDate: h.createdAt,
+      displayReason: h.message || h.description || '',
+      status: h.status || 'pending',
+    })),
+    ...(regularizationRequests || []).map(r => ({
+      ...r,
+      type: 'regularization',
+      displayDate: r.date,
+      displayReason: r.reason,
+      status: r.status,
+      requestedCheckIn: r.requestedCheckIn,
+      requestedCheckOut: r.requestedCheckOut,
+      reviewComment: r.reviewComment,
+    })),
+  ];
+
   return (
     <div className={`flex w-full min-h-screen bg-gray-100 dark:bg-slate-900 transition-colors duration-300`}>
       <div className="flex-1 flex flex-col">
-        <header className="bg-white dark:bg-slate-800/90 backdrop-blur-md shadow-lg flex items-center justify-between p-4 transition-colors duration-300">
-          <div className="flex items-center">
-            <div className="bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 p-2.5 rounded-full mr-3.5 shadow-sm">
-              <User size={22} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-slate-300">Welcome,</p>
-              <p className="text-lg font-semibold text-cyan-700 dark:text-cyan-400">{username}</p>
-            </div>
-          </div>
-          
-          <div className="hidden md:flex items-center justify-center space-x-3 bg-gray-50 dark:bg-slate-700/60 px-5 py-2.5 rounded-xl shadow-inner">
-            <Clock size={22} className="text-cyan-600 dark:text-cyan-400" />
-            <div className="text-center">
-              <p className="text-base font-semibold text-gray-800 dark:text-slate-100">{formatTime(currentTime)}</p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">{formatDate(currentTime)}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <button 
-              onClick={handleCheckIn} 
-              disabled={isCheckedIn}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 whitespace-nowrap ${isCheckedIn 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-slate-600 dark:text-slate-400' 
-                : 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-400'}`}
-            >
-              <CheckCircle size={18} className="mr-2" />
-              Check In
-            </button>
-            
-            <button 
-              onClick={handleCheckOut} 
-              disabled={!isCheckedIn}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 whitespace-nowrap ${!isCheckedIn 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-slate-600 dark:text-slate-400' 
-                : 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-400'}`}
-            >
-              <XCircle size={18} className="mr-2" />
-              Check Out
-            </button>
-            
-            <button 
-              onClick={() => setShowLeaveModal(true)}
-              className="hidden sm:inline-block px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-            >
-              Request Leave
-            </button>
-            
-            <button 
-              onClick={() => setShowLeaveModal(true)}
-              title="Request Leave"
-              className="sm:hidden p-2.5 text-gray-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-gray-100 dark:bg-slate-700 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900"
-            >
-              <Calendar size={20} />
-            </button>
+        <Header 
+          username={username}
+          currentTime={currentTime}
+          formatDate={formatDate}
+          formatTime={formatTime}
+          isCheckedIn={isCheckedIn}
+          dailyCycleComplete={dailyCycleComplete}
+          checkInLoading={checkInLoading}
+          checkOutLoading={checkOutLoading}
+          handleCheckIn={handleCheckIn}
+          handleCheckOut={handleCheckOut}
+          isLoading={isLoading}
+          retryConnection={retryConnection}
+          theme={theme}
+          toggleTheme={toggleTheme}
+        />
 
-            <button 
-              onClick={() => setShowHelpModal(true)}
-              title="Get Help"
-              className="p-2.5 text-gray-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-gray-100 dark:bg-slate-700 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900"
+        <div className="ml-auto mr-4 mt-4 flex gap-2">
+          {user && (user.role === "employee" || user.role === "hr" || user.role === "admin") && (
+            <button
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors order-1"
+              onClick={() => setShowRegularizationModal(true)}
             >
-              <HelpCircle size={20} />
+              Regularize Attendance
             </button>
-            
-            <button 
-              onClick={toggleDarkMode}
-              title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="p-2.5 text-gray-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-gray-100 dark:bg-slate-700 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-offset-slate-900"
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-          </div>
-        </header>
-
-        <main className="flex-1 p-4 lg:p-6">
+          )}
+          <ActionButtons 
+            setShowLeaveModal={setShowLeaveModal}
+            setShowHelpModal={setShowHelpModal}
+          />
+        </div>
+        
+        <main className="flex-1 p-3 sm:p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             <div className="w-full lg:w-3/4 space-y-4 lg:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
-                {[
-                  { title: "Days this Month", value: daysInMonth, icon: Calendar, color: "cyan", barWidth: '100%' },
-                  { title: "Present Days", value: presentDays, icon: CheckCircle, color: "green", barWidth: `${calculateAttendancePercentage()}%`, subText: `${calculateAttendancePercentage()}% att.` },
-                  { title: "Absent Days", value: absentDays, icon: XCircle, color: "red", barWidth: `${(absentDays / (daysInMonth || 1)) * 100}%` },
-                  { title: "Half Days", value: halfDays, icon: AlertCircle, color: "amber", barWidth: `${(halfDays / (daysInMonth || 1)) * 100}%` },
-                  { title: "Holidays", value: holidaysCount, icon: Calendar, color: "purple", barWidth: `${(holidaysCount / (daysInMonth || 1)) * 100}%` },
-                ].map((card) => {
-                  const Icon = card.icon;
-                  // Define color classes based on light/dark mode and card type
-                  const textClasses = { cyan: "text-cyan-600 dark:text-cyan-400", green: "text-green-600 dark:text-green-400", red: "text-red-600 dark:text-red-400", amber: "text-amber-600 dark:text-amber-400", purple: "text-purple-600 dark:text-purple-400"};
-                  const iconClasses = { cyan: "text-cyan-500 dark:text-cyan-400", green: "text-green-500 dark:text-green-400", red: "text-red-500 dark:text-red-400", amber: "text-amber-500 dark:text-amber-400", purple: "text-purple-500 dark:text-purple-400"};
-                  const barClasses = { cyan: "bg-cyan-500 dark:bg-cyan-500", green: "bg-green-500 dark:bg-green-500", red: "bg-red-500 dark:bg-red-500", amber: "bg-amber-500 dark:bg-amber-500", purple: "bg-purple-500 dark:bg-purple-500"};
-                  
-                  return (
-                    <div key={card.title} className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-                      <div className="flex items-center justify-between mb-3.5">
-                        <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{card.title}</p>
-                        <Icon size={26} className={`${iconClasses[card.color]}`} />
-                      </div>
-                      <p className={`text-3xl font-bold ${textClasses[card.color]}`}>{card.value}</p>
-                      <div className="mt-3.5 h-2 w-full bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className={`h-2 ${barClasses[card.color]} rounded-full transition-all duration-500`} style={{ width: card.barWidth }}></div>
-                      </div>
-                      {card.subText && <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">{card.subText}</p>}
-                    </div>
-                  );
-                })}
-              </div>
+              <AttendanceStats 
+                attendanceData={attendanceData}
+                holidays={holidaysData}
+                formatTime={formatTime}
+                calculateAttendancePercentage={calculateAttendancePercentage}
+              />
               
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl transition-colors duration-200">
-                <div className="p-5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-100">Attendance History</h2>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">Your records for May 2025</p>
-                  </div>
-                  <div className="bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-3.5 py-1.5 rounded-full text-sm font-medium shadow-sm">
-                    May 2025
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="text-left text-sm text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
-                          <th className="py-3.5 px-3 font-semibold">Date</th>
-                          <th className="py-3.5 px-3 font-semibold">Status</th>
-                          <th className="py-3.5 px-3 font-semibold">Check In</th>
-                          <th className="py-3.5 px-3 font-semibold">Check Out</th>
-                          <th className="py-3.5 px-3 font-semibold">Reason</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {mockAttendanceData.map((record, index) => (
-                          <tr key={index} className="border-b border-gray-100 dark:border-slate-700/70 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors text-sm">
-                            <td className="py-3.5 px-3 text-gray-700 dark:text-slate-200">
-                              {new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', weekday: 'short' }).format(record.date)}
-                            </td>
-                            <td className="py-3.5 px-3">
-                              {record.status === "present" && <span className="px-3 py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">Present</span>}
-                              {record.status === "absent" && <span className="px-3 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">Absent</span>}
-                              {record.status === "half-day" && <span className="px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-full text-xs font-semibold">Half Day</span>}
-                            </td>
-                            <td className="py-3.5 px-3 text-gray-600 dark:text-slate-300">{formatTime(record.checkIn)}</td>
-                            <td className="py-3.5 px-3 text-gray-600 dark:text-slate-300">{formatTime(record.checkOut)}</td>
-                            <td className="py-3.5 px-3 text-gray-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={record.reason}>{record.reason || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <AttendanceTable 
+                attendanceData={attendanceData}
+                formatTime={formatTime}
+              />
               
-              {/* Weekly Chart Section Placeholder - Add your chart component or styling here */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-5">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-100 mb-1">Weekly Summary</h2>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Productivity & attendance metrics</p>
-                  <div className="text-center py-8 text-gray-400 dark:text-slate-500">
-                    {/* Replace with actual chart component */}
-                    Chart Data / Visualization Placeholder
-                  </div>
-              </div>
-
+              <LeaveRequestsTable 
+                leaveRequests={allRequests}
+                helpInquiries={[]}
+                loadingLeaveRequests={loadingLeaveRequests || loadingHelpInquiries}
+                onNewRequest={() => setShowLeaveModal(true)}
+                onNewHelpRequest={() => setShowHelpModal(true)}
+                formatLeaveType={formatLeaveType}
+              />
+              
+              <WeeklySummary 
+                attendanceData={attendanceData}
+              />
             </div>
             
             <div className="w-full lg:w-1/4">
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl h-full flex flex-col">
-                <div className="p-5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-100">Updates</h2>
-                  <div className="bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 rounded-full h-8 w-8 flex items-center justify-center text-sm font-bold shadow-sm">
-                    {announcements.length}
-                  </div>
-                </div>
-                <div className="p-1.5">
-                  <div className="flex border-b border-gray-200 dark:border-slate-700 mx-3">
-                    {[ {id: 'announcements', label: 'News'}, {id: 'holidays', label: 'Holidays'}, {id: 'activity', label: 'Activity'} ].map(tab => (
-                      <button 
-                        key={tab.id}
-                        className={`flex-1 px-2 py-3.5 text-sm font-medium transition-all duration-200 focus:outline-none rounded-t-md ${activeTab === tab.id 
-                          ? 'border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400 dark:border-cyan-400 bg-cyan-50/50 dark:bg-cyan-500/5' 
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}
-                        onClick={() => setActiveTab(tab.id)}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="p-4 overflow-y-auto" style={{maxHeight: 'calc(100vh - 480px)'}}> {/* Adjust max-h if needed */}
-                     {activeTab === 'announcements' && (
-                      <div className="space-y-4">
-                        {announcements.map((ann) => (
-                          <div key={ann.id} className="p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 cursor-pointer shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                            <div className="flex justify-between items-start mb-1">
-                              <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-sm leading-snug">{ann.title}</h4>
-                              <span className="ml-2 flex-shrink-0 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-xs px-2.5 py-1 rounded-full font-medium">New</span>
-                            </div>
-                            <p className="text-xs text-gray-600 dark:text-slate-400 mb-2 leading-relaxed">{ann.content}</p>
-                            <div className="flex justify-between items-center">
-                              <p className="text-xs text-gray-400 dark:text-slate-500">{ann.date}</p>
-                              <button className="text-cyan-600 dark:text-cyan-400 text-xs hover:underline font-semibold">Read more</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                     {activeTab === 'holidays' && (
-                      <div className="space-y-3.5">
-                        {holidays.map((holiday, index) => (
-                          <div key={index} className="p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                            <div>
-                              <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-sm">{holiday.name}</h4>
-                              <p className="text-xs text-gray-500 dark:text-slate-400">{holiday.date}</p>
-                            </div>
-                            <div className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 p-2.5 rounded-full shadow-sm">
-                              <Calendar size={18} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {activeTab === 'activity' && (
-                       <div className="space-y-4">
-                        {[
-                          { text: `You checked in at 9:05 AM`, time: 'Today', initials: username.charAt(0).toUpperCase(), theme: 'cyan' },
-                          { text: `Your leave request was approved`, time: 'Yesterday', initials: username.charAt(0).toUpperCase(), theme: 'cyan' },
-                          { text: `HR updated company policy`, time: '2 days ago', initials: 'HR', theme: 'green' },
-                        ].map((activity, index) => (
-                          <div key={index} className="p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                            <div className="flex items-start gap-3.5">
-                              <div className={`
-                                ${activity.theme === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' : 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-300'} 
-                                rounded-full w-9 h-9 flex items-center justify-center flex-shrink-0 text-sm font-semibold shadow-sm`}>
-                                {activity.initials}
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-700 dark:text-slate-200 leading-snug">{activity.text}</p>
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{activity.time}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                         <div className="pt-2 text-center">
-                          <button className="text-cyan-600 dark:text-cyan-400 text-sm hover:underline font-semibold py-2">View All Activities</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="border-t border-gray-200 dark:border-slate-700 p-4 mt-auto">
-                  <div className="bg-cyan-50 dark:bg-cyan-500/10 border-l-4 border-cyan-500 dark:border-cyan-400 p-4 rounded-md shadow-md">
-                    <div className="flex items-center">
-                      <Bell size={20} className="text-cyan-600 dark:text-cyan-400 mr-3" />
-                      <h3 className="font-semibold text-cyan-800 dark:text-cyan-300 text-sm">Meeting Reminder</h3>
-                    </div>
-                    <p className="text-sm text-cyan-700 dark:text-cyan-300/90 mt-1.5">Team standup at 10:00 AM today</p>
-                    <div className="mt-3.5 flex gap-2.5">
-                      <button className="text-xs px-3.5 py-1.5 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors focus:outline-none focus:ring-2 ring-offset-2 dark:ring-offset-slate-800 focus:ring-cyan-500 shadow-sm">Join</button>
-                      <button className="text-xs px-3.5 py-1.5 border border-cyan-500 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400 rounded-md hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors focus:outline-none focus:ring-2 ring-offset-2 dark:ring-offset-slate-800 focus:ring-cyan-500">Snooze</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <UpdatesSidebar 
+                announcements={announcements}
+                holidays={holidaysData}
+                username={username}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
             </div>
           </div>
         </main>
@@ -609,11 +839,23 @@ export default function HRMSDashboard() {
         isOpen={showLeaveModal} 
         onClose={() => setShowLeaveModal(false)}
         onSubmit={handleLeaveRequestSubmit} 
+        isLoading={leaveLoading}
       />
       <HelpDeskModal 
         isOpen={showHelpModal}
         onClose={() => setShowHelpModal(false)}
         onSubmit={handleHelpInquirySubmit}
+        isLoading={helpLoading}
+      />
+      <RegularizationModal 
+        isOpen={showRegularizationModal} 
+        onClose={() => setShowRegularizationModal(false)}
+        onSuccess={() => toast({
+          id: "regularization-success-" + new Date().getTime(),
+          variant: "success",
+          title: "Regularization Request Submitted",
+          description: "Your attendance regularization request has been submitted."
+        })}
       />
     </div>
   );
