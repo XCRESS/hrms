@@ -6,8 +6,21 @@ import cors from "cors";
 dotenv.config();
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://hrms-jx26.vercel.app" // <-- Replace with your actual Vercel domain
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
+}));
 
 mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log("MongoDB connected"))
