@@ -36,6 +36,66 @@ export default function SidebarDemo() {
         <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
       ),
     },
+    // HR/admin links
+    ...(() => {
+      try {
+        if (user && (user.role === "hr" || user.role === "admin")) {
+          return [
+            {
+              label: "Employees",
+              href: "/employee",
+              icon: <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />,
+            },
+            {
+              label: "Add Employee",
+              href: "/employee/create",
+              icon: <IconUserBolt className="h-5 w-5 shrink-0 text-green-700 dark:text-green-300" />,
+            },
+            {
+              label: "Link User & Employee",
+              href: "/employee/link",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-orange-700 dark:text-orange-300" />,
+            },
+            {
+              label: "Leave Requests",
+              href: "/leaves/all",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" />,
+            },
+            {
+              label: "Help Desk",
+              href: "/help/all",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-purple-700 dark:text-purple-300" />,
+            },
+            {
+              label: "Holidays",
+              href: "/holidays/manage",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-yellow-700 dark:text-yellow-300" />,
+            },
+            {
+              label: "Announcements",
+              href: "/announcements/manage",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-pink-700 dark:text-pink-300" />,
+            },
+            {
+              label: "Attendance Regularization",
+              href: "/regularization/all",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-300" />,
+            },
+          ];
+        } else if (user && user.role === "employee") {
+          return [
+            {
+              label: "My Regularizations",
+              href: "/regularization/my",
+              icon: <IconSettings className="h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-300" />,
+            },
+          ];
+        }
+      } catch (err) {
+        console.error("Sidebar role check failed", err);
+      }
+      return [];
+    })(),
     {
       label: "Profile",
       href: "/employee/profile",

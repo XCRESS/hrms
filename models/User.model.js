@@ -7,9 +7,10 @@ const userSchema = new mongoose.Schema(
         password: { type: String, required: true },
         role: { type: String, enum: ["admin", "hr", "employee"], default: "employee" },
         isActive: { type: Boolean, default: true },
+        employee: { type: mongoose.Schema.Types.ObjectId, ref: "Employee" },
+        employeeId: { type: String },
         resetPasswordToken: { type: String },
-        resetPasswordExpires: { type: Date },
-        createdAt: { type: Date, default: Date.now }  
+        resetPasswordExpires: { type: Date }
     },{timestamps: true}
     
 );
