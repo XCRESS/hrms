@@ -35,18 +35,32 @@ export const checkIn = async (req, res) => {
     if (!employeeObjId) {
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
-    const today = new Date().setHours(0, 0, 0, 0);
+
+    // Determine start and end of the current day in UTC
+    const now = new Date();
+    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
     let attendance = await Attendance.findOne({
       employee: employeeObjId,
-      date: { $gte: new Date(today), $lt: new Date(today + 24 * 60 * 60 * 1000) }
+      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
     });
+
     if (attendance) {
       return res.status(400).json(formatResponse(false, "Already checked in for today"));
     }
+    
+    // Create new attendance record
+    // Ensure the 'date' field also aligns with this UTC day concept if necessary,
+    // though storing the exact timestamp of check-in is common.
+    // For this fix, we're primarily concerned with the query for existing records.
+    // The `new Date()` for `date` and `checkIn` fields will store the exact current UTC timestamp.
+    const employeeDoc = await Employee.findById(employeeObjId);
     attendance = await Attendance.create({
       employee: employeeObjId,
-      date: new Date(),
-      checkIn: new Date(),
+      employeeName: employeeDoc ? `${employeeDoc.firstName} ${employeeDoc.lastName}` : "",
+      date: new Date(), // Exact timestamp of check-in
+      checkIn: new Date(), // Exact timestamp of check-in
       status: "present"
     });
     res.status(201).json(formatResponse(true, "Checked in successfully", { attendance }));
@@ -128,10 +142,15 @@ export const getAttendance = async (req, res) => {
       filter.employee = employeeObjId;
     }
     // Date range filter
-    if (startDate || endDate) {
-      filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
+    if (startDate) {
+      const startOfDay = new Date(startDate);
+      startOfDay.setUTCHours(0, 0, 0, 0); // Set to start of day UTC
+      filter.date = { ...filter.date, $gte: startOfDay };
+    }
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setUTCHours(23, 59, 59, 999); // Set to end of day UTC
+      filter.date = { ...filter.date, $lte: endOfDay };
     }
     // Status filter
     if (status) filter.status = status;
