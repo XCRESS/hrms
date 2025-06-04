@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import apiClient from "../../service/apiClient";
+import { zonedTimeToUtc } from "date-fns-tz";
 
 export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
   const [date, setDate] = useState("");
@@ -16,10 +17,13 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
     setLoading(true);
     setMessage(null);
     try {
+      const timeZone = "Asia/Kolkata";
+      const requestedCheckIn = checkIn ? zonedTimeToUtc(`${date}T${checkIn}:00`, timeZone).toISOString() : undefined;
+      const requestedCheckOut = checkOut ? zonedTimeToUtc(`${date}T${checkOut}:00`, timeZone).toISOString() : undefined;
       await apiClient.requestRegularization({
         date,
-        requestedCheckIn: checkIn ? `${date}T${checkIn}` : undefined,
-        requestedCheckOut: checkOut ? `${date}T${checkOut}` : undefined,
+        requestedCheckIn,
+        requestedCheckOut,
         reason
       });
       setMessage("Request submitted!");
