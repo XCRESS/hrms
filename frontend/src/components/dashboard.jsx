@@ -121,16 +121,11 @@ export default function HRMSDashboard() {
 
   // Load data when initialization is complete
   useEffect(() => {
-    // Don't attempt to load data if we're still initializing
     if (isLoading) return;
-    
-    // For now, simulate check-in status - replace with actual API call
-    const checkInStatus = localStorage.getItem('isCheckedIn') === 'true';
-    setIsCheckedIn(checkInStatus);
-    
-    // Load data from API
+    // Fetch backend-driven attendance state
+    fetchTodayAttendance();
+    // Load other data from API
     console.log("Initial data loading - attempting to connect to backend database");
-    
     const loadAllData = async () => {
       try {
         await Promise.all([
@@ -146,42 +141,14 @@ export default function HRMSDashboard() {
         // Individual load functions will handle their own errors
       }
     };
-    
     loadAllData();
   }, [isLoading]);
-
-  // Check for daily cycle completion in local storage
-  useEffect(() => {
-    const cycleComplete = localStorage.getItem('dailyCycleComplete') === 'true';
-    setDailyCycleComplete(cycleComplete);
-    
-    // Reset the cycle on a new day
-    const resetDailyCycle = () => {
-      const now = new Date();
-      const lastReset = localStorage.getItem('lastCycleReset');
-      const today = now.toDateString();
-      
-      if (lastReset !== today) {
-        localStorage.setItem('dailyCycleComplete', 'false');
-        localStorage.setItem('isCheckedIn', 'false');
-        localStorage.setItem('lastCycleReset', today);
-        setDailyCycleComplete(false);
-        setIsCheckedIn(false);
-      }
-    };
-    
-    // Call immediately and set up interval to check periodically
-    resetDailyCycle();
-    const interval = setInterval(resetDailyCycle, 5 * 60 * 1000); // Check every 5 minutes
-    
-    return () => clearInterval(interval);
-  }, []);
 
   const loadAttendanceData = async () => {
     try {
       // API call for attendance data
       let params = { limit: 10 };
-      if (user && user.role === 'employee' && user.employeeId) {
+      if (user && user.employeeId) {
         params.employeeId = user.employeeId;
       }
       const response = await apiClient.getAttendanceRecords(params);
@@ -410,59 +377,70 @@ export default function HRMSDashboard() {
     }
   };
 
+  // Helper to fetch today's attendance and set check-in/out state
+  const fetchTodayAttendance = async () => {
+    if (!user?.employeeId) {
+      setIsCheckedIn(false);
+      setDailyCycleComplete(false);
+      console.log('No user or employeeId');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const response = await apiClient.getAttendanceRecords({
+        employeeId: user.employeeId,
+        startDate: today,
+        endDate: today,
+        limit: 1,
+      });
+      if (response.success && response.data && response.data.records && response.data.records.length > 0) {
+        const record = response.data.records[0];
+        console.log('Attendance record:', record);
+        setIsCheckedIn(!!record.checkIn && !record.checkOut);
+        setDailyCycleComplete(!!record.checkIn && !!record.checkOut);
+        console.log('Set isCheckedIn:', !!record.checkIn && !record.checkOut, 'Set dailyCycleComplete:', !!record.checkIn && !!record.checkOut);
+      } else {
+        setIsCheckedIn(false);
+        setDailyCycleComplete(false);
+        console.log('No attendance record for today');
+      }
+    } catch (error) {
+      setIsCheckedIn(false);
+      setDailyCycleComplete(false);
+      console.log('Error fetching attendance:', error);
+    }
+  };
+
+  // Update handleCheckIn to refresh backend state and log
   const handleCheckIn = async () => {
     try {
-      console.log('Check in clicked');
       setCheckInLoading(true);
-      
       try {
         const response = await apiClient.checkIn();
-        
         if (response.success) {
-          setIsCheckedIn(true);
-          localStorage.setItem('isCheckedIn', 'true');
-          
           toast({
             id: "checkin-success-" + new Date().getTime(),
             variant: "success",
             title: "Checked In",
             description: "You have successfully checked in for today."
           });
-          
-          // Refresh attendance data
+          await fetchTodayAttendance();
           loadAttendanceData();
         }
       } catch (apiError) {
-        // Handle validation errors (like already checked in)
-        if (apiError.isValidationError || apiError.isExpectedValidation || apiError.message === "Already checked in for today") {
-          let description = apiError.message || "You have already checked in for today.";
-          if (apiError.message === "No linked employee profile found for user") {
-            description = "Your user account is not linked to an employee profile. Please contact HR.";
-          }
-          toast({
-            id: "checkin-validation-" + new Date().getTime(),
-            variant: "warning",
-            title: "Check-in Issue",
-            description
-          });
-          setIsCheckedIn(true);
-          localStorage.setItem('isCheckedIn', 'true');
-        } 
-        // Handle other errors
-        else {
-          console.error("Check-in error:", apiError);
-          toast({
-            id: "checkin-api-error-" + new Date().getTime(),
-            variant: "error",
-            title: "Check-in Failed",
-            description: apiError.message || "Failed to check in. Please try again."
-          });
+        let description = apiError.message || "You have already checked in for today.";
+        if (apiError.message === "No linked employee profile found for user") {
+          description = "Your user account is not linked to an employee profile. Please contact HR.";
         }
+        toast({
+          id: "checkin-validation-" + new Date().getTime(),
+          variant: "warning",
+          title: "Check-in Issue",
+          description
+        });
+        await fetchTodayAttendance();
       }
     } catch (error) {
-      // Only log truly unexpected errors
-      console.error("Critical check-in error:", error);
-      
       toast({
         id: "checkin-critical-error-" + new Date().getTime(),
         variant: "error",
@@ -473,11 +451,10 @@ export default function HRMSDashboard() {
       setCheckInLoading(false);
     }
   };
-  
+
+  // Update handleCheckOut to refresh backend state and log
   const handleCheckOut = async () => {
     if (!canCheckInOut) {
-      console.log('Check out not allowed: user not linked to employee or not an employee role.');
-      // Optionally, show a toast message to the user
       toast({
         id: "checkout-not-allowed-" + new Date().getTime(),
         variant: "warning",
@@ -487,30 +464,19 @@ export default function HRMSDashboard() {
       return;
     }
     try {
-      console.log('Dashboard: Check out clicked'); // Renamed log for clarity
       setCheckOutLoading(true);
-      
       try {
         const response = await apiClient.checkOut();
-        
         if (response.success) {
-          setIsCheckedIn(false);
-          localStorage.setItem('isCheckedIn', 'false');
-          // Mark daily cycle as complete
-          setDailyCycleComplete(true);
-          localStorage.setItem('dailyCycleComplete', 'true');
-          
           toast({
             id: "checkout-success-" + new Date().getTime(),
             variant: "success",
             title: "Checked Out",
             description: "You have successfully checked out for today."
           });
-          
-          // Refresh attendance data
+          await fetchTodayAttendance();
           loadAttendanceData();
         } else {
-          // Handle cases where API call is not successful but not an error (e.g. custom backend message)
           toast({
             id: "checkout-api-fail-" + new Date().getTime(),
             variant: "warning",
@@ -519,7 +485,6 @@ export default function HRMSDashboard() {
           });
         }
       } catch (apiError) {
-        // Handle API errors (network, server, validation)
         let description = apiError.message || "There was an issue with your check-out.";
         if (apiError.message === "No linked employee profile found for user") {
           description = "Your user account is not linked to an employee profile. Please contact HR.";
@@ -532,10 +497,6 @@ export default function HRMSDashboard() {
             description
           });
         } else if (apiError.message === "Already checked out for today") {
-          setIsCheckedIn(false);
-          localStorage.setItem('isCheckedIn', 'false');
-          setDailyCycleComplete(true);
-          localStorage.setItem('dailyCycleComplete', 'true');
           toast({
             id: "checkout-validation-already-out-" + new Date().getTime(),
             variant: "warning",
@@ -550,12 +511,9 @@ export default function HRMSDashboard() {
             description
           });
         }
-        console.error("Check-out error:", apiError);
+        await fetchTodayAttendance();
       }
     } catch (error) {
-      // Only log truly unexpected errors
-      console.error("Critical check-out error:", error);
-      
       toast({
         id: "checkout-critical-error-" + new Date().getTime(),
         variant: "error",

@@ -13,7 +13,8 @@ import { useNavigate } from "react-router-dom";
 // API client setup
 const apiClient = {
   getProfile: async () => {
-    const response = await fetch("http://localhost:4000/api/employees/profile", {
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+    const response = await fetch(`${apiUrl}/employees/profile`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${sessionStorage.getItem("authToken")}`,
