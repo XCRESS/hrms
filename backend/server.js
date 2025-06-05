@@ -34,6 +34,8 @@ import leaveRoutes from "./routes/leave.js";
 import helpRoutes from "./routes/help.js";
 import userRoutes from "./routes/user.js";
 import regularizationRoutes from "./routes/regularization.js";
+import passwordResetRoutes from "./routes/passwordReset.js";
+import announcementRoutes from "./routes/announcement.routes.js";
 
 // API health check endpoint
 app.get('/api', (req, res) => {
@@ -52,6 +54,8 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/help", helpRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/regularization", regularizationRoutes);
+app.use("/api/password-reset", passwordResetRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')

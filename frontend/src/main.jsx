@@ -7,7 +7,6 @@ import Login from "./components/login-form.jsx";
 import Signup from "./components/singup-form.jsx";
 import ForgotPassword from "./components/forgotPassword.jsx";
 import CreateEmployee from './components/create-employee.jsx';
-import GetEmployee from './components/get-employee.jsx';
 import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';
@@ -16,12 +15,14 @@ import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { ToastContext } from './components/ui/toast.jsx';
 import LeavesAll from './components/hr/LeavesAll';
 import HelpAll from './components/hr/HelpAll';
-import HolidaysManage from './components/hr/HolidaysManage';
-import AnnouncementsManage from './components/hr/AnnouncementsManage';
 import EmployeeDirectory from './components/hr/EmployeeDirectory';
 import EmployeeLink from './components/hr/EmployeeLink';
+import HolidayManagementPage from './components/hr/HolidayManagementPage.jsx';
+import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
+import PasswordRequestsPage from './components/hr/PasswordRequestsPage.jsx';
 import MyRegularizations from './components/regularization/MyRegularizations';
 import RegularizationAll from './components/regularization/RegularizationAll';
+import SettingsPage from './components/settings/SettingsPage.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -30,26 +31,25 @@ createRoot(document.getElementById('root')).render(
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<SidebarDemo />}>
-              {/* <Route path="/" element={<App />} /> */}
-              <Route path="/employee/create" element={<CreateEmployee />} />
-              <Route path="/employee" element={<EmployeeDirectory />} />
-              <Route path="/employee/profile" element={<GetProfile />} />
-              <Route path="/dashboard" element={<HRMSDashboard/>} />
-              <Route path="/leaves/all" element={<LeavesAll />} />
-              <Route path="/help/all" element={<HelpAll />} />
-              <Route path="/holidays/manage" element={<HolidaysManage />} />
-              <Route path="/announcements/manage" element={<AnnouncementsManage />} />
-              <Route path="/employee/link" element={<EmployeeLink />} />
-              <Route path="/regularization/my" element={<MyRegularizations />} />
-              <Route path="/regularization/all" element={<RegularizationAll />} />
+              <Route index element={<HRMSDashboard />} />
+              <Route path="dashboard" element={<HRMSDashboard />} />
+              <Route path="employee/create" element={<CreateEmployee />} />
+              <Route path="employee" element={<EmployeeDirectory />} />
+              <Route path="employee/link" element={<EmployeeLink />} />
+              <Route path="employee/leaves" element={<LeavesAll />} />
+              <Route path="employee/help" element={<HelpAll />} />
+              <Route path="holidays" element={<HolidayManagementPage />} />
+              <Route path="announcements" element={<AnnouncementsPage />} />
+              <Route path="employee/password" element={<PasswordRequestsPage />} />
+              <Route path="employee/regularization" element={<RegularizationAll />} />
+              <Route path="profile" element={<GetProfile />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
-            {/* auth routes */}
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<Signup />} />
             <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
 
-            {/* not found route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

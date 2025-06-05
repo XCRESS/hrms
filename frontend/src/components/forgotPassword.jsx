@@ -21,12 +21,13 @@ export default function forgotPassword({ className, ...props }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       alert(`Error : Passwords do not match`);
+      return; // Stop submission if passwords don't match
     } else {
       setError('');
-      alert('Form submitted successfully');
+      // alert('Form submitted successfully'); // This alert can be removed or adapted based on desired UX
     }
     setLoading(true);
     setError("");

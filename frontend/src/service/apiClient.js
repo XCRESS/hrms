@@ -194,7 +194,7 @@ class ApiClient {
     }
   
     async passwordChange(name, email, newPassword) {
-      return this.customFetch("/auth/passwordChange", {
+      return this.customFetch("/password-reset/request", {
         method: "POST",
         body: JSON.stringify({ name, email, newPassword }),
       });
@@ -317,7 +317,7 @@ class ApiClient {
     // For admins/HR
     async getAllLeaves() {
       const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/leaves/all`, {
+      return this.customFetch("/leaves/all", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -326,25 +326,63 @@ class ApiClient {
     }
     
     async updateLeaveStatus(leaveId, status) {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/leaves/${leaveId}/status`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      });
+      // Uses the generic put method which handles token
+      return this.put(`/leaves/${leaveId}/status`, { status });
     }
     
     // Holidays
     async getHolidays() {
+      // Uses the generic get method which handles token
+      return this.get("/holidays");
+    }
+
+    async createHoliday(holidayData) {
       const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/holidays`, {
-        method: "GET",
+      return this.post("/holidays", holidayData, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+    }
+
+    async updateHoliday(holidayId, holidayData) {
+      const token = sessionStorage.getItem("authToken");
+      return this.put(`/holidays/${holidayId}`, holidayData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    async deleteHoliday(holidayId) {
+      const token = sessionStorage.getItem("authToken");
+      return this.delete(`/holidays/${holidayId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    // Announcements
+    async getAnnouncements(params = {}) {
+      // Pass query params for filtering (e.g., { status: 'draft' } for admin)
+      return this.get("/announcements", { params });
+    }
+
+    async getAnnouncementById(id) {
+      return this.get(`/announcements/${id}`);
+    }
+
+    async createAnnouncement(announcementData) {
+      return this.post("/announcements", announcementData);
+    }
+
+    async updateAnnouncement(id, announcementData) {
+      return this.put(`/announcements/${id}`, announcementData);
+    }
+
+    async deleteAnnouncement(id) {
+      return this.delete(`/announcements/${id}`);
     }
 
     // Help/Support Inquiries
@@ -472,6 +510,19 @@ class ApiClient {
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status, reviewComment }),
       });
+    }
+
+    // Password Reset Requests (for Admin/HR)
+    async getAllPasswordResetRequests(params = {}) { // params for filtering if needed, e.g., { status: 'pending' }
+      return this.get("/password-reset/requests", { params });
+    }
+
+    async approvePasswordResetRequest(requestId) {
+      return this.put(`/password-reset/request/${requestId}/approve`, {});
+    }
+
+    async rejectPasswordResetRequest(requestId, remarks = "") {
+      return this.put(`/password-reset/request/${requestId}/reject`, { remarks });
     }
   }
   

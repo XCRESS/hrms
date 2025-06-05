@@ -1,9 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import useAuth from '../../hooks/authjwt';
 import apiClient from '../../service/apiClient';
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Example if using ShadCN Card
+// import { Button } from '@/components/ui/button'; // Example if using ShadCN Button
+// import { Input } from '@/components/ui/input'; // Example if using ShadCN Input
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Example
+
+// Updated AttendanceTableChart to display a table
+const AttendanceTableChart = ({ attendance }) => {
+  if (!attendance || attendance.length === 0) {
+    return <div className="text-slate-500 dark:text-slate-400">No attendance records found.</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-100 dark:bg-slate-700">
+          <tr>
+            <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Date</th>
+            <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check-In</th>
+            <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check-Out</th>
+            <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+            <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Notes</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+          {attendance.map((rec, idx) => (
+            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+              <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{new Date(rec.date || rec.checkInTime).toLocaleDateString()}</td>
+              <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString() : 'N/A'}</td>
+              <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString() : 'N/A'}</td>
+              <td className="p-3 whitespace-nowrap">
+                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${rec.status === 'Present' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : rec.status === 'Absent' ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100' : rec.status === 'Half-day' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' : 'bg-slate-100 text-slate-800 dark:bg-slate-600 dark:text-slate-100'}`}>
+                  {rec.status}
+                </span>
+              </td>
+              <td className="p-3 text-slate-700 dark:text-slate-300 max-w-xs break-words">{rec.notes || 'N/A'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 export default function EmployeeDirectory() {
-  const user = useAuth();
+  const userObject = useAuth();
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [employeeProfile, setEmployeeProfile] = useState(null);
@@ -16,6 +58,49 @@ export default function EmployeeDirectory() {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
 
+  const fetchEmployeeData = useCallback(async () => {
+    if (!selectedEmployeeId) return;
+    setProfileLoading(true);
+    setProfileError(null);
+    setEmployeeProfile(null);
+    setAttendance([]);
+    setLeaves([]);
+    try {
+      const res = await apiClient.get(`/employees/${selectedEmployeeId}`);
+      setEmployeeProfile(res);
+      if (res && res.employeeId) {
+        try {
+          const lv = await apiClient.get(`/leaves/all?employeeId=${res.employeeId}`);
+          setLeaves(lv.leaves || []);
+        } catch (lvErr) {
+          setLeaves([]);
+          setProfileError(prev => (prev ? prev + '; ' : '') + 'Failed to fetch leaves. ' + (lvErr?.message || ''));
+        }
+        try {
+          const att = await apiClient.getAttendanceRecords({ employeeId: res.employeeId });
+          setAttendance(att.data?.records || att.records || []);
+        } catch (attErr) {
+          setAttendance([]);
+          setProfileError(prev => (prev ? prev + '; ' : '') + 'Failed to fetch attendance. ' + (attErr?.message || ''));
+        }
+      } else {
+        setLeaves([]);
+        setAttendance([]);
+        if (res && !res.employeeId) {
+          console.warn("Employee profile fetched but missing employeeId, cannot fetch leaves or attendance.");
+        }
+      }
+    } catch (err) {
+      setProfileError('Failed to load employee details. ' + (err?.message || ''));
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [selectedEmployeeId]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
+  
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -28,260 +113,195 @@ export default function EmployeeDirectory() {
           setUsers(userRes.users || []);
         } catch (userErr) {
           setUsers([]);
-          setError('Failed to load users. ' + (userErr?.message || ''));
+          console.error('Failed to load users.', userErr);
         }
       } catch (err) {
-        setError('Failed to load employees. ' + (err?.message || ''));
+        setError('Failed to load employees list. ' + (err?.message || ''));
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  useEffect(() => {
-    if (!selectedEmployeeId) return;
-    setProfileLoading(true);
-    setProfileError(null);
-    setEmployeeProfile(null);
-    setAttendance([]);
-    setLeaves([]);
-    (async () => {
-      try {
-        // 1. Fetch full profile by /employees/:id
-        const res = await apiClient.get(`/employees/${selectedEmployeeId}`);
-        setEmployeeProfile(res);
-        console.log('Employee profile:', res);
-        // 2. Fetch leaves by employeeId
-        if (res && res.employeeId) {
-          try {
-            const lv = await apiClient.get(`/leaves/all?employeeId=${res.employeeId}`);
-            setLeaves(lv.leaves || []);
-          } catch (lvErr) {
-            setLeaves([]);
-            setProfileError('Failed to fetch leaves. ' + (lvErr?.message || ''));
-          }
-        } else {
-          setLeaves([]);
-        }
-        // 3. Fetch attendance by employeeId
-        if (res && res.employeeId) {
-          try {
-            console.log('Fetching attendance for employeeId:', res.employeeId);
-            const att = await apiClient.getAttendanceRecords({ employeeId: res.employeeId });
-            console.log('Attendance API response:', att);
-            setAttendance(att.data?.records || att.records || []);
-          } catch (attErr) {
-            setAttendance([]);
-            setProfileError('Failed to fetch attendance records. ' + (attErr?.message || ''));
-          }
-        } else {
-          setAttendance([]);
-        }
-      } catch (err) {
-        setProfileError('Failed to load employee details. ' + (err?.message || ''));
-      } finally {
-        setProfileLoading(false);
-      }
-    })();
-  }, [selectedEmployeeId]);
+  if (!userObject) return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Loading user data...</div>;
+  const user = userObject;
 
-  // Only HR/admin can access
-  if (!user) return <div>Loading...</div>;
-  if (user.role !== 'hr' && user.role !== 'admin') return <div>Not authorized.</div>;
+  if (user.role !== 'hr' && user.role !== 'admin') {
+    return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
+  }
 
-  // Filter employees by search
   const filteredEmployees = employees.filter(e =>
-    e.fullName.toLowerCase().includes(search.toLowerCase())
+    (e.fullName || `${e.firstName} ${e.lastName}`).toLowerCase().includes(search.toLowerCase())
   );
 
-  // Helper: check if employee is linked to a user
   const isEmployeeLinked = (employeeId) => {
     return users.some(u => u.employeeId === employeeId);
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#f8fafc' }}>
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       {/* Sidebar: Employee List */}
-      <div style={{ width: 320, borderRight: '1px solid #e5e7eb', background: '#fff', overflowY: 'auto' }}>
-        <div style={{ padding: 16, borderBottom: '1px solid #e5e7eb' }}>
+      <div className="w-full md:w-80 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
           <input
             type="text"
             placeholder="Search employees..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors"
           />
         </div>
-        {loading ? (
-          <div style={{ padding: 16 }}>Loading employees...</div>
-        ) : error ? (
-          <div style={{ padding: 16, color: 'red' }}>{error}</div>
-        ) : filteredEmployees.length === 0 ? (
-          <div style={{ padding: 16 }}>No employees found.</div>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {filteredEmployees.map((e, idx) => (
-              <li
-                key={idx}
-                style={{
-                  padding: 16,
-                  cursor: 'pointer',
-                  background: selectedEmployeeId === e._id ? '#e0e7ff' : 'transparent',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontWeight: selectedEmployeeId === e._id ? 600 : 400,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-                onClick={() => setSelectedEmployeeId(e._id)}
-              >
-                <span>{e.fullName}</span>
-                <span style={{ fontSize: 12, color: isEmployeeLinked(e.employeeId) ? 'green' : 'red', marginLeft: 8 }}>
-                  {isEmployeeLinked(e.employeeId) ? 'Linked' : 'Unlinked'}
-                </span>
-                {!isEmployeeLinked(e.employeeId) && (
-                  <button
-                    style={{ marginLeft: 8, fontSize: 12, padding: '2px 8px', borderRadius: 4, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer' }}
-                    onClick={e => { e.stopPropagation(); window.location.href = '/hr/link-user-employee'; }}
-                  >Create User</button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="flex-grow overflow-y-auto">
+          {loading && employees.length === 0 ? (
+            <div className="p-4 text-slate-500 dark:text-slate-400">Loading employees...</div>
+          ) : error ? (
+            <div className="p-4 text-red-500">{error}</div>
+          ) : filteredEmployees.length === 0 ? (
+            <div className="p-4 text-slate-500 dark:text-slate-400">No employees found.</div>
+          ) : (
+            <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredEmployees.map((e) => (
+                <li
+                  key={e._id}
+                  className={`p-4 cursor-pointer hover:bg-cyan-50 dark:hover:bg-slate-700 transition-colors ${selectedEmployeeId === e._id ? 'bg-cyan-100 dark:bg-cyan-700 text-cyan-700 dark:text-cyan-50 font-semibold' : ''}`}
+                  onClick={() => setSelectedEmployeeId(e._id)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>{e.fullName || `${e.firstName} ${e.lastName}`}</span>
+                    <div className="flex items-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${isEmployeeLinked(e.employeeId) ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
+                        {isEmployeeLinked(e.employeeId) ? 'Linked' : 'Unlinked'}
+                      </span>
+                      {!isEmployeeLinked(e.employeeId) && (
+                        <button
+                          className="ml-2 px-2 py-1 text-xs bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
+                          onClick={evt => { evt.stopPropagation(); window.location.href = '/hr/link-user-employee'; }}
+                        >
+                          Create User
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
+
       {/* Main Panel: Employee Details */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+      <div className="flex-1 overflow-y-auto p-6 md:p-8">
         {!selectedEmployeeId ? (
-          <div style={{ color: '#64748b', fontSize: 24, textAlign: 'center', marginTop: 80 }}>
-            Select an employee to view details
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-slate-500 dark:text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <p className="mt-2 text-xl font-semibold">Select an employee</p>
+              <p className="text-sm">Choose an employee from the list to view their details.</p>
+            </div>
           </div>
         ) : profileLoading ? (
-          <div>Loading employee details...</div>
+          <div className="text-center p-10 text-slate-500 dark:text-slate-400">Loading employee details...</div>
         ) : profileError ? (
-          <div style={{ color: 'red' }}>{profileError}</div>
+          <div className="p-6 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg shadow">{profileError}</div>
         ) : employeeProfile ? (
-          <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 32 }}>
-            <h2 style={{ fontSize: 28, marginBottom: 8 }}>{employeeProfile.firstName} {employeeProfile.lastName}</h2>
-            <div style={{ color: '#64748b', marginBottom: 16 }}>{employeeProfile.position} &mdash; {employeeProfile.department}</div>
-            <div style={{ display: 'flex', gap: 32, marginBottom: 24 }}>
-              <div>
-                <strong>Email:</strong> {employeeProfile.email}<br />
-                <strong>Phone:</strong> {employeeProfile.phone}<br />
-                <strong>Employee ID:</strong> {employeeProfile.employeeId}<br />
-                <strong>Status:</strong> {employeeProfile.isActive ? 'Active' : 'Inactive'}<br />
-                <strong>Employment Type:</strong> {employeeProfile.employmentType}<br />
-                <strong>Joining Date:</strong> {employeeProfile.joiningDate ? new Date(employeeProfile.joiningDate).toLocaleDateString() : ''}<br />
-                <strong>Office:</strong> {employeeProfile.officeAddress}<br />
-                <strong>Reporting Supervisor:</strong> {employeeProfile.reportingSupervisor}<br />
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 md:p-8">
+            <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-3xl font-bold text-cyan-700 dark:text-cyan-300">
+                {employeeProfile.firstName} {employeeProfile.lastName}
+              </h2>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">
+                {employeeProfile.position} &mdash; {employeeProfile.department}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+              {/* Contact & Work Info */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Contact & Work</h3>
+                <p><strong>Email:</strong> {employeeProfile.email}</p>
+                <p><strong>Phone:</strong> {employeeProfile.phone}</p>
+                <p><strong>Employee ID:</strong> {employeeProfile.employeeId}</p>
+                <p><strong>Status:</strong>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${employeeProfile.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
+                    {employeeProfile.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </p>
+                <p><strong>Employment Type:</strong> {employeeProfile.employmentType}</p>
+                <p><strong>Joining Date:</strong> {employeeProfile.joiningDate ? new Date(employeeProfile.joiningDate).toLocaleDateString() : 'N/A'}</p>
+                <p><strong>Office:</strong> {employeeProfile.officeAddress}</p>
+                <p><strong>Supervisor:</strong> {employeeProfile.reportingSupervisor}</p>
               </div>
-              <div>
-                <strong>Personal Info</strong><br />
-                <strong>DOB:</strong> {employeeProfile.dateOfBirth ? new Date(employeeProfile.dateOfBirth).toLocaleDateString() : ''}<br />
-                <strong>Gender:</strong> {employeeProfile.gender}<br />
-                <strong>Marital Status:</strong> {employeeProfile.maritalStatus}<br />
-                <strong>Father:</strong> {employeeProfile.fatherName}<br />
-                <strong>Mother:</strong> {employeeProfile.motherName}<br />
-                <strong>Address:</strong> {employeeProfile.address}<br />
-                <strong>Aadhaar:</strong> {employeeProfile.aadhaarNumber}<br />
-                <strong>PAN:</strong> {employeeProfile.panNumber}<br />
-                <strong>Emergency Contact:</strong> {employeeProfile.emergencyContactName} ({employeeProfile.emergencyContactNumber})<br />
+
+              {/* Personal Info */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Personal Information</h3>
+                <p><strong>Date of Birth:</strong> {employeeProfile.dateOfBirth ? new Date(employeeProfile.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                <p><strong>Gender:</strong> {employeeProfile.gender}</p>
+                <p><strong>Marital Status:</strong> {employeeProfile.maritalStatus}</p>
+                <p><strong>Father's Name:</strong> {employeeProfile.fatherName}</p>
+                <p><strong>Mother's Name:</strong> {employeeProfile.motherName}</p>
+                <p><strong>Address:</strong> {employeeProfile.address}</p>
+                <p><strong>Aadhaar:</strong> {employeeProfile.aadhaarNumber}</p>
+                <p><strong>PAN:</strong> {employeeProfile.panNumber}</p>
+                <p><strong>Emergency:</strong> {employeeProfile.emergencyContactName} ({employeeProfile.emergencyContactNumber})</p>
               </div>
-              <div>
-                <strong>Financial Info</strong><br />
-                <strong>Salary:</strong> {employeeProfile.salary}<br />
-                <strong>Bank Name:</strong> {employeeProfile.bankName}<br />
-                <strong>Account #:</strong> {employeeProfile.bankAccountNumber}<br />
-                <strong>IFSC:</strong> {employeeProfile.bankIFSCCode}<br />
-                <strong>Payment Mode:</strong> {employeeProfile.paymentMode}<br />
+
+              {/* Financial Info */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Financial Information</h3>
+                <p><strong>Salary:</strong> {employeeProfile.salary?.toLocaleString() || 'N/A'}</p>
+                <p><strong>Bank:</strong> {employeeProfile.bankName}</p>
+                <p><strong>Account #:</strong> {employeeProfile.bankAccountNumber}</p>
+                <p><strong>IFSC:</strong> {employeeProfile.bankIFSCCode}</p>
+                <p><strong>Payment Mode:</strong> {employeeProfile.paymentMode}</p>
               </div>
             </div>
-            {/* Attendance Chart/Table */}
-            <div style={{ marginTop: 32 }}>
-              <h3>Attendance</h3>
-              {attendance.length === 0 ? (
-                <div>No attendance records found.</div>
-              ) : (
-                <AttendanceTableChart attendance={attendance} />
-              )}
+
+            {/* Attendance Section */}
+            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-3">Attendance Records</h3>
+              <AttendanceTableChart attendance={attendance} />
             </div>
-            {/* Leave Requests */}
-            <div style={{ marginTop: 32 }}>
-              <h3>Leave Requests</h3>
+
+            {/* Leave Requests Section */}
+            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-3">Leave Requests</h3>
               {leaves.length === 0 ? (
-                <div>No leave requests found.</div>
+                <div className="text-slate-500 dark:text-slate-400">No leave requests found.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9' }}>
-                      <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Type</th>
-                      <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Date</th>
-                      <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Status</th>
-                      <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaves.map((lv, idx) => (
-                      <tr key={idx}>
-                        <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{lv.type}</td>
-                        <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{lv.leaveDate ? new Date(lv.leaveDate).toLocaleDateString() : ''}</td>
-                        <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{lv.status}</td>
-                        <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{lv.reason}</td>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-100 dark:bg-slate-700">
+                      <tr>
+                        <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Type</th>
+                        <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Date</th>
+                        <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                        <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Reason</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                      {leaves.map((lv, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                          <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{lv.leaveType}</td>
+                          <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{lv.leaveDate ? new Date(lv.leaveDate).toLocaleDateString() : 'N/A'}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${lv.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-700 dark:text-amber-100' : lv.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100'}`}>
+                              {lv.status}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-700 dark:text-slate-300 max-w-xs break-words">{lv.leaveReason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-// Attendance chart/table component
-function AttendanceTableChart({ attendance }) {
-  // Simple monthly summary chart (present/absent/half-day)
-  const summary = attendance.reduce((acc, rec) => {
-    acc[rec.status] = (acc[rec.status] || 0) + 1;
-    return acc;
-  }, {});
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
-        <div style={{ background: '#e0f2fe', padding: 12, borderRadius: 8 }}>
-          Present: <b>{summary['present'] || 0}</b>
-        </div>
-        <div style={{ background: '#fee2e2', padding: 12, borderRadius: 8 }}>
-          Absent: <b>{summary['absent'] || 0}</b>
-        </div>
-        <div style={{ background: '#fef9c3', padding: 12, borderRadius: 8 }}>
-          Half-day: <b>{summary['half-day'] || 0}</b>
-        </div>
-      </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#f1f5f9' }}>
-            <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Date</th>
-            <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Check In</th>
-            <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Check Out</th>
-            <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Status</th>
-            <th style={{ padding: 8, border: '1px solid #e5e7eb' }}>Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          {attendance.map((rec, idx) => (
-            <tr key={idx}>
-              <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{rec.date ? new Date(rec.date).toLocaleDateString() : ''}</td>
-              <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '-'}</td>
-              <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '-'}</td>
-              <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{rec.status}</td>
-              <td style={{ padding: 8, border: '1px solid #e5e7eb' }}>{rec.reason}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 } 

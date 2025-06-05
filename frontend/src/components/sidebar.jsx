@@ -2,39 +2,60 @@
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "./ui/sidebar";
 import {
-  IconArrowLeft,
-  IconBrandTabler,
-  IconSettings,
-  IconUserBolt,
-} from "@tabler/icons-react";
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  Link2,
+  CalendarOff,
+  HelpingHand,
+  CalendarDays,
+  Megaphone,
+  CheckSquare,
+  Settings,
+  LogOut,
+  UserCog,
+  KeyRound,
+  UserCircle2
+} from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/authjwt";
 import { Outlet } from "react-router-dom";
-import { Navigate, useLocation } from "react-router-dom";
  
 export default function SidebarDemo() {
-  const token = sessionStorage.getItem("authToken");
+  // All hooks must be called at the top level, before any conditional returns.
   const location = useLocation();
+  const navigate = useNavigate();
+  const userObject = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const token = sessionStorage.getItem("authToken");
   if (!token) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  const user = useAuth();
-  const navigate = useNavigate();
+  // If token exists but user is not yet resolved, or token was invalid and cleared by useAuth
+  // wait for user object to be populated or for token to be removed triggering above redirect.
+  if (!userObject) {
+    return null; // Or a loading spinner, e.g., <p>Loading user...</p>
+  }
+  const user = userObject;
+
   const handleLogout = () => {
     sessionStorage.removeItem("authToken");
     navigate("/auth/login");
   };
+
+  const iconClass = "h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200";
+  const accentIconClass = (color) => `h-5 w-5 shrink-0 text-${color}-700 dark:text-${color}-300`;
+
   const links = [
     {
       label: "Dashboard",
       href: "/dashboard",
-      icon: (
-        <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
+      icon: <LayoutDashboard className={iconClass} />,
     },
     // HR/admin links
     ...(() => {
@@ -44,42 +65,47 @@ export default function SidebarDemo() {
             {
               label: "Employees",
               href: "/employee",
-              icon: <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />,
+              icon: <Users className={iconClass} />,
             },
             {
               label: "Add Employee",
               href: "/employee/create",
-              icon: <IconUserBolt className="h-5 w-5 shrink-0 text-green-700 dark:text-green-300" />,
+              icon: <UserPlus className={accentIconClass('green')} />,
             },
             {
               label: "Link User & Employee",
               href: "/employee/link",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-orange-700 dark:text-orange-300" />,
+              icon: <Link2 className={accentIconClass('orange')} />,
             },
             {
               label: "Leave Requests",
-              href: "/leaves/all",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" />,
+              href: "/employee/leaves",
+              icon: <CalendarOff className={accentIconClass('blue')} />,
             },
             {
               label: "Help Desk",
-              href: "/help/all",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-purple-700 dark:text-purple-300" />,
+              href: "/employee/help",
+              icon: <HelpingHand className={accentIconClass('purple')} />,
             },
             {
               label: "Holidays",
-              href: "/holidays/manage",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-yellow-700 dark:text-yellow-300" />,
+              href: "/holidays",
+              icon: <CalendarDays className={accentIconClass('yellow')} />,
             },
             {
               label: "Announcements",
-              href: "/announcements/manage",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-pink-700 dark:text-pink-300" />,
+              href: "/announcements",
+              icon: <Megaphone className={accentIconClass('pink')} />,
             },
             {
               label: "Attendance Regularization",
-              href: "/regularization/all",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-300" />,
+              href: "/employee/regularization",
+              icon: <CheckSquare className={accentIconClass('cyan')} />,
+            },
+            {
+              label: "Password Requests",
+              href: "/employee/password",
+              icon: <KeyRound className={accentIconClass('red')} />,
             },
           ];
         } else if (user && user.role === "employee") {
@@ -87,7 +113,17 @@ export default function SidebarDemo() {
             {
               label: "My Regularizations",
               href: "/regularization/my",
-              icon: <IconSettings className="h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-300" />,
+              icon: <CheckSquare className={accentIconClass('cyan')} />,
+            },
+            {
+              label: "Holidays",
+              href: "/holidays",
+              icon: <CalendarDays className={iconClass} />,
+            },
+            {
+              label: "Announcements",
+              href: "/announcements",
+              icon: <Megaphone className={iconClass} />,
             },
           ];
         }
@@ -96,29 +132,23 @@ export default function SidebarDemo() {
       }
       return [];
     })(),
-    {
-      label: "Profile",
-      href: "/employee/profile",
-      icon: (
-        <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
+    // {
+    //   label: "Profile",
+    //   href: "/profile",
+    //   icon: <UserCircle2 className={iconClass} />,
+    // },
     {
       label: "Settings",
-      href: "#",
-      icon: (
-        <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
+      href: "/settings",
+      icon: <Settings className={iconClass} />,
     },
     {
       label: "Logout",
       onClick: handleLogout,
-      icon: (
-        <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
+      icon: <LogOut className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />,
     },
   ];
-  const [open, setOpen] = useState(false);
+
   return (
     <div
       className={cn(
@@ -140,36 +170,16 @@ export default function SidebarDemo() {
             <SidebarLink
               link={{
                 label: user?.name || "User",
-                href: "/",
+                href: "/profile",
                 icon: <Avatar name={user?.name || "User"} />,
-                // icon: (
-                //   <img
-                //     src="https://assets.aceternity.com/manu.png"
-                //     className="h-7 w-7 shrink-0 rounded-full"
-                //     width={50}
-                //     height={50}
-                //     alt="Avatar"
-                //   />
-                // ),
               }}
             />
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 overflow-y-auto h-full">
-        <Outlet /> {/* This is where nested routes render */}
+      <div className="flex-1 overflow-y-auto h-full bg-slate-50 dark:bg-slate-900">
+        <Outlet />
       </div>
-      {/* Abstract background */}
-      {/* <div className="fixed pointer-events-none inset-0 z-0 opacity-5 dark:opacity-10">
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-          <pattern id="pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-            <path d="M0 50 L50 0 L100 50 L50 100 Z" fill="none" stroke="currentColor" strokeWidth="1"></path>
-            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="1"></circle>
-          </pattern>
-          <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern)"></rect>
-        </svg>
-      </div> */}
-
     </div>
   );
 }
@@ -177,7 +187,7 @@ export const Logo = () => {
   return (
     <a
       href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
+      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black dark:text-white"
     >
       <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
       <motion.span
@@ -193,8 +203,8 @@ export const Logo = () => {
 export const LogoIcon = () => {
   return (
     <a
-      href="#"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
+      href="/"
+      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black dark:text-white"
     >
       <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
     </a>
