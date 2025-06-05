@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router";
 import apiClient from "../service/apiClient.js";
 import { useState } from "react";   
-import singup from "../assets/signupImg.png";
+import loginImg from "../assets/login.png";
 
 
 export default function SignupForm({ className, ...props }) {
@@ -98,7 +98,7 @@ const handleSubmit = async (e) => {
             </form>
             <div className="bg-muted relative hidden md:block">
               <img
-                src= {singup}
+                src= {loginImg}
                 alt="signup-Image"
                 className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.9]"
               />

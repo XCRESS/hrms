@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import apiClient from "../../service/apiClient";
-import { zonedTimeToUtc } from "date-fns-tz";
+import * as dateFnsTz from 'date-fns-tz';
 
 export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
   const [date, setDate] = useState("");
@@ -18,8 +18,13 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
     setMessage(null);
     try {
       const timeZone = "Asia/Kolkata";
-      const requestedCheckIn = checkIn ? zonedTimeToUtc(`${date}T${checkIn}:00`, timeZone).toISOString() : undefined;
-      const requestedCheckOut = checkOut ? zonedTimeToUtc(`${date}T${checkOut}:00`, timeZone).toISOString() : undefined;
+
+      const checkInDateTimeString = checkIn ? `${date}T${checkIn}:00` : undefined;
+      const checkOutDateTimeString = checkOut ? `${date}T${checkOut}:00` : undefined;
+
+      const requestedCheckIn = checkInDateTimeString ? dateFnsTz.fromZonedTime(checkInDateTimeString, timeZone).toISOString() : undefined;
+      const requestedCheckOut = checkOutDateTimeString ? dateFnsTz.fromZonedTime(checkOutDateTimeString, timeZone).toISOString() : undefined;
+
       await apiClient.requestRegularization({
         date,
         requestedCheckIn,
@@ -33,7 +38,12 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
         onClose();
       }, 1200);
     } catch (err) {
-      setMessage(err?.message || "Failed to submit request");
+      if (err instanceof RangeError && err.message.includes("Invalid time value")) {
+        setMessage(`Invalid date or time input. Please check your entries. Error: ${err.message}`);
+      } else {
+        setMessage(err?.message || "Failed to submit request");
+      }
+      console.error("Regularization submit error:", err);
     } finally {
       setLoading(false);
     }
@@ -62,11 +72,11 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
             <label className="block font-semibold mb-1">Reason</label>
             <textarea className="w-full p-2 border rounded-lg" value={reason} onChange={e => setReason(e.target.value)} required rows={3} />
           </div>
+          {message && <p className={`text-sm ${message.startsWith("Invalid") ? 'text-red-500' : 'text-green-500'}`}>{message}</p>}
           <div className="flex justify-end gap-2 mt-4">
             <button type="button" className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200" onClick={onClose} disabled={loading}>Cancel</button>
             <button type="submit" className="px-4 py-2 rounded-lg bg-cyan-600 text-white font-semibold hover:bg-cyan-700" disabled={loading}>{loading ? "Submitting..." : "Submit"}</button>
           </div>
-          {message && <div className={`mt-2 text-center ${message.startsWith("Request submitted") ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>{message}</div>}
         </form>
       </div>
     </div>

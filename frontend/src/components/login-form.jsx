@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../service/apiClient.js";
 import { useState } from "react";   
-import loginImg from "../assets/login.png";
+import singup from "../assets/signupImg.png";
 
 
 export default function LoginForm({ className, ...props }) {
@@ -81,16 +81,13 @@ export default function LoginForm({ className, ...props }) {
                 <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                 </div>
                 <div className="text-center text-sm">
-                  Don&apos;t have an account?{" "}
-                  <span onClick={() => navigate("/auth/signup")} className="underline underline-offset-4 cursor-pointer">
-                    Sign up
-                  </span>
+                  Don&apos;t have an account? Ask HR to create one for you.
                 </div>
               </div>
             </form>
             <div className="bg-muted relative hidden md:block">
               <img
-                src= {loginImg}
+                src= {singup}
                 alt="Login-Image"
                 className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.9]"
               />
