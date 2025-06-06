@@ -271,8 +271,8 @@ export default function EmployeeDirectory() {
               {leaves.length === 0 ? (
                 <div className="text-slate-500 dark:text-slate-400">No leave requests found.</div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-                  <table className="min-w-full text-sm">
+                <div className="w-full">
+                  <table className="w-full text-xs sm:text-sm">
                     <thead className="bg-slate-100 dark:bg-slate-700">
                       <tr>
                         <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Type</th>

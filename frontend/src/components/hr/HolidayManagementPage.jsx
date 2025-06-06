@@ -166,8 +166,8 @@ const HolidayManagementPage = () => {
       
       {loading && <div className="text-center text-slate-500 dark:text-slate-400 py-4">Refreshing data...</div>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-        <table className="min-w-full text-sm divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="w-full">
+        <table className="w-full text-xs sm:text-sm divide-y divide-slate-200 dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Title</th>

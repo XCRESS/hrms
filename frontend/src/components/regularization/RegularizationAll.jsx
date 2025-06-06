@@ -56,38 +56,38 @@ export default function RegularizationAll() {
         <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700" onClick={fetchRequests} disabled={loading}>Refresh</button>
       </div>
       {loading ? <div className="text-center text-gray-500 dark:text-slate-400">Loading...</div> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="w-full">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
               <tr className="bg-cyan-50 dark:bg-slate-700 text-cyan-700 dark:text-cyan-300">
-                <th className="p-2">Employee</th>
-                <th className="p-2">Email</th>
-                <th className="p-2">Date</th>
-                <th className="p-2">Check In</th>
-                <th className="p-2">Check Out</th>
-                <th className="p-2">Reason</th>
-                <th className="p-2">Status</th>
-                <th className="p-2">Review Comment</th>
-                <th className="p-2">Actions</th>
+                <th className="p-2 whitespace-nowrap">Employee</th>
+                <th className="p-2 whitespace-nowrap">Email</th>
+                <th className="p-2 whitespace-nowrap">Date</th>
+                <th className="p-2 whitespace-nowrap">Check In</th>
+                <th className="p-2 whitespace-nowrap">Check Out</th>
+                <th className="p-2 whitespace-nowrap">Reason</th>
+                <th className="p-2 whitespace-nowrap">Status</th>
+                <th className="p-2 whitespace-nowrap">Review Comment</th>
+                <th className="p-2 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {requests.length === 0 ? <tr><td colSpan={9} className="text-center py-6 text-gray-400">No requests found</td></tr> :
                 requests.map(r => (
                   <tr key={r._id} className="border-b border-gray-100 dark:border-slate-700/70">
-                    <td className="p-2">{r.user?.name || "-"}</td>
-                    <td className="p-2">{r.user?.email || "-"}</td>
-                    <td className="p-2">{new Date(r.date).toLocaleDateString()}</td>
-                    <td className="p-2">{r.requestedCheckIn ? new Date(r.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</td>
-                    <td className="p-2">{r.requestedCheckOut ? new Date(r.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</td>
-                    <td className="p-2">{r.reason}</td>
-                    <td className="p-2 font-semibold">
+                    <td className="p-2 whitespace-nowrap">{r.user?.name || "-"}</td>
+                    <td className="p-2 whitespace-nowrap">{r.user?.email || "-"}</td>
+                    <td className="p-2 whitespace-nowrap">{new Date(r.date).toLocaleDateString()}</td>
+                    <td className="p-2 whitespace-nowrap">{r.requestedCheckIn ? new Date(r.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</td>
+                    <td className="p-2 whitespace-nowrap">{r.requestedCheckOut ? new Date(r.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</td>
+                    <td className="p-2 whitespace-nowrap">{r.reason}</td>
+                    <td className="p-2 font-semibold whitespace-nowrap">
                       {r.status === "pending" && <span className="text-amber-600 dark:text-amber-400">Pending</span>}
                       {r.status === "approved" && <span className="text-green-600 dark:text-green-400">Approved</span>}
                       {r.status === "rejected" && <span className="text-red-600 dark:text-red-400">Rejected</span>}
                     </td>
-                    <td className="p-2">{r.reviewComment || "—"}</td>
-                    <td className="p-2">
+                    <td className="p-2 whitespace-nowrap">{r.reviewComment || "—"}</td>
+                    <td className="p-2 whitespace-nowrap">
                       {r.status === "pending" ? (
                         actionId === r._id ? (
                           <div className="flex flex-col gap-1">

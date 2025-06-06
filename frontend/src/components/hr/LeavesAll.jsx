@@ -105,20 +105,20 @@ export default function LeavesAll() {
       {loading ? (
         <div className="text-center text-gray-500 dark:text-slate-400">Loading...</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border rounded-xl">
+        <div className="w-full">
+          <table className="w-full text-xs sm:text-sm border rounded-xl">
             <thead className="bg-cyan-50 dark:bg-slate-700">
               <tr>
-                <th className="p-2">Employee</th>
-                <th className="p-2">Employee ID</th>
-                <th className="p-2">Type</th>
-                <th className="p-2">Date</th>
-                <th className="p-2">Reason</th>
-                <th className="p-2">Status</th>
-                <th className="p-2">Approved By</th>
-                <th className="p-2">Created</th>
-                <th className="p-2">Updated</th>
-                <th className="p-2">Actions</th>
+                <th className="p-2 whitespace-nowrap">Employee</th>
+                <th className="p-2 whitespace-nowrap">Employee ID</th>
+                <th className="p-2 whitespace-nowrap">Type</th>
+                <th className="p-2 whitespace-nowrap">Date</th>
+                <th className="p-2 whitespace-nowrap">Reason</th>
+                <th className="p-2 whitespace-nowrap">Status</th>
+                <th className="p-2 whitespace-nowrap">Approved By</th>
+                <th className="p-2 whitespace-nowrap">Created</th>
+                <th className="p-2 whitespace-nowrap">Updated</th>
+                <th className="p-2 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -129,12 +129,12 @@ export default function LeavesAll() {
                 const userInfo = getUserByEmployeeId(leave.employeeId);
                 return (
                   <tr key={leave._id} className="border-b hover:bg-cyan-50 dark:hover:bg-slate-700/40">
-                    <td className="p-2">{userInfo ? <>{userInfo.name}<br /><span className="text-xs text-gray-500">{userInfo.email}</span></> : <span className="text-gray-400">—</span>}</td>
-                    <td className="p-2">{leave.employeeId}</td>
-                    <td className="p-2">{leave.leaveType}</td>
-                    <td className="p-2">{new Date(leave.leaveDate).toLocaleDateString()}</td>
-                    <td className="p-2 max-w-xs break-words">{leave.leaveReason}</td>
-                    <td className="p-2">
+                    <td className="p-2 whitespace-nowrap">{userInfo ? <>{userInfo.name}<br /><span className="text-xs text-gray-500">{userInfo.email}</span></> : <span className="text-gray-400">—</span>}</td>
+                    <td className="p-2 whitespace-nowrap">{leave.employeeId}</td>
+                    <td className="p-2 whitespace-nowrap">{leave.leaveType}</td>
+                    <td className="p-2 whitespace-nowrap">{new Date(leave.leaveDate).toLocaleDateString()}</td>
+                    <td className="p-2 whitespace-nowrap max-w-xs break-words">{leave.leaveReason}</td>
+                    <td className="p-2 whitespace-nowrap">
                       {isEditing ? (
                         <select value={editing[leave._id]?.status || leave.status} onChange={e => handleEdit(leave._id, "status", e.target.value)} className="p-1 border rounded">
                           {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -143,10 +143,10 @@ export default function LeavesAll() {
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leave.status === 'pending' ? 'bg-amber-100 text-amber-700' : leave.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{leave.status}</span>
                       )}
                     </td>
-                    <td className="p-2">{leave.approvedBy ? leave.approvedBy : <span className="text-gray-400">—</span>}</td>
-                    <td className="p-2 text-xs">{new Date(leave.createdAt).toLocaleString()}</td>
-                    <td className="p-2 text-xs">{new Date(leave.updatedAt).toLocaleString()}</td>
-                    <td className="p-2">
+                    <td className="p-2 whitespace-nowrap">{leave.approvedBy ? leave.approvedBy : <span className="text-gray-400">—</span>}</td>
+                    <td className="p-2 whitespace-nowrap text-xs">{new Date(leave.createdAt).toLocaleString()}</td>
+                    <td className="p-2 whitespace-nowrap text-xs">{new Date(leave.updatedAt).toLocaleString()}</td>
+                    <td className="p-2 whitespace-nowrap">
                       {isEditing ? (
                         <button className="px-2 py-1 bg-green-500 text-white rounded mr-2" onClick={() => handleSave(leave._id)} disabled={saving[leave._id]}>Save</button>
                       ) : (
