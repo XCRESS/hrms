@@ -3,12 +3,14 @@ import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX } from "@tabler/icons-react";
-import { Link,useLocation } from "react-router";
+import { Link, NavLink } from "react-router-dom";
+import { useMediaQuery } from '../../hooks/use-media-query';
 
 interface Links {
   label: string;
-  href: string;
+  href?: string; // href is optional for non-navigation links like logout
   icon: React.JSX.Element | React.ReactNode;
+  onClick?: () => void;
 }
 
 interface SidebarContextProps {
@@ -115,7 +117,7 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden  items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
+          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
         )}
         {...props}
       >
@@ -160,37 +162,66 @@ export const SidebarLink = ({
   className,
   ...props
 }: {
-  link: Links & { onClick?: () => void }; 
+  link: Links;
   className?: string;
 }) => {
-  const { open, animate } = useSidebar();
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const { open, setOpen } = useSidebar();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const handleLinkClick = () => {
     if (link.onClick) {
-      e.preventDefault(); // Prevent default navigation if onClick is provided
-      link.onClick();     // Call the function (e.g. logout)
+      link.onClick();
+    }
+    if (isMobile) {
+      setOpen(false);
     }
   };
-  return (
-    <Link
-      to={link.href}
-      onClick={handleClick}
-      className={cn(
-        "flex items-center justify-start gap-2  group/sidebar py-2",
-        className
-      )}
-      {...props}
-    >
-      {link.icon}
 
+  const linkContent = (
+    <>
+      {link.icon}
       <motion.span
         animate={{
-          display: animate ? (open ? "inline-block" : "none") : "inline-block",
-          opacity: animate ? (open ? 1 : 0) : 1,
+          display: open ? "inline-block" : "none",
+          opacity: open ? 1 : 0,
         }}
         className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
       >
         {link.label}
       </motion.span>
-    </Link>
+    </>
+  );
+
+  const linkClasses = (isActive: boolean) =>
+    cn(
+      "flex items-center justify-start gap-2 group/sidebar py-2 px-2 rounded-md",
+      {
+        "bg-neutral-200 dark:bg-neutral-700": isActive,
+      },
+      className
+    );
+
+  if (link.href) {
+    return (
+      <NavLink
+        to={link.href}
+        onClick={handleLinkClick}
+        className={({ isActive }) => linkClasses(isActive)}
+        {...props}
+      >
+        {linkContent}
+      </NavLink>
+    );
+  }
+
+  // Render a button for actions without a link (like logout)
+  return (
+    <button
+      onClick={handleLinkClick}
+      className={cn(linkClasses(false), "w-full")}
+      {...props}
+    >
+      {linkContent}
+    </button>
   );
 };
