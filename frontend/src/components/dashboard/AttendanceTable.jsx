@@ -16,35 +16,81 @@ const AttendanceTable = ({ attendanceData }) => {
       </div>
       <div className="p-3">
         {attendanceData.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs sm:text-sm text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Date</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Status</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Check In</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Check Out</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendanceData.map((record, index) => (
-                  <tr key={index} className="border-b border-gray-100 dark:border-slate-700/70 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors text-xs sm:text-sm">
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-700 dark:text-slate-200">
-                      {new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', weekday: 'short' }).format(record.date)}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3">
-                      {record.status === "present" && <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">Present</span>}
-                      {record.status === "absent" && <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">Absent</span>}
-                      {record.status === "half-day" && <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-full text-xs font-semibold">Half Day</span>}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">{formatTime(record.checkIn)}</td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">{formatTime(record.checkOut)}</td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] sm:max-w-[150px]" title={record.reason}>{record.reason || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="w-full">
+            {/* Desktop Table Headers */}
+            <div className="hidden md:table-header-group w-full">
+              <div className="md:table-row text-left text-xs text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Date</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Status</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Check In</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Check Out</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Reason</div>
+              </div>
+            </div>
+
+            {/* Mobile Cards & Desktop Table Body */}
+            <div className="md:table-row-group">
+              {attendanceData.map((record, index) => (
+                <div 
+                  key={index} 
+                  className="
+                    md:table-row 
+                    block p-4 mb-3 md:mb-0 border md:border-b md:border-x-0 border-gray-200 dark:border-slate-700 
+                    rounded-lg md:rounded-none 
+                    hover:bg-gray-50 dark:hover:bg-slate-700/40 
+                    transition-colors text-sm
+                  "
+                >
+                  {/* Date */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Date</span>
+                      <span className="font-medium text-gray-800 dark:text-slate-100">
+                        {new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', weekday: 'short' }).format(record.date)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Status</span>
+                      <span>
+                        {record.status === "present" && <span className="px-3 py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">Present</span>}
+                        {record.status === "absent" && <span className="px-3 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">Absent</span>}
+                        {record.status === "half-day" && <span className="px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-full text-xs font-semibold">Half Day</span>}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Check In */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check In</span>
+                      <span className="text-gray-600 dark:text-slate-300 font-mono">{formatTime(record.checkIn)}</span>
+                    </div>
+                  </div>
+
+                  {/* Check Out */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check Out</span>
+                      <span className="text-gray-600 dark:text-slate-300 font-mono">{formatTime(record.checkOut)}</span>
+                    </div>
+                  </div>
+
+                  {/* Reason */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle md:max-w-[200px]">
+                    <div className="flex justify-between items-start md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden mt-1">Reason</span>
+                      <p className="text-gray-600 dark:text-slate-300 whitespace-normal break-words text-right md:text-left" title={record.reason}>
+                        {record.reason || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="py-8 text-center text-gray-500 dark:text-slate-400">No attendance records found</div>

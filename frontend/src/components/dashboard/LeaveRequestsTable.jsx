@@ -182,85 +182,138 @@ const LeaveRequestsTable = ({
             <p>Loading requests...</p>
           </div>
         ) : allRequests.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs sm:text-sm text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Type</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Date</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Status</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Requested</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Details</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Check In</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Check Out</th>
-                  <th className="py-2.5 sm:py-3.5 px-2 sm:px-3 font-semibold">Review Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allRequests.map((request, index) => (
-                  <tr 
-                    key={`${request.type}-${request.id || index}`} 
-                    className={`border-b border-gray-100 dark:border-slate-700/70 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors text-xs sm:text-sm ${
-                      request.status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : ''
-                    }`}
-                  >
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-700 dark:text-slate-200">
+          <div className="w-full">
+            {/* Table Headers for Desktop */}
+            <div className="hidden md:table-header-group w-full">
+              <div className="md:table-row text-left text-xs text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Type</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Date</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Status</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Requested</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Details</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Check In</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Check Out</div>
+                <div className="md:table-cell py-3.5 px-3 font-semibold">Review</div>
+              </div>
+            </div>
+            
+            {/* Mobile Card Layout & Desktop Table Body */}
+            <div className="md:table-row-group">
+              {allRequests.map((request, index) => (
+                <div 
+                  key={`${request.type}-${request.id || index}`} 
+                  className={`
+                    md:table-row 
+                    block p-4 mb-3 md:mb-0 border md:border-b md:border-x-0 border-gray-200 dark:border-slate-700 
+                    rounded-lg md:rounded-none 
+                    hover:bg-gray-50 dark:hover:bg-slate-700/40 
+                    transition-colors text-sm
+                    ${request.status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/10' : 'bg-white dark:bg-slate-800/50'}
+                  `}
+                >
+                  {/* Type */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Type</span>
                       {request.type === 'help' && (
-                        <div className="flex items-center">
-                          <HelpCircle size={14} className="mr-1 text-purple-500 dark:text-purple-400" />
+                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                          <HelpCircle size={14} className="mr-2 text-purple-500 dark:text-purple-400" />
                           <span>Help Inquiry</span>
                         </div>
                       )}
                       {request.type === 'leave' && (
-                        <div className="flex items-center">
-                          <Paperclip size={14} className="mr-1 text-cyan-500 dark:text-cyan-400" />
+                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                          <Paperclip size={14} className="mr-2 text-cyan-500 dark:text-cyan-400" />
                           {getRequestTypeLabel(request)}
                         </div>
                       )}
                       {request.type === 'regularization' && (
-                        <div className="flex items-center">
-                          <CheckCircle size={14} className="mr-1 text-green-500 dark:text-green-400" />
+                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                          <CheckCircle size={14} className="mr-2 text-green-500 dark:text-green-400" />
                           <span>Regularization</span>
                         </div>
                       )}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-700 dark:text-slate-200">
-                      {isValidDate(request.displayDate)
-                        ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(request.displayDate))
-                        : '—'}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3">
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Date</span>
+                      <span className="text-gray-700 dark:text-slate-300">
+                        {isValidDate(request.displayDate)
+                          ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(request.displayDate))
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Status */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Status</span>
                       {renderStatusBadge(request.status)}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">
-                      {isValidDate(request.createdAt)
-                        ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short' }).format(new Date(request.createdAt))
-                        : '—'}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] sm:max-w-[150px]" title={request.displayReason}>
-                      {request.type === 'help' ? (
-                        request.title || request.displayReason
-                      ) : (
-                        request.displayReason
-                      )}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">
-                      {request.type === 'regularization' && isValidDate(request.requestedCheckIn)
-                        ? new Date(request.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—'}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">
-                      {request.type === 'regularization' && isValidDate(request.requestedCheckOut)
-                        ? new Date(request.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—'}
-                    </td>
-                    <td className="py-2.5 sm:py-3.5 px-2 sm:px-3 text-gray-600 dark:text-slate-300">
-                      {request.type === 'regularization' ? (request.reviewComment || '—') : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+
+                  {/* Requested Date */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                     <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Requested</span>
+                      <span className="text-gray-600 dark:text-slate-300">
+                        {isValidDate(request.createdAt)
+                          ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short' }).format(new Date(request.createdAt))
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle md:max-w-[200px]">
+                    <div className="flex justify-between items-start md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden mt-1">Details</span>
+                      <p className="text-gray-600 dark:text-slate-300 whitespace-normal break-words text-right md:text-left" title={request.displayReason}>
+                        {request.type === 'help' ? (request.title || request.displayReason) : (request.displayReason)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Check In */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check In</span>
+                      <span className="text-gray-600 dark:text-slate-300">
+                        {request.type === 'regularization' && isValidDate(request.requestedCheckIn)
+                          ? new Date(request.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Check Out */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
+                    <div className="flex justify-between items-center md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check Out</span>
+                      <span className="text-gray-600 dark:text-slate-300">
+                        {request.type === 'regularization' && isValidDate(request.requestedCheckOut)
+                          ? new Date(request.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Review Comment */}
+                  <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle md:max-w-[200px]">
+                     <div className="flex justify-between items-start md:block">
+                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden mt-1">Review</span>
+                      <p className="text-gray-600 dark:text-slate-300 whitespace-normal break-words text-right md:text-left" title={request.reviewComment}>
+                        {request.reviewComment || '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           renderEmptyState()

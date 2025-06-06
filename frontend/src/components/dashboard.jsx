@@ -26,7 +26,6 @@ import RegularizationModal from "./dashboard/RegularizationModal";
 
 // Import dashboard components from their subdirectory
 import Header from './dashboard/Header';
-import ActionButtons from './dashboard/ActionButtons';
 import AttendanceStats from './dashboard/AttendanceStats';
 import AttendanceTable from './dashboard/AttendanceTable'; 
 import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
@@ -732,8 +731,10 @@ export default function HRMSDashboard() {
           handleCheckOut={handleCheckOut}
           isLoading={isLoading}
           retryConnection={retryConnection}
-          theme={theme}
+          setShowLeaveModal={setShowLeaveModal}
+          setShowHelpModal={setShowHelpModal}
           toggleTheme={toggleTheme}
+          theme={theme}
         />
 
         <div className="ml-auto mr-4 mt-4 flex gap-2">
@@ -745,10 +746,6 @@ export default function HRMSDashboard() {
               Regularize Attendance
             </button>
           )}
-          <ActionButtons 
-            setShowLeaveModal={setShowLeaveModal}
-            setShowHelpModal={setShowHelpModal}
-          />
         </div>
         
         <main className="flex-1 p-3 sm:p-4 lg:p-6">

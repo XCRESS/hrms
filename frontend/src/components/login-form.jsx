@@ -7,21 +7,21 @@ import { useNavigate } from "react-router-dom";
 import apiClient from "../service/apiClient.js";
 import { useState } from "react";   
 import singup from "../assets/signupImg.png";
+import { useToast } from "@/components/ui/toast.jsx";
 
 
 export default function LoginForm({ className, ...props }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   //for navigation
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
     try {
       console.log(`Trying to do a login`);
       const data = await apiClient.login(email, password);
@@ -30,11 +30,21 @@ export default function LoginForm({ className, ...props }) {
         sessionStorage.setItem("authToken", data.token);
         navigate("/");
       } else {
-        setError(data.message || "login failed");
+        toast({
+          id: "login-failed-" + Date.now(),
+          variant: "error",
+          title: "Login Failed",
+          description: data.message || "Invalid credentials. Please try again."
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
-      setError("Something went wrong. Please try again.");
+      toast({
+        id: "login-error-" + Date.now(),
+        variant: "error",
+        title: "Login Error",
+        description: error.message || "Something went wrong. Please try again."
+      });
     } finally {
       setLoading(false);
     }

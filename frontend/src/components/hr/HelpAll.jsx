@@ -98,8 +98,8 @@ export default function HelpAll() {
       {loading ? (
         <div className="text-center text-gray-500 dark:text-slate-400">Loading...</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border rounded-xl">
+        <div className="w-full">
+          <table className="w-full text-xs sm:text-sm border rounded-xl">
             <thead className="bg-cyan-50 dark:bg-slate-700">
               <tr>
                 <th className="p-2">Subject</th>
