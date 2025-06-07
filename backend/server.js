@@ -9,7 +9,8 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://hrms-jx26.vercel.app" // <-- Replace with your actual Vercel domain
+  "https://hrms-jx26.vercel.app",
+  "https://hr.intakesense.com"
 ];
 app.use(cors({
   origin: (origin, callback) => {
