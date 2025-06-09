@@ -70,6 +70,8 @@ export default function HRMSDashboard() {
   const [loadingHelpInquiries, setLoadingHelpInquiries] = useState(false); // Add loading state for help inquiries
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
   const [regularizationRequests, setRegularizationRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [activityData, setActivityData] = useState([]); // State for activity feed
   const user = useAuth();
   const username = user?.name || "User";
   const { theme, toggleTheme } = useTheme();
@@ -133,6 +135,8 @@ export default function HRMSDashboard() {
           loadLeaveRequests(),
           loadHelpInquiries(),
           loadRegularizationRequests(),
+          loadAnnouncements(),
+          loadActivityData(), // Load activity data
         ]);
         console.log("Initial data loading complete");
       } catch (error) {
@@ -192,16 +196,23 @@ export default function HRMSDashboard() {
     try {
       // API call for holidays
       const response = await apiClient.getHolidays();
-      if (response.success && response.data && response.data.holidays && response.data.holidays.length > 0) {
-        setHolidaysData(response.data.holidays);
-      } else {
-        // If no data is returned, use initial empty state
-        setHolidaysData([]);
+      let holidaysArr = [];
+      if (response.success && response.holidays && response.holidays.length > 0) {
+        holidaysArr = response.holidays;
       }
+      console.log('Raw holidays from backend:', holidaysArr);
+      // Map to expected format: { id, name, date, ... }
+      const mapped = (holidaysArr || []).map(h => ({
+        id: h._id, // always set id for React key
+        name: h.title || h.holidayName || 'Holiday',
+        date: h.date ? new Date(h.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+        isOptional: h.isOptional,
+        description: h.description,
+      }));
+      console.log('Mapped holidays for UI:', mapped);
+      setHolidaysData(mapped);
     } catch (error) {
       console.error("Failed to load holidays:", error);
-      
-      // Show error only if it's not an authentication error (which is already shown)
       if (error.status !== 401 && error.status !== 403) {
         toast({
           id: "holidays-error",
@@ -210,9 +221,21 @@ export default function HRMSDashboard() {
           description: "Could not load holiday data"
         });
       }
-      
-      // Set empty array if error
       setHolidaysData([]);
+    }
+  };
+
+  const loadActivityData = async () => {
+    try {
+      const response = await apiClient.getActivityFeed();
+      if (response.success && Array.isArray(response.data)) {
+        setActivityData(response.data);
+      } else {
+        setActivityData([]);
+      }
+    } catch (error) {
+      console.error("Failed to load activity data:", error);
+      setActivityData([]);
     }
   };
 
@@ -373,6 +396,22 @@ export default function HRMSDashboard() {
       setRegularizationRequests(res.regs || []);
     } catch (err) {
       setRegularizationRequests([]);
+    }
+  };
+
+  const loadAnnouncements = async () => {
+    try {
+      const response = await apiClient.getAnnouncements();
+      // Accept both response.announcements and response.data.announcements
+      const anns = response.announcements || (response.data ? response.data.announcements || response.data : null);
+      if (response && anns && Array.isArray(anns)) {
+        setAnnouncements(anns);
+      } else {
+        setAnnouncements([]);
+      }
+    } catch (error) {
+      console.error("Failed to load announcements:", error);
+      setAnnouncements([]);
     }
   };
 
@@ -784,6 +823,7 @@ export default function HRMSDashboard() {
                 username={username}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
+                activityData={activityData} // Pass activity data to sidebar
               />
             </div>
           </div>
