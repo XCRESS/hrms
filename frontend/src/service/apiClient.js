@@ -390,6 +390,11 @@ class ApiClient {
       return this.get("/activity/feed");
     }
 
+    // Dashboard
+    async getAdminDashboardSummary() {
+      return this.get("/dashboard/admin-summary");
+    }
+
     // Help/Support Inquiries
     async submitHelpInquiry(inquiryData) {
       const token = sessionStorage.getItem("authToken");
