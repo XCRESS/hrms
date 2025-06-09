@@ -42,6 +42,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="employee/password" element={<PasswordRequestsPage />} />
               <Route path="employee/regularization" element={<RegularizationAll />} />
+              <Route path="regularization/my" element={<MyRegularizations />} />
               <Route path="profile" element={<GetProfile />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
