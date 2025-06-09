@@ -31,6 +31,7 @@ import AttendanceTable from './dashboard/AttendanceTable';
 import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
 import WeeklySummary from './dashboard/WeeklySummary';
 import UpdatesSidebar from './dashboard/UpdatesSidebar';
+import AdminStats from './dashboard/AdminStats'; // Import AdminStats
 
 // Mock data for initial rendering only - will be replaced with real data from API
 const mockAttendanceData = [
@@ -72,6 +73,8 @@ export default function HRMSDashboard() {
   const [regularizationRequests, setRegularizationRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [activityData, setActivityData] = useState([]); // State for activity feed
+  const [adminSummary, setAdminSummary] = useState(null); // State for admin summary
+  const [loadingAdminData, setLoadingAdminData] = useState(true); // Loading state for admin data
   const user = useAuth();
   const username = user?.name || "User";
   const { theme, toggleTheme } = useTheme();
@@ -123,29 +126,58 @@ export default function HRMSDashboard() {
   // Load data when initialization is complete
   useEffect(() => {
     if (isLoading) return;
-    // Fetch backend-driven attendance state
+
+    // Common data for all roles
     fetchTodayAttendance();
-    // Load other data from API
-    console.log("Initial data loading - attempting to connect to backend database");
+    loadAnnouncements();
+    loadActivityData();
+    loadHolidays();
+
+    // Role-specific data loading
+    if (user && (user.role === 'admin' || user.role === 'hr')) {
+      loadAdminDashboardData();
+    } else {
+      loadEmployeeDashboardData();
+    }
+  }, [isLoading, user]);
+
+  const loadAdminDashboardData = async () => {
+    setLoadingAdminData(true);
+    try {
+      // For now, we only load the summary. Tables will be added next.
+      const summaryRes = await apiClient.getAdminDashboardSummary();
+      if (summaryRes.success) {
+        setAdminSummary(summaryRes.data);
+      }
+    } catch (error) {
+      console.error("Failed to load admin dashboard data:", error);
+      toast({
+        variant: "error",
+        title: "Failed to load Admin Data",
+        description: "Could not load admin dashboard summary.",
+      });
+    } finally {
+      setLoadingAdminData(false);
+    }
+  };
+
+  const loadEmployeeDashboardData = async () => {
+    // These were moved from the main loader to be employee-specific
     const loadAllData = async () => {
       try {
         await Promise.all([
           loadAttendanceData(),
-          loadHolidays(),
           loadLeaveRequests(),
           loadHelpInquiries(),
           loadRegularizationRequests(),
-          loadAnnouncements(),
-          loadActivityData(), // Load activity data
         ]);
-        console.log("Initial data loading complete");
+        console.log("Employee data loading complete");
       } catch (error) {
-        console.error("Error during initial data loading:", error);
-        // Individual load functions will handle their own errors
+        console.error("Error during employee data loading:", error);
       }
     };
     loadAllData();
-  }, [isLoading]);
+  };
 
   const loadAttendanceData = async () => {
     try {
@@ -790,30 +822,39 @@ export default function HRMSDashboard() {
         <main className="flex-1 p-3 sm:p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             <div className="w-full lg:w-3/4 space-y-4 lg:space-y-6">
-              <AttendanceStats 
-                attendanceData={attendanceData}
-                holidays={holidaysData}
-                formatTime={formatTime}
-                calculateAttendancePercentage={calculateAttendancePercentage}
-              />
-              
-              <AttendanceTable 
-                attendanceData={attendanceData}
-                formatTime={formatTime}
-              />
-              
-              <LeaveRequestsTable 
-                leaveRequests={allRequests}
-                helpInquiries={[]}
-                loadingLeaveRequests={loadingLeaveRequests || loadingHelpInquiries}
-                onNewRequest={() => setShowLeaveModal(true)}
-                onNewHelpRequest={() => setShowHelpModal(true)}
-                formatLeaveType={formatLeaveType}
-              />
-              
-              <WeeklySummary 
-                attendanceData={attendanceData}
-              />
+              {user && (user.role === 'admin' || user.role === 'hr') ? (
+                <>
+                  <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
+                  {/* Placeholder for Admin Tables */}
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-5 text-center">
+                    <p className="text-slate-500">Admin tables for Today's Attendance and Pending Requests will be implemented here.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <AttendanceStats 
+                    attendanceData={attendanceData}
+                    holidays={holidaysData}
+                    formatTime={formatTime}
+                    calculateAttendancePercentage={calculateAttendancePercentage}
+                  />
+                  <AttendanceTable 
+                    attendanceData={attendanceData}
+                    formatTime={formatTime}
+                  />
+                  <LeaveRequestsTable 
+                    leaveRequests={allRequests}
+                    helpInquiries={[]}
+                    loadingLeaveRequests={loadingLeaveRequests || loadingHelpInquiries}
+                    onNewRequest={() => setShowLeaveModal(true)}
+                    onNewHelpRequest={() => setShowHelpModal(true)}
+                    formatLeaveType={formatLeaveType}
+                  />
+                  <WeeklySummary 
+                    attendanceData={attendanceData}
+                  />
+                </>
+              )}
             </div>
             
             <div className="w-full lg:w-1/4">
