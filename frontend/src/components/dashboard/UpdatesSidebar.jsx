@@ -4,7 +4,8 @@ import { Bell, Calendar } from "lucide-react";
 const UpdatesSidebar = ({ 
   announcements, 
   holidays, 
-  username 
+  username,
+  activityData
 }) => {
   const [activeTab, setActiveTab] = useState("announcements");
 
@@ -44,8 +45,8 @@ const UpdatesSidebar = ({
           {activeTab === 'announcements' && (
             <div className="space-y-3 sm:space-y-4">
               {announcements.length > 0 ? (
-                announcements.map((ann) => (
-                  <div key={ann.id} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 cursor-pointer shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                announcements.map((ann, index) => (
+                  <div key={ann.id || `announcement-${index}`} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 cursor-pointer shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
                     <div className="flex justify-between items-start mb-1">
                       <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm leading-snug">{ann.title}</h4>
                       <span className="ml-2 flex-shrink-0 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium">New</span>
@@ -67,7 +68,7 @@ const UpdatesSidebar = ({
             <div className="space-y-2.5 sm:space-y-3.5">
               {holidays.length > 0 ? (
                 holidays.map((holiday, index) => (
-                  <div key={index} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                  <div key={holiday.id || `holiday-${index}`} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
                     <div>
                       <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm">{holiday.name}</h4>
                       <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">{holiday.date}</p>
@@ -85,30 +86,29 @@ const UpdatesSidebar = ({
           
           {activeTab === 'activity' && (
             <div className="space-y-3 sm:space-y-4">
-              {[
-                { id: 1, text: `You checked in at 9:05 AM`, time: 'Today', initials: username.charAt(0).toUpperCase(), theme: 'cyan' },
-                { id: 2, text: `Your leave request was approved`, time: 'Yesterday', initials: username.charAt(0).toUpperCase(), theme: 'cyan' },
-                { id: 3, text: `HR updated company policy`, time: '2 days ago', initials: 'HR', theme: 'green' },
-                { id: 4, text: `New announcement posted by CEO`, time: '3 days ago', initials: 'CEO', theme: 'purple' },
-                { id: 5, text: `Your performance review is scheduled`, time: '1 week ago', initials: 'PM', theme: 'amber' },
-              ].map((activity) => (
-                <div key={activity.id} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                  <div className="flex items-start gap-2 sm:gap-3.5">
-                    <div className={`
-                      ${activity.theme === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' : 
-                        activity.theme === 'green' ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-300' :
-                        activity.theme === 'purple' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300' : 
-                        'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300'} 
-                      rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm`}>
-                      {activity.initials}
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm text-gray-700 dark:text-slate-200 leading-snug">{activity.text}</p>
-                      <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-0.5">{activity.time}</p>
+              {activityData && activityData.length > 0 ? (
+                activityData.map((activity, index) => (
+                  <div key={activity.id || `activity-${index}`} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                    <div className="flex items-start gap-2 sm:gap-3.5">
+                      <div className={`
+                        ${activity.theme === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' : 
+                          activity.theme === 'green' ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-300' :
+                          activity.theme === 'purple' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300' : 
+                          activity.theme === 'red' ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-300' :
+                          'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300'} 
+                        rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm`}>
+                        {activity.initials}
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-700 dark:text-slate-200 leading-snug">{activity.text}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-0.5">{new Date(activity.date).toLocaleDateString()}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="py-8 text-center text-gray-500 dark:text-slate-400">No recent activity</div>
+              )}
               <div className="pt-2 text-center">
                 <button className="text-cyan-600 dark:text-cyan-400 text-xs sm:text-sm hover:underline font-semibold py-2">View All Activities</button>
               </div>

@@ -385,6 +385,11 @@ class ApiClient {
       return this.delete(`/announcements/${id}`);
     }
 
+    // Activity Feed
+    async getActivityFeed() {
+      return this.get("/activity/feed");
+    }
+
     // Help/Support Inquiries
     async submitHelpInquiry(inquiryData) {
       const token = sessionStorage.getItem("authToken");
