@@ -1,0 +1,26 @@
+{
+  "name": "HRMS - Human Resource Management System",
+  "short_name": "HRMS",
+  "description": "Complete HR management solution for attendance, leaves, and employee management",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0891b2",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity"],
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+} 

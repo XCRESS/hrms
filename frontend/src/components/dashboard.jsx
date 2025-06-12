@@ -22,7 +22,8 @@ import LeaveRequestModal from "./LeaveRequestModal";
 import HelpDeskModal from "./HelpDeskModal";
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast.jsx";
-import RegularizationModal from "./dashboard/RegularizationModal";
+import RegularizationModal from "./dashboard/RegularizationModal.jsx";
+import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 
 // Import dashboard components from their subdirectory
 import Header from './dashboard/Header';
@@ -32,6 +33,8 @@ import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
 import WeeklySummary from './dashboard/WeeklySummary';
 import UpdatesSidebar from './dashboard/UpdatesSidebar';
 import AdminStats from './dashboard/AdminStats'; // Import AdminStats
+import AdminAttendanceTable from './dashboard/AdminAttendanceTable';
+import AdminPendingRequests from './dashboard/AdminPendingRequests';
 
 // Mock data for initial rendering only - will be replaced with real data from API
 const mockAttendanceData = [
@@ -79,6 +82,8 @@ export default function HRMSDashboard() {
   const username = user?.name || "User";
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
+  const [showTaskReportModal, setShowTaskReportModal] = useState(false);
+  const [error, setError] = useState(null);
 
   // Initialize and load data
   useEffect(() => {
@@ -533,72 +538,62 @@ export default function HRMSDashboard() {
       });
       return;
     }
+    setCheckOutLoading(true);
+    setError(null);
     try {
-      setCheckOutLoading(true);
-      try {
-        const response = await apiClient.checkOut();
-        if (response.success) {
-          toast({
-            id: "checkout-success-" + new Date().getTime(),
-            variant: "success",
-            title: "Checked Out",
-            description: "You have successfully checked out for today."
-          });
-          await fetchTodayAttendance();
-          loadAttendanceData();
-        } else {
-          toast({
-            id: "checkout-api-fail-" + new Date().getTime(),
-            variant: "warning",
-            title: "Check-out Issue",
-            description: response.message || "Could not complete check-out."
-          });
-        }
-      } catch (apiError) {
-        let description = apiError.message || "There was an issue with your check-out.";
-        if (apiError.message === "No linked employee profile found for user") {
-          description = "Your user account is not linked to an employee profile. Please contact HR.";
-        }
-        if (apiError.message === "No check-in record found for today") {
-          toast({
-            id: "checkout-validation-no-checkin-" + new Date().getTime(),
-            variant: "warning",
-            title: "Not Checked In",
-            description
-          });
-        } else if (apiError.message === "Already checked out for today") {
-          toast({
-            id: "checkout-validation-already-out-" + new Date().getTime(),
-            variant: "warning",
-            title: "Already Checked Out",
-            description
-          });
-        } else {
-          toast({
-            id: "checkout-api-error-" + new Date().getTime(),
-            variant: "error",
-            title: "Check-out Failed",
-            description
-          });
-        }
-        await fetchTodayAttendance();
-      }
-    } catch (error) {
+      // The actual API call is now in handleTaskReportSubmit
+      // This function will just open the modal
+      setShowTaskReportModal(true);
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || "An unexpected error occurred during check-out.";
       toast({
-        id: "checkout-critical-error-" + new Date().getTime(),
-        variant: "error",
-        title: "Check-out Error",
-        description: "An unexpected error occurred."
+        variant: "destructive",
+        title: "Check-out Failed",
+        description: errorMessage,
       });
+      setError(errorMessage);
+    } finally {
+      // Set loading to false here, as the modal is now open and waiting for user input.
+      // The loading state for the final submission will be handled separately.
+      setCheckOutLoading(false); 
+    }
+  };
+
+  const handleTaskReportSubmit = async (tasks) => {
+    setCheckOutLoading(true);
+    setError(null);
+    try {
+      const result = await apiClient.checkOut(tasks);
+      if (result.success) {
+        toast({
+          title: "Checked Out Successfully",
+          description: "Your work report has been submitted.",
+        });
+        // Update local state to reflect check-out
+        setDailyCycleComplete(true);
+        // Close the modal
+        setShowTaskReportModal(false);
+        // Optionally, re-fetch attendance to get the latest checkout time
+        await fetchTodayAttendance();
+      } else {
+        throw new Error(result.message || "Failed to submit task report.");
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || "An unexpected error occurred during check-out.";
+      toast({
+        variant: "destructive",
+        title: "Check-out Failed",
+        description: errorMessage,
+      });
+      setError(errorMessage);
     } finally {
       setCheckOutLoading(false);
     }
   };
 
   const handleLeaveRequestSubmit = async (data) => {
+    setFormLoading(true);
     try {
-      setLeaveLoading(true);
-      
       const response = await apiClient.requestLeave(data);
       
       console.log("Leave request submitted:", response);
@@ -624,7 +619,7 @@ export default function HRMSDashboard() {
         description: error.message || "Failed to submit leave request. Please try again."
       });
     } finally {
-      setLeaveLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -787,7 +782,7 @@ export default function HRMSDashboard() {
   ];
 
   return (
-    <div className={`flex w-full min-h-screen bg-gray-100 dark:bg-slate-900 transition-colors duration-300`}>
+    <div className={`flex h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50 ${theme}`}>
       <div className="flex-1 flex flex-col">
         <Header 
           username={username}
@@ -819,15 +814,15 @@ export default function HRMSDashboard() {
           )}
         </div>
         
-        <main className="flex-1 p-3 sm:p-4 lg:p-6">
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-            <div className="w-full lg:w-3/4 space-y-4 lg:space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {user && (user.role === 'admin' || user.role === 'hr') ? (
                 <>
                   <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
-                  {/* Placeholder for Admin Tables */}
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-5 text-center">
-                    <p className="text-slate-500">Admin tables for Today's Attendance and Pending Requests will be implemented here.</p>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <AdminAttendanceTable />
+                    <AdminPendingRequests />
                   </div>
                 </>
               ) : (
@@ -892,6 +887,12 @@ export default function HRMSDashboard() {
           title: "Regularization Request Submitted",
           description: "Your attendance regularization request has been submitted."
         })}
+      />
+      <TaskReportModal
+        isOpen={showTaskReportModal}
+        onClose={() => setShowTaskReportModal(false)}
+        onSubmit={handleTaskReportSubmit}
+        isLoading={checkOutLoading}
       />
     </div>
   );
