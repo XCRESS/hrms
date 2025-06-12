@@ -15,7 +15,9 @@ import {
   LogOut,
   UserCog,
   KeyRound,
-  UserCircle2
+  UserCircle2,
+  ClipboardList,
+  FileText
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -106,6 +108,11 @@ export default function SidebarDemo() {
               label: "Password Requests",
               href: "/employee/password",
               icon: <KeyRound className={accentIconClass('red')} />,
+            },
+            {
+              label: "Task Reports",
+              href: "/task-reports",
+              icon: <FileText className={accentIconClass('purple')} />,
             },
           ];
         } else if (user && user.role === "employee") {

@@ -1,5 +1,6 @@
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
+import TaskReport from "../models/TaskReport.model.js";
 
 // Standard response formatter for consistency
 const formatResponse = (success, message, data = null, errors = null) => {
@@ -84,38 +85,72 @@ export const checkIn = async (req, res) => {
  */
 export const checkOut = async (req, res) => {
   try {
+    const { tasks } = req.body;
+
     if (!req.user) {
       return res.status(401).json(formatResponse(false, "Authentication required", null, { auth: "No valid user found" }));
     }
+
+    // Task report validation
+    if (!tasks || !Array.isArray(tasks) || tasks.filter(t => typeof t === 'string' && t.trim() !== '').length === 0) {
+      return res.status(400).json(formatResponse(false, "A task report with at least one task is required to check out."));
+    }
+
     const employeeObjId = await getEmployeeObjectId(req.user);
     if (!employeeObjId) {
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
-    const today = new Date().setHours(0, 0, 0, 0);
+
+    // Use UTC to define the current day, consistent with check-in
+    const now = new Date();
+    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
     const attendance = await Attendance.findOne({
       employee: employeeObjId,
-      date: { $gte: new Date(today), $lt: new Date(today + 24 * 60 * 60 * 1000) }
+      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
     });
+
     if (!attendance) {
       return res.status(400).json(formatResponse(false, "No check-in record found for today"));
     }
     if (attendance.checkOut) {
       return res.status(400).json(formatResponse(false, "Already checked out for today"));
     }
+
+    // 1. Create and save the task report
+    await TaskReport.create({
+      employee: employeeObjId,
+      employeeId: req.user.employeeId,
+      date: attendance.date, // Use the date from the attendance record
+      tasks: tasks.filter(t => typeof t === 'string' && t.trim() !== ''), // Sanitize tasks
+    });
+
+    // 2. Update attendance with checkout time
     attendance.checkOut = new Date();
     await attendance.save();
-    res.json(formatResponse(true, "Checked out successfully", { attendance }));
+
+    res.json(formatResponse(true, "Checked out successfully with task report.", { attendance }));
+
   } catch (err) {
     let errorMessage = "Check-out failed";
     let errorDetails = { server: err.message };
+
+    // Handle potential duplicate task report for the same day
+    if (err.code === 11000 && err.message.includes('TaskReport')) {
+      errorMessage = "A task report has already been submitted for today.";
+      return res.status(409).json(formatResponse(false, errorMessage, null, { duplicate: "Task report for this date already exists." }));
+    }
+
     if (err.name === 'ValidationError') {
-      errorMessage = "Invalid data for check-out";
+      errorMessage = "Invalid data for check-out or task report";
       errorDetails = Object.keys(err.errors).reduce((acc, key) => {
         acc[key] = err.errors[key].message;
         return acc;
       }, {});
       return res.status(400).json(formatResponse(false, errorMessage, null, errorDetails));
     }
+
     res.status(500).json(formatResponse(false, errorMessage, null, errorDetails));
   }
 };

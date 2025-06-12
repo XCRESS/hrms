@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./components/login-form.jsx";
 import Signup from "./components/singup-form.jsx";
@@ -12,7 +11,7 @@ import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';
 import SidebarDemo from './components/sidebar.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
-import { ToastContext } from './components/ui/toast.jsx';
+import { Toaster } from './components/ui/toast.jsx';
 import LeavesAll from './components/hr/LeavesAll';
 import HelpAll from './components/hr/HelpAll';
 import EmployeeDirectory from './components/hr/EmployeeDirectory';
@@ -23,12 +22,15 @@ import PasswordRequestsPage from './components/hr/PasswordRequestsPage.jsx';
 import MyRegularizations from './components/regularization/MyRegularizations';
 import RegularizationAll from './components/regularization/RegularizationAll';
 import SettingsPage from './components/settings/SettingsPage.jsx';
+import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ToastContext>
-      <ThemeProvider>
-        <BrowserRouter>
+    <ErrorBoundary>
+      <Toaster>
+        <ThemeProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/" element={<SidebarDemo />}>
               <Route index element={<HRMSDashboard />} />
@@ -45,6 +47,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="regularization/my" element={<MyRegularizations />} />
               <Route path="profile" element={<GetProfile />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="task-reports" element={<TaskReportsManage />} />
             </Route>
 
             <Route path="/auth/login" element={<Login />} />
@@ -55,6 +58,7 @@ createRoot(document.getElementById('root')).render(
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
-    </ToastContext>
+    </Toaster>
+    </ErrorBoundary>
   </StrictMode>,
 )

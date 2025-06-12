@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HRMS - Modern HR Management System</title>
     <meta name="description" content="A modern HR management system for employee management, attendance, leave, and more. Secure, fast, and easy to use." />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0891b2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="HRMS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="canonical" href="https://hr.intakesense.com/" />
 
     <!-- Open Graph / Facebook -->
@@ -25,5 +34,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('ServiceWorker registration successful');
+            })
+            .catch(function(err) {
+              console.log('ServiceWorker registration failed');
+            });
+        });
+      }
+    </script>
   </body>
 </html>

@@ -233,43 +233,12 @@ class ApiClient {
 
     // Check-in and Check-out
     async checkIn() {
-      const token = sessionStorage.getItem("authToken");
-      
-      // Only proceed if we have a token
-      if (!token) {
-        throw new Error("Authentication required");
-      }
-      
-      const result = await this.customFetch(`/attendance/checkin`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        // Send empty body to ensure proper content-type headers
-        body: JSON.stringify({})
-      });
-      
-      return result;
+      return this.post("/attendance/checkin");
     }
     
-    async checkOut() {
-      const token = sessionStorage.getItem("authToken");
-      
-      // Only proceed if we have a token
-      if (!token) {
-        throw new Error("Authentication required");
-      }
-      
-      const result = await this.customFetch(`/attendance/checkout`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        // Send empty body to ensure proper content-type headers
-        body: JSON.stringify({})
-      });
-      
-      return result;
+    async checkOut(tasks) {
+      // The 'tasks' parameter is an array of strings
+      return this.post("/attendance/checkout", { tasks });
     }
     
     // Attendance records
@@ -515,15 +484,12 @@ class ApiClient {
     // Regularization: HR/Admin reviews a request
     async reviewRegularization(id, status, reviewComment) {
       const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/regularization/${id}/review`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status, reviewComment }),
-      });
+      return this.post(`/regularization/${id}/review`, { status, reviewComment });
     }
 
     // Password Reset Requests (for Admin/HR)
     async getAllPasswordResetRequests(params = {}) { // params for filtering if needed, e.g., { status: 'pending' }
+      const queryString = new URLSearchParams(params).toString();
       return this.get("/password-reset/requests", { params });
     }
 
@@ -533,6 +499,11 @@ class ApiClient {
 
     async rejectPasswordResetRequest(requestId, remarks = "") {
       return this.put(`/password-reset/request/${requestId}/reject`, { remarks });
+    }
+
+    async getTaskReports(params = {}) {
+      const queryString = new URLSearchParams(params).toString();
+      return this.get(`/tasks?${queryString}`);
     }
   }
   

@@ -26,7 +26,7 @@ const toastVariants = (variant = "default") => {
   return `${baseClasses} ${variantClasses[variant] || variantClasses.default}`
 }
 
-const ToastContext = ({ children }) => {
+export const Toaster = ({ children }) => {
   const [state, dispatch] = React.useReducer(
     (state, action) => {
       switch (action.type) {
@@ -106,4 +106,4 @@ const Toast = ({
   )
 }
 
-export { ToastContext, Toast } 
+export { Toast } 
