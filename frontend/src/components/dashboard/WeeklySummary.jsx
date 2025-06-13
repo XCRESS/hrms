@@ -75,7 +75,7 @@ const WeeklySummary = ({ attendanceData }) => {
     : 0;
   
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-3 sm:p-5">
+    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5">
       <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-slate-100 mb-1">Weekly Summary</h2>
       <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mb-4">Productivity & attendance metrics</p>
       

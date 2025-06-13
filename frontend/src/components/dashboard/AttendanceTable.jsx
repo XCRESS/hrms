@@ -4,7 +4,7 @@ const AttendanceTable = ({ attendanceData }) => {
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date) : "—";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl transition-colors duration-200">
+    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl transition-colors duration-200">
       <div className="p-3 sm:p-5 border-b border-gray-200 dark:border-slate-700 flex flex-wrap sm:flex-nowrap justify-between items-center">
         <div className="w-full sm:w-auto mb-2 sm:mb-0">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-slate-100">Attendance History</h2>
