@@ -75,7 +75,7 @@ export default function SidebarDemo() {
               icon: <UserPlus className={accentIconClass('green')} />,
             },
             {
-              label: "Link User & Employee",
+              label: "Link User",
               href: "/employee/link",
               icon: <Link2 className={accentIconClass('orange')} />,
             },
@@ -100,7 +100,7 @@ export default function SidebarDemo() {
               icon: <Megaphone className={accentIconClass('pink')} />,
             },
             {
-              label: "Attendance Regularization",
+              label: "Regularizations",
               href: "/employee/regularization",
               icon: <CheckSquare className={accentIconClass('cyan')} />,
             },
