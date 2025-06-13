@@ -55,16 +55,16 @@ const AttendanceStats = ({ attendanceData, holidays }) => {
         };
         
         return (
-          <div key={card.title} className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+          <div key={card.title} className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
             <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400">{card.title}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">{card.title}</p>
               <Icon size={20} className={`${iconClasses[card.color]}`} />
             </div>
             <p className={`text-xl sm:text-3xl font-bold ${textClasses[card.color]}`}>{card.value}</p>
-            <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
               <div className={`h-2 ${barClasses[card.color]} rounded-full transition-all duration-500`} style={{ width: card.barWidth }}></div>
             </div>
-            {card.subText && <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">{card.subText}</p>}
+            {card.subText && <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">{card.subText}</p>}
           </div>
         );
       })}

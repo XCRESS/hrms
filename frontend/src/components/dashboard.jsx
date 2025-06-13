@@ -782,7 +782,7 @@ export default function HRMSDashboard() {
   ];
 
   return (
-    <div className={`flex h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50 ${theme}`}>
+    <div className="flex h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50">
       <div className="flex-1 flex flex-col">
         <Header 
           username={username}

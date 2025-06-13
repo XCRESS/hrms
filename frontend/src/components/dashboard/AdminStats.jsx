@@ -47,12 +47,12 @@ const AdminStats = ({ summaryData, isLoading }) => {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-5 animate-pulse">
+          <div key={index} className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-5 animate-pulse">
             <div className="flex justify-between items-center">
-              <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
-              <div className="h-8 w-8 bg-gray-200 dark:bg-slate-700 rounded-full"></div>
+              <div className="h-4 bg-gray-200 dark:bg-neutral-700 rounded w-3/4"></div>
+              <div className="h-8 w-8 bg-gray-200 dark:bg-neutral-700 rounded-full"></div>
             </div>
-            <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-1/2 mt-4"></div>
+            <div className="h-8 bg-gray-200 dark:bg-neutral-700 rounded w-1/2 mt-4"></div>
           </div>
         ))}
       </div>
@@ -64,9 +64,9 @@ const AdminStats = ({ summaryData, isLoading }) => {
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
-          <div key={stat.title} className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-4 sm:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+          <div key={stat.title} className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-4 sm:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{stat.title}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-neutral-400">{stat.title}</p>
               <div className={`p-2 rounded-full ${colorClasses[stat.color]}`}>
                 <Icon size={20} />
               </div>
