@@ -10,7 +10,7 @@ const UpdatesSidebar = ({
   const [activeTab, setActiveTab] = useState("announcements");
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl h-full flex flex-col">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl h-full flex flex-col overflow-hidden">
       <div className="p-3 sm:p-5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-800 z-10">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-slate-100">Updates</h2>
         <div className="bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 rounded-full h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center text-xs sm:text-sm font-bold shadow-sm">
