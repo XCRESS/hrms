@@ -156,9 +156,8 @@ export default function CreateEmployee() {
     }
   };
   return (
-    <div className="min-h-full bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-2xl">
-        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-700 p-6 sm:p-8">
+    <div className="max-w-2xl mx-auto mt-8 p-4 sm:p-6 lg:p-8">
+      <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-700 p-6 sm:p-8">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-200">
               Fill Employee Details
@@ -557,7 +556,6 @@ export default function CreateEmployee() {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }
