@@ -64,10 +64,23 @@ const employeeSchema = new mongoose.Schema(
         motherName: {
             type: String,
         },
+        fatherPhone: {
+            type: Number,
+            minlength: 10,
+            maxlength: 10,
+        },
+        motherPhone: {
+            type: Number,
+            minlength: 10,
+            maxlength: 10,
+        },
         officeAddress: {
             type: String,
             enum: ["SanikColony", "Indore", "Delhi"],
             required: true,  
+        },
+        companyName: {
+            type: String,
         },
         department: {
             type: String,
@@ -77,10 +90,7 @@ const employeeSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
-        salary: {
-            type: Number,
-            required: true,
-        },
+
         paymentMode: {
             type: String,
             enum: ["bankTransfer", "cheque", "cash"],
@@ -100,7 +110,7 @@ const employeeSchema = new mongoose.Schema(
         },
         employmentType: {
             type: String,
-            enum: ["fulltime", "intern"],
+            enum: ["fulltime", "intern", "remote"],
             required: true,
         },
         reportingSupervisor:{
