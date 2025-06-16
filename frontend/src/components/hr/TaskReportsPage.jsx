@@ -80,31 +80,30 @@ const TaskReportsPage = () => {
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div className="p-4 md:p-6 bg-neutral-100 dark:bg-neutral-900 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">Employee Task Reports</h1>
+    <div className="max-w-7xl mx-auto mt-8 p-4 sm:p-6 bg-white dark:bg-neutral-800 rounded-xl shadow-xl">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">Employee Task Reports</h1>
+      
+      {/* Filter Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-neutral-50 dark:bg-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-600">
+        <Select onValueChange={(value) => handleFilterChange('employeeId', value === "all" ? '' : value)} value={filters.employeeId || undefined}>
+            <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter by Employee" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees.map(emp => (
+                    <SelectItem key={emp.employeeId} value={emp.employeeId}>{emp.fullName}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+        <Input type="date" placeholder="Start Date" onChange={(e) => handleFilterChange('startDate', e.target.value)} className="w-full"/>
+        <Input type="date" placeholder="End Date" onChange={(e) => handleFilterChange('endDate', e.target.value)} className="w-full"/>
         
-        {/* Filter Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-white dark:bg-neutral-800 rounded-lg shadow">
-          <Select onValueChange={(value) => handleFilterChange('employeeId', value === "all" ? '' : value)} value={filters.employeeId || undefined}>
-              <SelectTrigger>
-                  <SelectValue placeholder="Filter by Employee" />
-              </SelectTrigger>
-              <SelectContent>
-                  <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map(emp => (
-                      <SelectItem key={emp.employeeId} value={emp.employeeId}>{emp.fullName}</SelectItem>
-                  ))}
-              </SelectContent>
-          </Select>
-          <Input type="date" placeholder="Start Date" onChange={(e) => handleFilterChange('startDate', e.target.value)}/>
-          <Input type="date" placeholder="End Date" onChange={(e) => handleFilterChange('endDate', e.target.value)}/>
-          
-          <Button onClick={handleSearch} className="w-full">Search</Button>
-        </div>
+        <Button onClick={handleSearch} className="w-full">Search</Button>
+      </div>
 
-        {/* Reports Table */}
-        <div className="bg-white dark:bg-neutral-800 rounded-lg shadow overflow-x-auto">
+      {/* Reports Table */}
+      <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-600 overflow-x-auto">
           {isLoading ? (
             <p className="p-4 text-center">Loading reports...</p>
           ) : error ? (
@@ -142,16 +141,15 @@ const TaskReportsPage = () => {
           )}
         </div>
 
-        {/* Pagination Controls */}
-        <div className="flex justify-between items-center mt-4">
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                Page {pagination.page} of {pagination.totalPages}
-            </span>
-            <div className="flex gap-2">
-                <Button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page <= 1 || isLoading}>Previous</Button>
-                <Button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages || isLoading}>Next</Button>
-            </div>
-        </div>
+      {/* Pagination Controls */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 gap-4">
+          <span className="text-sm text-neutral-600 dark:text-neutral-400 text-center sm:text-left">
+              Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <div className="flex gap-2 justify-center sm:justify-end">
+              <Button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page <= 1 || isLoading}>Previous</Button>
+              <Button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages || isLoading}>Next</Button>
+          </div>
       </div>
     </div>
   );
