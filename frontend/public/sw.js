@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hrms-v1';
+const CACHE_NAME = 'hrms-v2';
 const urlsToCache = [
   '/',
   '/manifest.json'
