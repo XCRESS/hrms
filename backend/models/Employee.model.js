@@ -76,7 +76,7 @@ const employeeSchema = new mongoose.Schema(
         },
         officeAddress: {
             type: String,
-            enum: ["SanikColony", "Indore", "Delhi"],
+            enum: ["SanikColony", "Indore", "N.F.C."],
             required: true,  
         },
         companyName: {
