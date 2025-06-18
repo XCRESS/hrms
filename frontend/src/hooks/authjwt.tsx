@@ -18,7 +18,7 @@ export default function useAuth() {
 
   useEffect(() => {
     const checkAndSetUser = () => {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       if (token) {
         try {
           const decoded = jwtDecode<JwtPayload>(token);
@@ -26,7 +26,7 @@ export default function useAuth() {
           // Check if token has expired
           if (decoded.exp && decoded.exp * 1000 < Date.now()) {
             console.warn("Token has expired, logging out");
-            sessionStorage.removeItem("authToken");
+            localStorage.removeItem("authToken");
             setUser(null);
             return;
           }
@@ -34,7 +34,7 @@ export default function useAuth() {
           setUser(decoded);
         } catch (error) {
           console.error("Invalid token", error);
-          sessionStorage.removeItem("authToken");
+          localStorage.removeItem("authToken");
           setUser(null);
         }
       } else {

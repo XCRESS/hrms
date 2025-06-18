@@ -27,7 +27,7 @@ export default function LoginForm({ className, ...props }) {
       const data = await apiClient.login(email, password);
       console.log("Login response: ", data);
       if (data.success) {
-        sessionStorage.setItem("authToken", data.token);
+        localStorage.setItem("authToken", data.token);
         navigate("/");
       } else {
         toast({

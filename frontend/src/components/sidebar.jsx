@@ -33,7 +33,7 @@ export default function SidebarDemo() {
   const userObject = useAuth();
   const [open, setOpen] = useState(false);
 
-  const token = sessionStorage.getItem("authToken");
+  const token = localStorage.getItem("authToken");
   if (!token) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
@@ -46,7 +46,7 @@ export default function SidebarDemo() {
   const user = userObject;
 
   const handleLogout = () => {
-    sessionStorage.removeItem("authToken");
+    localStorage.removeItem("authToken");
     navigate("/auth/login");
   };
 

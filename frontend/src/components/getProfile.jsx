@@ -17,7 +17,7 @@ const apiClient = {
     const response = await fetch(`${apiUrl}/employees/profile`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${sessionStorage.getItem("authToken")}`,
+        "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
         "Content-Type": "application/json"
       }
     });
@@ -38,7 +38,7 @@ export default function GetProfile() {
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       if (!token) {
         navigate("/auth/login", { replace: true }); // REDIRECT IF TOKEN MISSING
         return;
