@@ -71,22 +71,22 @@ export default function SidebarDemo() {
             },
             {
               label: "Add Employee",
-              href: "/employee/create",
+              href: "/create",
               icon: <UserPlus className={accentIconClass('green')} />,
             },
             {
               label: "Link User",
-              href: "/employee/link",
+              href: "/link",
               icon: <Link2 className={accentIconClass('orange')} />,
             },
             {
               label: "Leave Requests",
-              href: "/employee/leaves",
+              href: "/leaves",
               icon: <CalendarOff className={accentIconClass('blue')} />,
             },
             {
               label: "Help Desk",
-              href: "/employee/help",
+              href: "/help",
               icon: <HelpingHand className={accentIconClass('purple')} />,
             },
             {
@@ -101,12 +101,12 @@ export default function SidebarDemo() {
             },
             {
               label: "Regularizations",
-              href: "/employee/regularization",
+              href: "/regularization",
               icon: <CheckSquare className={accentIconClass('cyan')} />,
             },
             {
               label: "Password Requests",
-              href: "/employee/password",
+              href: "/password",
               icon: <KeyRound className={accentIconClass('red')} />,
             },
             {
@@ -202,7 +202,7 @@ export const Logo = () => {
         animate={{ opacity: 1 }}
         className="font-medium whitespace-pre text-black dark:text-white"
       >
-        Punch-In
+        HRMS
       </motion.span>
     </a>
   );

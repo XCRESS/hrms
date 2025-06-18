@@ -35,15 +35,15 @@ createRoot(document.getElementById('root')).render(
             <Route path="/" element={<SidebarDemo />}>
               <Route index element={<HRMSDashboard />} />
               <Route path="dashboard" element={<HRMSDashboard />} />
-              <Route path="employee/create" element={<CreateEmployee />} />
+              <Route path="create" element={<CreateEmployee />} />
               <Route path="employee" element={<EmployeeDirectory />} />
-              <Route path="employee/link" element={<EmployeeLink />} />
-              <Route path="employee/leaves" element={<LeavesAll />} />
-              <Route path="employee/help" element={<HelpAll />} />
+              <Route path="link" element={<EmployeeLink />} />
+              <Route path="leaves" element={<LeavesAll />} />
+              <Route path="help" element={<HelpAll />} />
               <Route path="holidays" element={<HolidayManagementPage />} />
               <Route path="announcements" element={<AnnouncementsPage />} />
-              <Route path="employee/password" element={<PasswordRequestsPage />} />
-              <Route path="employee/regularization" element={<RegularizationAll />} />
+              <Route path="password" element={<PasswordRequestsPage />} />
+              <Route path="regularization" element={<RegularizationAll />} />
               <Route path="regularization/my" element={<MyRegularizations />} />
               <Route path="profile" element={<GetProfile />} />
               <Route path="settings" element={<SettingsPage />} />

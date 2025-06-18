@@ -175,7 +175,7 @@ export default function EmployeeDirectory() {
                       {!isEmployeeLinked(e.employeeId) && (
                         <button
                           className="ml-2 px-2 py-1 text-xs bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
-                          onClick={evt => { evt.stopPropagation(); window.location.href = '/hr/link-user-employee'; }}
+                          onClick={evt => { evt.stopPropagation(); window.location.href = '/auth/signup'; }}
                         >
                           Create User
                         </button>
