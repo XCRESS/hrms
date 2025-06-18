@@ -92,7 +92,7 @@ const Header = ({
               ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed dark:bg-neutral-700/50 dark:text-neutral-500 border-neutral-300 dark:border-neutral-600'
               : isCheckedIn || checkInLoading
               ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed dark:bg-neutral-600 dark:text-neutral-400 border-neutral-400 dark:border-neutral-500'
-              : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 focus:ring-green-400 border-green-600 hover:scale-105 hover:shadow-xl'
+              : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 focus:ring-green-400 border-green-600 hover:shadow-xl'
           }`}
         >
           <LogIn size={18} className="mr-2" />
