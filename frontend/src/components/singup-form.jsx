@@ -29,7 +29,7 @@ const handleSubmit = async (e) => {
     const data = await apiClient.signup(name, email, password);
     console.log("Signup response: ", data);
     if (data.success) {
-      navigate("/auth/login");
+      navigate("/dashboard");
     } else {
       setError(data.message || "Signup failed");
     }
