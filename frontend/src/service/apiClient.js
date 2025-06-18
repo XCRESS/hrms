@@ -26,7 +26,7 @@ class ApiClient {
           // For 401 unauthorized responses, clear token
           if (response.status === 401) {
             console.warn("Authentication error - clearing token");
-            sessionStorage.removeItem("authToken");
+            localStorage.removeItem("authToken");
           }
           
           if (!response.ok) {
@@ -114,7 +114,7 @@ class ApiClient {
 
     // HTTP method helper functions
     async get(endpoint, options = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(endpoint, {
         method: "GET",
         headers: {
@@ -126,7 +126,7 @@ class ApiClient {
     }
 
     async post(endpoint, data = {}, options = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(endpoint, {
         method: "POST",
         headers: {
@@ -139,7 +139,7 @@ class ApiClient {
     }
 
     async put(endpoint, data = {}, options = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(endpoint, {
         method: "PUT",
         headers: {
@@ -152,7 +152,7 @@ class ApiClient {
     }
 
     async delete(endpoint, options = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(endpoint, {
         method: "DELETE",
         headers: {
@@ -165,7 +165,7 @@ class ApiClient {
   
     //Auth endpoints
     async signup(name, email, password) {
-      const token = sessionStorage.getItem("authToken"); // get token
+      const token = localStorage.getItem("authToken"); // get token
       console.log("Sending signup request with token:", token);
       return this.customFetch("/auth/register", {
         method: "POST",
@@ -184,7 +184,7 @@ class ApiClient {
     }
   
     async getProfile() {
-      const token = sessionStorage.getItem("authToken"); // get token
+      const token = localStorage.getItem("authToken"); // get token
       return this.customFetch("/employees/profile", {
         method: "GET",
         headers: {
@@ -201,7 +201,7 @@ class ApiClient {
     }
    
     async createEmployee(employeeData) {
-      const token = sessionStorage.getItem("authToken"); // get token
+      const token = localStorage.getItem("authToken"); // get token
       return this.customFetch("/employees/create", {
         method: "POST",
         headers: {
@@ -212,7 +212,7 @@ class ApiClient {
     }
 
     async getEmployees() {
-      const token = sessionStorage.getItem("authToken"); // get token
+      const token = localStorage.getItem("authToken"); // get token
       return this.customFetch("/employees", {
         method: "GET",
         headers: {
@@ -222,7 +222,7 @@ class ApiClient {
     }
 
     async deleteEmployee(employeeId) {
-      const token = sessionStorage.getItem("authToken"); // get token
+      const token = localStorage.getItem("authToken"); // get token
       return this.customFetch(`/employees/delete/${employeeId}`, {
         method: "DELETE",
         headers: {
@@ -243,28 +243,26 @@ class ApiClient {
     
     // Attendance records
     async getAttendanceRecords(params = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       const queryParams = new URLSearchParams();
       // Add any filters if provided
       if (params.employeeId) queryParams.append('employeeId', params.employeeId);
       if (params.startDate) queryParams.append('startDate', params.startDate);
       if (params.endDate) queryParams.append('endDate', params.endDate);
-      if (params.status) queryParams.append('status', params.status);
-      if (params.page) queryParams.append('page', params.page);
-      if (params.limit) queryParams.append('limit', params.limit);
-      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-      return this.customFetch(`/attendance${queryString}`, {
+      
+      const endpoint = `/attendance/records${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      return this.customFetch(endpoint, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-        }
+        },
       });
     }
-    
-    // Leave requests
+
+    // Leave management
     async requestLeave(leaveData) {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/leaves/request`, {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/leaves/request", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -274,7 +272,7 @@ class ApiClient {
     }
     
     async getMyLeaves() {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(`/leaves/my`, {
         method: "GET",
         headers: {
@@ -282,31 +280,28 @@ class ApiClient {
         },
       });
     }
-    
-    // For admins/HR
+
     async getAllLeaves() {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch("/leaves/all", {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/leaves", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
     }
-    
+
     async updateLeaveStatus(leaveId, status) {
-      // Uses the generic put method which handles token
       return this.put(`/leaves/${leaveId}/status`, { status });
     }
-    
+
     // Holidays
     async getHolidays() {
-      // Uses the generic get method which handles token
       return this.get("/holidays");
     }
 
     async createHoliday(holidayData) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.post("/holidays", holidayData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -315,7 +310,7 @@ class ApiClient {
     }
 
     async updateHoliday(holidayId, holidayData) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.put(`/holidays/${holidayId}`, holidayData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -324,7 +319,7 @@ class ApiClient {
     }
 
     async deleteHoliday(holidayId) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.delete(`/holidays/${holidayId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -334,8 +329,7 @@ class ApiClient {
 
     // Announcements
     async getAnnouncements(params = {}) {
-      // Pass query params for filtering (e.g., { status: 'draft' } for admin)
-      return this.get("/announcements", { params });
+      return this.get(`/announcements${Object.keys(params).length ? '?' + new URLSearchParams(params) : ''}`);
     }
 
     async getAnnouncementById(id) {
@@ -354,35 +348,35 @@ class ApiClient {
       return this.delete(`/announcements/${id}`);
     }
 
-    // Activity Feed
+    // Activity feed
     async getActivityFeed() {
-      return this.get("/activity/feed");
+      return this.get("/activity");
     }
 
-    // Dashboard
     async getAdminDashboardSummary() {
-      return this.get("/dashboard/admin-summary");
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/dashboard/admin", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
     }
 
-    // Help/Support Inquiries
+    // Help/Support
     async submitHelpInquiry(inquiryData) {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/help`, {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/help/submit", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          subject: inquiryData.title,
-          description: inquiryData.message,
-          category: inquiryData.category || "other",
-          priority: inquiryData.priority || "medium"
-        }),
+        body: JSON.stringify(inquiryData),
       });
     }
     
     async getMyInquiries() {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(`/help/my`, {
         method: "GET",
         headers: {
@@ -390,31 +384,32 @@ class ApiClient {
         },
       });
     }
-    
-    // For admins/HR only
+
     async getAllInquiries(filters = {}) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
+      // Convert filters to query string
       const queryParams = new URLSearchParams();
+      if (filters.status) {
+        queryParams.append('status', filters.status);
+      }
+      if (filters.priority) {
+        queryParams.append('priority', filters.priority);
+      }
+      const queryString = queryParams.toString();
+      const endpoint = `/help/all${queryString ? `?${queryString}` : ''}`;
       
-      // Add filters if provided
-      if (filters.status) queryParams.append('status', filters.status);
-      if (filters.category) queryParams.append('category', filters.category);
-      if (filters.priority) queryParams.append('priority', filters.priority);
-      
-      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-      
-      return this.customFetch(`/help/all${queryString}`, {
+      return this.customFetch(endpoint, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
     }
-    
+
     async updateHelpInquiry(inquiryId, updateData) {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(`/help/${inquiryId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -422,25 +417,20 @@ class ApiClient {
       });
     }
 
-    // Link an employee ID to a user account (admin only)
     async linkEmployeeToUser(userId, employeeId, endpoint = "/users/profile/link") {
-      const token = sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken");
       return this.customFetch(endpoint, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          userId,
-          employeeId
-        }),
+        body: JSON.stringify({ userId, employeeId }),
       });
     }
-    
-    // Find users with missing employee IDs (admin only)
+
     async getUsersWithMissingEmployeeIds() {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch(`/users/missing-employee-id`, {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/users/missing-employees", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -449,64 +439,75 @@ class ApiClient {
     }
 
     async getAllUsers() {
-      try {
-        return await this.get('/users');
-      } catch (err) {
-        throw err;
-      }
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/users", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
     }
 
-    // Regularization: Employee submits a request
     async requestRegularization(data) {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch("/regularization/request", {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/regularizations/request", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(data),
       });
     }
-    // Regularization: Employee gets own requests
+    
     async getMyRegularizations() {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch("/regularization/my", {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/regularizations/my", {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
     }
-    // Regularization: HR/Admin gets all requests
+    
     async getAllRegularizations() {
-      const token = sessionStorage.getItem("authToken");
-      return this.customFetch("/regularization/all", {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch("/regularizations", {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
     }
-    // Regularization: HR/Admin reviews a request
+    
     async reviewRegularization(id, status, reviewComment) {
-      const token = sessionStorage.getItem("authToken");
-      return this.post(`/regularization/${id}/review`, { status, reviewComment });
+      const token = localStorage.getItem("authToken");
+      return this.customFetch(`/regularizations/${id}/review`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status, reviewComment }),
+      });
     }
 
-    // Password Reset Requests (for Admin/HR)
     async getAllPasswordResetRequests(params = {}) { // params for filtering if needed, e.g., { status: 'pending' }
-      const queryString = new URLSearchParams(params).toString();
-      return this.get("/password-reset/requests", { params });
+      return this.get("/password-reset/requests", params);
     }
 
     async approvePasswordResetRequest(requestId) {
-      return this.put(`/password-reset/request/${requestId}/approve`, {});
+      return this.put(`/password-reset/requests/${requestId}/approve`);
     }
 
     async rejectPasswordResetRequest(requestId, remarks = "") {
-      return this.put(`/password-reset/request/${requestId}/reject`, { remarks });
+      return this.put(`/password-reset/requests/${requestId}/reject`, { remarks });
     }
 
     async getTaskReports(params = {}) {
       const queryString = new URLSearchParams(params).toString();
-      return this.get(`/tasks?${queryString}`);
+      return this.get(`/task-reports${queryString ? `?${queryString}` : ''}`);
     }
   }
   
+  // Export the instance
   const apiClient = new ApiClient();
-  
   export default apiClient;
