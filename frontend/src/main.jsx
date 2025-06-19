@@ -21,7 +21,6 @@ import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
 import PasswordRequestsPage from './components/hr/PasswordRequestsPage.jsx';
 import MyRegularizations from './components/regularization/MyRegularizations';
 import RegularizationAll from './components/regularization/RegularizationAll';
-import SettingsPage from './components/settings/SettingsPage.jsx';
 import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
@@ -46,7 +45,6 @@ createRoot(document.getElementById('root')).render(
               <Route path="regularization" element={<RegularizationAll />} />
               <Route path="regularization/my" element={<MyRegularizations />} />
               <Route path="profile" element={<GetProfile />} />
-              <Route path="settings" element={<SettingsPage />} />
               <Route path="task-reports" element={<TaskReportsManage />} />
             </Route>
 

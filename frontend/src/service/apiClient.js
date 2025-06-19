@@ -1,6 +1,8 @@
+import { API_ENDPOINTS, buildEndpointWithQuery } from './apiEndpoints.js';
+
 class ApiClient {
     constructor() {      
-      this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";      
+      this.baseURL = API_ENDPOINTS.BASE_URL;      
       this.defaultHeaders = {        
         "Content-Type": "application/json",        
         Accept: "application/json",      
@@ -167,7 +169,7 @@ class ApiClient {
     async signup(name, email, password) {
       const token = localStorage.getItem("authToken"); // get token
       console.log("Sending signup request with token:", token);
-      return this.customFetch("/auth/register", {
+      return this.customFetch(API_ENDPOINTS.AUTH.REGISTER, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -177,7 +179,7 @@ class ApiClient {
     }
     
     async login(email, password) {
-      return this.customFetch("/auth/login", {
+      return this.customFetch(API_ENDPOINTS.AUTH.LOGIN, {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
@@ -185,7 +187,7 @@ class ApiClient {
   
     async getProfile() {
       const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch("/employees/profile", {
+      return this.customFetch(API_ENDPOINTS.EMPLOYEES.PROFILE, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -233,24 +235,18 @@ class ApiClient {
 
     // Check-in and Check-out
     async checkIn() {
-      return this.post("/attendance/checkin");
+      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN);
     }
     
     async checkOut(tasks) {
       // The 'tasks' parameter is an array of strings
-      return this.post("/attendance/checkout", { tasks });
+      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_OUT, { tasks });
     }
     
     // Attendance records
     async getAttendanceRecords(params = {}) {
       const token = localStorage.getItem("authToken");
-      const queryParams = new URLSearchParams();
-      // Add any filters if provided
-      if (params.employeeId) queryParams.append('employeeId', params.employeeId);
-      if (params.startDate) queryParams.append('startDate', params.startDate);
-      if (params.endDate) queryParams.append('endDate', params.endDate);
-      
-      const endpoint = `/attendance/records${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.RECORDS, params);
       return this.customFetch(endpoint, {
         method: "GET",
         headers: {
@@ -262,7 +258,7 @@ class ApiClient {
     // Leave management
     async requestLeave(leaveData) {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/leaves/request", {
+      return this.customFetch(API_ENDPOINTS.LEAVES.REQUEST, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -273,7 +269,7 @@ class ApiClient {
     
     async getMyLeaves() {
       const token = localStorage.getItem("authToken");
-      return this.customFetch(`/leaves/my`, {
+      return this.customFetch(API_ENDPOINTS.LEAVES.MY_LEAVES, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -283,7 +279,7 @@ class ApiClient {
 
     async getAllLeaves() {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/leaves", {
+      return this.customFetch(API_ENDPOINTS.LEAVES.BASE, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -292,7 +288,7 @@ class ApiClient {
     }
 
     async updateLeaveStatus(leaveId, status) {
-      return this.put(`/leaves/${leaveId}/status`, { status });
+      return this.put(API_ENDPOINTS.LEAVES.UPDATE_STATUS(leaveId), { status });
     }
 
     // Holidays
@@ -350,12 +346,12 @@ class ApiClient {
 
     // Activity feed
     async getActivityFeed() {
-      return this.get("/activity");
+      return this.get(API_ENDPOINTS.ACTIVITY.BASE);
     }
 
     async getAdminDashboardSummary() {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/dashboard/admin", {
+      return this.customFetch(API_ENDPOINTS.DASHBOARD.ADMIN, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -450,7 +446,7 @@ class ApiClient {
 
     async requestRegularization(data) {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/regularizations/request", {
+      return this.customFetch(API_ENDPOINTS.REGULARIZATIONS.REQUEST, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -461,7 +457,7 @@ class ApiClient {
     
     async getMyRegularizations() {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/regularizations/my", {
+      return this.customFetch(API_ENDPOINTS.REGULARIZATIONS.MY_REGULARIZATIONS, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -471,7 +467,7 @@ class ApiClient {
     
     async getAllRegularizations() {
       const token = localStorage.getItem("authToken");
-      return this.customFetch("/regularizations", {
+      return this.customFetch(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -481,7 +477,7 @@ class ApiClient {
     
     async reviewRegularization(id, status, reviewComment) {
       const token = localStorage.getItem("authToken");
-      return this.customFetch(`/regularizations/${id}/review`, {
+      return this.customFetch(API_ENDPOINTS.REGULARIZATIONS.REVIEW(id), {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -503,8 +499,7 @@ class ApiClient {
     }
 
     async getTaskReports(params = {}) {
-      const queryString = new URLSearchParams(params).toString();
-      return this.get(`/task-reports${queryString ? `?${queryString}` : ''}`);
+      return this.get(buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.BASE, params));
     }
   }
   
