@@ -70,12 +70,12 @@ const Header = ({
                 </button>
             </div>
             {/* Time Display */}
-            <div className="hidden sm:flex items-center gap-3 bg-gradient-to-r from-neutral-100 to-neutral-200 dark:from-neutral-700 dark:to-neutral-800 px-4 py-3 rounded-xl shadow-inner border border-neutral-300 dark:border-neutral-600">
-                <div className="bg-cyan-500 p-2 rounded-lg">
-                    <Clock size={18} className="text-white" />
+            <div className="hidden sm:flex items-center gap-3 bg-white dark:bg-neutral-800 px-4 py-3 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+                <div className="bg-neutral-100 dark:bg-neutral-700 p-2 rounded-full">
+                    <Clock size={16} className="text-neutral-600 dark:text-neutral-300" />
                 </div>
                 <div>
-                    <p className="text-lg font-bold text-neutral-800 dark:text-neutral-100">{formatTime(currentTime)}</p>
+                    <p className="text-base font-medium text-neutral-700 dark:text-neutral-200 tabular-nums">{formatTime(currentTime)}</p>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(currentTime)}</p>
                 </div>
             </div>
@@ -111,7 +111,7 @@ const Header = ({
               ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed dark:bg-neutral-700/50 dark:text-neutral-500 border-neutral-300 dark:border-neutral-600'
               : !isCheckedIn || checkOutLoading
               ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed dark:bg-neutral-600 dark:text-neutral-400 border-neutral-400 dark:border-neutral-500'
-              : 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700 focus:ring-red-400 border-red-600 hover:scale-105 hover:shadow-xl'
+              : 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700 focus:ring-red-400 border-red-600 hover:shadow-xl'
           }`}
         >
           <LogOut size={18} className="mr-2" />
