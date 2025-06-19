@@ -10,5 +10,6 @@ router.post("/checkout", authMiddleware(), checkOut);
 
 // Get attendance records (employees can only see their own)
 router.get("/", authMiddleware(), getAttendance);
+router.get("/records", authMiddleware(), getAttendance);
 
 export default router;
