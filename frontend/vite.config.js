@@ -11,4 +11,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // Disable service worker in development
+    headers: {
+      'Service-Worker-Allowed': '/'
+    }
+  },
+  build: {
+    // Ensure proper MIME types for JS modules
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        // Add cache busting for better service worker handling
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
+  }
 })
