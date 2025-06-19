@@ -11,12 +11,8 @@ import {
   CalendarDays,
   Megaphone,
   CheckSquare,
-  Settings,
   LogOut,
-  UserCog,
   KeyRound,
-  UserCircle2,
-  ClipboardList,
   FileText
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
@@ -139,16 +135,6 @@ export default function SidebarDemo() {
       }
       return [];
     })(),
-    // {
-    //   label: "Profile",
-    //   href: "/profile",
-    //   icon: <UserCircle2 className={iconClass} />,
-    // },
-    {
-      label: "Settings",
-      href: "/settings",
-      icon: <Settings className={iconClass} />,
-    },
     {
       label: "Logout",
       onClick: handleLogout,

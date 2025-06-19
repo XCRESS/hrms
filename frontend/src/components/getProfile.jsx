@@ -120,17 +120,6 @@ export default function GetProfile() {
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto">
-        {/* Action buttons */}
-        <div className="flex justify-end mb-4 gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition shadow-sm">
-            <Edit size={16} />
-            <span>Edit Profile</span>
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition shadow-sm">
-            <Download size={16} />
-            <span>Download PDF</span>
-          </button>
-        </div>
         
         {/* Profile Header */}
         <Card className="mb-6 shadow-md bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-t-4 border-primary">
@@ -178,10 +167,6 @@ export default function GetProfile() {
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-md text-gray-600 dark:text-gray-300">
                     <Phone size={14} />
                     <span className="text-sm">{employee.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-md text-gray-600 dark:text-gray-300">
-                    <MapPin size={14} />
-                    <span className="text-sm">Office #{employee.employeeId?.slice(-3) || '000'}</span>
                   </div>
                 </div>
               </div>
@@ -357,41 +342,13 @@ export default function GetProfile() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  <InfoField icon={<DollarSign size={16} />} label="Basic Salary" value={employee.salary ? `₹ ${employee.salary.toLocaleString('en-IN')}` : "Not provided"} />
                   <InfoField icon={<DollarSign size={16} />} label="Payment Mode" value={employee.paymentMode || "Not provided"} />
                   <InfoField icon={<CreditCard size={16} />} label="Bank Account" value={employee.bankAccountNumber ? `XXXX ${String(employee.bankAccountNumber).slice(-4)}` : "Not provided"} />
                   <InfoField icon={<Building size={16} />} label="Bank Name" value={employee.bankName || "Not provided"} />
                   <InfoField icon={<CreditCard size={16} />} label="IFSC Code" value={employee.bankIFSCCode || "Not provided"} />
-                  {employee.salary && (
-                    <InfoField 
-                      icon={<DollarSign size={16} />} 
-                      label="Annual CTC" 
-                      value={`₹ ${(employee.salary * 12).toLocaleString('en-IN')}`}
-                    />
-                  )}
                 </div>
                 
-                {employee.salary && (
-                  <>
-                    <Separator className="dark:bg-slate-700" />
-                    
-                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-4 border-green-500 dark:border-green-400">
-                      <h3 className="text-lg font-medium text-green-700 dark:text-green-300 mb-2">Salary Structure</h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-green-600 dark:text-green-400">Monthly Salary:</span>
-                          <span className="font-medium text-green-700 dark:text-green-300">₹ {employee.salary.toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-green-600 dark:text-green-400">Annual CTC:</span>
-                          <span className="font-medium text-green-700 dark:text-green-300">₹ {(employee.salary * 12).toLocaleString('en-IN')}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-                
-                {!employee.salary && !employee.bankName && !employee.bankAccountNumber && (
+                {!employee.bankName && !employee.bankAccountNumber && (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg w-full max-w-md">
                       <CreditCard className="h-10 w-10 text-yellow-500 dark:text-yellow-400 mx-auto mb-4" />

@@ -57,12 +57,12 @@ app.use("/api/holidays", holidayRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/help", helpRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/regularization", regularizationRoutes);
+app.use("/api/regularizations", regularizationRoutes); // Fixed: plural form
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/tasks", taskReportRoutes);
+app.use("/api/task-reports", taskReportRoutes); // Fixed: plural form with dash
 
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')
