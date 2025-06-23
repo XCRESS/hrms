@@ -4,7 +4,7 @@ import apiClient from "../../service/apiClient";
 import useAuth from "../../hooks/authjwt";
 
 export default function MyAttendance() {
-  const { user } = useAuth();
+  const user = useAuth();
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,6 +134,20 @@ export default function MyAttendance() {
     setDateRange(prev => ({ ...prev, [field]: value }));
     setCurrentPage(1); // Reset to first page when date range changes
   };
+
+  // Show loading if user is not loaded yet
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto mt-8 p-4 sm:p-6 lg:p-8 bg-white dark:bg-slate-800 rounded-xl shadow-xl">
+        <div className="text-center py-12">
+          <div className="inline-flex items-center space-x-2 text-gray-500 dark:text-slate-400">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
+            <span>Loading user information...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto mt-8 p-4 sm:p-6 lg:p-8 bg-white dark:bg-slate-800 rounded-xl shadow-xl">

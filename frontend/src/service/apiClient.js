@@ -523,6 +523,10 @@ class ApiClient {
       const endpoint = `/task-reports/my${queryString.toString() ? `?${queryString.toString()}` : ''}`;
       return this.get(endpoint);
     }
+
+    async submitTaskReport(data) {
+      return this.post("/task-reports/submit", data);
+    }
   }
   
   // Export the instance
