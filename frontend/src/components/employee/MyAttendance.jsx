@@ -1,41 +1,79 @@
 import React, { useEffect, useState } from "react";
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, BarChart3, TrendingUp } from "lucide-react";
 import apiClient from "../../service/apiClient";
+import useAuth from "../../hooks/authjwt";
 
 export default function MyAttendance() {
+  const { user } = useAuth();
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [statistics, setStatistics] = useState(null);
+  const [showAbsentDays, setShowAbsentDays] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
     endDate: new Date().toISOString().slice(0, 10) // Today
   });
   
-  const recordsPerPage = 10;
+  const recordsPerPage = 15;
 
   const fetchAttendance = async (page = 1) => {
+    if (!user?.employeeId) return;
+    
     setLoading(true);
     try {
-      const params = {
-        page,
-        limit: recordsPerPage,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      };
+      let response;
       
-      const response = await apiClient.getMyAttendanceRecords(params);
-      if (response.success && response.data?.records) {
-        setAttendanceData(response.data.records.map(record => ({
-          ...record,
-          date: new Date(record.date),
-          checkIn: record.checkIn ? new Date(record.checkIn) : null,
-          checkOut: record.checkOut ? new Date(record.checkOut) : null
-        })));
+      if (showAbsentDays) {
+        // Use new API that includes absent days
+        response = await apiClient.getEmployeeAttendanceWithAbsents({
+          employeeId: user.employeeId,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        });
         
-        setTotalRecords(response.data.total || response.data.records.length);
-        setTotalPages(Math.ceil((response.data.total || response.data.records.length) / recordsPerPage));
+        if (response.success) {
+          const allRecords = response.data.records || [];
+          setStatistics(response.data.statistics);
+          
+          // Paginate manually since this endpoint returns all records
+          const startIndex = (page - 1) * recordsPerPage;
+          const endIndex = startIndex + recordsPerPage;
+          const paginatedRecords = allRecords.slice(startIndex, endIndex);
+          
+          setAttendanceData(paginatedRecords.map(record => ({
+            ...record,
+            date: new Date(record.date),
+            checkIn: record.checkIn ? new Date(record.checkIn) : null,
+            checkOut: record.checkOut ? new Date(record.checkOut) : null
+          })));
+          
+          setTotalRecords(allRecords.length);
+          setTotalPages(Math.ceil(allRecords.length / recordsPerPage));
+        }
+      } else {
+        // Use original API that only shows records with check-ins
+        const params = {
+          page,
+          limit: recordsPerPage,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        };
+        
+        response = await apiClient.getMyAttendanceRecords(params);
+        if (response.success && response.data?.records) {
+          setAttendanceData(response.data.records.map(record => ({
+            ...record,
+            date: new Date(record.date),
+            checkIn: record.checkIn ? new Date(record.checkIn) : null,
+            checkOut: record.checkOut ? new Date(record.checkOut) : null
+          })));
+          
+          setTotalRecords(response.data.total || response.data.records.length);
+          setTotalPages(Math.ceil((response.data.total || response.data.records.length) / recordsPerPage));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
@@ -47,7 +85,7 @@ export default function MyAttendance() {
 
   useEffect(() => {
     fetchAttendance(currentPage);
-  }, [currentPage, dateRange]);
+  }, [currentPage, dateRange, showAbsentDays, user?.employeeId]);
 
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
     hour: '2-digit', minute: '2-digit', hour12: true 
@@ -70,18 +108,20 @@ export default function MyAttendance() {
   };
 
   const getStatusBadge = (status, checkIn, checkOut) => {
+    const baseClasses = "px-3 py-1 rounded-full text-xs font-semibold";
+    
     if (status === "present") {
       if (checkIn && checkOut) {
-        return <span className="px-3 py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">Complete</span>;
+        return <span className={`${baseClasses} bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300`}>Complete</span>;
       } else if (checkIn && !checkOut) {
-        return <span className="px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-full text-xs font-semibold">Incomplete</span>;
+        return <span className={`${baseClasses} bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300`}>Incomplete</span>;
       }
     }
-    if (status === "absent") return <span className="px-3 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">Absent</span>;
-    if (status === "half-day") return <span className="px-3 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">Half Day</span>;
-    if (status === "late") return <span className="px-3 py-1 bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 rounded-full text-xs font-semibold">Late</span>;
-    if (status === "leave") return <span className="px-3 py-1 bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">Leave</span>;
-    return <span className="px-3 py-1 bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300 rounded-full text-xs font-semibold">{status}</span>;
+    if (status === "absent") return <span className={`${baseClasses} bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300`}>Absent</span>;
+    if (status === "half-day") return <span className={`${baseClasses} bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300`}>Half Day</span>;
+    if (status === "late") return <span className={`${baseClasses} bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300`}>Late</span>;
+    if (status === "leave") return <span className={`${baseClasses} bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300`}>Leave</span>;
+    return <span className={`${baseClasses} bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300`}>{status}</span>;
   };
 
   const handlePageChange = (newPage) => {
@@ -132,6 +172,52 @@ export default function MyAttendance() {
         </div>
       </div>
 
+      {/* Statistics Card */}
+      {statistics && showAbsentDays && (
+        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 mb-6 border border-cyan-200 dark:border-cyan-800">
+          <div className="flex items-center gap-3 mb-4">
+            <BarChart3 className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+            <h3 className="text-lg font-semibold text-cyan-700 dark:text-cyan-300">Attendance Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{statistics.totalWorkingDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Working Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statistics.presentDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Present Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statistics.absentDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Absent Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statistics.attendancePercentage}%</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Attendance Rate</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Toggle */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showAbsentDays}
+              onChange={(e) => setShowAbsentDays(e.target.checked)}
+              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show absent days</span>
+          </label>
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {totalRecords} total records
+        </div>
+      </div>
+
       {/* Content */}
       {loading ? (
         <div className="text-center py-12">
@@ -165,7 +251,12 @@ export default function MyAttendance() {
                     </td>
                   </tr>
                 ) : attendanceData.map((record, index) => (
-                  <tr key={record._id || index} className="border-b border-gray-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-slate-700/40 transition-colors">
+                  <tr 
+                    key={record._id || index} 
+                    className={`border-b border-gray-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-slate-700/40 transition-colors ${
+                      record.status === 'absent' ? 'bg-red-50 dark:bg-red-900/10' : ''
+                    }`}
+                  >
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(record.status, record.checkIn, record.checkOut)}
@@ -212,7 +303,12 @@ export default function MyAttendance() {
                 <p className="text-sm">Try adjusting your date range</p>
               </div>
             ) : attendanceData.map((record, index) => (
-              <div key={record._id || index} className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+              <div 
+                key={record._id || index} 
+                className={`bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 ${
+                  record.status === 'absent' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : ''
+                }`}
+              >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(record.status, record.checkIn, record.checkOut)}
@@ -249,47 +345,52 @@ export default function MyAttendance() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-0">
-                Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, totalRecords)} of {totalRecords} records
-              </div>
+            <div className="flex justify-center items-center space-x-4 mt-8">
+              <button 
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Previous</span>
+              </button>
               
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                  if (pageNum > totalPages) return null;
+              <div className="flex space-x-2">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else {
+                    const start = Math.max(1, currentPage - 2);
+                    const end = Math.min(totalPages, start + 4);
+                    pageNum = start + i;
+                    if (pageNum > end) return null;
+                  }
                   
                   return (
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                      className={`px-3 py-2 border rounded-lg transition-colors ${
                         currentPage === pageNum
-                          ? 'bg-cyan-600 text-white'
-                          : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                          ? 'bg-cyan-600 text-white border-cyan-600'
+                          : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       {pageNum}
                     </button>
                   );
                 })}
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
               </div>
+              
+              <button 
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           )}
         </>
