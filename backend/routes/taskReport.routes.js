@@ -1,8 +1,11 @@
 import { Router } from "express";
-import { getTaskReports, getMyTaskReports } from "../controllers/taskReport.controllers.js";
+import { getTaskReports, getMyTaskReports, submitTaskReport } from "../controllers/taskReport.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
 const router = Router();
+
+// Submit a standalone task report
+router.post("/submit", authMiddleware(), submitTaskReport);
 
 // Get task reports - returns appropriate reports based on user role
 router.get("/", authMiddleware(), async (req, res) => {

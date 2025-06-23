@@ -24,6 +24,70 @@ const getEmployeeObjectId = async (user) => {
 };
 
 /**
+ * Submit a standalone task report
+ */
+export const submitTaskReport = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json(formatResponse(false, "Authentication required", null, { auth: "No valid user found" }));
+    }
+
+    const employeeObjId = await getEmployeeObjectId(req.user);
+    if (!employeeObjId) {
+      return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
+    }
+
+    const { tasks, date } = req.body;
+
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(400).json(formatResponse(false, "Tasks array is required and cannot be empty"));
+    }
+
+    const reportDate = date ? new Date(date) : new Date();
+    
+    // Check if a task report already exists for this date
+    const existingReport = await TaskReport.findOne({
+      employee: employeeObjId,
+      date: {
+        $gte: new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate()),
+        $lt: new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate() + 1)
+      }
+    });
+
+    if (existingReport) {
+      // Update existing report
+      existingReport.tasks = tasks;
+      existingReport.updatedAt = new Date();
+      await existingReport.save();
+
+      return res.json(formatResponse(true, "Task report updated successfully", { taskReport: existingReport }));
+    } else {
+      // Create new report
+      const taskReport = new TaskReport({
+        employee: employeeObjId,
+        tasks,
+        date: reportDate
+      });
+
+      await taskReport.save();
+      
+      const populatedReport = await TaskReport.findById(taskReport._id)
+        .populate('employee', 'firstName lastName employeeId department');
+
+      return res.status(201).json(formatResponse(true, "Task report submitted successfully", { taskReport: populatedReport }));
+    }
+
+  } catch (err) {
+    console.error("Error submitting task report:", err);
+    res.status(500).json(
+      formatResponse(false, "Failed to submit task report.", null, {
+        server: err.message
+      })
+    );
+  }
+};
+
+/**
  * Get employee's own task reports
  */
 export const getMyTaskReports = async (req, res) => {
