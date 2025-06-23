@@ -399,3 +399,237 @@ export const getMyAttendance = async (req, res) => {
     res.status(500).json(formatResponse(false, "Failed to retrieve attendance records", null, { server: err.message }));
   }
 };
+
+/**
+ * Get today's attendance for all employees (including absent ones)
+ * This function shows all active employees and their status for today
+ */
+export const getTodayAttendanceWithAbsents = async (req, res) => {
+  try {
+    // Only allow admin/hr to access this endpoint
+    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
+      return res.status(403).json(formatResponse(false, "Access denied. Admin/HR role required."));
+    }
+
+    // Get today's date boundaries in UTC
+    const now = new Date();
+    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+    // Get all active employees
+    const allEmployees = await Employee.find({ isActive: true })
+      .select('_id firstName lastName employeeId department position')
+      .sort({ firstName: 1, lastName: 1 });
+
+    // Get today's attendance records
+    const todayAttendance = await Attendance.find({
+      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
+    }).populate('employee', 'firstName lastName employeeId department');
+
+    // Create a map of employee attendance for quick lookup
+    const attendanceMap = new Map();
+    todayAttendance.forEach(record => {
+      if (record.employee && record.employee._id) {
+        attendanceMap.set(record.employee._id.toString(), record);
+      }
+    });
+
+    // Build the complete attendance list with all employees
+    const completeAttendanceList = allEmployees.map(employee => {
+      const attendanceRecord = attendanceMap.get(employee._id.toString());
+      
+      if (attendanceRecord) {
+        // Employee has checked in
+        let workHours = null;
+        if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
+          const checkInTime = new Date(attendanceRecord.checkIn);
+          const checkOutTime = new Date(attendanceRecord.checkOut);
+          workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)); // Convert to hours
+        }
+
+        return {
+          _id: attendanceRecord._id,
+          employee: {
+            _id: employee._id,
+            employeeId: employee.employeeId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            department: employee.department
+          },
+          employeeName: `${employee.firstName} ${employee.lastName}`,
+          date: attendanceRecord.date,
+          checkIn: attendanceRecord.checkIn,
+          checkOut: attendanceRecord.checkOut,
+          status: attendanceRecord.status,
+          workHours: workHours,
+          comments: attendanceRecord.comments,
+          reason: attendanceRecord.reason
+        };
+      } else {
+        // Employee has not checked in - mark as absent
+        return {
+          _id: null, // No attendance record exists
+          employee: {
+            _id: employee._id,
+            employeeId: employee.employeeId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            department: employee.department
+          },
+          employeeName: `${employee.firstName} ${employee.lastName}`,
+          date: startOfTodayUTC,
+          checkIn: null,
+          checkOut: null,
+          status: 'absent',
+          workHours: null,
+          comments: null,
+          reason: 'No check-in recorded'
+        };
+      }
+    });
+
+    res.json(formatResponse(true, "Today's attendance with absents retrieved successfully", {
+      records: completeAttendanceList,
+      total: completeAttendanceList.length,
+      present: completeAttendanceList.filter(r => r.status === 'present').length,
+      absent: completeAttendanceList.filter(r => r.status === 'absent').length,
+      date: startOfTodayUTC.toISOString().split('T')[0]
+    }));
+
+  } catch (err) {
+    console.error("Error fetching today's attendance with absents:", err);
+    res.status(500).json(formatResponse(false, "Failed to fetch today's attendance", null, { server: err.message }));
+  }
+};
+
+/**
+ * Get employee attendance with absent days included for a date range
+ * This shows all working days in the range, marking days without records as absent
+ */
+export const getEmployeeAttendanceWithAbsents = async (req, res) => {
+  try {
+    const { employeeId, startDate, endDate } = req.query;
+    
+    // Validate required parameters
+    if (!employeeId || !startDate || !endDate) {
+      return res.status(400).json(formatResponse(false, "Employee ID, start date, and end date are required"));
+    }
+
+    // Check authorization - employees can only view their own, admin/hr can view any
+    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
+      const userEmployeeObjId = await getEmployeeObjectId(req.user);
+      const requestedEmployee = await Employee.findOne({ employeeId });
+      
+      if (!userEmployeeObjId || !requestedEmployee || 
+          userEmployeeObjId.toString() !== requestedEmployee._id.toString()) {
+        return res.status(403).json(formatResponse(false, "Access denied. You can only view your own attendance."));
+      }
+    }
+
+    // Find the employee
+    const employee = await Employee.findOne({ employeeId, isActive: true });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
+    // Parse date range
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    startDateObj.setUTCHours(0, 0, 0, 0);
+    endDateObj.setUTCHours(23, 59, 59, 999);
+
+    // Get all attendance records for the employee in this range
+    const attendanceRecords = await Attendance.find({
+      employee: employee._id,
+      date: { $gte: startDateObj, $lte: endDateObj }
+    }).sort({ date: -1 });
+
+    // Create a map for quick lookup
+    const attendanceMap = new Map();
+    attendanceRecords.forEach(record => {
+      const dateKey = record.date.toISOString().split('T')[0];
+      attendanceMap.set(dateKey, record);
+    });
+
+    // Generate all working days in the range (excluding weekends)
+    const workingDays = [];
+    const currentDate = new Date(startDateObj);
+    
+    while (currentDate <= endDateObj) {
+      const dayOfWeek = currentDate.getDay();
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const dateKey = currentDate.toISOString().split('T')[0];
+        const attendanceRecord = attendanceMap.get(dateKey);
+        
+        if (attendanceRecord) {
+          // Employee has a record for this day
+          let workHours = null;
+          if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
+            const checkInTime = new Date(attendanceRecord.checkIn);
+            const checkOutTime = new Date(attendanceRecord.checkOut);
+            workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60));
+          }
+
+          workingDays.push({
+            _id: attendanceRecord._id,
+            date: attendanceRecord.date,
+            checkIn: attendanceRecord.checkIn,
+            checkOut: attendanceRecord.checkOut,
+            status: attendanceRecord.status,
+            workHours: workHours,
+            comments: attendanceRecord.comments,
+            reason: attendanceRecord.reason,
+            employeeName: `${employee.firstName} ${employee.lastName}`
+          });
+        } else {
+          // Employee was absent this day
+          workingDays.push({
+            _id: null,
+            date: new Date(currentDate),
+            checkIn: null,
+            checkOut: null,
+            status: 'absent',
+            workHours: null,
+            comments: null,
+            reason: 'No check-in recorded',
+            employeeName: `${employee.firstName} ${employee.lastName}`
+          });
+        }
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Calculate statistics
+    const totalWorkingDays = workingDays.length;
+    const presentDays = workingDays.filter(day => day.status === 'present').length;
+    const absentDays = workingDays.filter(day => day.status === 'absent').length;
+    const attendancePercentage = totalWorkingDays > 0 ? ((presentDays / totalWorkingDays) * 100).toFixed(1) : 0;
+
+    res.json(formatResponse(true, "Employee attendance with absents retrieved successfully", {
+      records: workingDays,
+      employee: {
+        _id: employee._id,
+        employeeId: employee.employeeId,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        department: employee.department
+      },
+      statistics: {
+        totalWorkingDays,
+        presentDays,
+        absentDays,
+        attendancePercentage
+      },
+      dateRange: {
+        startDate: startDate,
+        endDate: endDate
+      }
+    }));
+
+  } catch (err) {
+    console.error("Error fetching employee attendance with absents:", err);
+    res.status(500).json(formatResponse(false, "Failed to fetch employee attendance", null, { server: err.message }));
+  }
+};

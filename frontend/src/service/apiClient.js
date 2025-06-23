@@ -267,6 +267,18 @@ class ApiClient {
       return this.get(API_ENDPOINTS.ATTENDANCE.GET_MISSING_CHECKOUTS);
     }
 
+    // Get today's attendance for all employees including absent ones (Admin/HR only)
+    async getTodayAttendanceWithAbsents() {
+      return this.get("/attendance/today-with-absents");
+    }
+
+    // Get employee attendance with absent days included
+    async getEmployeeAttendanceWithAbsents(params = {}) {
+      const queryString = new URLSearchParams(params).toString();
+      const endpoint = queryString ? `/attendance/employee-with-absents?${queryString}` : '/attendance/employee-with-absents';
+      return this.get(endpoint);
+    }
+
     // Leave management
     async requestLeave(leaveData) {
       const token = localStorage.getItem("authToken");

@@ -479,6 +479,36 @@ export default function HRMSDashboard() {
     })),
   ];
 
+  // Centralized refresh function for admin dashboard
+  const refreshAdminDashboard = async () => {
+    if (isAdmin) {
+      setIsLoading(true);
+      try {
+        // Refresh all admin dashboard data
+        await Promise.all([
+          loadAdminDashboardData(),
+          loadMissingCheckouts(), // Refresh missing checkouts too
+        ]);
+        
+        // Trigger component-specific refreshes if available
+        // These will be set by the components when they mount
+        if (window.refreshAttendanceTable) {
+          window.refreshAttendanceTable();
+        }
+        if (window.refreshPendingRequests) {
+          window.refreshPendingRequests();
+        }
+      } catch (error) {
+        console.error("Failed to refresh admin dashboard:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // For employees, use existing retry connection
+      await retryConnection();
+    }
+  };
+
   return (
     <div className="flex bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50">
       <div className="flex-1 flex flex-col">
@@ -494,7 +524,7 @@ export default function HRMSDashboard() {
           handleCheckIn={handleCheckIn}
           handleCheckOut={handleCheckOut}
           isLoading={isLoading}
-          retryConnection={retryConnection}
+          retryConnection={isAdmin ? refreshAdminDashboard : retryConnection}
           setShowLeaveModal={setShowLeaveModal}
           setShowHelpModal={setShowHelpModal}
           toggleTheme={toggleTheme}
@@ -524,9 +554,11 @@ export default function HRMSDashboard() {
                   />
                   
                   <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <AdminAttendanceTable />
-                    <AdminPendingRequests />
+                  
+                  {/* Changed: Stack components vertically instead of side-by-side */}
+                  <div className="space-y-6">
+                    <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
+                    <AdminPendingRequests onRefresh={refreshAdminDashboard} />
                   </div>
                 </>
               ) : (
