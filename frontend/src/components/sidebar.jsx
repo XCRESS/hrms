@@ -114,6 +114,16 @@ export default function SidebarDemo() {
         } else if (user && user.role === "employee") {
           return [
             {
+              label: "My Attendance",
+              href: "/attendance/my",
+              icon: <CalendarDays className={accentIconClass('blue')} />,
+            },
+            {
+              label: "My Task Reports",
+              href: "/task-reports/my",
+              icon: <FileText className={accentIconClass('purple')} />,
+            },
+            {
               label: "My Regularizations",
               href: "/regularization/my",
               icon: <CheckSquare className={accentIconClass('cyan')} />,

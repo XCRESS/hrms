@@ -221,3 +221,181 @@ export const getAttendance = async (req, res) => {
     );
   }
 };
+
+/**
+ * Get attendance records with missing checkouts for previous days
+ * Used to remind employees to submit regularization requests
+ */
+export const getMissingCheckouts = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json(formatResponse(false, "Authentication required", null, { auth: "No valid user found" }));
+    }
+
+    console.log("🔍 getMissingCheckouts called for user:", req.user._id, "employeeId:", req.user.employeeId);
+
+    const employeeObjId = await getEmployeeObjectId(req.user);
+    if (!employeeObjId) {
+      console.log("❌ No employee ObjectId found for user");
+      return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
+    }
+
+    console.log("✅ Employee ObjectId found:", employeeObjId);
+
+    // Get current date and set boundaries
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    
+    // Look back 7 days for missing checkouts (configurable)
+    const lookbackDays = 7;
+    const startDate = new Date(today);
+    startDate.setUTCDate(startDate.getUTCDate() - lookbackDays);
+
+    console.log("📅 Date range:", { startDate, today, lookbackDays });
+
+    // Find attendance records where checkIn exists but checkOut is null/missing
+    // and the date is before today
+    const missingCheckouts = await Attendance.find({
+      employee: employeeObjId,
+      date: { 
+        $gte: startDate, 
+        $lt: today 
+      },
+      checkIn: { $exists: true },
+      $or: [
+        { checkOut: null },
+        { checkOut: { $exists: false } }
+      ]
+    }).sort({ date: -1 });
+
+    console.log("🔎 Raw attendance query results:", missingCheckouts.length, "records found");
+    console.log("📋 Missing checkouts details:", missingCheckouts.map(rec => ({
+      _id: rec._id,
+      date: rec.date,
+      checkIn: rec.checkIn,
+      checkOut: rec.checkOut,
+      employee: rec.employee
+    })));
+
+    // Also check if there are pending regularization requests for these dates
+    // to avoid showing reminders for dates already being processed
+    const RegularizationRequest = (await import("../models/Regularization.model.js")).default;
+    const pendingRegularizations = await RegularizationRequest.find({
+      employeeId: req.user.employeeId,
+      status: "pending",
+      date: { 
+        $gte: startDate, 
+        $lt: today 
+      }
+    });
+
+    console.log("📝 Pending regularizations found:", pendingRegularizations.length);
+
+    // Filter out dates that already have pending regularization requests
+    const pendingDates = new Set(
+      pendingRegularizations.map(reg => reg.date.toISOString().split('T')[0])
+    );
+
+    console.log("📅 Pending dates set:", Array.from(pendingDates));
+
+    const reminderNeeded = missingCheckouts.filter(attendance => {
+      const attendanceDate = new Date(attendance.date).toISOString().split('T')[0];
+      return !pendingDates.has(attendanceDate);
+    });
+
+    console.log("🎯 Final reminder needed:", reminderNeeded.length, "records");
+
+    res.json(formatResponse(true, "Missing checkouts retrieved successfully", { 
+      missingCheckouts: reminderNeeded,
+      total: reminderNeeded.length
+    }));
+
+  } catch (err) {
+    console.error("Error fetching missing checkouts:", err);
+    res.status(500).json(formatResponse(false, "Failed to fetch missing checkouts", null, { server: err.message }));
+  }
+};
+
+/**
+ * Get employee's own attendance records with enhanced formatting and pagination
+ * Specifically designed for the employee attendance page
+ */
+export const getMyAttendance = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json(formatResponse(false, "Authentication required", null, { auth: "No valid user found" }));
+    }
+
+    const employeeObjId = await getEmployeeObjectId(req.user);
+    if (!employeeObjId) {
+      return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
+    }
+
+    const { startDate, endDate, page = 1, limit = 10 } = req.query;
+    const filter = { employee: employeeObjId };
+
+    // Date range filtering
+    if (startDate) {
+      const startOfDay = new Date(startDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      filter.date = { ...filter.date, $gte: startOfDay };
+    }
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      filter.date = { ...filter.date, $lte: endOfDay };
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [records, total] = await Promise.all([
+      Attendance.find(filter)
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('employee', 'firstName lastName employeeId'),
+      Attendance.countDocuments(filter)
+    ]);
+
+    // Calculate work hours and enhance records
+    const enhancedRecords = records.map(record => {
+      let workHours = null;
+      if (record.checkIn && record.checkOut) {
+        const checkInTime = new Date(record.checkIn);
+        const checkOutTime = new Date(record.checkOut);
+        workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)); // Convert to hours
+      }
+
+      return {
+        _id: record._id,
+        date: record.date,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        status: record.status,
+        workHours: workHours,
+        comments: record.comments,
+        reason: record.reason,
+        employeeName: record.employeeName
+      };
+    });
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.json(formatResponse(true, "Employee attendance records retrieved successfully", {
+      records: enhancedRecords,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasNextPage: pageNum < totalPages,
+      hasPrevPage: pageNum > 1
+    }));
+
+  } catch (err) {
+    console.error("Error fetching employee attendance:", err);
+    res.status(500).json(formatResponse(false, "Failed to retrieve attendance records", null, { server: err.message }));
+  }
+};

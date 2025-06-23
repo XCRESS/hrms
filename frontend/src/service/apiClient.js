@@ -164,6 +164,19 @@ class ApiClient {
         ...options,
       });
     }
+
+    async patch(endpoint, data = {}, options = {}) {
+      const token = localStorage.getItem("authToken");
+      return this.customFetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+          ...options.headers,
+        },
+        body: JSON.stringify(data),
+        ...options,
+      });
+    }
   
     //Auth endpoints
     async signup(name, email, password) {
@@ -245,14 +258,13 @@ class ApiClient {
     
     // Attendance records
     async getAttendanceRecords(params = {}) {
-      const token = localStorage.getItem("authToken");
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.RECORDS, params);
-      return this.customFetch(endpoint, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.GET_RECORDS, params);
+      return this.get(endpoint);
+    }
+
+    // Get missing checkouts for reminder purposes
+    async getMissingCheckouts() {
+      return this.get(API_ENDPOINTS.ATTENDANCE.GET_MISSING_CHECKOUTS);
     }
 
     // Leave management
@@ -361,28 +373,14 @@ class ApiClient {
 
     // Help/Support
     async submitHelpInquiry(inquiryData) {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch("/help/submit", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(inquiryData),
-      });
+      return this.post("/help", inquiryData);
     }
     
     async getMyInquiries() {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch(`/help/my`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.get(`/help/my`);
     }
 
     async getAllInquiries(filters = {}) {
-      const token = localStorage.getItem("authToken");
       // Convert filters to query string
       const queryParams = new URLSearchParams();
       if (filters.status) {
@@ -394,23 +392,11 @@ class ApiClient {
       const queryString = queryParams.toString();
       const endpoint = `/help/all${queryString ? `?${queryString}` : ''}`;
       
-      return this.customFetch(endpoint, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.get(endpoint);
     }
 
     async updateHelpInquiry(inquiryId, updateData) {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch(`/help/${inquiryId}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updateData),
-      });
+      return this.patch(`/help/${inquiryId}`, updateData);
     }
 
     async linkEmployeeToUser(userId, employeeId, endpoint = "/users/profile/link") {
@@ -476,14 +462,13 @@ class ApiClient {
     }
     
     async reviewRegularization(id, status, reviewComment) {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch(API_ENDPOINTS.REGULARIZATIONS.REVIEW(id), {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status, reviewComment }),
-      });
+      // Debug logging
+      console.log('reviewRegularization called with:', { id, status, reviewComment });
+      const endpoint = API_ENDPOINTS.REGULARIZATIONS.REVIEW(id);
+      const payload = { status, reviewComment };
+      console.log('API call details:', { endpoint, payload });
+      
+      return this.post(endpoint, payload);
     }
 
     async getAllPasswordResetRequests(params = {}) { // params for filtering if needed, e.g., { status: 'pending' }
@@ -500,6 +485,31 @@ class ApiClient {
 
     async getTaskReports(params = {}) {
       return this.get(buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.BASE, params));
+    }
+
+    // Employee-specific methods
+    async getMyAttendanceRecords(params = {}) {
+      const queryString = new URLSearchParams();
+      if (params.page) queryString.append('page', params.page);
+      if (params.limit) queryString.append('limit', params.limit);
+      if (params.startDate) queryString.append('startDate', params.startDate);
+      if (params.endDate) queryString.append('endDate', params.endDate);
+      
+      const endpoint = `/attendance/my${queryString.toString() ? `?${queryString.toString()}` : ''}`;
+      return this.get(endpoint);
+    }
+
+    async getMyTaskReports(params = {}) {
+      const queryString = new URLSearchParams();
+      if (params.page) queryString.append('page', params.page);
+      if (params.limit) queryString.append('limit', params.limit);
+      if (params.search) queryString.append('search', params.search);
+      if (params.status && params.status !== 'all') queryString.append('status', params.status);
+      if (params.startDate) queryString.append('startDate', params.startDate);
+      if (params.endDate) queryString.append('endDate', params.endDate);
+      
+      const endpoint = `/task-reports/my${queryString.toString() ? `?${queryString.toString()}` : ''}`;
+      return this.get(endpoint);
     }
   }
   
