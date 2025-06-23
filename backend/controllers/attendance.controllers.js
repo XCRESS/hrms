@@ -331,15 +331,30 @@ export const getMyAttendance = async (req, res) => {
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
 
+    // Get employee details to access joining date
+    const employee = await Employee.findById(employeeObjId);
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
     const { startDate, endDate, page = 1, limit = 10 } = req.query;
     const filter = { employee: employeeObjId };
 
-    // Date range filtering
+    // Ensure attendance records are not shown before joining date
+    const joiningDate = new Date(employee.joiningDate);
+    joiningDate.setUTCHours(0, 0, 0, 0);
+
+    // Date range filtering with joining date constraint
     if (startDate) {
       const startOfDay = new Date(startDate);
       startOfDay.setUTCHours(0, 0, 0, 0);
-      filter.date = { ...filter.date, $gte: startOfDay };
+      // Use the later of startDate or joining date
+      filter.date = { ...filter.date, $gte: startOfDay >= joiningDate ? startOfDay : joiningDate };
+    } else {
+      // If no startDate provided, default to joining date
+      filter.date = { ...filter.date, $gte: joiningDate };
     }
+    
     if (endDate) {
       const endOfDay = new Date(endDate);
       endOfDay.setUTCHours(23, 59, 59, 999);
@@ -538,10 +553,17 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
     startDateObj.setUTCHours(0, 0, 0, 0);
     endDateObj.setUTCHours(23, 59, 59, 999);
 
+    // Ensure we don't show attendance before joining date
+    const joiningDate = new Date(employee.joiningDate);
+    joiningDate.setUTCHours(0, 0, 0, 0);
+    
+    // Adjust start date to be no earlier than joining date
+    const effectiveStartDate = startDateObj >= joiningDate ? startDateObj : joiningDate;
+
     // Get all attendance records for the employee in this range
     const attendanceRecords = await Attendance.find({
       employee: employee._id,
-      date: { $gte: startDateObj, $lte: endDateObj }
+      date: { $gte: effectiveStartDate, $lte: endDateObj }
     }).sort({ date: -1 });
 
     // Create a map for quick lookup
@@ -553,7 +575,7 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
 
     // Generate all working days in the range (excluding weekends)
     const workingDays = [];
-    const currentDate = new Date(startDateObj);
+    const currentDate = new Date(effectiveStartDate);
     
     while (currentDate <= endDateObj) {
       const dayOfWeek = currentDate.getDay();
@@ -614,7 +636,8 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
         employeeId: employee.employeeId,
         firstName: employee.firstName,
         lastName: employee.lastName,
-        department: employee.department
+        department: employee.department,
+        joiningDate: employee.joiningDate
       },
       statistics: {
         totalWorkingDays,
@@ -623,8 +646,11 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
         attendancePercentage
       },
       dateRange: {
-        startDate: startDate,
-        endDate: endDate
+        requestedStartDate: startDate,
+        requestedEndDate: endDate,
+        effectiveStartDate: effectiveStartDate.toISOString().split('T')[0],
+        endDate: endDate,
+        joiningDate: joiningDate.toISOString().split('T')[0]
       }
     }));
 

@@ -16,6 +16,8 @@ export default function MyAttendance() {
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
     endDate: new Date().toISOString().slice(0, 10) // Today
   });
+  const [joiningDate, setJoiningDate] = useState(null);
+  const [effectiveDateRange, setEffectiveDateRange] = useState(null);
   
   const recordsPerPage = 15;
 
@@ -38,10 +40,21 @@ export default function MyAttendance() {
           const allRecords = response.data.records || [];
           setStatistics(response.data.statistics);
           
+          // Store joining date and effective date range info
+          if (response.data.employee?.joiningDate) {
+            setJoiningDate(response.data.employee.joiningDate);
+          }
+          if (response.data.dateRange) {
+            setEffectiveDateRange(response.data.dateRange);
+          }
+          
+          // Sort records by date in descending order (today first, then yesterday, etc.)
+          const sortedRecords = allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+          
           // Paginate manually since this endpoint returns all records
           const startIndex = (page - 1) * recordsPerPage;
           const endIndex = startIndex + recordsPerPage;
-          const paginatedRecords = allRecords.slice(startIndex, endIndex);
+          const paginatedRecords = sortedRecords.slice(startIndex, endIndex);
           
           setAttendanceData(paginatedRecords.map(record => ({
             ...record,
@@ -50,8 +63,8 @@ export default function MyAttendance() {
             checkOut: record.checkOut ? new Date(record.checkOut) : null
           })));
           
-          setTotalRecords(allRecords.length);
-          setTotalPages(Math.ceil(allRecords.length / recordsPerPage));
+          setTotalRecords(sortedRecords.length);
+          setTotalPages(Math.ceil(sortedRecords.length / recordsPerPage));
         }
       } else {
         // Use original API that only shows records with check-ins
@@ -64,15 +77,18 @@ export default function MyAttendance() {
         
         response = await apiClient.getMyAttendanceRecords(params);
         if (response.success && response.data?.records) {
-          setAttendanceData(response.data.records.map(record => ({
+          // Sort records by date in descending order (today first, then yesterday, etc.)
+          const sortedRecords = response.data.records.sort((a, b) => new Date(b.date) - new Date(a.date));
+          
+          setAttendanceData(sortedRecords.map(record => ({
             ...record,
             date: new Date(record.date),
             checkIn: record.checkIn ? new Date(record.checkIn) : null,
             checkOut: record.checkOut ? new Date(record.checkOut) : null
           })));
           
-          setTotalRecords(response.data.total || response.data.records.length);
-          setTotalPages(Math.ceil((response.data.total || response.data.records.length) / recordsPerPage));
+          setTotalRecords(response.data.total || sortedRecords.length);
+          setTotalPages(Math.ceil((response.data.total || sortedRecords.length) / recordsPerPage));
         }
       }
     } catch (err) {
@@ -159,7 +175,7 @@ export default function MyAttendance() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">My Attendance</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Track your attendance history</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Track your attendance history (most recent first)</p>
           </div>
         </div>
         
@@ -214,6 +230,22 @@ export default function MyAttendance() {
         </div>
       )}
 
+      {/* Joining Date Notice */}
+      {effectiveDateRange && effectiveDateRange.requestedStartDate !== effectiveDateRange.effectiveStartDate && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="text-blue-800 dark:text-blue-200 font-medium">Date range adjusted</p>
+              <p className="text-blue-700 dark:text-blue-300">
+                Attendance records are shown from your joining date ({new Date(effectiveDateRange.joiningDate).toLocaleDateString()}) onwards.
+                Requested start date was {new Date(effectiveDateRange.requestedStartDate).toLocaleDateString()}.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Toggle */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
@@ -229,6 +261,11 @@ export default function MyAttendance() {
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {totalRecords} total records
+          {joiningDate && (
+            <span className="ml-2 text-xs text-gray-400">
+              (Since {new Date(joiningDate).toLocaleDateString()})
+            </span>
+          )}
         </div>
       </div>
 
