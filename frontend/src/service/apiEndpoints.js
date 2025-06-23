@@ -29,7 +29,9 @@ export const API_ENDPOINTS = {
     CHECK_IN: "/attendance/checkin",
     CHECK_OUT: "/attendance/checkout",
     RECORDS: "/attendance/records",
-    MY_RECORDS: "/attendance"
+    GET_RECORDS: "/attendance/records",
+    MY_RECORDS: "/attendance",
+    GET_MISSING_CHECKOUTS: "/attendance/missing-checkouts"
   },
   
   // Leave Management
@@ -77,7 +79,7 @@ export const API_ENDPOINTS = {
   // Help/Support
   HELP: {
     BASE: "/help",
-    SUBMIT: "/help/submit",
+    SUBMIT: "/help",
     MY_INQUIRIES: "/help/my",
     ALL_INQUIRIES: "/help/all",
     UPDATE: (id) => `/help/${id}`

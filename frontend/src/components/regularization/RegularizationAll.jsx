@@ -23,6 +23,17 @@ export default function RegularizationAll() {
   useEffect(() => { fetchRequests(); }, []);
 
   const handleReview = async (id, status) => {
+    // Validate required fields
+    if (!id || !status) {
+      console.error('Missing required fields for review:', { id, status });
+      return;
+    }
+    
+    if (!['approved', 'rejected'].includes(status)) {
+      console.error('Invalid status value:', status);
+      return;
+    }
+
     setActionId(id);
     setActionStatus(status);
     try {
@@ -30,7 +41,9 @@ export default function RegularizationAll() {
       setReviewComment("");
       fetchRequests();
     } catch (err) {
-      // Optionally show error
+      console.error('Review regularization error:', err);
+      // Show error to user
+      alert(`Failed to ${status} request: ${err.message || 'Unknown error'}`);
     } finally {
       setActionId(null);
       setActionStatus(null);

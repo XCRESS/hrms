@@ -68,19 +68,32 @@ export const reviewRegularization = async (req, res) => {
     if (!req.user || (req.user.role !== "hr" && req.user.role !== "admin")) {
       return res.status(403).json({ message: "Not authorized" });
     }
+    
     const { id } = req.params;
     const { status, reviewComment } = req.body;
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
+    
+    // Enhanced validation
+    if (!id) {
+      return res.status(400).json({ message: "Request ID is required" });
     }
+    
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+    
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: `Invalid status: ${status}. Must be 'approved' or 'rejected'` });
+    }
+    
     const reg = await RegularizationRequest.findById(id);
     if (!reg) return res.status(404).json({ message: "Request not found" });
     if (reg.status !== "pending") {
       return res.status(400).json({ message: "Request already reviewed" });
     }
+    
     reg.status = status;
     reg.reviewedBy = req.user._id;
-    reg.reviewComment = reviewComment;
+    reg.reviewComment = reviewComment || "";
     reg.updatedAt = new Date();
     await reg.save();
     // If approved, update attendance

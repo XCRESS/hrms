@@ -1,14 +1,51 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import apiClient from "../../service/apiClient";
 import * as dateFnsTz from 'date-fns-tz';
 
-export default function RegularizationModal({ isOpen, onClose, onSuccess }) {
+export default function RegularizationModal({ isOpen, onClose, onSuccess, prefillData = null }) {
   const [date, setDate] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+
+  // Effect to handle prefilled data
+  useEffect(() => {
+    if (prefillData && isOpen) {
+      // Set date
+      if (prefillData.date) {
+        const dateStr = new Date(prefillData.date).toISOString().slice(0, 10);
+        setDate(dateStr);
+      }
+      
+      // Set check-in time
+      if (prefillData.checkIn) {
+        const checkInTime = new Date(prefillData.checkIn).toTimeString().slice(0, 5);
+        setCheckIn(checkInTime);
+      }
+      
+      // Set suggested check-out time
+      if (prefillData.suggestedCheckOut) {
+        const checkOutTime = new Date(prefillData.suggestedCheckOut).toTimeString().slice(0, 5);
+        setCheckOut(checkOutTime);
+      }
+      
+      // Set a default reason for missing checkout
+      setReason("Forgot to check out on this day. Please regularize my attendance record.");
+    }
+  }, [prefillData, isOpen]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setDate("");
+      setCheckIn("");
+      setCheckOut("");
+      setReason("");
+      setMessage(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

@@ -35,6 +35,7 @@ import UpdatesSidebar from './dashboard/UpdatesSidebar';
 import AdminStats from './dashboard/AdminStats'; // Import AdminStats
 import AdminAttendanceTable from './dashboard/AdminAttendanceTable';
 import AdminPendingRequests from './dashboard/AdminPendingRequests';
+import CheckoutReminder from './dashboard/CheckoutReminder';
 
 
 
@@ -58,6 +59,10 @@ export default function HRMSDashboard() {
   const [activityData, setActivityData] = useState([]);
   const [adminSummary, setAdminSummary] = useState(null);
   const [loadingAdminData, setLoadingAdminData] = useState(true);
+  
+  // Checkout reminder state
+  const [missingCheckouts, setMissingCheckouts] = useState([]);
+  const [regularizationPrefillData, setRegularizationPrefillData] = useState(null);
 
   const user = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -95,6 +100,9 @@ export default function HRMSDashboard() {
       } else {
         await loadEmployeeDashboardData();
       }
+      
+      // Load missing checkouts for all users (admin/HR can also have missing checkouts)
+      await loadMissingCheckouts();
     } catch (error) {
       console.error("Initialization failed:", error);
     } finally {
@@ -240,6 +248,22 @@ export default function HRMSDashboard() {
     }
   };
 
+  // Load missing checkouts for reminder
+  const loadMissingCheckouts = async () => {
+    try {
+      const response = await apiClient.getMissingCheckouts();
+      
+      if (response.success && response.data?.missingCheckouts) {
+        setMissingCheckouts(response.data.missingCheckouts);
+      } else {
+        setMissingCheckouts([]);
+      }
+    } catch (error) {
+      console.error("Failed to load missing checkouts:", error);
+      setMissingCheckouts([]);
+    }
+  };
+
   const handleCheckIn = async () => {
     setCheckInLoading(true);
     try {
@@ -325,7 +349,15 @@ export default function HRMSDashboard() {
 
   const handleHelpInquirySubmit = async (data) => {
     try {
-      await apiClient.submitHelpInquiry(data);
+      // Map frontend fields to backend expected fields
+      const helpData = {
+        subject: data.title,        // title → subject
+        description: data.message,  // message → description
+        category: data.category,
+        priority: data.priority
+      };
+      
+      await apiClient.submitHelpInquiry(helpData);
       toast({
         variant: "success",
         title: "Inquiry Submitted",
@@ -340,6 +372,22 @@ export default function HRMSDashboard() {
         description: error.message || "Failed to submit help inquiry."
       });
     }
+  };
+
+  // Handle regularization request from checkout reminder
+  const handleRegularizationFromReminder = (prefillData) => {
+    setRegularizationPrefillData(prefillData);
+    setShowRegularizationModal(true);
+  };
+
+  // Handle dismissing checkout reminders
+  const handleDismissReminders = () => {
+    setMissingCheckouts([]);
+    toast({
+      variant: "success",
+      title: "Reminders Dismissed",
+      description: "Checkout reminders have been dismissed for this session."
+    });
   };
 
   const retryConnection = async () => {
@@ -468,6 +516,13 @@ export default function HRMSDashboard() {
             <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {isAdmin ? (
                 <>
+                  {/* Checkout Reminder - For admin/HR users too */}
+                  <CheckoutReminder 
+                    missingCheckouts={missingCheckouts}
+                    onRegularizationRequest={handleRegularizationFromReminder}
+                    onDismiss={handleDismissReminders}
+                  />
+                  
                   <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <AdminAttendanceTable />
@@ -476,6 +531,13 @@ export default function HRMSDashboard() {
                 </>
               ) : (
                 <>
+                  {/* Checkout Reminder - Only for employees */}
+                  <CheckoutReminder 
+                    missingCheckouts={missingCheckouts}
+                    onRegularizationRequest={handleRegularizationFromReminder}
+                    onDismiss={handleDismissReminders}
+                  />
+                  
                   <AttendanceStats 
                     attendanceData={attendanceData}
                     holidays={holidaysData}
@@ -530,13 +592,19 @@ export default function HRMSDashboard() {
       
       <RegularizationModal 
         isOpen={showRegularizationModal} 
-        onClose={() => setShowRegularizationModal(false)}
+        onClose={() => {
+          setShowRegularizationModal(false);
+          setRegularizationPrefillData(null); // Clear prefill data when modal closes
+        }}
+        prefillData={regularizationPrefillData}
         onSuccess={() => {
           toast({
             variant: "success",
             title: "Regularization Request Submitted",
             description: "Your attendance regularization request has been submitted."
           });
+          // Reload missing checkouts to remove the one just submitted
+          loadMissingCheckouts();
         }}
       />
       
