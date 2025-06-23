@@ -10,6 +10,7 @@ import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';
 import SidebarDemo from './components/sidebar.jsx';
+import LoaderGate from './components/loadingAnimation.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
 import LeavesAll from './components/hr/LeavesAll';
@@ -25,42 +26,48 @@ import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
 import MyAttendance from './components/employee/MyAttendance.jsx';
 import MyTaskReports from './components/employee/MyTaskReports.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { API_ENDPOINTS } from './service/apiEndpoints.js';
+
+// Get server URL for LoaderGate
+const serverUrl = API_ENDPOINTS.BASE_URL.replace('/api', '');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <Toaster>
-        <ThemeProvider>
-          <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<SidebarDemo />}>
-              <Route index element={<HRMSDashboard />} />
-              <Route path="dashboard" element={<HRMSDashboard />} />
-              <Route path="create" element={<CreateEmployee />} />
-              <Route path="employee" element={<EmployeeDirectory />} />
-              <Route path="link" element={<EmployeeLink />} />
-              <Route path="leaves" element={<LeavesAll />} />
-              <Route path="help" element={<HelpAll />} />
-              <Route path="holidays" element={<HolidayManagementPage />} />
-              <Route path="announcements" element={<AnnouncementsPage />} />
-              <Route path="password" element={<PasswordRequestsPage />} />
-              <Route path="regularization" element={<RegularizationAll />} />
-              <Route path="regularization/my" element={<MyRegularizations />} />
-              <Route path="attendance/my" element={<MyAttendance />} />
-              <Route path="task-reports/my" element={<MyTaskReports />} />
-              <Route path="profile" element={<GetProfile />} />
-              <Route path="task-reports" element={<TaskReportsManage />} />
-            </Route>
+      <LoaderGate serverUrl={serverUrl}>
+        <Toaster>
+          <ThemeProvider>
+            <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<SidebarDemo />}>
+                <Route index element={<HRMSDashboard />} />
+                <Route path="dashboard" element={<HRMSDashboard />} />
+                <Route path="create" element={<CreateEmployee />} />
+                <Route path="employee" element={<EmployeeDirectory />} />
+                <Route path="link" element={<EmployeeLink />} />
+                <Route path="leaves" element={<LeavesAll />} />
+                <Route path="help" element={<HelpAll />} />
+                <Route path="holidays" element={<HolidayManagementPage />} />
+                <Route path="announcements" element={<AnnouncementsPage />} />
+                <Route path="password" element={<PasswordRequestsPage />} />
+                <Route path="regularization" element={<RegularizationAll />} />
+                <Route path="regularization/my" element={<MyRegularizations />} />
+                <Route path="attendance/my" element={<MyAttendance />} />
+                <Route path="task-reports/my" element={<MyTaskReports />} />
+                <Route path="profile" element={<GetProfile />} />
+                <Route path="task-reports" element={<TaskReportsManage />} />
+              </Route>
 
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/signup" element={<Signup />} />
-            <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/auth/signup" element={<Signup />} />
+              <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
-    </Toaster>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
+      </Toaster>
+      </LoaderGate>
     </ErrorBoundary>
   </StrictMode>,
 )
