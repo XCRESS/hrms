@@ -47,7 +47,7 @@ const LoaderGate = ({ serverUrl, children }) => {
         });
         if (res.ok) {
           setConnectionStatus('connected');
-          setIsReady(true);
+          setTimeout(() => setIsReady(true), 500);
         } else {
           setConnectionStatus('retrying');
           setTimeout(pingServer, 2000);
@@ -66,10 +66,7 @@ const LoaderGate = ({ serverUrl, children }) => {
   }
 
   return (
-    <div
-      className="h-screen w-screen grid place-items-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 cursor-pointer overflow-hidden"
-      onClick={() => setIsReady(true)}
-    >
+    <div className="h-screen w-screen grid place-items-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
       <div className="relative w-[90vmin] aspect-[1.618] max-w-md">
         {[...Array(7)].map((_, i) => (
           <div
@@ -90,7 +87,7 @@ const LoaderGate = ({ serverUrl, children }) => {
             {connectionStatus === 'connected' && 'Connected!'}
           </div>
           <div className="text-gray-300 text-sm">
-            Click anywhere to continue
+            Please wait while we connect...
           </div>
         </div>
       </div>
