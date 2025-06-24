@@ -129,7 +129,7 @@ const AdminAttendanceTable = ({ onRefresh }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-6 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <div>
           <h3 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-1">
@@ -139,23 +139,90 @@ const AdminAttendanceTable = ({ onRefresh }) => {
             Real-time attendance overview for all employees
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1 bg-neutral-50 dark:bg-neutral-700/50 px-3 py-2 rounded-lg">
-            <Users className="w-4 h-4 text-neutral-500" />
-            <span className="text-neutral-500 dark:text-neutral-400 font-medium">{stats.total} total</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
+          <div className="flex items-center gap-1 bg-neutral-50 dark:bg-neutral-700/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
+            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-neutral-500" />
+            <span className="text-neutral-500 dark:text-neutral-400 font-medium text-xs sm:text-sm">{stats.total} total</span>
           </div>
-          <div className="flex items-center gap-1 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
-            <UserCheck className="w-4 h-4 text-green-500" />
-            <span className="text-green-600 dark:text-green-400 font-medium">{stats.present} present</span>
+          <div className="flex items-center gap-1 bg-green-50 dark:bg-green-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
+            <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
+            <span className="text-green-600 dark:text-green-400 font-medium text-xs sm:text-sm">{stats.present} present</span>
           </div>
-          <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-            <UserX className="w-4 h-4 text-red-500" />
-            <span className="text-red-600 dark:text-red-400 font-medium">{stats.absent} absent</span>
+          <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
+            <UserX className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+            <span className="text-red-600 dark:text-red-400 font-medium text-xs sm:text-sm">{stats.absent} absent</span>
           </div>
         </div>
       </div>
       
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+      {/* Mobile Card Layout */}
+      <div className="block md:hidden">
+        {attendanceData.length > 0 ? (
+          <div className="space-y-3">
+            {attendanceData.map((record, index) => (
+              <div 
+                key={record.employee._id || index} 
+                className={`border rounded-lg p-4 transition-colors ${
+                  record.status === 'absent' 
+                    ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10' 
+                    : 'border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700/30'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-neutral-800 dark:text-neutral-100 truncate">
+                      {record.employeeName || 'Unknown Employee'}
+                    </div>
+                    {record.employee?.employeeId && (
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                        ID: {record.employee.employeeId}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(record.status)}
+                    <span className={`${getStatusBadge(record.status)}`}>
+                      {getStatusText(record.status)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-neutral-500 dark:text-neutral-400 text-xs uppercase font-semibold block">Check In</span>
+                    <span className="text-neutral-600 dark:text-neutral-300 font-mono">{formatTime(record.checkIn)}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 dark:text-neutral-400 text-xs uppercase font-semibold block">Check Out</span>
+                    <span className="text-neutral-600 dark:text-neutral-300 font-mono">{formatTime(record.checkOut)}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 dark:text-neutral-400 text-xs uppercase font-semibold block">Hours</span>
+                    <span className="text-neutral-600 dark:text-neutral-300 font-semibold">
+                      {record.workHours ? `${record.workHours.toFixed(1)}h` : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 dark:text-neutral-400 text-xs uppercase font-semibold block">Department</span>
+                    <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md text-xs">
+                      {record.employee?.department || 'Unassigned'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-neutral-500 dark:text-neutral-400">
+            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-lg font-medium">No employees found</p>
+            <p className="text-sm">Check your employee database</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">

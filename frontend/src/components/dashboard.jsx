@@ -532,12 +532,13 @@ export default function HRMSDashboard() {
         />
 
         {/* Regularization Button */}
-        <div className="ml-auto mr-4 mt-4 flex gap-2">
+        <div className="mx-4 mt-4 flex justify-end">
           <button
-            className="px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors"
+            className="px-3 py-2 sm:px-4 sm:py-2 bg-cyan-600 text-white rounded-lg text-sm sm:text-base font-semibold hover:bg-cyan-700 transition-colors"
             onClick={() => setShowRegularizationModal(true)}
           >
-            Regularize Attendance
+            <span className="hidden sm:inline">Regularize Attendance</span>
+            <span className="sm:hidden">Regularize</span>
           </button>
         </div>
         
