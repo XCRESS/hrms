@@ -92,7 +92,9 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       const formatTimeForInput = (date) => {
         if (!date) return '';
         const d = new Date(date);
-        return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+        // Convert UTC to IST (UTC + 5:30) for datetime-local input
+        const istTime = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+        return istTime.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
       };
 
       setFormData({
@@ -104,12 +106,16 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
     }
   }, [record, isOpen]);
 
-  const handleStatusChange = (status) => {
+    const handleStatusChange = (status) => {
     setFormData(prev => ({ ...prev, status }));
     
-    // Auto-fill times based on status
+    // Auto-fill times based on status (in IST)
     const recordDate = new Date(record?.date || new Date());
-    const baseDate = recordDate.toISOString().split('T')[0];
+    // Get the local date part and create IST date
+    const year = recordDate.getFullYear();
+    const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+    const day = String(recordDate.getDate()).padStart(2, '0');
+    const baseDate = `${year}-${month}-${day}`;
     
     switch (status) {
       case 'present':
@@ -133,13 +139,13 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
           checkOut: prev.checkOut || `${baseDate}T18:00`
         }));
         break;
-             case 'absent':
-         setFormData(prev => ({
-           ...prev,
-           checkIn: '',
-           checkOut: ''
-         }));
-         break;
+      case 'absent':
+        setFormData(prev => ({
+          ...prev,
+          checkIn: '',
+          checkOut: ''
+        }));
+        break;
     }
   };
 
@@ -404,9 +410,15 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
     fetchAttendance(currentPage);
   }, [currentPage, dateRange, showAbsentDays, employeeId, statusFilter, sortOrder, updateTrigger]);
 
-  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
-    hour: '2-digit', minute: '2-digit', hour12: true 
-  }).format(date) : "—";
+  const formatTime = (date) => {
+    if (!date) return "—";
+    // Convert UTC to IST for display
+    const utcDate = new Date(date);
+    const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
+    return new Intl.DateTimeFormat('en-US', { 
+      hour: '2-digit', minute: '2-digit', hour12: true 
+    }).format(istDate);
+  };
 
   const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
