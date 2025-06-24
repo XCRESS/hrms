@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getEmployeeAttendanceWithAbsents } from "../controllers/attendance.controllers.js";
+import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
 const router = Router();
@@ -23,5 +23,8 @@ router.get("/today-with-absents", authMiddleware(), getTodayAttendanceWithAbsent
 
 // Get employee attendance with absent days included
 router.get("/employee-with-absents", authMiddleware(), getEmployeeAttendanceWithAbsents);
+
+// HR/Admin: Update attendance record
+router.put("/update/:recordId", authMiddleware(), updateAttendanceRecord);
 
 export default router;

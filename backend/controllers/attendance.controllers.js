@@ -659,3 +659,153 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
     res.status(500).json(formatResponse(false, "Failed to fetch employee attendance", null, { server: err.message }));
   }
 };
+
+/**
+ * Update attendance record (HR/Admin only)
+ * Allows updating status, check-in, and check-out times
+ */
+export const updateAttendanceRecord = async (req, res) => {
+  try {
+    // Check authorization - only admin/hr can update attendance
+    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
+      return res.status(403).json(formatResponse(false, "Access denied. Only HR and Admin can update attendance records."));
+    }
+
+    const { recordId } = req.params;
+    const { status, checkIn, checkOut } = req.body;
+
+    // Validate status
+    const validStatuses = ['present', 'absent', 'half-day', 'late'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json(formatResponse(false, "Invalid status. Must be one of: present, absent, half-day, late"));
+    }
+
+    // Handle creating new records or finding existing ones
+    let attendanceRecord;
+    
+    if (recordId === 'new') {
+      // Creating a new record for absent days
+      const { employeeId, date } = req.body;
+      if (!employeeId || !date) {
+        return res.status(400).json(formatResponse(false, "Employee ID and date are required for creating new attendance record"));
+      }
+
+      const employee = await Employee.findOne({ employeeId });
+      if (!employee) {
+        return res.status(404).json(formatResponse(false, "Employee not found"));
+      }
+
+      // Create new attendance record
+      const recordDate = new Date(date);
+      recordDate.setUTCHours(0, 0, 0, 0);
+
+      attendanceRecord = new Attendance({
+        employee: employee._id,
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        date: recordDate,
+        checkIn: checkIn ? new Date(checkIn) : null,
+        checkOut: checkOut ? new Date(checkOut) : null,
+        status: status || 'present'
+      });
+    } else {
+      // Find existing record
+      attendanceRecord = await Attendance.findById(recordId);
+      
+      if (!attendanceRecord) {
+        return res.status(404).json(formatResponse(false, "Attendance record not found"));
+      }
+
+      // Update existing record
+      if (status) attendanceRecord.status = status;
+      if (checkIn) attendanceRecord.checkIn = new Date(checkIn);
+      if (checkOut !== undefined) {
+        attendanceRecord.checkOut = checkOut ? new Date(checkOut) : null;
+      }
+    }
+
+    // Auto-fill check-in and check-out based on status
+    if (status) {
+      const recordDate = new Date(attendanceRecord.date);
+      
+      switch (status) {
+        case 'present':
+          if (!attendanceRecord.checkIn) {
+            attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
+          }
+          if (!attendanceRecord.checkOut) {
+            attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
+          }
+          break;
+        case 'half-day':
+          if (!attendanceRecord.checkIn) {
+            attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
+          }
+          if (!attendanceRecord.checkOut) {
+            // Half day - checkout at 1 PM
+            const halfDayCheckout = new Date(recordDate);
+            halfDayCheckout.setUTCHours(7, 30, 0, 0); // 1:00 PM IST (UTC+5:30)
+            attendanceRecord.checkOut = halfDayCheckout;
+          }
+          break;
+                 case 'absent':
+           attendanceRecord.checkIn = null;
+           attendanceRecord.checkOut = null;
+           attendanceRecord.workHours = 0;
+           break;
+         case 'late':
+           if (!attendanceRecord.checkIn) {
+             // Late arrival - 10:30 AM
+             const lateCheckIn = new Date(recordDate);
+             lateCheckIn.setUTCHours(5, 0, 0, 0); // 10:30 AM IST (UTC+5:30)
+             attendanceRecord.checkIn = lateCheckIn;
+           }
+           if (!attendanceRecord.checkOut) {
+             attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
+           }
+           break;
+      }
+    }
+
+    await attendanceRecord.save();
+
+    res.json(formatResponse(true, "Attendance record updated successfully", { attendance: attendanceRecord }));
+
+  } catch (err) {
+    console.error("Error updating attendance record:", err);
+    console.error("Request body:", req.body);
+    console.error("Record ID:", req.params.recordId);
+    
+    let errorMessage = "Failed to update attendance record";
+    let errorDetails = { server: err.message };
+
+    if (err.name === 'ValidationError') {
+      errorMessage = "Invalid data for attendance update";
+      errorDetails = Object.keys(err.errors).reduce((acc, key) => {
+        acc[key] = err.errors[key].message;
+        return acc;
+      }, {});
+      console.error("Validation errors:", errorDetails);
+      return res.status(400).json(formatResponse(false, errorMessage, null, errorDetails));
+    }
+
+    if (err.code === 11000) {
+      errorMessage = "Attendance record already exists for this employee on this date";
+      return res.status(409).json(formatResponse(false, errorMessage, null, { duplicate: "Attendance record already exists" }));
+    }
+
+    res.status(500).json(formatResponse(false, errorMessage, null, errorDetails));
+  }
+};
+
+// Helper functions for default times
+const setDefaultCheckIn = (date) => {
+  const checkIn = new Date(date);
+  checkIn.setUTCHours(3, 30, 0, 0); // 9:00 AM IST (UTC+5:30)
+  return checkIn;
+};
+
+const setDefaultCheckOut = (date) => {
+  const checkOut = new Date(date);
+  checkOut.setUTCHours(12, 30, 0, 0); // 6:00 PM IST (UTC+5:30)
+  return checkOut;
+};

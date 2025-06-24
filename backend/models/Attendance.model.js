@@ -16,7 +16,9 @@ const attendanceSchema = new mongoose.Schema({
   },
   checkIn: {
     type: Date,
-    required: true
+    required: function() {
+      return this.status !== 'absent';
+    }
   },
   checkOut: {
     type: Date,
@@ -24,7 +26,7 @@ const attendanceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["present", "absent", "half-day", "late", "leave"],
+    enum: ["present", "absent", "half-day", "late"],
     required: true
   },
   workHours: {

@@ -279,6 +279,11 @@ class ApiClient {
       return this.get(endpoint);
     }
 
+    // Update attendance record (HR/Admin only)
+    async updateAttendanceRecord(recordId, updateData) {
+      return this.put(`/attendance/update/${recordId}`, updateData);
+    }
+
     // Leave management
     async requestLeave(leaveData) {
       const token = localStorage.getItem("authToken");

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import useAuth from '../../hooks/authjwt';
 import apiClient from '../../service/apiClient';
-import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar, Edit3, X, Save } from 'lucide-react';
 
 // Enhanced Attendance Analytics Component
 const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
@@ -77,8 +77,216 @@ const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
   );
 };
 
+// Edit Attendance Modal Component
+const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdate }) => {
+  const [formData, setFormData] = useState({
+    status: '',
+    checkIn: '',
+    checkOut: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (record && isOpen) {
+      const formatTimeForInput = (date) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+      };
+
+      setFormData({
+        status: record.status || 'present',
+        checkIn: formatTimeForInput(record.checkIn),
+        checkOut: formatTimeForInput(record.checkOut)
+      });
+      setError('');
+    }
+  }, [record, isOpen]);
+
+  const handleStatusChange = (status) => {
+    setFormData(prev => ({ ...prev, status }));
+    
+    // Auto-fill times based on status
+    const recordDate = new Date(record?.date || new Date());
+    const baseDate = recordDate.toISOString().split('T')[0];
+    
+    switch (status) {
+      case 'present':
+        setFormData(prev => ({
+          ...prev,
+          checkIn: prev.checkIn || `${baseDate}T09:00`,
+          checkOut: prev.checkOut || `${baseDate}T18:00`
+        }));
+        break;
+      case 'half-day':
+        setFormData(prev => ({
+          ...prev,
+          checkIn: prev.checkIn || `${baseDate}T09:00`,
+          checkOut: `${baseDate}T13:00`
+        }));
+        break;
+      case 'late':
+        setFormData(prev => ({
+          ...prev,
+          checkIn: `${baseDate}T10:30`,
+          checkOut: prev.checkOut || `${baseDate}T18:00`
+        }));
+        break;
+             case 'absent':
+         setFormData(prev => ({
+           ...prev,
+           checkIn: '',
+           checkOut: ''
+         }));
+         break;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const updateData = {
+        status: formData.status,
+        checkIn: formData.checkIn || null,
+        checkOut: formData.checkOut || null
+      };
+
+      // For records that don't exist (absent days), include employee and date info
+      if (!record._id) {
+        updateData.employeeId = employeeProfile?.employeeId;
+        updateData.date = record.date;
+      }
+
+      if (record._id) {
+        await apiClient.updateAttendanceRecord(record._id, updateData);
+      } else {
+        // For absent records without _id, we need to create a new record
+        await apiClient.updateAttendanceRecord('new', updateData);
+      }
+
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to update attendance record');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Edit3 className="w-5 h-5 text-cyan-600" />
+            Edit Attendance
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Date: {record ? new Date(record.date).toLocaleDateString() : ''}
+            </label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Employee: {employeeProfile?.firstName} {employeeProfile?.lastName}
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Status
+            </label>
+                         <select
+               value={formData.status}
+               onChange={(e) => handleStatusChange(e.target.value)}
+               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+               required
+             >
+               <option value="present">Present</option>
+               <option value="absent">Absent</option>
+               <option value="half-day">Half Day</option>
+               <option value="late">Late</option>
+             </select>
+          </div>
+
+                     {formData.status !== 'absent' && (
+            <>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Check In Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.checkIn}
+                  onChange={(e) => setFormData(prev => ({ ...prev, checkIn: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Check Out Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.checkOut}
+                  onChange={(e) => setFormData(prev => ({ ...prev, checkOut: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-400 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Enhanced Attendance Table with filters and sorting
-const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
+const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance, updateTrigger }) => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -194,7 +402,7 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
 
   useEffect(() => {
     fetchAttendance(currentPage);
-  }, [currentPage, dateRange, showAbsentDays, employeeId, statusFilter, sortOrder]);
+  }, [currentPage, dateRange, showAbsentDays, employeeId, statusFilter, sortOrder, updateTrigger]);
 
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
     hour: '2-digit', minute: '2-digit', hour12: true 
@@ -362,7 +570,7 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check In</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check Out</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Work Hours</th>
-                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Comments</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
@@ -407,10 +615,13 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
                         {record.workHours ? `${record.workHours.toFixed(1)}h` : "—"}
                       </span>
                     </td>
-                    <td className="p-3 max-w-xs">
-                      <span className="text-gray-600 dark:text-gray-300 truncate">
-                        {record.comments || record.reason || "—"}
-                      </span>
+                    <td className="p-3">
+                      <button
+                        onClick={() => onEditAttendance && onEditAttendance(record)}
+                        className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -457,10 +668,12 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">Comments:</span>
-                    <p className="text-gray-900 dark:text-gray-100 truncate">
-                      {record.comments || record.reason || "—"}
-                    </p>
+                    <button
+                      onClick={() => onEditAttendance && onEditAttendance(record)}
+                      className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm transition-colors w-full"
+                    >
+                      Edit Attendance
+                    </button>
                   </div>
                 </div>
               </div>
@@ -743,6 +956,9 @@ export default function EmployeeDirectory() {
     startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [attendanceUpdateTrigger, setAttendanceUpdateTrigger] = useState(0);
 
   const fetchEmployeeData = useCallback(async () => {
     if (!selectedEmployeeId) return;
@@ -819,11 +1035,22 @@ export default function EmployeeDirectory() {
     return users.some(u => u.employeeId === employeeId);
   };
 
+  const handleEditAttendance = (record) => {
+    setEditingRecord(record);
+    setEditModalOpen(true);
+  };
+
+  const handleAttendanceUpdate = () => {
+    setAttendanceUpdateTrigger(prev => prev + 1);
+    setEditModalOpen(false);
+    setEditingRecord(null);
+  };
+
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       {/* Sidebar: Employee List */}
-      <div className="w-full md:w-80 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+      <div className="w-full lg:w-80 lg:h-screen lg:sticky lg:top-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 lg:sticky lg:top-0 bg-white dark:bg-slate-800 z-10">
           <input
             type="text"
             placeholder="Search employees..."
@@ -832,7 +1059,7 @@ export default function EmployeeDirectory() {
             className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors"
           />
         </div>
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto max-h-96 lg:max-h-none">
           {loading && employees.length === 0 ? (
             <div className="p-4 text-slate-500 dark:text-slate-400">Loading employees...</div>
           ) : error ? (
@@ -871,7 +1098,7 @@ export default function EmployeeDirectory() {
       </div>
 
       {/* Main Panel: Employee Details */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
+      <div className="flex-1 lg:overflow-y-auto p-6 lg:p-8">
         {!selectedEmployeeId ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-slate-500 dark:text-slate-400">
@@ -887,9 +1114,9 @@ export default function EmployeeDirectory() {
         ) : profileError ? (
           <div className="p-6 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg shadow">{profileError}</div>
         ) : employeeProfile ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 md:p-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 lg:p-8">
             <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-cyan-700 dark:text-cyan-300">
                     {employeeProfile.firstName} {employeeProfile.lastName}
@@ -936,13 +1163,14 @@ export default function EmployeeDirectory() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 text-sm">
               {/* Contact & Work Info */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Contact & Work</h3>
                 <p><strong>Email:</strong> {employeeProfile.email}</p>
                 <p><strong>Phone:</strong> {employeeProfile.phone}</p>
                 <p><strong>Employee ID:</strong> {employeeProfile.employeeId}</p>
+                <p><strong>Company:</strong> {employeeProfile.companyName || 'N/A'}</p>
                 <p><strong>Status:</strong>
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${employeeProfile.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
                     {employeeProfile.isActive ? 'Active' : 'Inactive'}
@@ -982,7 +1210,12 @@ export default function EmployeeDirectory() {
             {/* Enhanced Attendance Section */}
             <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
               <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-4">Attendance Records</h3>
-              <AttendanceTable employeeId={employeeProfile?.employeeId} dateRange={dateRange} />
+              <AttendanceTable 
+                employeeId={employeeProfile?.employeeId} 
+                dateRange={dateRange} 
+                onEditAttendance={handleEditAttendance}
+                updateTrigger={attendanceUpdateTrigger}
+              />
             </div>
 
             {/* Enhanced Leave Requests Section */}
@@ -992,6 +1225,15 @@ export default function EmployeeDirectory() {
             </div>
           </div>
         ) : null}
+
+        {/* Edit Attendance Modal */}
+        <EditAttendanceModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          record={editingRecord}
+          employeeProfile={employeeProfile}
+          onUpdate={handleAttendanceUpdate}
+        />
       </div>
     </div>
   );
