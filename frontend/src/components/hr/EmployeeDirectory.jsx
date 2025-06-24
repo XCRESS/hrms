@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import useAuth from '../../hooks/authjwt';
 import apiClient from '../../service/apiClient';
+import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 // Enhanced Attendance Analytics Component
 const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
@@ -77,140 +78,446 @@ const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
 };
 
 // Enhanced Attendance Table with filters and sorting
-const AttendanceTable = ({ attendance, onDateFilter }) => {
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [statusFilter, setStatusFilter] = useState('all');
+const AttendanceTable = ({ employeeId, dateRange, onDateFilter }) => {
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [statistics, setStatistics] = useState(null);
+  const [showAbsentDays, setShowAbsentDays] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [joiningDate, setJoiningDate] = useState(null);
+  const [effectiveDateRange, setEffectiveDateRange] = useState(null);
 
-  const filteredAttendance = attendance.filter(rec => {
-    if (statusFilter !== 'all' && rec.status !== statusFilter) return false;
-    return true;
-  });
+  const recordsPerPage = 15;
 
-  const sortedAttendance = [...filteredAttendance].sort((a, b) => {
-    const dateA = new Date(a.date || a.checkIn);
-    const dateB = new Date(b.date || b.checkIn);
-    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-  });
-
-  const totalPages = Math.ceil(sortedAttendance.length / itemsPerPage);
-  const paginatedAttendance = sortedAttendance.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const formatWorkingHours = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 'N/A';
-    const hours = (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60);
-    return `${hours.toFixed(1)}h`;
+  const fetchAttendance = async (page = 1) => {
+    if (!employeeId) return;
+    
+    setLoading(true);
+    try {
+      let response;
+      
+      if (showAbsentDays) {
+        // Use new API that includes absent days
+        response = await apiClient.getEmployeeAttendanceWithAbsents({
+          employeeId: employeeId,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        });
+        
+        if (response.success) {
+          let allRecords = response.data.records || [];
+          setStatistics(response.data.statistics);
+          
+          // Store joining date and effective date range info
+          if (response.data.employee?.joiningDate) {
+            setJoiningDate(response.data.employee.joiningDate);
+          }
+          if (response.data.dateRange) {
+            setEffectiveDateRange(response.data.dateRange);
+          }
+          
+          // Apply status filter
+          if (statusFilter !== 'all') {
+            allRecords = allRecords.filter(record => record.status === statusFilter);
+          }
+          
+          // Sort records by date
+          const sortedRecords = allRecords.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+          });
+          
+          // Paginate manually since this endpoint returns all records
+          const startIndex = (page - 1) * recordsPerPage;
+          const endIndex = startIndex + recordsPerPage;
+          const paginatedRecords = sortedRecords.slice(startIndex, endIndex);
+          
+          setAttendanceData(paginatedRecords.map(record => ({
+            ...record,
+            date: new Date(record.date),
+            checkIn: record.checkIn ? new Date(record.checkIn) : null,
+            checkOut: record.checkOut ? new Date(record.checkOut) : null
+          })));
+          
+          setTotalRecords(sortedRecords.length);
+          setTotalPages(Math.ceil(sortedRecords.length / recordsPerPage));
+        }
+      } else {
+        // Use original API that only shows records with check-ins
+        const params = {
+          page,
+          limit: recordsPerPage,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          employeeId: employeeId
+        };
+        
+        response = await apiClient.getAttendanceRecords(params);
+        if (response.success && response.data?.records) {
+          let records = response.data.records;
+          
+          // Apply status filter
+          if (statusFilter !== 'all') {
+            records = records.filter(record => record.status === statusFilter);
+          }
+          
+          // Sort records by date
+          const sortedRecords = records.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+          });
+          
+          setAttendanceData(sortedRecords.map(record => ({
+            ...record,
+            date: new Date(record.date),
+            checkIn: record.checkIn ? new Date(record.checkIn) : null,
+            checkOut: record.checkOut ? new Date(record.checkOut) : null
+          })));
+          
+          setTotalRecords(response.data.total || sortedRecords.length);
+          setTotalPages(Math.ceil((response.data.total || sortedRecords.length) / recordsPerPage));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch attendance:", err);
+      setAttendanceData([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!attendance || attendance.length === 0) {
-    return <div className="text-slate-500 dark:text-slate-400">No attendance records found.</div>;
+  useEffect(() => {
+    fetchAttendance(currentPage);
+  }, [currentPage, dateRange, showAbsentDays, employeeId, statusFilter, sortOrder]);
+
+  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
+    hour: '2-digit', minute: '2-digit', hour12: true 
+  }).format(date) : "—";
+
+  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+  }).format(date);
+
+  const getStatusIcon = (status, checkIn, checkOut) => {
+    if (status === "present") {
+      if (checkIn && checkOut) {
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      } else if (checkIn && !checkOut) {
+        return <AlertCircle className="w-4 h-4 text-amber-600" />;
+      }
+    }
+    if (status === "absent") return <XCircle className="w-4 h-4 text-red-600" />;
+    return <AlertCircle className="w-4 h-4 text-gray-600" />;
+  };
+
+  const getStatusBadge = (status, checkIn, checkOut) => {
+    const baseClasses = "px-3 py-1 rounded-full text-xs font-semibold";
+    
+    if (status === "present") {
+      if (checkIn && checkOut) {
+        return <span className={`${baseClasses} bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300`}>Complete</span>;
+      } else if (checkIn && !checkOut) {
+        return <span className={`${baseClasses} bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300`}>Incomplete</span>;
+      }
+    }
+    if (status === "absent") return <span className={`${baseClasses} bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300`}>Absent</span>;
+    if (status === "half-day") return <span className={`${baseClasses} bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300`}>Half Day</span>;
+    if (status === "late") return <span className={`${baseClasses} bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300`}>Late</span>;
+    if (status === "leave") return <span className={`${baseClasses} bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300`}>Leave</span>;
+    return <span className={`${baseClasses} bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300`}>{status}</span>;
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  if (!employeeId) {
+    return <div className="text-slate-500 dark:text-slate-400">No employee selected.</div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Statistics Card */}
+      {statistics && showAbsentDays && (
+        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 mb-6 border border-cyan-200 dark:border-cyan-800">
+          <div className="flex items-center gap-3 mb-4">
+            <BarChart3 className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+            <h3 className="text-lg font-semibold text-cyan-700 dark:text-cyan-300">Attendance Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{statistics.totalWorkingDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Working Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statistics.presentDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Present Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statistics.absentDays}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Absent Days</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statistics.attendancePercentage}%</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Attendance Rate</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Joining Date Notice */}
+      {effectiveDateRange && effectiveDateRange.requestedStartDate !== effectiveDateRange.effectiveStartDate && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="text-blue-800 dark:text-blue-200 font-medium">Date range adjusted</p>
+              <p className="text-blue-700 dark:text-blue-300">
+                Attendance records are shown from employee's joining date ({new Date(effectiveDateRange.joiningDate).toLocaleDateString()}) onwards.
+                Requested start date was {new Date(effectiveDateRange.requestedStartDate).toLocaleDateString()}.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-3 items-center">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showAbsentDays}
+              onChange={(e) => {
+                setShowAbsentDays(e.target.checked);
+                setCurrentPage(1);
+              }}
+              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show absent days</span>
+          </label>
+          
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm"
           >
             <option value="all">All Status</option>
             <option value="present">Present</option>
             <option value="absent">Absent</option>
             <option value="half-day">Half Day</option>
+            <option value="late">Late</option>
+            <option value="leave">Leave</option>
           </select>
+          
           <button
-            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+            onClick={() => {
+              setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+              setCurrentPage(1);
+            }}
             className="px-3 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700 transition-colors"
           >
             Date {sortOrder === 'desc' ? '↓' : '↑'}
           </button>
         </div>
+        
         <div className="text-sm text-slate-600 dark:text-slate-400">
-          Showing {paginatedAttendance.length} of {sortedAttendance.length} records
+          {totalRecords} total records
+          {joiningDate && (
+            <span className="ml-2 text-xs text-gray-400">
+              (Since {new Date(joiningDate).toLocaleDateString()})
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 dark:bg-slate-700">
-            <tr>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Date</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check-In</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check-Out</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Working Hours</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Notes</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-            {paginatedAttendance.map((rec, idx) => {
-              const isLate = rec.checkIn && new Date(rec.checkIn).getHours() >= 10;
-              return (
-                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">
-                    {new Date(rec.date || rec.checkIn).toLocaleDateString()}
-                  </td>
-                  <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">
-                    {rec.checkIn ? (
-                      <span className={isLate ? 'text-red-600 dark:text-red-400' : ''}>
-                        {new Date(rec.checkIn).toLocaleTimeString()}
-                        {isLate && ' (Late)'}
-                      </span>
-                    ) : 'N/A'}
-                  </td>
-                  <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">
-                    {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : 'N/A'}
-                  </td>
-                  <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">
-                    {formatWorkingHours(rec.checkIn, rec.checkOut)}
-                  </td>
-                  <td className="p-3 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      rec.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : 
-                      rec.status === 'absent' ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100' : 
-                      rec.status === 'half-day' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' : 
-                      'bg-slate-100 text-slate-800 dark:bg-slate-600 dark:text-slate-100'
-                    }`}>
-                      {rec.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-700 dark:text-slate-300 max-w-xs break-words">{rec.notes || 'N/A'}</td>
+      {/* Content */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-flex items-center space-x-2 text-gray-500 dark:text-slate-400">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
+            <span>Loading attendance records...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table */}
+          <div className="hidden lg:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 dark:bg-slate-700">
+                <tr>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Date</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check In</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check Out</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Work Hours</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Comments</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                {attendanceData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                      <p className="text-lg font-medium">No attendance records found</p>
+                      <p className="text-sm">Try adjusting your filters or date range</p>
+                    </td>
+                  </tr>
+                ) : attendanceData.map((record, index) => (
+                  <tr 
+                    key={record._id || index} 
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors ${
+                      record.status === 'absent' ? 'bg-red-50 dark:bg-red-900/10' : ''
+                    }`}
+                  >
+                    <td className="p-3">
+                      <div className="flex items-center space-x-3">
+                        {getStatusIcon(record.status, record.checkIn, record.checkOut)}
+                        <span className="font-medium">{formatDate(record.date)}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {getStatusBadge(record.status, record.checkIn, record.checkOut)}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="font-mono">{formatTime(record.checkIn)}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="font-mono">{formatTime(record.checkOut)}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="font-semibold">
+                        {record.workHours ? `${record.workHours.toFixed(1)}h` : "—"}
+                      </span>
+                    </td>
+                    <td className="p-3 max-w-xs">
+                      <span className="text-gray-600 dark:text-gray-300 truncate">
+                        {record.comments || record.reason || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="px-3 py-2 text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-4">
+            {attendanceData.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p className="text-lg font-medium">No attendance records found</p>
+                <p className="text-sm">Try adjusting your filters or date range</p>
+              </div>
+            ) : attendanceData.map((record, index) => (
+              <div 
+                key={record._id || index} 
+                className={`bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 ${
+                  record.status === 'absent' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : ''
+                }`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center space-x-3">
+                    {getStatusIcon(record.status, record.checkIn, record.checkOut)}
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date)}</span>
+                  </div>
+                  {getStatusBadge(record.status, record.checkIn, record.checkOut)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Check In:</span>
+                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTime(record.checkIn)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Check Out:</span>
+                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTime(record.checkOut)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Work Hours:</span>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      {record.workHours ? `${record.workHours.toFixed(1)}h` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Comments:</span>
+                    <p className="text-gray-900 dark:text-gray-100 truncate">
+                      {record.comments || record.reason || "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-4 mt-8">
+              <button 
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Previous</span>
+              </button>
+              
+              <div className="flex space-x-2">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else {
+                    const start = Math.max(1, currentPage - 2);
+                    const end = Math.min(totalPages, start + 4);
+                    pageNum = start + i;
+                    if (pageNum > end) return null;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-2 border rounded-lg transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-cyan-600 text-white border-cyan-600'
+                          : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button 
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -455,17 +762,8 @@ export default function EmployeeDirectory() {
           setLeaves([]);
           setProfileError(prev => (prev ? prev + '; ' : '') + 'Failed to fetch leaves. ' + (lvErr?.message || ''));
         }
-        try {
-          const att = await apiClient.getAttendanceRecords({ 
-            employeeId: res.employeeId,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate
-          });
-          setAttendance(att.data?.records || att.records || []);
-        } catch (attErr) {
-          setAttendance([]);
-          setProfileError(prev => (prev ? prev + '; ' : '') + 'Failed to fetch attendance. ' + (attErr?.message || ''));
-        }
+        // Note: Attendance will now be fetched directly by the AttendanceTable component
+        // This ensures it uses the correct API with absent days and proper filtering
       } else {
         setLeaves([]);
         setAttendance([]);
@@ -478,7 +776,7 @@ export default function EmployeeDirectory() {
     } finally {
       setProfileLoading(false);
     }
-  }, [selectedEmployeeId, dateRange]);
+  }, [selectedEmployeeId]);
 
   useEffect(() => {
     fetchEmployeeData();
@@ -683,12 +981,8 @@ export default function EmployeeDirectory() {
 
             {/* Enhanced Attendance Section */}
             <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-              <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-4">Attendance Analytics</h3>
-              <AttendanceAnalytics attendance={attendance} employeeProfile={employeeProfile} />
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-3">Detailed Records</h4>
-                <AttendanceTable attendance={attendance} />
-              </div>
+              <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-4">Attendance Records</h3>
+              <AttendanceTable employeeId={employeeProfile?.employeeId} dateRange={dateRange} />
             </div>
 
             {/* Enhanced Leave Requests Section */}
