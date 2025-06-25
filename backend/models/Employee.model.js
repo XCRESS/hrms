@@ -93,7 +93,7 @@ const employeeSchema = new mongoose.Schema(
 
         paymentMode: {
             type: String,
-            enum: ["bankTransfer", "cheque", "cash"],
+            enum: ["Bank Transfer", "Cheque", "Cash"],
             required: true,
         },
         bankName: {

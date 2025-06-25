@@ -703,8 +703,8 @@ export const updateAttendanceRecord = async (req, res) => {
         employee: employee._id,
         employeeName: `${employee.firstName} ${employee.lastName}`,
         date: recordDate,
-        checkIn: checkIn ? convertISTToUTC(checkIn) : null,
-        checkOut: checkOut ? convertISTToUTC(checkOut) : null,
+        checkIn: checkIn ? new Date(checkIn) : null,
+        checkOut: checkOut ? new Date(checkOut) : null,
         status: status || 'present'
       });
     } else {
@@ -717,9 +717,9 @@ export const updateAttendanceRecord = async (req, res) => {
 
       // Update existing record
       if (status) attendanceRecord.status = status;
-      if (checkIn) attendanceRecord.checkIn = convertISTToUTC(checkIn);
+      if (checkIn) attendanceRecord.checkIn = new Date(checkIn);
       if (checkOut !== undefined) {
-        attendanceRecord.checkOut = checkOut ? convertISTToUTC(checkOut) : null;
+        attendanceRecord.checkOut = checkOut ? new Date(checkOut) : null;
       }
     }
 
@@ -810,25 +810,3 @@ const setDefaultCheckOut = (date) => {
   return checkOut;
 };
 
-// Helper function to convert IST datetime-local input to UTC
-const convertISTToUTC = (istDateTime) => {
-  if (!istDateTime) return null;
-  
-  // The datetime-local input gives us a string like "2024-01-15T09:30"
-  // We need to treat this as IST time and convert to UTC
-  
-  // Parse the string manually to avoid timezone auto-conversion
-  const [dateStr, timeStr] = istDateTime.split('T');
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const [hour, minute] = timeStr.split(':').map(Number);
-  
-  // Create a date in IST (treating input as IST)
-  const istDate = new Date(year, month - 1, day, hour, minute, 0, 0);
-  
-  // Convert IST to UTC by subtracting 5.5 hours
-  const utcDate = new Date(istDate.getTime() - (5.5 * 60 * 60 * 1000));
-  
-  console.log(`Converting IST to UTC: ${istDateTime} -> IST: ${istDate.toISOString()} -> UTC: ${utcDate.toISOString()}`);
-  
-  return utcDate;
-};
