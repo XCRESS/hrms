@@ -1,6 +1,6 @@
-const CACHE_NAME = 'hrms-v3';
-const STATIC_CACHE_NAME = 'hrms-static-v3';
-const DYNAMIC_CACHE_NAME = 'hrms-dynamic-v3';
+const CACHE_NAME = 'hrms-v4';
+const STATIC_CACHE_NAME = 'hrms-static-v4';
+const DYNAMIC_CACHE_NAME = 'hrms-dynamic-v4';
 
 // Static assets to cache
 const staticAssets = [

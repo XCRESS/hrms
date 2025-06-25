@@ -92,9 +92,7 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       const formatTimeForInput = (date) => {
         if (!date) return '';
         const d = new Date(date);
-        // Convert UTC to IST (UTC + 5:30) for datetime-local input
-        const istTime = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
-        return istTime.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+        return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
       };
 
       setFormData({
@@ -109,13 +107,9 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
     const handleStatusChange = (status) => {
     setFormData(prev => ({ ...prev, status }));
     
-    // Auto-fill times based on status (in IST)
+    // Auto-fill times based on status
     const recordDate = new Date(record?.date || new Date());
-    // Get the local date part and create IST date
-    const year = recordDate.getFullYear();
-    const month = String(recordDate.getMonth() + 1).padStart(2, '0');
-    const day = String(recordDate.getDate()).padStart(2, '0');
-    const baseDate = `${year}-${month}-${day}`;
+    const baseDate = recordDate.toISOString().split('T')[0];
     
     switch (status) {
       case 'present':
@@ -412,12 +406,9 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
 
   const formatTime = (date) => {
     if (!date) return "—";
-    // Convert UTC to IST for display
-    const utcDate = new Date(date);
-    const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
     return new Intl.DateTimeFormat('en-US', { 
       hour: '2-digit', minute: '2-digit', hour12: true 
-    }).format(istDate);
+    }).format(new Date(date));
   };
 
   const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
