@@ -22,7 +22,7 @@ const announcementSchema = new mongoose.Schema(
     },
     targetAudience: {
       type: String,
-      enum: ["all", "employees", "hr", "admin"], // Example audiences
+      enum: ["all", "employee", "hr", "admin"], // Example audiences
       default: "all",
     },
     status: {

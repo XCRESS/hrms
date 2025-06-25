@@ -18,7 +18,17 @@ const getRandomIndex = (prev) => {
   return next;
 };
 
-const shapeBase = "absolute transition-all duration-[750ms] ease-in-out bg-gradient-to-br from-blue-400 to-purple-600";
+const shapeBase = "absolute transition-all duration-[750ms] ease-in-out";
+
+const shapeColors = [
+  "bg-[rgb(176,190,197)] z-[2]", // Shape 1: light gray-blue
+  "bg-[rgb(245,245,245)] z-[2]", // Shape 2: very light gray/white
+  "bg-[rgb(155,93,229)] z-[1]",  // Shape 3: purple
+  "bg-[rgb(241,91,181)] z-[2]",  // Shape 4: pink
+  "bg-[rgb(254,228,64)] z-[2]",  // Shape 5: yellow
+  "bg-[rgb(0,187,249)] z-[2]",   // Shape 6: blue
+  "bg-[rgb(0,245,212)] z-[2]",   // Shape 7: teal/cyan
+];
 
 const LoaderGate = ({ serverUrl, children }) => {
   const [isReady, setIsReady] = useState(false);
@@ -66,13 +76,14 @@ const LoaderGate = ({ serverUrl, children }) => {
   }
 
   return (
-    <div className="h-screen w-screen grid place-items-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
+    <div className="h-screen w-screen grid place-items-center bg-[rgb(19,19,19)] overflow-hidden">
       <div className="relative w-[90vmin] aspect-[1.618] max-w-md">
         {[...Array(7)].map((_, i) => (
           <div
             key={i}
             className={clsx(
               shapeBase,
+              shapeColors[i],
               getShapeStyles(config.configuration, i + 1),
               getRoundnessStyles(config.roundness, i + 1)
             )}
