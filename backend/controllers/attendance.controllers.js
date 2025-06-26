@@ -1,6 +1,44 @@
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import TaskReport from "../models/TaskReport.model.js";
+import Leave from "../models/Leave.model.js";
+
+/**
+ * Helper: Determine if a date is a working day
+ * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday)
+ * Non-working days: Sunday + 2nd Saturday of each month
+ */
+const isWorkingDayForCompany = (date) => {
+  const dayOfWeek = date.getDay();
+  
+  // Sunday is always a non-working day
+  if (dayOfWeek === 0) {
+    return false;
+  }
+  
+  // Monday to Friday are always working days
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    return true;
+  }
+  
+  // Saturday logic: exclude 2nd Saturday of the month
+  if (dayOfWeek === 6) {
+    const dateNum = date.getDate();
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstSaturday = 7 - firstDayOfMonth.getDay() || 7; // Get first Saturday of month
+    const secondSaturday = firstSaturday + 7; // Second Saturday is 7 days later
+    
+    // If this Saturday is the 2nd Saturday, it's a non-working day
+    if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+      return false;
+    }
+    
+    // All other Saturdays are working days
+    return true;
+  }
+  
+  return false;
+};
 
 // Standard response formatter for consistency
 const formatResponse = (success, message, data = null, errors = null) => {
@@ -566,11 +604,25 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       date: { $gte: effectiveStartDate, $lte: endDateObj }
     }).sort({ date: -1 });
 
+    // Get approved leaves for the employee in this range
+    const approvedLeaves = await Leave.find({
+      employeeId: employee.employeeId,
+      status: 'approved',
+      leaveDate: { $gte: effectiveStartDate, $lte: endDateObj }
+    });
+
     // Create a map for quick lookup
     const attendanceMap = new Map();
     attendanceRecords.forEach(record => {
       const dateKey = record.date.toISOString().split('T')[0];
       attendanceMap.set(dateKey, record);
+    });
+
+    // Create a map for approved leaves
+    const leaveMap = new Map();
+    approvedLeaves.forEach(leave => {
+      const dateKey = new Date(leave.leaveDate).toISOString().split('T')[0];
+      leaveMap.set(dateKey, leave);
     });
 
     // Generate all working days in the range (excluding weekends)
@@ -579,12 +631,28 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
     
     while (currentDate <= endDateObj) {
       const dayOfWeek = currentDate.getDay();
-      // Skip weekends (0 = Sunday, 6 = Saturday)
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const isWorkingDay = isWorkingDayForCompany(currentDate);
+      
+      // Only include working days
+      if (isWorkingDay) {
         const dateKey = currentDate.toISOString().split('T')[0];
         const attendanceRecord = attendanceMap.get(dateKey);
+        const approvedLeave = leaveMap.get(dateKey);
         
-        if (attendanceRecord) {
+        if (approvedLeave) {
+          // Employee has an approved leave for this day
+          workingDays.push({
+            _id: attendanceRecord?._id || null,
+            date: new Date(currentDate),
+            checkIn: null,
+            checkOut: null,
+            status: 'leave',
+            workHours: null,
+            comments: `Leave: ${approvedLeave.leaveType}`,
+            reason: approvedLeave.leaveReason || 'Approved leave',
+            employeeName: `${employee.firstName} ${employee.lastName}`
+          });
+        } else if (attendanceRecord) {
           // Employee has a record for this day
           let workHours = null;
           if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
@@ -741,9 +809,9 @@ export const updateAttendanceRecord = async (req, res) => {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
           if (!attendanceRecord.checkOut) {
-            // Half day - checkout at 1 PM
+            // Half day - checkout at 1:30 PM
             const halfDayCheckout = new Date(recordDate);
-            halfDayCheckout.setUTCHours(7, 30, 0, 0); // 1:00 PM IST (UTC+5:30)
+            halfDayCheckout.setUTCHours(8, 0, 0, 0); // 1:30 PM IST (UTC+5:30)
             attendanceRecord.checkOut = halfDayCheckout;
           }
           break;
@@ -754,9 +822,9 @@ export const updateAttendanceRecord = async (req, res) => {
            break;
          case 'late':
            if (!attendanceRecord.checkIn) {
-             // Late arrival - 10:30 AM
+             // Late arrival - 10:00 AM
              const lateCheckIn = new Date(recordDate);
-             lateCheckIn.setUTCHours(5, 0, 0, 0); // 10:30 AM IST (UTC+5:30)
+             lateCheckIn.setUTCHours(4, 30, 0, 0); // 10:00 AM IST (UTC+5:30)
              attendanceRecord.checkIn = lateCheckIn;
            }
            if (!attendanceRecord.checkOut) {
@@ -800,13 +868,13 @@ export const updateAttendanceRecord = async (req, res) => {
 // Helper functions for default times
 const setDefaultCheckIn = (date) => {
   const checkIn = new Date(date);
-  checkIn.setUTCHours(3, 30, 0, 0); // 9:00 AM IST (UTC+5:30)
+  checkIn.setUTCHours(4, 0, 0, 0); // 9:30 AM IST (UTC+5:30)
   return checkIn;
 };
 
 const setDefaultCheckOut = (date) => {
   const checkOut = new Date(date);
-  checkOut.setUTCHours(12, 30, 0, 0); // 6:00 PM IST (UTC+5:30)
+  checkOut.setUTCHours(12, 0, 0, 0); // 5:30 PM IST (UTC+5:30)
   return checkOut;
 };
 

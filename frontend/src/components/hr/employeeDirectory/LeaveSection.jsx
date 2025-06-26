@@ -133,7 +133,6 @@ const LeaveRequestsTable = ({ leaves, employeeProfile }) => {
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Request Date</th>
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Leave Type</th>
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Leave Period</th>
-              <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Duration</th>
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Reason</th>
               <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Actions</th>
@@ -158,9 +157,6 @@ const LeaveRequestsTable = ({ leaves, employeeProfile }) => {
                   ) : (
                     new Date(leave.leaveDate || leave.startDate).toLocaleDateString()
                   )}
-                </td>
-                <td className="p-3 whitespace-nowrap text-slate-700 dark:text-slate-200">
-                  {calculateLeaveDuration(leave)}
                 </td>
                 <td className="p-3 whitespace-nowrap">
                   <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
