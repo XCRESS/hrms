@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import DatePicker from "@/components/ui/datepicker";
 import JoinDate from "@/components/ui/dateOfJoining";
-import apiClient from "../service/apiClient";
+import apiClient from "../../service/apiClient";
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import useAuth from '../hooks/authjwt';
+import useAuth from '../../hooks/authjwt';
 
 export default function CreateEmployee() {
   const [gender, setGender] = React.useState("");

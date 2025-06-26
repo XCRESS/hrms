@@ -5,7 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./components/login-form.jsx";
 import Signup from "./components/singup-form.jsx";
 import ForgotPassword from "./components/forgotPassword.jsx";
-import CreateEmployee from './components/create-employee.jsx';
+import CreateEmployee from './components/hr/create-employee.jsx';
 import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';

@@ -59,7 +59,15 @@ export const getMyLeaves = async (req, res) => {
 
 export const getAllLeaves = async (req, res) => {
   try {
-    const leaves = await Leave.find().sort({ createdAt: -1 });
+    const { employeeId } = req.query;
+    let filter = {};
+    
+    // If employeeId is provided in query, filter by it
+    if (employeeId) {
+      filter.employeeId = employeeId;
+    }
+    
+    const leaves = await Leave.find(filter).sort({ createdAt: -1 });
     
     res.json({ 
       success: true, 

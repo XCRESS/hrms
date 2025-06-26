@@ -13,7 +13,9 @@ const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
       if (rec.checkIn) {
         const checkInTime = new Date(rec.checkIn);
         const checkInHour = checkInTime.getHours();
-        return checkInHour >= 10; // Assuming 9 AM is start time
+        const checkInMinutes = checkInTime.getMinutes();
+        const checkInDecimal = checkInHour + (checkInMinutes / 60);
+        return checkInDecimal > 9.9167; // Late after 9:55 AM (9 hours 55 minutes)
       }
       return false;
     }).length;
@@ -114,22 +116,22 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       case 'present':
         setFormData(prev => ({
           ...prev,
-          checkIn: prev.checkIn || `${baseDate}T09:00`,
-          checkOut: prev.checkOut || `${baseDate}T18:00`
+          checkIn: prev.checkIn || `${baseDate}T09:30`,
+          checkOut: prev.checkOut || `${baseDate}T17:30`
         }));
         break;
       case 'half-day':
         setFormData(prev => ({
           ...prev,
-          checkIn: prev.checkIn || `${baseDate}T09:00`,
-          checkOut: `${baseDate}T13:00`
+          checkIn: prev.checkIn || `${baseDate}T09:30`,
+          checkOut: `${baseDate}T13:30`
         }));
         break;
       case 'late':
         setFormData(prev => ({
           ...prev,
-          checkIn: `${baseDate}T10:30`,
-          checkOut: prev.checkOut || `${baseDate}T18:00`
+          checkIn: `${baseDate}T10:00`,
+          checkOut: prev.checkOut || `${baseDate}T17:30`
         }));
         break;
       case 'absent':
@@ -285,7 +287,7 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
 };
 
 // Enhanced Attendance Table with filters and sorting
-const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance, updateTrigger }) => {
+const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAttendance, updateTrigger }) => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -297,6 +299,12 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
   const [sortOrder, setSortOrder] = useState('desc');
   const [joiningDate, setJoiningDate] = useState(null);
   const [effectiveDateRange, setEffectiveDateRange] = useState(null);
+  
+  // Bulk selection state
+  const [selectedRecords, setSelectedRecords] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState('present');
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const recordsPerPage = 7;
 
@@ -449,6 +457,77 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
     }
   };
 
+  // Bulk selection handlers
+  const handleSelectRecord = (recordIndex, isSelected) => {
+    const newSelected = new Set(selectedRecords);
+    if (isSelected) {
+      newSelected.add(recordIndex);
+    } else {
+      newSelected.delete(recordIndex);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      const allIndices = new Set(attendanceData.map((_, index) => index));
+      setSelectedRecords(allIndices);
+    } else {
+      setSelectedRecords(new Set());
+    }
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    if (selectedRecords.size === 0) return;
+    
+    setBulkLoading(true);
+    try {
+      const promises = Array.from(selectedRecords).map(async (index) => {
+        const record = attendanceData[index];
+        const updateData = {
+          status: bulkStatus,
+          employeeId: employeeId,
+          date: record.date
+        };
+
+        // Auto-fill times based on status
+        const baseDate = record.date.toISOString().split('T')[0];
+        switch (bulkStatus) {
+          case 'present':
+            updateData.checkIn = `${baseDate}T09:30`;
+            updateData.checkOut = `${baseDate}T17:30`;
+            break;
+          case 'half-day':
+            updateData.checkIn = `${baseDate}T09:30`;
+            updateData.checkOut = `${baseDate}T13:30`;
+            break;
+          case 'absent':
+            updateData.checkIn = null;
+            updateData.checkOut = null;
+            break;
+        }
+
+        if (record._id) {
+          return await apiClient.updateAttendanceRecord(record._id, updateData);
+        } else {
+          return await apiClient.updateAttendanceRecord('new', updateData);
+        }
+      });
+
+      await Promise.all(promises);
+      
+      // Reset selections and refresh data
+      setSelectedRecords(new Set());
+      setShowBulkActions(false);
+      fetchAttendance(currentPage);
+    } catch (err) {
+      console.error('Failed to bulk update attendance:', err);
+      alert('Failed to update attendance records. Please try again.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   if (!employeeId) {
     return <div className="text-slate-500 dark:text-slate-400">No employee selected.</div>;
   }
@@ -499,6 +578,45 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
         </div>
       )}
 
+      {/* Bulk Actions */}
+      {selectedRecords.size > 0 && (
+        <div className="mb-4 p-4 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-lg">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-cyan-700 dark:text-cyan-300">
+                {selectedRecords.size} record{selectedRecords.size > 1 ? 's' : ''} selected
+              </span>
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="px-3 py-2 border border-cyan-300 dark:border-cyan-600 rounded-lg bg-white dark:bg-slate-700 text-sm"
+              >
+                <option value="present">Mark as Present</option>
+                <option value="absent">Mark as Absent</option>
+                <option value="half-day">Mark as Half Day</option>
+              </select>
+              <button
+                onClick={handleBulkStatusUpdate}
+                disabled={bulkLoading}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+              >
+                {bulkLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  'Update Selected'
+                )}
+              </button>
+            </div>
+            <button
+              onClick={() => setSelectedRecords(new Set())}
+              className="px-3 py-2 text-sm text-cyan-600 hover:text-cyan-700 transition-colors"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters and Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-3 items-center">
@@ -540,6 +658,40 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
           >
             Date {sortOrder === 'desc' ? '↓' : '↑'}
           </button>
+          
+          <button
+            onClick={() => {
+              setShowBulkActions(!showBulkActions);
+              setSelectedRecords(new Set());
+            }}
+            className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+              showBulkActions 
+                ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                : 'bg-slate-600 hover:bg-slate-700 text-white'
+            }`}
+          >
+            {showBulkActions ? 'Cancel Bulk' : 'Bulk Select'}
+          </button>
+          
+          {/* Date Range Selector */}
+          <div className="flex gap-2 items-center">
+            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">From:</label>
+            <input
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) => onDateRangeChange(prev => ({ ...prev, startDate: e.target.value }))}
+              className="px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            />
+          </div>
+          <div className="flex gap-2 items-center">
+            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">To:</label>
+            <input
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) => onDateRangeChange(prev => ({ ...prev, endDate: e.target.value }))}
+              className="px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            />
+          </div>
         </div>
         
         <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -567,6 +719,16 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
             <table className="w-full text-sm">
               <thead className="bg-slate-100 dark:bg-slate-700">
                 <tr>
+                  {showBulkActions && (
+                    <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecords.size === attendanceData.length && attendanceData.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                      />
+                    </th>
+                  )}
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Date</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check In</th>
@@ -578,7 +740,7 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
               <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
                 {attendanceData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <td colSpan={showBulkActions ? 7 : 6} className="text-center py-12 text-gray-500 dark:text-gray-400">
                       <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                       <p className="text-lg font-medium">No attendance records found</p>
                       <p className="text-sm">Try adjusting your filters or date range</p>
@@ -591,6 +753,16 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
                       record.status === 'absent' ? 'bg-red-50 dark:bg-red-900/10' : ''
                     }`}
                   >
+                    {showBulkActions && (
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRecords.has(index)}
+                          onChange={(e) => handleSelectRecord(index, e.target.checked)}
+                          className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                        />
+                      </td>
+                    )}
                     <td className="p-3">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(record.status, record.checkIn, record.checkOut)}
@@ -739,12 +911,13 @@ const AttendanceTable = ({ employeeId, dateRange, onDateFilter, onEditAttendance
 };
 
 // Main Attendance Section Component that combines all attendance-related components
-const AttendanceSection = ({ employeeProfile, dateRange, onEditAttendance, updateTrigger }) => {
+const AttendanceSection = ({ employeeProfile, dateRange, onDateRangeChange, onEditAttendance, updateTrigger }) => {
   return (
     <div className="space-y-6">
       <AttendanceTable 
         employeeId={employeeProfile?.employeeId} 
         dateRange={dateRange} 
+        onDateRangeChange={onDateRangeChange}
         onEditAttendance={onEditAttendance}
         updateTrigger={updateTrigger}
       />

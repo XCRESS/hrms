@@ -26,7 +26,7 @@ export default function EmployeeDirectory() {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -199,24 +199,6 @@ export default function EmployeeDirectory() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex gap-2 items-center">
-                    <label className="text-sm font-medium text-slate-600 dark:text-slate-400">From:</label>
-                    <input
-                      type="date"
-                      value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
-                    />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <label className="text-sm font-medium text-slate-600 dark:text-slate-400">To:</label>
-                    <input
-                      type="date"
-                      value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
-                    />
-                  </div>
                   <button
                     onClick={() => {
                       const data = {
@@ -286,6 +268,7 @@ export default function EmployeeDirectory() {
               <AttendanceSection 
                 employeeProfile={employeeProfile} 
                 dateRange={dateRange} 
+                onDateRangeChange={setDateRange}
                 onEditAttendance={handleEditAttendance}
                 updateTrigger={attendanceUpdateTrigger}
               />
