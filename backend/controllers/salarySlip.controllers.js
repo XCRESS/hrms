@@ -141,7 +141,7 @@ export const getEmployeeSalarySlips = async (req, res) => {
 // Get all salary slips (for HR/Admin with filters)
 export const getAllSalarySlips = async (req, res) => {
   try {
-    const { month, year, page = 1, limit = 10, employeeId } = req.query;
+    const { month, year, page = 1, limit = 10, employeeId, search } = req.query;
 
     // Build filter
     const filter = {};
@@ -152,13 +152,28 @@ export const getAllSalarySlips = async (req, res) => {
       if (employee) filter.employee = employee._id;
     }
 
+    // Handle search functionality
+    if (search) {
+      const employees = await Employee.find({
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { employeeId: { $regex: search, $options: 'i' } },
+          { department: { $regex: search, $options: 'i' } }
+        ]
+      });
+      
+      const employeeIds = employees.map(emp => emp._id);
+      filter.employee = { $in: employeeIds };
+    }
+
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Find salary slips with pagination
     const [salarySlips, total] = await Promise.all([
       SalarySlip.find(filter)
-        .populate('employee', 'firstName lastName employeeId department position')
+        .populate('employee', 'firstName lastName employeeId department position bankName bankAccountNumber panNumber joiningDate companyName')
         .sort({ year: -1, month: -1, createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),

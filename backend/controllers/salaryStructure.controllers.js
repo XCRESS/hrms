@@ -1,0 +1,206 @@
+import SalaryStructure from "../models/SalaryStructure.model.js";
+import Employee from "../models/Employee.model.js";
+import { formatResponse } from "../utils/response.js";
+
+// Create or update salary structure
+export const createOrUpdateSalaryStructure = async (req, res) => {
+  try {
+    const { employeeId, earnings } = req.body;
+
+    // Validate required fields
+    if (!employeeId || !earnings || !earnings.basic) {
+      return res.status(400).json(formatResponse(false, "Employee ID and basic salary are required"));
+    }
+
+    // Find employee
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
+    // Prepare salary structure data
+    const structureData = {
+      employee: employee._id,
+      employeeId,
+      earnings: {
+        basic: earnings.basic,
+        hra: earnings.hra || 0,
+        conveyance: earnings.conveyance || 0,
+        medical: earnings.medical || 0,
+        lta: earnings.lta || 0,
+        specialAllowance: earnings.specialAllowance || 0,
+        mobileAllowance: earnings.mobileAllowance || 0
+      },
+      lastUpdatedBy: req.user._id
+    };
+
+    // Check if salary structure already exists
+    const existingStructure = await SalaryStructure.findOne({ employee: employee._id });
+
+    let salaryStructure;
+    if (existingStructure) {
+      // Update existing structure
+      Object.assign(existingStructure, structureData);
+      salaryStructure = await existingStructure.save();
+    } else {
+      // Create new structure
+      structureData.createdBy = req.user._id;
+      salaryStructure = new SalaryStructure(structureData);
+      await salaryStructure.save();
+    }
+
+    // Populate employee data
+    await salaryStructure.populate('employee', 'firstName lastName employeeId department position');
+
+    res.status(200).json(formatResponse(true, "Salary structure saved successfully", salaryStructure));
+  } catch (error) {
+    console.error("Error creating/updating salary structure:", error);
+    if (error.code === 11000) {
+      return res.status(400).json(formatResponse(false, "Salary structure already exists for this employee"));
+    }
+    res.status(500).json(formatResponse(false, "Server error while saving salary structure", error.message));
+  }
+};
+
+// Get salary structure by employee ID
+export const getSalaryStructure = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+
+    // Find employee
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
+    // Find salary structure
+    const salaryStructure = await SalaryStructure.findOne({ 
+      employee: employee._id, 
+      isActive: true 
+    }).populate('employee', 'firstName lastName employeeId department position');
+
+    if (!salaryStructure) {
+      return res.status(404).json(formatResponse(false, "Salary structure not found"));
+    }
+
+    res.status(200).json(formatResponse(true, "Salary structure fetched successfully", salaryStructure));
+  } catch (error) {
+    console.error("Error fetching salary structure:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching salary structure", error.message));
+  }
+};
+
+// Get all salary structures (for HR/Admin)
+export const getAllSalaryStructures = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search } = req.query;
+
+    // Build filter
+    const filter = { isActive: true };
+    
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = SalaryStructure.find(filter)
+      .populate('employee', 'firstName lastName employeeId department position')
+      .sort({ createdAt: -1 });
+
+    // Apply search if provided
+    if (search) {
+      // First get employees matching search criteria
+      const employees = await Employee.find({
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { employeeId: { $regex: search, $options: 'i' } },
+          { department: { $regex: search, $options: 'i' } }
+        ]
+      });
+      
+      const employeeIds = employees.map(emp => emp._id);
+      filter.employee = { $in: employeeIds };
+      
+      query = SalaryStructure.find(filter)
+        .populate('employee', 'firstName lastName employeeId department position')
+        .sort({ createdAt: -1 });
+    }
+
+    const [salaryStructures, total] = await Promise.all([
+      query.skip(skip).limit(parseInt(limit)),
+      SalaryStructure.countDocuments(filter)
+    ]);
+
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    res.status(200).json(formatResponse(true, "Salary structures fetched successfully", {
+      salaryStructures,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    }));
+  } catch (error) {
+    console.error("Error fetching all salary structures:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching salary structures", error.message));
+  }
+};
+
+// Delete salary structure
+export const deleteSalaryStructure = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+
+    // Find employee
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
+    // Soft delete - mark as inactive instead of deleting
+    const salaryStructure = await SalaryStructure.findOneAndUpdate(
+      { employee: employee._id },
+      { 
+        isActive: false,
+        lastUpdatedBy: req.user._id
+      },
+      { new: true }
+    );
+
+    if (!salaryStructure) {
+      return res.status(404).json(formatResponse(false, "Salary structure not found"));
+    }
+
+    res.status(200).json(formatResponse(true, "Salary structure deleted successfully"));
+  } catch (error) {
+    console.error("Error deleting salary structure:", error);
+    res.status(500).json(formatResponse(false, "Server error while deleting salary structure", error.message));
+  }
+};
+
+// Get employees without salary structure
+export const getEmployeesWithoutStructure = async (req, res) => {
+  try {
+    // Get all active employees
+    const allEmployees = await Employee.find({ isActive: true });
+    
+    // Get all employees with salary structures
+    const employeesWithStructures = await SalaryStructure.find({ isActive: true })
+      .populate('employee', 'employeeId');
+    
+    const employeeIdsWithStructure = employeesWithStructures.map(
+      structure => structure.employee.employeeId
+    );
+    
+    // Filter employees without salary structure
+    const employeesWithoutStructure = allEmployees.filter(
+      employee => !employeeIdsWithStructure.includes(employee.employeeId)
+    );
+
+    res.status(200).json(formatResponse(true, "Employees without salary structure fetched successfully", employeesWithoutStructure));
+  } catch (error) {
+    console.error("Error fetching employees without salary structure:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching employees", error.message));
+  }
+}; 
