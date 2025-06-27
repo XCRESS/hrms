@@ -25,6 +25,7 @@ import RegularizationAll from './components/regularization/RegularizationAll.jsx
 import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
 import MyAttendance from './components/employee/MyAttendance.jsx';
 import MyTaskReports from './components/employee/MyTaskReports.jsx';
+import SalarySlipManagement from './components/hr/SalarySlipManagement.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
 
@@ -56,6 +57,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="task-reports/my" element={<MyTaskReports />} />
                 <Route path="profile" element={<GetProfile />} />
                 <Route path="task-reports" element={<TaskReportsManage />} />
+                <Route path="salary-slips" element={<SalarySlipManagement />} />
               </Route>
 
               <Route path="/auth/login" element={<Login />} />
