@@ -13,7 +13,8 @@ import {
   CheckSquare,
   LogOut,
   KeyRound,
-  FileText
+  FileText,
+  Receipt
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -109,6 +110,11 @@ export default function SidebarDemo() {
               label: "Task Reports",
               href: "/task-reports",
               icon: <FileText className={accentIconClass('purple')} />,
+            },
+            {
+              label: "Salary Slips",
+              href: "/salary-slips",
+              icon: <Receipt className={accentIconClass('green')} />,
             },
           ];
         } else if (user && user.role === "employee") {

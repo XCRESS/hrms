@@ -110,6 +110,17 @@ export const API_ENDPOINTS = {
     REQUESTS: "/password-reset/requests",
     APPROVE: (id) => `/password-reset/requests/${id}/approve`,
     REJECT: (id) => `/password-reset/requests/${id}/reject`
+  },
+  
+  // Salary Slips
+  SALARY_SLIPS: {
+    BASE: "/salary-slips",
+    CREATE_OR_UPDATE: "/salary-slips",
+    GET_ALL: "/salary-slips",
+    GET_BY_EMPLOYEE_MONTH_YEAR: (employeeId, month, year) => `/salary-slips/${employeeId}/${month}/${year}`,
+    GET_EMPLOYEE_SLIPS: (employeeId) => `/salary-slips/employee/${employeeId}`,
+    DELETE: (employeeId, month, year) => `/salary-slips/${employeeId}/${month}/${year}`,
+    TAX_CALCULATION: "/salary-slips/tax-calculation"
   }
 };
 

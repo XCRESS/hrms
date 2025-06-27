@@ -532,6 +532,34 @@ class ApiClient {
     async submitTaskReport(data) {
       return this.post("/task-reports/submit", data);
     }
+
+    // Salary Slip Management
+    async createOrUpdateSalarySlip(data) {
+      return this.post(API_ENDPOINTS.SALARY_SLIPS.CREATE_OR_UPDATE, data);
+    }
+
+    async getSalarySlip(employeeId, month, year) {
+      return this.get(API_ENDPOINTS.SALARY_SLIPS.GET_BY_EMPLOYEE_MONTH_YEAR(employeeId, month, year));
+    }
+
+    async getEmployeeSalarySlips(employeeId, params = {}) {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.GET_EMPLOYEE_SLIPS(employeeId), params);
+      return this.get(endpoint);
+    }
+
+    async getAllSalarySlips(params = {}) {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.GET_ALL, params);
+      return this.get(endpoint);
+    }
+
+    async deleteSalarySlip(employeeId, month, year) {
+      return this.delete(API_ENDPOINTS.SALARY_SLIPS.DELETE(employeeId, month, year));
+    }
+
+    async getTaxCalculation(grossSalary, taxRegime = 'new') {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.TAX_CALCULATION, { grossSalary, taxRegime });
+      return this.get(endpoint);
+    }
   }
   
   // Export the instance
