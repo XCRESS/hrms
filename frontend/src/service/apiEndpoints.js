@@ -121,6 +121,16 @@ export const API_ENDPOINTS = {
     GET_EMPLOYEE_SLIPS: (employeeId) => `/salary-slips/employee/${employeeId}`,
     DELETE: (employeeId, month, year) => `/salary-slips/${employeeId}/${month}/${year}`,
     TAX_CALCULATION: "/salary-slips/tax-calculation"
+  },
+
+  // Salary Structures
+  SALARY_STRUCTURES: {
+    BASE: "/salary-structures",
+    CREATE_OR_UPDATE: "/salary-structures",
+    GET_ALL: "/salary-structures",
+    GET_BY_EMPLOYEE: (employeeId) => `/salary-structures/${employeeId}`,
+    DELETE: (employeeId) => `/salary-structures/${employeeId}`,
+    EMPLOYEES_WITHOUT_STRUCTURE: "/salary-structures/employees-without-structure"
   }
 };
 

@@ -560,6 +560,27 @@ class ApiClient {
       const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.TAX_CALCULATION, { grossSalary, taxRegime });
       return this.get(endpoint);
     }
+
+    // Salary Structure Management
+    async createOrUpdateSalaryStructure(data) {
+      return this.post(API_ENDPOINTS.SALARY_STRUCTURES.CREATE_OR_UPDATE, data);
+    }
+
+    async getSalaryStructure(employeeId) {
+      return this.get(API_ENDPOINTS.SALARY_STRUCTURES.GET_BY_EMPLOYEE(employeeId));
+    }
+
+    async getAllSalaryStructures(params = {}) {
+      return this.get(buildEndpointWithQuery(API_ENDPOINTS.SALARY_STRUCTURES.GET_ALL, params));
+    }
+
+    async deleteSalaryStructure(employeeId) {
+      return this.delete(API_ENDPOINTS.SALARY_STRUCTURES.DELETE(employeeId));
+    }
+
+    async getEmployeesWithoutStructure() {
+      return this.get(API_ENDPOINTS.SALARY_STRUCTURES.EMPLOYEES_WITHOUT_STRUCTURE);
+    }
   }
   
   // Export the instance

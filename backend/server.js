@@ -41,6 +41,7 @@ import activityRoutes from "./routes/activity.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import taskReportRoutes from "./routes/taskReport.routes.js";
 import salarySlipRoutes from "./routes/salarySlip.routes.js";
+import salaryStructureRoutes from "./routes/salaryStructure.routes.js";
 
 // API health check endpoint
 app.get('/api', (req, res) => {
@@ -65,6 +66,7 @@ app.use("/api/activity", activityRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/task-reports", taskReportRoutes); // Fixed: plural form with dash
 app.use("/api/salary-slips", salarySlipRoutes);
+app.use("/api/salary-structures", salaryStructureRoutes);
 
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')
