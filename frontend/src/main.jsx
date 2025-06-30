@@ -28,6 +28,7 @@ import MyTaskReports from './components/employee/MyTaskReports.jsx';
 import MySalarySlips from './components/employee/MySalarySlips.jsx';
 import SalarySlipManagement from './components/hr/SalarySlipManagement.jsx';
 import SalaryStructureManagement from './components/hr/SalaryStructureManagement.jsx';
+import SalaryHub from './components/salary/SalaryHub.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
 
@@ -60,6 +61,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="salary-slips/my" element={<MySalarySlips />} />
                 <Route path="profile" element={<GetProfile />} />
                 <Route path="task-reports" element={<TaskReportsManage />} />
+                <Route path="salary" element={<SalaryHub />} />
                 <Route path="salary-structures" element={<SalaryStructureManagement />} />
                 <Route path="salary-slips" element={<SalarySlipManagement />} />
               </Route>

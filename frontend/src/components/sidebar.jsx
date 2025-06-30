@@ -113,14 +113,9 @@ export default function SidebarDemo() {
               icon: <FileText className={accentIconClass('purple')} />,
             },
             {
-              label: "Salary Structures",
-              href: "/salary-structures",
-              icon: <DollarSign className={accentIconClass('blue')} />,
-            },
-            {
-              label: "Salary Slips",
-              href: "/salary-slips",
-              icon: <Receipt className={accentIconClass('green')} />,
+              label: "Salary",
+              href: "/salary",
+              icon: <DollarSign className={accentIconClass('green')} />,
             },
           ];
         } else if (user && user.role === "employee") {

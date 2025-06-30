@@ -1,4 +1,5 @@
 import Holiday from "../models/Holiday.model.js";
+import notificationService from "../utils/notificationService.js";
 
 export const createHoliday = async (req, res) => {
   try {
@@ -11,6 +12,15 @@ export const createHoliday = async (req, res) => {
     holidayDate.setUTCHours(0, 0, 0, 0);
 
     const holiday = await Holiday.create({ title, date: holidayDate, isOptional, description });
+    
+    // Send notification for new holiday
+    try {
+      await notificationService.sendHolidayNotification(holiday);
+    } catch (notificationError) {
+      console.error('Failed to send holiday notification:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
+    
     res.status(201).json({ success: true, message: "Holiday created successfully", holiday });
   } catch (err) {
     if (err.code === 11000) { // Duplicate key error (for date)
@@ -78,6 +88,16 @@ export const updateHoliday = async (req, res) => {
         updatePayload, 
         { new: true, runValidators: true }
     );
+    
+    // Send notification for updated holiday (only if significant change like title or date)
+    if (title !== undefined || date !== undefined) {
+      try {
+        await notificationService.sendHolidayNotification(updatedHoliday);
+      } catch (notificationError) {
+        console.error('Failed to send holiday update notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
     
     res.status(200).json({ success: true, message: "Holiday updated successfully", holiday: updatedHoliday });
   } catch (err) {

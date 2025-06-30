@@ -1,5 +1,6 @@
 import Announcement from "../models/Announcement.model.js";
 import User from "../models/User.model.js"; // To populate author details
+import notificationService from "../utils/notificationService.js";
 
 // @desc    Create a new announcement
 // @route   POST /api/announcements
@@ -22,6 +23,17 @@ export const createAnnouncement = async (req, res) => {
       targetAudience,
       status
     });
+
+    // Send notification if announcement is published
+    if (status === 'published') {
+      try {
+        await notificationService.sendAnnouncementNotification(announcement);
+      } catch (notificationError) {
+        console.error('Failed to send announcement notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
+
     res.status(201).json({ success: true, message: "Announcement created successfully", announcement });
   } catch (error) {
     console.error("Error creating announcement:", error);
@@ -123,6 +135,16 @@ export const updateAnnouncement = async (req, res) => {
       updatedFields,
       { new: true, runValidators: true }
     ).populate('author', 'name email');
+
+    // Send notification if announcement status changed to published
+    if (status === 'published' && announcement.status !== 'published') {
+      try {
+        await notificationService.sendAnnouncementNotification(updatedAnnouncement);
+      } catch (notificationError) {
+        console.error('Failed to send announcement notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
 
     res.status(200).json({ success: true, message: "Announcement updated successfully", announcement: updatedAnnouncement });
   } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
+import notificationService from '../../service/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'; // Using lucide-react for icons
 
 const HolidayManagementPage = () => {
@@ -90,13 +91,24 @@ const HolidayManagementPage = () => {
     };
 
     try {
+      let result;
       if (isEditing) {
-        await apiClient.updateHoliday(currentHoliday._id, payload);
+        result = await apiClient.updateHoliday(currentHoliday._id, payload);
         setMessage({ type: 'success', content: 'Holiday updated successfully!' });
       } else {
-        await apiClient.createHoliday(payload);
+        result = await apiClient.createHoliday(payload);
         setMessage({ type: 'success', content: 'Holiday added successfully!' });
       }
+      
+      // Send PWA notification for holiday creation/update
+      try {
+        const holidayData = result.holiday || currentHoliday;
+        await notificationService.sendHolidayNotification(holidayData);
+      } catch (notifyError) {
+        console.error('Failed to send PWA notification:', notifyError);
+        // Don't show error to user as the main operation succeeded
+      }
+      
       fetchHolidays();
       closeModal();
     } catch (err) {
