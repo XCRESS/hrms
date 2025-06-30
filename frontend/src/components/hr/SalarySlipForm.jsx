@@ -437,20 +437,22 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                       <SelectTrigger className="w-full dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
                         <SelectValue placeholder={employeesLoading ? "Loading employees..." : "Choose an employee"} />
                       </SelectTrigger>
-                      <SelectContent className="dark:bg-slate-800 dark:border-slate-600 max-h-60">
+                      <SelectContent className="dark:bg-slate-800 dark:border-slate-600 max-h-60 min-w-[300px]">
                         {employees.map(emp => (
                           <SelectItem 
                             key={emp.employeeId} 
                             value={emp.employeeId}
-                            className="dark:text-slate-100 dark:focus:bg-slate-700"
+                            className="dark:text-slate-100 dark:focus:bg-slate-700 py-3"
                           >
-                            <div className="flex flex-col">
-                              <span className="block truncate max-w-xs md:max-w-sm lg:max-w-md font-medium">
-                                {emp.fullName || (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : '')}
-                              </span>
-                              <span className="block text-xs text-slate-500 truncate max-w-xs md:max-w-sm lg:max-w-md">
-                                {emp.employeeId} • {emp.email || 'N/A'}
-                              </span>
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate">
+                                  {emp.fullName || (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.employeeId)}
+                                </span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                  ID: {emp.employeeId} • {emp.department || 'No Department'}
+                                </span>
+                              </div>
                             </div>
                           </SelectItem>
                         ))}

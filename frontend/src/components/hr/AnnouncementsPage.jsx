@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
+import notificationService from '../../service/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, MessageSquare, Users, CalendarDays, Eye, EyeOff } from 'lucide-react';
 
 const targetAudienceOptions = ["all", "employees", "hr", "admin"];
@@ -88,13 +89,26 @@ const AnnouncementsPage = () => {
     const { author, authorName, ...payload } = currentAnnouncement;
 
     try {
+      let result;
       if (isEditing) {
-        await apiClient.updateAnnouncement(currentAnnouncement._id, payload);
+        result = await apiClient.updateAnnouncement(currentAnnouncement._id, payload);
         setMessage({ type: 'success', content: 'Announcement updated successfully!' });
       } else {
-        await apiClient.createAnnouncement(payload);
+        result = await apiClient.createAnnouncement(payload);
         setMessage({ type: 'success', content: 'Announcement created successfully!' });
       }
+      
+      // Send PWA notification if announcement is published
+      if (payload.status === 'published') {
+        try {
+          const announcementData = result.announcement || currentAnnouncement;
+          await notificationService.sendAnnouncementNotification(announcementData);
+        } catch (notifyError) {
+          console.error('Failed to send PWA notification:', notifyError);
+          // Don't show error to user as the main operation succeeded
+        }
+      }
+      
       fetchAnnouncements();
       closeModal();
     } catch (err) {
