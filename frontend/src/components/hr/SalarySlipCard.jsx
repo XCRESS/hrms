@@ -8,13 +8,20 @@ import {
   Edit, 
   Trash2,
   User,
-  Building
+  Building,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { downloadSalarySlipPDF } from "../../utils/pdfGenerator";
 
-const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, employeeData }) => {
+const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, onPublish, employeeData }) => {
   const handleDownloadPDF = () => {
     downloadSalarySlipPDF(slip, employeeName, monthName, employeeData);
+  };
+
+  const handlePublishToggle = () => {
+    const newStatus = slip.status === 'finalized' ? 'draft' : 'finalized';
+    onPublish(slip, newStatus);
   };
 
   return (
@@ -51,6 +58,7 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, emplo
               size="sm"
               onClick={handleDownloadPDF}
               className="h-8 w-8 p-0 text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+              title="Download PDF"
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -59,14 +67,29 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, emplo
               size="sm"
               onClick={() => onEdit(slip)}
               className="h-8 w-8 p-0 text-slate-600 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400"
+              title="Edit"
             >
               <Edit className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
+              onClick={handlePublishToggle}
+              className={`h-8 w-8 p-0 ${
+                slip.status === 'finalized' 
+                  ? 'text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300' 
+                  : 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+              }`}
+              title={slip.status === 'finalized' ? 'Unpublish' : 'Publish'}
+            >
+              {slip.status === 'finalized' ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => onDelete(slip)}
               className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+              title="Delete"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -112,7 +135,7 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, emplo
                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
                 : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
             }`}>
-              {slip.status === 'finalized' ? 'Finalized' : 'Draft'}
+              {slip.status === 'finalized' ? 'Published' : 'Draft'}
             </span>
             <span className="text-xs text-slate-500 dark:text-slate-400">
               Tax Regime: {slip.taxRegime?.toUpperCase() || 'NEW'}

@@ -110,13 +110,22 @@ export const createEmployee = async (req, res) => {
 // get all employees
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().select('employeeId firstName lastName department position isActive _id');
+    const employees = await Employee.find().select('-__v');
     const employeeList = employees.map(employee => ({
       _id: employee._id,
       employeeId: employee.employeeId,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
       fullName: `${employee.firstName} ${employee.lastName}`,
+      email: employee.email,
+      phone: employee.phone,
       department: employee.department,
       position: employee.position,
+      bankName: employee.bankName,
+      bankAccountNumber: employee.bankAccountNumber,
+      panNumber: employee.panNumber,
+      joiningDate: employee.joiningDate,
+      companyName: employee.companyName,
       isActive: employee.isActive,
     }));
     res.json({ employees: employeeList });

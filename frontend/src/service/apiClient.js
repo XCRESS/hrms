@@ -561,6 +561,14 @@ class ApiClient {
       return this.get(endpoint);
     }
 
+    async updateSalarySlipStatus(employeeId, month, year, status) {
+      return this.put(`/salary-slips/${employeeId}/${month}/${year}/status`, { status });
+    }
+
+    async bulkUpdateSalarySlipStatus(salarySlips, status) {
+      return this.put('/salary-slips/bulk/status', { salarySlips, status });
+    }
+
     // Salary Structure Management
     async createOrUpdateSalaryStructure(data) {
       return this.post(API_ENDPOINTS.SALARY_STRUCTURES.CREATE_OR_UPDATE, data);
