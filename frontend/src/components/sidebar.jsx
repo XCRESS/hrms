@@ -14,7 +14,8 @@ import {
   LogOut,
   KeyRound,
   FileText,
-  Receipt
+  Receipt,
+  DollarSign
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -112,6 +113,11 @@ export default function SidebarDemo() {
               icon: <FileText className={accentIconClass('purple')} />,
             },
             {
+              label: "Salary Structures",
+              href: "/salary-structures",
+              icon: <DollarSign className={accentIconClass('blue')} />,
+            },
+            {
               label: "Salary Slips",
               href: "/salary-slips",
               icon: <Receipt className={accentIconClass('green')} />,
@@ -128,6 +134,11 @@ export default function SidebarDemo() {
               label: "My Task Reports",
               href: "/task-reports/my",
               icon: <FileText className={accentIconClass('purple')} />,
+            },
+            {
+              label: "My Salary Slips",
+              href: "/salary-slips/my",
+              icon: <Receipt className={accentIconClass('green')} />,
             },
             {
               label: "My Regularizations",

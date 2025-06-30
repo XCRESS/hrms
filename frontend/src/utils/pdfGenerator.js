@@ -188,7 +188,7 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
         <div class="header">
           <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'">
           <div class="company-info">
-            <h1 class="company-name">${slip.employee?.companyName || 'CFG Corporation'}</h1>
+            <h1 class="company-name">${employeeData?.companyName || slip.employee?.companyName || 'CFG Corporation'}</h1>
           </div>
           <div class="payslip-info">
             <h2 class="payslip-title">PAYSLIP</h2>
@@ -206,7 +206,7 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
             </div>
             <div class="employee-field">
               <span class="field-label">Name:</span>
-              <span class="field-value">${employeeName}</span>
+              <span class="field-value">${employeeName && employeeName.trim() !== '' ? employeeName : (employeeData ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() : (slip.employee ? `${slip.employee.firstName || ''} ${slip.employee.lastName || ''}`.trim() : 'N/A'))}</span>
             </div>
             <div class="employee-field">
               <span class="field-label">Department:</span>
@@ -222,11 +222,11 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
             </div>
             <div class="employee-field">
               <span class="field-label">A/C Number:</span>
-              <span class="field-value">${(employeeData?.bankAccountNumber || slip.employee?.bankAccountNumber) ? '****' + (employeeData?.bankAccountNumber || slip.employee?.bankAccountNumber).toString().slice(-4) : 'N/A'}</span>
+              <span class="field-value">${employeeData?.bankAccountNumber || slip.employee?.bankAccountNumber || 'N/A'}</span>
             </div>
             <div class="employee-field">
               <span class="field-label">Joining Date:</span>
-              <span class="field-value">${(employeeData?.joiningDate || slip.employee?.joiningDate) ? new Date(employeeData?.joiningDate || slip.employee?.joiningDate).toLocaleDateString() : 'N/A'}</span>
+              <span class="field-value">${(employeeData?.joiningDate || slip.employee?.joiningDate) ? new Date(employeeData?.joiningDate || slip.employee?.joiningDate).toLocaleDateString('en-IN') : 'N/A'}</span>
             </div>
             <div class="employee-field">
               <span class="field-label">PAN Number:</span>

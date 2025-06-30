@@ -183,9 +183,20 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
       const employee = employees.find(emp => emp.employeeId === employeeId);
       if (employee) {
         setEmployeeDetails(employee);
+      } else {
+        toast({
+          title: "Warning",
+          description: "Employee details not found",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error loading employee details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load employee details",
+        variant: "destructive"
+      });
     }
   };
 
@@ -197,7 +208,16 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
       }
     } catch (error) {
       // If no salary structure exists, keep default empty structure
-      console.log('No existing salary structure found for employee:', error.message);
+      // This is expected for new employees, so we don't show an error toast
+      if (error.status !== 404) {
+        console.error('Error loading salary structure:', error);
+        toast({
+          title: "Warning",
+          description: "Could not load existing salary structure. Starting with empty structure.",
+          variant: "destructive"
+        });
+      }
+      
       // Reset to default structure
       setSalaryStructure({
         basic: '',
@@ -313,10 +333,40 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   };
 
   const downloadPDF = () => {
-    if (salarySlip && employeeDetails) {
-      const employeeName = `${employeeDetails.firstName} ${employeeDetails.lastName}`;
+    try {
+      if (!salarySlip) {
+        toast({
+          title: "Error",
+          description: "No salary slip data available for download",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (!employeeDetails) {
+        toast({
+          title: "Error", 
+          description: "Employee details not loaded",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const employeeName = `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim();
       const monthName = months.find(m => m.value === month)?.label || month;
       downloadSalarySlipPDF(salarySlip, employeeName, monthName, employeeDetails);
+      
+      toast({
+        title: "Success",
+        description: "PDF generation initiated"
+      });
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive"
+      });
     }
   };
 
@@ -399,7 +449,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                                 {emp.fullName || (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : '')}
                               </span>
                               <span className="block text-xs text-slate-500 truncate max-w-xs md:max-w-sm lg:max-w-md">
-                                {emp.employeeId}
+                                {emp.employeeId} • {emp.email || 'N/A'}
                               </span>
                             </div>
                           </SelectItem>
@@ -459,16 +509,32 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Department</p>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.department}</p>
-                      </div>
-                      <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Position</p>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.position}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Full Name</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">
+                          {`${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim() || 'N/A'}
+                        </p>
                       </div>
                       <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                         <p className="text-sm text-slate-600 dark:text-slate-400">Email</p>
                         <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.email || 'N/A'}</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Department</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.department || 'N/A'}</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Position</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.position || 'N/A'}</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Bank Name</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.bankName || 'N/A'}</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Joining Date</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">
+                          {employeeDetails.joiningDate ? new Date(employeeDetails.joiningDate).toLocaleDateString('en-IN') : 'N/A'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -701,17 +767,21 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                           <div>
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Employee Details</h4>
                             <div className="space-y-1 text-sm">
-                              <p><span className="text-slate-600 dark:text-slate-400">Name:</span> {employeeDetails.firstName} {employeeDetails.lastName}</p>
-                              <p><span className="text-slate-600 dark:text-slate-400">Employee ID:</span> {employeeDetails.employeeId}</p>
-                              <p><span className="text-slate-600 dark:text-slate-400">Department:</span> {employeeDetails.department}</p>
-                              <p><span className="text-slate-600 dark:text-slate-400">Position:</span> {employeeDetails.position}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Name:</span> {`${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim() || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Employee ID:</span> {employeeDetails.employeeId || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Department:</span> {employeeDetails.department || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Position:</span> {employeeDetails.position || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Email:</span> {employeeDetails.email || 'N/A'}</p>
                             </div>
                           </div>
                           
                           <div>
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Payment Details</h4>
                             <div className="space-y-1 text-sm">
-                              <p><span className="text-slate-600 dark:text-slate-400">Bank:</span> {employeeDetails.bankName}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Bank:</span> {employeeDetails.bankName || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">A/C Number:</span> {employeeDetails.bankAccountNumber || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">PAN:</span> {employeeDetails.panNumber || 'N/A'}</p>
+                              <p><span className="text-slate-600 dark:text-slate-400">Joining Date:</span> {employeeDetails.joiningDate ? new Date(employeeDetails.joiningDate).toLocaleDateString('en-IN') : 'N/A'}</p>
                               <p><span className="text-slate-600 dark:text-slate-400">Tax Regime:</span> {taxRegime.toUpperCase()}</p>
                             </div>
                           </div>

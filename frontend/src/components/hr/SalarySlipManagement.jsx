@@ -162,6 +162,23 @@ const SalarySlipManagement = () => {
     }
   };
 
+  const handlePublish = async (slip, newStatus) => {
+    try {
+      await apiClient.updateSalarySlipStatus(slip.employeeId, slip.month, slip.year, newStatus);
+      toast({
+        title: "Success",
+        description: `Salary slip ${newStatus === 'finalized' ? 'published' : 'unpublished'} successfully`
+      });
+      loadSalarySlips();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${newStatus === 'finalized' ? 'publish' : 'unpublish'} salary slip`,
+        variant: "destructive"
+      });
+    }
+  };
+
   const handlePageChange = (newPage) => {
     setPagination(prev => ({
       ...prev,
@@ -183,7 +200,10 @@ const SalarySlipManagement = () => {
 
   const getEmployeeName = (employeeId) => {
     const employee = employees.find(emp => emp.employeeId === employeeId);
-    return employee ? `${employee.firstName} ${employee.lastName}` : employeeId;
+    if (employee && employee.firstName && employee.lastName) {
+      return `${employee.firstName} ${employee.lastName}`;
+    }
+    return employeeId || 'Unknown Employee';
   };
 
   const getMonthName = (monthNumber) => {
@@ -332,16 +352,21 @@ const SalarySlipManagement = () => {
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {salarySlips.map((slip) => {
-                    const employeeData = employees.find(emp => emp.employeeId === slip.employeeId);
+                    const employeeData = employees.find(emp => emp.employeeId === slip.employeeId) || slip.employee;
+                    const employeeName = slip.employee ? 
+                      `${slip.employee.firstName || ''} ${slip.employee.lastName || ''}`.trim() :
+                      getEmployeeName(slip.employeeId);
+                    
                     return (
                       <SalarySlipCard
                         key={`${slip.employeeId}-${slip.month}-${slip.year}`}
                         slip={slip}
-                        employeeName={getEmployeeName(slip.employeeId)}
+                        employeeName={employeeName || slip.employeeId || 'Unknown Employee'}
                         monthName={getMonthName(slip.month)}
                         employeeData={employeeData}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onPublish={handlePublish}
                       />
                     );
                   })}

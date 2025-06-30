@@ -55,7 +55,7 @@ export const createOrUpdateSalarySlip = async (req, res) => {
     }
 
     // Populate employee data
-    await salarySlip.populate('employee', 'firstName lastName employeeId department position');
+    await salarySlip.populate('employee', 'firstName lastName employeeId department position bankName bankAccountNumber panNumber joiningDate companyName email');
 
     res.status(200).json(formatResponse(true, "Salary slip saved successfully", salarySlip));
   } catch (error) {
@@ -261,5 +261,92 @@ export const getTaxCalculation = async (req, res) => {
   } catch (error) {
     console.error("Error calculating tax:", error);
     res.status(500).json(formatResponse(false, "Server error while calculating tax", error.message));
+  }
+};
+
+// Update salary slip status (publish/unpublish)
+export const updateSalarySlipStatus = async (req, res) => {
+  try {
+    const { employeeId, month, year } = req.params;
+    const { status } = req.body;
+
+    // Validate required fields
+    if (!employeeId || !month || !year || !status) {
+      return res.status(400).json(formatResponse(false, "Employee ID, month, year, and status are required"));
+    }
+
+    // Validate status
+    if (!['draft', 'finalized'].includes(status)) {
+      return res.status(400).json(formatResponse(false, "Status must be either 'draft' or 'finalized'"));
+    }
+
+    // Find employee
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+
+    // Find and update salary slip
+    const salarySlip = await SalarySlip.findOneAndUpdate(
+      { 
+        employee: employee._id, 
+        month: parseInt(month), 
+        year: parseInt(year) 
+      },
+      { status },
+      { new: true }
+    ).populate('employee', 'firstName lastName employeeId department position bankName bankAccountNumber panNumber joiningDate companyName email');
+
+    if (!salarySlip) {
+      return res.status(404).json(formatResponse(false, "Salary slip not found"));
+    }
+
+    res.status(200).json(formatResponse(true, `Salary slip ${status === 'finalized' ? 'published' : 'unpublished'} successfully`, salarySlip));
+  } catch (error) {
+    console.error("Error updating salary slip status:", error);
+    res.status(500).json(formatResponse(false, "Server error while updating salary slip status", error.message));
+  }
+};
+
+// Bulk update salary slip status
+export const bulkUpdateSalarySlipStatus = async (req, res) => {
+  try {
+    const { salarySlips, status } = req.body;
+
+    // Validate required fields
+    if (!salarySlips || !Array.isArray(salarySlips) || !status) {
+      return res.status(400).json(formatResponse(false, "Salary slips array and status are required"));
+    }
+
+    // Validate status
+    if (!['draft', 'finalized'].includes(status)) {
+      return res.status(400).json(formatResponse(false, "Status must be either 'draft' or 'finalized'"));
+    }
+
+    const updatePromises = salarySlips.map(async ({ employeeId, month, year }) => {
+      const employee = await Employee.findOne({ employeeId });
+      if (!employee) return null;
+
+      return SalarySlip.findOneAndUpdate(
+        { 
+          employee: employee._id, 
+          month: parseInt(month), 
+          year: parseInt(year) 
+        },
+        { status },
+        { new: true }
+      );
+    });
+
+    const results = await Promise.all(updatePromises);
+    const updated = results.filter(result => result !== null);
+
+    res.status(200).json(formatResponse(true, `${updated.length} salary slips ${status === 'finalized' ? 'published' : 'unpublished'} successfully`, {
+      updatedCount: updated.length,
+      totalRequested: salarySlips.length
+    }));
+  } catch (error) {
+    console.error("Error bulk updating salary slip status:", error);
+    res.status(500).json(formatResponse(false, "Server error while updating salary slip status", error.message));
   }
 }; 
