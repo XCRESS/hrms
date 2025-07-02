@@ -638,6 +638,8 @@ export default function HRMSDashboard() {
           });
           // Reload missing checkouts to remove the one just submitted
           loadMissingCheckouts();
+          // Also reload regularization requests
+          loadRegularizationRequests();
         }}
       />
       

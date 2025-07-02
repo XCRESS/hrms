@@ -374,27 +374,27 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   const netSalary = grossSalary - (taxCalculation?.monthlyTax || 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Button
             variant="outline"
             onClick={onBack}
-            className="dark:border-slate-600 dark:hover:bg-slate-700"
+            className="self-start dark:border-slate-600 dark:hover:bg-slate-700"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <Receipt className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <Receipt className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {isEditing ? 'Edit Salary Slip' : 'Create Salary Slip'}
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
                 {isEditing ? 'Update existing salary slip' : 'Generate a new salary slip for employee'}
               </p>
             </div>
@@ -402,16 +402,19 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
         </div>
 
         {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 dark:bg-slate-700">
-            <TabsTrigger value="employee" className="dark:data-[state=active]:bg-slate-600">
-              Employee & Period
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-0 dark:bg-slate-700">
+            <TabsTrigger value="employee" className="dark:data-[state=active]:bg-slate-600 text-xs sm:text-sm">
+              <span className="hidden sm:inline">Employee & Period</span>
+              <span className="sm:hidden">Employee</span>
             </TabsTrigger>
-            <TabsTrigger value="salary" className="dark:data-[state=active]:bg-slate-600">
-              Salary Structure
+            <TabsTrigger value="salary" className="dark:data-[state=active]:bg-slate-600 text-xs sm:text-sm">
+              <span className="hidden sm:inline">Salary Structure</span>
+              <span className="sm:hidden">Salary</span>
             </TabsTrigger>
-            <TabsTrigger value="preview" className="dark:data-[state=active]:bg-slate-600">
-              Preview & Generate
+            <TabsTrigger value="preview" className="dark:data-[state=active]:bg-slate-600 text-xs sm:text-sm">
+              <span className="hidden sm:inline">Preview & Generate</span>
+              <span className="sm:hidden">Preview</span>
             </TabsTrigger>
           </TabsList>
 

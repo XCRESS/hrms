@@ -78,14 +78,9 @@ export default function SidebarDemo() {
               icon: <Link2 className={accentIconClass('orange')} />,
             },
             {
-              label: "Leave Requests",
-              href: "/leaves",
-              icon: <CalendarOff className={accentIconClass('blue')} />,
-            },
-            {
-              label: "Help Desk",
-              href: "/help",
-              icon: <HelpingHand className={accentIconClass('purple')} />,
+              label: "Manage Requests",
+              href: "/admin/requests",
+              icon: <FileText className={accentIconClass('blue')} />,
             },
             {
               label: "Holidays",
@@ -96,16 +91,6 @@ export default function SidebarDemo() {
               label: "Announcements",
               href: "/announcements",
               icon: <Megaphone className={accentIconClass('pink')} />,
-            },
-            {
-              label: "Regularizations",
-              href: "/regularization",
-              icon: <CheckSquare className={accentIconClass('cyan')} />,
-            },
-            {
-              label: "Password Requests",
-              href: "/password",
-              icon: <KeyRound className={accentIconClass('red')} />,
             },
             {
               label: "Task Reports",
@@ -136,9 +121,9 @@ export default function SidebarDemo() {
               icon: <Receipt className={accentIconClass('green')} />,
             },
             {
-              label: "My Regularizations",
-              href: "/regularization/my",
-              icon: <CheckSquare className={accentIconClass('cyan')} />,
+              label: "My Requests",
+              href: "/requests",
+              icon: <FileText className={accentIconClass('blue')} />,
             },
             {
               label: "Holidays",

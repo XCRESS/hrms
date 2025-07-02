@@ -315,30 +315,30 @@ export const getMissingCheckouts = async (req, res) => {
       employee: rec.employee
     })));
 
-    // Also check if there are pending regularization requests for these dates
-    // to avoid showing reminders for dates already being processed
+    // Also check if there are pending or approved regularization requests for these dates
+    // to avoid showing reminders for dates already being processed or resolved
     const RegularizationRequest = (await import("../models/Regularization.model.js")).default;
-    const pendingRegularizations = await RegularizationRequest.find({
+    const existingRegularizations = await RegularizationRequest.find({
       employeeId: req.user.employeeId,
-      status: "pending",
+      status: { $in: ["pending", "approved"] }, // Include both pending and approved
       date: { 
         $gte: startDate, 
         $lt: today 
       }
     });
 
-    console.log("📝 Pending regularizations found:", pendingRegularizations.length);
+    console.log("📝 Existing regularizations found:", existingRegularizations.length);
 
-    // Filter out dates that already have pending regularization requests
-    const pendingDates = new Set(
-      pendingRegularizations.map(reg => reg.date.toISOString().split('T')[0])
+    // Filter out dates that already have pending or approved regularization requests
+    const processedDates = new Set(
+      existingRegularizations.map(reg => reg.date.toISOString().split('T')[0])
     );
 
-    console.log("📅 Pending dates set:", Array.from(pendingDates));
+    console.log("📅 Processed dates set:", Array.from(processedDates));
 
     const reminderNeeded = missingCheckouts.filter(attendance => {
       const attendanceDate = new Date(attendance.date).toISOString().split('T')[0];
-      return !pendingDates.has(attendanceDate);
+      return !processedDates.has(attendanceDate);
     });
 
     console.log("🎯 Final reminder needed:", reminderNeeded.length, "records");

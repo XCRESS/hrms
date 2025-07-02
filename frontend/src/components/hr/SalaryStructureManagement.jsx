@@ -20,6 +20,7 @@ import {
 import apiClient from "../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
 import useAuth from "../../hooks/authjwt";
+import BackButton from "../ui/BackButton";
 
 const SalaryStructureManagement = () => {
   const [loading, setLoading] = useState(false);
@@ -511,28 +512,31 @@ const SalaryStructureManagement = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+        <div className="flex flex-col gap-4">
+          <BackButton to="/salary" label="Back" variant="ghost" className="w-auto" />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  Salary Structure Management
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Manage employee salary structures and components
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                Salary Structure Management
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">
-                Manage employee salary structures and components
-              </p>
-            </div>
+            
+            <Button
+              onClick={handleCreateNew}
+              className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Structure
+            </Button>
           </div>
-          
-          <Button
-            onClick={handleCreateNew}
-            className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Structure
-          </Button>
         </div>
 
         {/* Quick Stats */}

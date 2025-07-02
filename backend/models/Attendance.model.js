@@ -55,15 +55,15 @@ attendanceSchema.pre('save', async function(next) {
       }
     }
     
-    // Auto-detect late status based on check-in time (after 9:55 AM)
+    // Auto-detect late status based on check-in time (after 9:45 AM)
     if (this.checkIn && this.status === 'present') {
       const checkInDate = new Date(this.checkIn);
       const checkInHour = checkInDate.getHours();
       const checkInMinutes = checkInDate.getMinutes();
       const checkInDecimal = checkInHour + (checkInMinutes / 60);
       
-      // Mark as late if check-in is after 9:55 AM (9.9167 hours)
-      if (checkInDecimal > 9.9167) {
+      // Mark as late if check-in is after 9:45 AM (9.75 hours)
+      if (checkInDecimal > 9.75) {
         this.status = 'late';
       }
     }
