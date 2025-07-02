@@ -455,9 +455,9 @@ export default function CreateEmployee() {
                     <SelectValue placeholder="Select Payment Mode" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bankTransfer">Bank Transfer</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
                   </SelectContent>
                 </Select>
               </LabelInputContainer>
