@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import SalaryStructureManagement from '../hr/SalaryStructureManagement';
 import SalarySlipManagement from '../hr/SalarySlipManagement';
+import BackButton from '../ui/BackButton';
 
 const SalaryHub = () => {
   const [activeSection, setActiveSection] = useState('overview');
@@ -272,6 +273,11 @@ const SalaryHub = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
       <div className="max-w-7xl mx-auto">
+        {activeSection === 'overview' && (
+          <div className="mb-6">
+            <BackButton label="Back" variant="ghost" className="w-auto" />
+          </div>
+        )}
         {renderContent()}
       </div>
     </div>

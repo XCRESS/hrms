@@ -36,7 +36,7 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
     }
   }, [prefillData, isOpen]);
 
-  // Reset form when modal closes
+  // Reset form when modal closes or opens without prefill data
   useEffect(() => {
     if (!isOpen) {
       setDate("");
@@ -44,8 +44,12 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
       setCheckOut("");
       setReason("");
       setMessage(null);
+    } else if (isOpen && !prefillData) {
+      // Set default times when opening modal without prefill data
+      setCheckIn("09:30");
+      setCheckOut("17:30");
     }
-  }, [isOpen]);
+  }, [isOpen, prefillData]);
 
   if (!isOpen) return null;
 

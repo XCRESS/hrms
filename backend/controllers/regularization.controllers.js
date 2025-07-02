@@ -12,15 +12,23 @@ export const requestRegularization = async (req, res) => {
     if (!user || !user.employeeId) {
       return res.status(400).json({ message: "You must be linked to an employee profile to request regularization." });
     }
-    // Prevent duplicate requests for same date
-    const existing = await RegularizationRequest.findOne({ employeeId: user.employeeId, date: new Date(date), status: "pending" });
-    if (existing) {
-      return res.status(400).json({ message: "A regularization request for this date is already pending." });
-    }
+    
     // Parse as IST and store as UTC
     const dateIST = moment.tz(date, "Asia/Kolkata").startOf("day").toDate();
     const requestedCheckInIST = requestedCheckIn ? moment.tz(requestedCheckIn, "Asia/Kolkata").toDate() : undefined;
     const requestedCheckOutIST = requestedCheckOut ? moment.tz(requestedCheckOut, "Asia/Kolkata").toDate() : undefined;
+    
+    // Check for existing request for same date
+    const existing = await RegularizationRequest.findOne({ employeeId: user.employeeId, date: dateIST, status: "pending" });
+    if (existing) {
+      // Update existing request instead of creating duplicate
+      existing.requestedCheckIn = requestedCheckInIST;
+      existing.requestedCheckOut = requestedCheckOutIST;
+      existing.reason = reason;
+      existing.updatedAt = new Date();
+      await existing.save();
+      return res.status(200).json({ success: true, message: "Regularization request updated.", reg: existing });
+    }
     const reg = await RegularizationRequest.create({
       employeeId: user.employeeId,
       user: user._id,

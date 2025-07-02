@@ -13,15 +13,11 @@ import SidebarDemo from './components/sidebar.jsx';
 import LoaderGate from './components/loadingAnimation.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
-import LeavesAll from './components/hr/LeavesAll.jsx';
-import HelpAll from './components/hr/HelpAll.jsx';
 import EmployeeDirectory from './components/hr/employeeDirectory/EmployeeDirectory.jsx';
 import EmployeeLink from './components/hr/EmployeeLink.jsx';
 import HolidayManagementPage from './components/hr/HolidayManagementPage.jsx';
 import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
-import PasswordRequestsPage from './components/hr/PasswordRequestsPage.jsx';
 import MyRegularizations from './components/regularization/MyRegularizations.jsx';
-import RegularizationAll from './components/regularization/RegularizationAll.jsx';
 import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
 import MyAttendance from './components/employee/MyAttendance.jsx';
 import MyTaskReports from './components/employee/MyTaskReports.jsx';
@@ -29,6 +25,8 @@ import MySalarySlips from './components/employee/MySalarySlips.jsx';
 import SalarySlipManagement from './components/hr/SalarySlipManagement.jsx';
 import SalaryStructureManagement from './components/hr/SalaryStructureManagement.jsx';
 import SalaryHub from './components/salary/SalaryHub.jsx';
+import RequestsPage from './components/requests/RequestsPage.jsx';
+import AdminRequestsPage from './components/hr/AdminRequestsPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
 
@@ -49,12 +47,8 @@ createRoot(document.getElementById('root')).render(
                 <Route path="create" element={<CreateEmployee />} />
                 <Route path="employee" element={<EmployeeDirectory />} />
                 <Route path="link" element={<EmployeeLink />} />
-                <Route path="leaves" element={<LeavesAll />} />
-                <Route path="help" element={<HelpAll />} />
                 <Route path="holidays" element={<HolidayManagementPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
-                <Route path="password" element={<PasswordRequestsPage />} />
-                <Route path="regularization" element={<RegularizationAll />} />
                 <Route path="regularization/my" element={<MyRegularizations />} />
                 <Route path="attendance/my" element={<MyAttendance />} />
                 <Route path="task-reports/my" element={<MyTaskReports />} />
@@ -64,6 +58,8 @@ createRoot(document.getElementById('root')).render(
                 <Route path="salary" element={<SalaryHub />} />
                 <Route path="salary-structures" element={<SalaryStructureManagement />} />
                 <Route path="salary-slips" element={<SalarySlipManagement />} />
+                <Route path="requests" element={<RequestsPage />} />
+                <Route path="admin/requests" element={<AdminRequestsPage />} />
               </Route>
 
               <Route path="/auth/login" element={<Login />} />
