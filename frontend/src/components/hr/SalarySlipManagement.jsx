@@ -29,7 +29,7 @@ import SalarySlipCard from "./SalarySlipCard";
 import SalarySlipFilters from "./SalarySlipFilters";
 import BulkSalaryGeneration from "./BulkSalaryGeneration";
 
-const SalarySlipManagement = () => {
+const SalarySlipManagement = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [salarySlips, setSalarySlips] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -238,7 +238,7 @@ const SalarySlipManagement = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4">
-          <BackButton to="/salary" label="Back" variant="ghost" className="w-auto" />
+          <BackButton onClick={onBack || (() => {})} label="Back" variant="ghost" className="w-auto" />
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">

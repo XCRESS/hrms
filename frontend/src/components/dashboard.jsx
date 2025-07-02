@@ -35,7 +35,7 @@ import UpdatesSidebar from './dashboard/UpdatesSidebar';
 import AdminStats from './dashboard/AdminStats'; // Import AdminStats
 import AdminAttendanceTable from './dashboard/AdminAttendanceTable';
 import AdminPendingRequests from './dashboard/AdminPendingRequests';
-import CheckoutReminder from './dashboard/CheckoutReminder';
+import MissingCheckoutAlert from './dashboard/MissingCheckoutAlert';
 
 
 
@@ -60,8 +60,6 @@ export default function HRMSDashboard() {
   const [adminSummary, setAdminSummary] = useState(null);
   const [loadingAdminData, setLoadingAdminData] = useState(true);
   
-  // Checkout reminder state
-  const [missingCheckouts, setMissingCheckouts] = useState([]);
   const [regularizationPrefillData, setRegularizationPrefillData] = useState(null);
 
   const user = useAuth();
@@ -248,21 +246,6 @@ export default function HRMSDashboard() {
     }
   };
 
-  // Load missing checkouts for reminder
-  const loadMissingCheckouts = async () => {
-    try {
-      const response = await apiClient.getMissingCheckouts();
-      
-      if (response.success && response.data?.missingCheckouts) {
-        setMissingCheckouts(response.data.missingCheckouts);
-      } else {
-        setMissingCheckouts([]);
-      }
-    } catch (error) {
-      console.error("Failed to load missing checkouts:", error);
-      setMissingCheckouts([]);
-    }
-  };
 
   const handleCheckIn = async () => {
     setCheckInLoading(true);
@@ -374,20 +357,10 @@ export default function HRMSDashboard() {
     }
   };
 
-  // Handle regularization request from checkout reminder
+  // Handle regularization request
   const handleRegularizationFromReminder = (prefillData) => {
     setRegularizationPrefillData(prefillData);
     setShowRegularizationModal(true);
-  };
-
-  // Handle dismissing checkout reminders
-  const handleDismissReminders = () => {
-    setMissingCheckouts([]);
-    toast({
-      variant: "success",
-      title: "Reminders Dismissed",
-      description: "Checkout reminders have been dismissed for this session."
-    });
   };
 
   const retryConnection = async () => {
@@ -547,13 +520,6 @@ export default function HRMSDashboard() {
             <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {isAdmin ? (
                 <>
-                  {/* Checkout Reminder - For admin/HR users too */}
-                  <CheckoutReminder 
-                    missingCheckouts={missingCheckouts}
-                    onRegularizationRequest={handleRegularizationFromReminder}
-                    onDismiss={handleDismissReminders}
-                  />
-                  
                   <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
                   
                   {/* Changed: Stack components vertically instead of side-by-side */}
@@ -564,13 +530,9 @@ export default function HRMSDashboard() {
                 </>
               ) : (
                 <>
-                  {/* Checkout Reminder - Only for employees */}
-                  <CheckoutReminder 
-                    missingCheckouts={missingCheckouts}
+                  <MissingCheckoutAlert 
                     onRegularizationRequest={handleRegularizationFromReminder}
-                    onDismiss={handleDismissReminders}
                   />
-                  
                   <AttendanceStats 
                     attendanceData={attendanceData}
                     holidays={holidaysData}

@@ -206,209 +206,170 @@ const MySalarySlips = () => {
 
         {/* Salary Slips Section */}
         <div className="space-y-6">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-200 border-t-emerald-600"></div>
-                  <div className="absolute inset-0 rounded-full bg-emerald-100 dark:bg-emerald-900/20 blur-sm"></div>
-                </div>
-                <p className="text-slate-600 dark:text-slate-400 mt-4 font-medium">
-                  Loading your salary slips...
-                </p>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-200 border-t-emerald-600"></div>
+                <div className="absolute inset-0 rounded-full bg-emerald-100 dark:bg-emerald-900/20 blur-sm"></div>
               </div>
-            ) : salarySlips.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="relative inline-block">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-lg opacity-20"></div>
-                  <div className="relative p-6 bg-white dark:bg-slate-800 rounded-full">
-                    <Receipt className="h-16 w-16 text-slate-400 dark:text-slate-500 mx-auto" />
+              <p className="text-slate-600 dark:text-slate-400 mt-4 font-medium">
+                Loading your salary slips...
+              </p>
+            </div>
+          ) : salarySlips.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="relative inline-block">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full blur-lg opacity-20"></div>
+                <div className="relative p-6 bg-white dark:bg-slate-800 rounded-full">
+                  <Receipt className="h-16 w-16 text-slate-400 dark:text-slate-500 mx-auto" />
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mt-6 mb-2">
+                No salary slips found
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                {selectedMonth !== 'all' || selectedYear !== new Date().getFullYear() 
+                  ? 'Try adjusting your filter criteria to find salary slips.' 
+                  : 'Your salary slips will appear here once they are published by HR.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {salarySlips.map((slip) => (
+                <div 
+                  key={`${slip.employeeId}-${slip.month}-${slip.year}`}
+                  className="group relative bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-slate-200 dark:border-slate-700"
+                >
+                  {/* Status Badge */}
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                      slip.status === 'finalized' 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-amber-500 text-white'
+                    }`}>
+                      {slip.status === 'finalized' ? '✓ Published' : '⏳ Draft'}
+                    </span>
                   </div>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mt-6 mb-2">
-                  No salary slips found
-                </h3>
-                <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                  {selectedMonth !== 'all' || selectedYear !== new Date().getFullYear() 
-                    ? 'Try adjusting your filter criteria to find salary slips.' 
-                    : 'Your salary slips will appear here once they are published by HR.'}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {salarySlips.map((slip) => (
-                  <div 
-                    key={`${slip.employeeId}-${slip.month}-${slip.year}`}
-                    className="group relative bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-slate-200 dark:border-slate-700"
-                  >
-                    {/* Status Badge */}
-                    <div className="absolute -top-2 -right-2 z-10">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
-                        slip.status === 'finalized' 
-                          ? 'bg-emerald-500 text-white' 
-                          : 'bg-amber-500 text-white'
-                      }`}>
-                        {slip.status === 'finalized' ? '✓ Published' : '⏳ Draft'}
-                      </span>
+
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-6">
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                          {months.find(m => m.value === slip.month)?.label || `Month ${slip.month}`} {slip.year}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                          <Calendar className="h-4 w-4" />
+                          <span>ID: {slip.employeeId}</span>
+                        </div>
+                      </div>
+                      
+                      {slip.status === 'finalized' && (
+                        <Button
+                          onClick={() => handleDownloadPDF(slip)}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                          size="sm"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                      )}
                     </div>
 
-                    <div className="p-6">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-6">
-                        <div>
-                          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-                            {months.find(m => m.value === slip.month)?.label || `Month ${slip.month}`} {slip.year}
-                          </h3>
-                          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                            <Calendar className="h-4 w-4" />
-                            <span>ID: {slip.employeeId}</span>
-                          </div>
+                    {/* Salary Cards */}
+                    <div className="space-y-4">
+                      {/* Gross Salary - Featured */}
+                      <div className="relative overflow-hidden bg-gradient-to-r from-emerald-400 to-emerald-600 p-4 rounded-lg text-white">
+                        <div className="relative z-10">
+                          <p className="text-emerald-100 font-medium text-sm mb-1">
+                            Gross Salary
+                          </p>
+                          <p className="text-2xl font-bold">
+                            ₹{slip.grossSalary.toLocaleString()}
+                          </p>
                         </div>
-                        
-                        {slip.status === 'finalized' && (
-                          <Button
-                            onClick={() => handleDownloadPDF(slip)}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                            size="sm"
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
+                        <DollarSign className="absolute -top-2 -right-2 h-16 w-16 text-white/10" />
+                      </div>
+                      
+                      {/* Deductions and Net */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-100 dark:border-red-800">
+                          <p className="text-red-600 dark:text-red-400 font-medium text-sm mb-1">
+                            Deductions
+                          </p>
+                          <p className="text-lg font-bold text-red-700 dark:text-red-300">
+                            ₹{slip.totalDeductions.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                          <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mb-1">
+                            Net Pay
+                          </p>
+                          <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                            ₹{slip.netSalary.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          Tax Regime: {slip.taxRegime?.toUpperCase() || 'NEW'}
+                        </span>
+                        {slip.status !== 'finalized' && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                            Pending approval
+                          </span>
                         )}
                       </div>
-
-                      {/* Salary Cards */}
-                      <div className="space-y-4">
-                        {/* Gross Salary - Featured */}
-                        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-400 to-emerald-600 p-4 rounded-lg text-white">
-                          <div className="relative z-10">
-                            <p className="text-emerald-100 font-medium text-sm mb-1">
-                              Gross Salary
-                            </p>
-                            <p className="text-2xl font-bold">
-                              ₹{slip.grossSalary.toLocaleString()}
-                            </p>
-                          </div>
-                          <DollarSign className="absolute -top-2 -right-2 h-16 w-16 text-white/10" />
-                        </div>
-                        
-                        {/* Deductions and Net */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-100 dark:border-red-800">
-                            <p className="text-red-600 dark:text-red-400 font-medium text-sm mb-1">
-                              Deductions
-                            </p>
-                            <p className="text-lg font-bold text-red-700 dark:text-red-300">
-                              ₹{slip.totalDeductions.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                            <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mb-1">
-                              Net Pay
-                            </p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                              ₹{slip.netSalary.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-600">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Tax Regime: {slip.taxRegime?.toUpperCase() || 'NEW'}
-                          </span>
-                          {slip.status !== 'finalized' && (
-                            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                              Pending approval
-                            </span>
-                          )}
-                        </div>
-                      </div>
                     </div>
                   </div>
-                ))}
                 </div>
+              ))}
+            </div>
+          )}
 
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="flex justify-between items-center mt-6 pt-6 border-t border-slate-200 dark:border-slate-600">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-                      {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                      {pagination.totalItems} results
-                    </p>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
-                        disabled={pagination.currentPage === 1}
-                        className="dark:border-slate-600 dark:hover:bg-slate-600"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      
-                      <span className="text-sm text-slate-600 dark:text-slate-400 px-3">
-                        Page {pagination.currentPage} of {pagination.totalPages}
-                      </span>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                        className="dark:border-slate-600 dark:hover:bg-slate-600"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 mt-8">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-                    {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                    {pagination.totalItems} salary slips
-                  </p>
-                  
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage === 1}
-                      className="border-slate-200 dark:border-slate-600"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-600 dark:text-slate-400">
-                        Page {pagination.currentPage} of {pagination.totalPages}
-                      </span>
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage === pagination.totalPages}
-                      className="border-slate-200 dark:border-slate-600"
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 mt-8">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
+                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
+                  {pagination.totalItems} salary slips
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                    className="border-slate-200 dark:border-slate-600"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
+                      Page {pagination.currentPage} of {pagination.totalPages}
+                    </span>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                    className="border-slate-200 dark:border-slate-600"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
         </div>
       </div>
     </div>
