@@ -260,9 +260,9 @@ const SalaryHub = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'structure':
-        return <SalaryStructureManagement />;
+        return <SalaryStructureManagement onBack={() => setActiveSection('overview')} />;
       case 'slips':
-        return <SalarySlipManagement />;
+        return <SalarySlipManagement onBack={() => setActiveSection('overview')} />;
       case 'payroll':
         return <PayrollSection />;
       default:
