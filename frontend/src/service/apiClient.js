@@ -493,11 +493,11 @@ class ApiClient {
     }
 
     async approvePasswordResetRequest(requestId) {
-      return this.put(`/password-reset/requests/${requestId}/approve`);
+      return this.put(`/password-reset/request/${requestId}/approve`);
     }
 
     async rejectPasswordResetRequest(requestId, remarks = "") {
-      return this.put(`/password-reset/requests/${requestId}/reject`, { remarks });
+      return this.put(`/password-reset/request/${requestId}/reject`, { remarks });
     }
 
     async getTaskReports(params = {}) {
