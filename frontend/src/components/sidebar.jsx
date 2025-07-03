@@ -78,7 +78,7 @@ export default function SidebarDemo() {
               icon: <Link2 className={accentIconClass('orange')} />,
             },
             {
-              label: "Manage Requests",
+              label: "Requests",
               href: "/admin/requests",
               icon: <FileText className={accentIconClass('blue')} />,
             },
@@ -106,22 +106,22 @@ export default function SidebarDemo() {
         } else if (user && user.role === "employee") {
           return [
             {
-              label: "My Attendance",
+              label: "Attendance",
               href: "/attendance/my",
               icon: <CalendarDays className={accentIconClass('blue')} />,
             },
             {
-              label: "My Task Reports",
+              label: "Task Reports",
               href: "/task-reports/my",
               icon: <FileText className={accentIconClass('purple')} />,
             },
             {
-              label: "My Salary Slips",
+              label: "Salary Slips",
               href: "/salary-slips/my",
               icon: <Receipt className={accentIconClass('green')} />,
             },
             {
-              label: "My Requests",
+              label: "Requests",
               href: "/requests",
               icon: <FileText className={accentIconClass('blue')} />,
             },

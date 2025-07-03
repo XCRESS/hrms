@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, HelpCircle, Calendar, RefreshCw } from 'lucide-react';
 import apiClient from '@/service/apiClient';
+import { useNavigate } from 'react-router-dom';
+
 
 const AdminPendingRequests = ({ onRefresh }) => {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchPendingRequests();
@@ -14,9 +17,10 @@ const AdminPendingRequests = ({ onRefresh }) => {
     try {
       setIsLoading(true);
       
-      const [leaveResponse, helpResponse] = await Promise.all([
+      const [leaveResponse, helpResponse, regularizationResponse] = await Promise.all([
         apiClient.getAllLeaves().catch(() => ({ success: true, leaves: [] })),
-        apiClient.getAllInquiries({ status: 'pending' }).catch(() => ({ success: true, data: { inquiries: [] } }))
+        apiClient.getAllInquiries({ status: 'pending' }).catch(() => ({ success: true, data: { inquiries: [] } })),
+        apiClient.getAllRegularizations().catch(() => ({ success: true, regs: [] }))
       ]);
 
       const allRequests = [];
@@ -44,6 +48,19 @@ const AdminPendingRequests = ({ onRefresh }) => {
           description: help.description,
           employee: help.userId?.name || 'Unknown User',
           date: help.createdAt
+        })));
+      }
+
+      if (regularizationResponse.success && regularizationResponse.regs) {
+        const pendingRegularizations = regularizationResponse.regs.filter(reg => reg.status === 'pending');
+        allRequests.push(...pendingRegularizations.map(reg => ({
+          ...reg,
+          type: 'regularization',
+          icon: <RefreshCw className="w-5 h-5 text-orange-500" />,
+          title: 'Attendance Regularization',
+          description: reg.reason || 'Missing checkout regularization request',
+          employee: reg.user?.name || 'Unknown User',
+          date: reg.createdAt || reg.date
         })));
       }
 
@@ -161,7 +178,7 @@ const AdminPendingRequests = ({ onRefresh }) => {
         <div className="mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
           <div className="text-center">
             <button className="inline-flex items-center gap-2 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition-colors hover:underline">
-              <span>View All Requests</span>
+              <span onClick={() => navigate("/admin/requests")}>View All Requests</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>

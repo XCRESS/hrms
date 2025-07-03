@@ -90,16 +90,28 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
 
   useEffect(() => {
     if (record && isOpen) {
-      const formatTimeForInput = (date) => {
-        if (!date) return '';
-        const d = new Date(date);
-        return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+      const formatTimeForInput = (date, defaultTime) => {
+        if (!date && !defaultTime) return '';
+        
+        const recordDate = new Date(record.date);
+        const baseDate = recordDate.toISOString().split('T')[0];
+        
+        if (date) {
+          // Convert existing UTC date to local time for display
+          const localDate = new Date(date);
+          const hours = localDate.getHours().toString().padStart(2, '0');
+          const minutes = localDate.getMinutes().toString().padStart(2, '0');
+          return `${baseDate}T${hours}:${minutes}`;
+        } else if (defaultTime) {
+          return `${baseDate}T${defaultTime}`;
+        }
+        return '';
       };
 
       setFormData({
         status: record.status || 'present',
-        checkIn: formatTimeForInput(record.checkIn),
-        checkOut: formatTimeForInput(record.checkOut)
+        checkIn: formatTimeForInput(record.checkIn, '09:30'),
+        checkOut: formatTimeForInput(record.checkOut, '17:30')
       });
       setError('');
     }
@@ -152,8 +164,8 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
     try {
       const updateData = {
         status: formData.status,
-        checkIn: formData.checkIn || null,
-        checkOut: formData.checkOut || null
+        checkIn: formData.checkIn ? new Date(formData.checkIn).toISOString() : null,
+        checkOut: formData.checkOut ? new Date(formData.checkOut).toISOString() : null
       };
 
       // For records that don't exist (absent days), include employee and date info
