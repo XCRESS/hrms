@@ -15,11 +15,21 @@ const formatResponse = (success, message, data = null, errors = null) => {
  * Helper: Get employee ObjectId for current user
  */
 const getEmployeeObjectId = async (user) => {
-  if (user.employee) return user.employee; // Already ObjectId
+  // First check if user has direct employee ObjectId reference
+  if (user.employee) return user.employee;
+  
+  // If user has employeeId string, find the employee document
   if (user.employeeId) {
     const employee = await Employee.findOne({ employeeId: user.employeeId });
     return employee ? employee._id : null;
   }
+  
+  // Last resort: try to find employee by email match
+  if (user.email) {
+    const employee = await Employee.findOne({ email: user.email });
+    return employee ? employee._id : null;
+  }
+  
   return null;
 };
 
@@ -29,17 +39,28 @@ const getEmployeeObjectId = async (user) => {
 export const submitTaskReport = async (req, res) => {
   try {
     if (!req.user) {
+      console.error("submitTaskReport: No user found in request");
       return res.status(401).json(formatResponse(false, "Authentication required", null, { auth: "No valid user found" }));
     }
 
+    console.log("submitTaskReport: User found", { userId: req.user._id, email: req.user.email, role: req.user.role });
+
     const employeeObjId = await getEmployeeObjectId(req.user);
     if (!employeeObjId) {
+      console.error("submitTaskReport: No employee ObjectId found for user", { 
+        userId: req.user._id, 
+        employeeId: req.user.employeeId,
+        employee: req.user.employee 
+      });
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
+
+    console.log("submitTaskReport: Employee ObjectId found", { employeeObjId });
 
     const { tasks, date } = req.body;
 
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      console.error("submitTaskReport: Invalid tasks data", { tasks });
       return res.status(400).json(formatResponse(false, "Tasks array is required and cannot be empty"));
     }
 

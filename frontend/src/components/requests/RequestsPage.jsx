@@ -331,8 +331,8 @@ const RequestsPage = () => {
         </div>
 
 
-        {/* Requests List */}
-        <div className="space-y-4">
+        {/* Requests Grid */}
+        <div>
           {loading ? (
             <div className="text-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
@@ -351,34 +351,43 @@ const RequestsPage = () => {
               </CardContent>
             </Card>
           ) : (
-            filteredRequests.map((request) => {
-              const Icon = getTypeIcon(request.type);
-              return (
-                <Card key={`${request.type}-${request._id}`} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-800">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className={`p-2 rounded-lg ${
-                          request.type === 'leave' ? 'bg-slate-100 dark:bg-slate-700' :
-                          request.type === 'help' ? 'bg-slate-100 dark:bg-slate-700' :
-                          request.type === 'regularization' ? 'bg-slate-100 dark:bg-slate-700' :
-                          'bg-slate-100 dark:bg-slate-700'
-                        }`}>
-                          <Icon className={`h-5 w-5 ${
-                            request.type === 'leave' ? 'text-slate-600 dark:text-slate-400' :
-                            request.type === 'help' ? 'text-slate-600 dark:text-slate-400' :
-                            request.type === 'regularization' ? 'text-slate-600 dark:text-slate-400' :
-                            'text-slate-600 dark:text-slate-400'
-                          }`} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredRequests.map((request) => {
+                const Icon = getTypeIcon(request.type);
+                return (
+                  <Card key={`${request.type}-${request._id}`} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-800">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            request.type === 'leave' ? 'bg-slate-100 dark:bg-slate-700' :
+                            request.type === 'help' ? 'bg-slate-100 dark:bg-slate-700' :
+                            request.type === 'regularization' ? 'bg-slate-100 dark:bg-slate-700' :
+                            'bg-slate-100 dark:bg-slate-700'
+                          }`}>
+                            <Icon className={`h-4 w-4 ${
+                              request.type === 'leave' ? 'text-slate-600 dark:text-slate-400' :
+                              request.type === 'help' ? 'text-slate-600 dark:text-slate-400' :
+                              request.type === 'regularization' ? 'text-slate-600 dark:text-slate-400' :
+                              'text-slate-600 dark:text-slate-400'
+                            }`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-slate-700 dark:text-slate-100 mb-1 text-sm">
+                              {request.title}
+                            </h3>
+                            <Badge className={`${getStatusColor(request.status)} text-xs`}>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-slate-700 dark:text-slate-100 mb-1">
-                            {request.title}
-                          </h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">
-                            {request.description}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
+                        
+                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3">
+                          {request.description}
+                        </p>
+                        
+                        <div className="flex flex-col gap-2 text-xs text-slate-400 dark:text-slate-500">
+                          <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {formatDate(request.date)}
@@ -387,30 +396,26 @@ const RequestsPage = () => {
                               <Clock4 className="h-3 w-3" />
                               {formatTime(request.createdAt)}
                             </span>
-                            {isAdminOrHR && request.user && (
-                              <span className="flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {request.user.name || request.user.email}
-                              </span>
-                            )}
                           </div>
+                          {isAdminOrHR && request.user && (
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {request.user.name || request.user.email}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex flex-col sm:items-end gap-2">
-                        <Badge className={getStatusColor(request.status)}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </Badge>
+                        
                         {request.reviewComment && (
-                          <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm text-right">
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 p-2 bg-slate-50 dark:bg-slate-700 rounded">
                             {request.reviewComment}
                           </p>
                         )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

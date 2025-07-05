@@ -3,6 +3,7 @@ import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
+import { Edit } from 'lucide-react';
 
 
 
@@ -32,6 +33,8 @@ export default function EmployeeDirectory() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [attendanceUpdateTrigger, setAttendanceUpdateTrigger] = useState(0);
+  const [isEditingEmployee, setIsEditingEmployee] = useState(false);
+  const [editedEmployee, setEditedEmployee] = useState(null);
 
   const fetchEmployeeData = useCallback(async () => {
     if (!selectedEmployeeId) return;
@@ -119,6 +122,87 @@ export default function EmployeeDirectory() {
     setEditingRecord(null);
   };
 
+  const handleEditEmployee = () => {
+    setIsEditingEmployee(true);
+    setEditedEmployee({ ...employeeProfile });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingEmployee(false);
+    setEditedEmployee(null);
+  };
+
+  const handleSaveEmployee = async () => {
+    try {
+      await apiClient.put(`/employees/${employeeProfile._id}`, editedEmployee);
+      setEmployeeProfile(editedEmployee);
+      setIsEditingEmployee(false);
+      setEditedEmployee(null);
+      // Refresh employee list
+      const res = await apiClient.getEmployees();
+      setEmployees(res.employees || []);
+    } catch (error) {
+      console.error('Failed to update employee:', error);
+      alert('Failed to update employee: ' + error.message);
+    }
+  };
+
+  const handleFieldChange = (field, value) => {
+    setEditedEmployee(prev => ({ ...prev, [field]: value }));
+  };
+
+  const renderField = (label, field, type = 'text', options = []) => {
+    const value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
+    
+    if (!isEditingEmployee) {
+      return <p><strong>{label}:</strong> {value || 'N/A'}</p>;
+    }
+
+    if (type === 'select') {
+      return (
+        <div>
+          <strong>{label}:</strong>
+          <select
+            value={value}
+            onChange={(e) => handleFieldChange(field, e.target.value)}
+            className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+          >
+            {options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    if (type === 'date') {
+      const formattedValue = value ? new Date(value).toISOString().split('T')[0] : '';
+      return (
+        <div>
+          <strong>{label}:</strong>
+          <input
+            type="date"
+            value={formattedValue}
+            onChange={(e) => handleFieldChange(field, e.target.value)}
+            className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <strong>{label}:</strong>
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => handleFieldChange(field, e.target.value)}
+          className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       {/* Sidebar: Employee List */}
@@ -199,21 +283,30 @@ export default function EmployeeDirectory() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => {
-                      const data = {
-                        employee: employeeProfile,
-                        attendance: attendance,
-                        leaves: leaves,
-                        dateRange: dateRange
-                      };
-                      console.log('Export data:', data);
-                      // Here you could implement actual export functionality
-                    }}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors"
-                  >
-                    📊 Export Report
-                  </button>
+                  {isEditingEmployee ? (
+                    <>
+                      <button
+                        onClick={handleSaveEmployee}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                      >
+                        💾 Save Changes
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleEditEmployee}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit Employee
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -222,43 +315,45 @@ export default function EmployeeDirectory() {
               {/* Contact & Work Info */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Contact & Work</h3>
-                <p><strong>Email:</strong> {employeeProfile.email}</p>
-                <p><strong>Phone:</strong> {employeeProfile.phone}</p>
+                {renderField('Email', 'email', 'email')}
+                {renderField('Phone', 'phone', 'tel')}
                 <p><strong>Employee ID:</strong> {employeeProfile.employeeId}</p>
-                <p><strong>Company:</strong> {employeeProfile.companyName || 'N/A'}</p>
+                {renderField('Company', 'companyName')}
                 <p><strong>Status:</strong>
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${employeeProfile.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
                     {employeeProfile.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </p>
-                <p><strong>Employment Type:</strong> {employeeProfile.employmentType}</p>
-                <p><strong>Joining Date:</strong> {employeeProfile.joiningDate ? new Date(employeeProfile.joiningDate).toLocaleDateString() : 'N/A'}</p>
-                <p><strong>Office:</strong> {employeeProfile.officeAddress}</p>
-                <p><strong>Supervisor:</strong> {employeeProfile.reportingSupervisor}</p>
+                {renderField('Employment Type', 'employmentType', 'select', ['Full-time', 'Part-time', 'Contract', 'Intern'])}
+                {renderField('Joining Date', 'joiningDate', 'date')}
+                {renderField('Office', 'officeAddress', 'select', ['SanikColony', 'Indore', 'N.F.C.'])}
+                {renderField('Supervisor', 'reportingSupervisor')}
               </div>
 
               {/* Personal Info */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Personal Information</h3>
-                <p><strong>Date of Birth:</strong> {employeeProfile.dateOfBirth ? new Date(employeeProfile.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
-                <p><strong>Gender:</strong> {employeeProfile.gender}</p>
-                <p><strong>Marital Status:</strong> {employeeProfile.maritalStatus}</p>
-                <p><strong>Father's Name:</strong> {employeeProfile.fatherName}</p>
-                <p><strong>Mother's Name:</strong> {employeeProfile.motherName}</p>
-                <p><strong>Address:</strong> {employeeProfile.address}</p>
-                <p><strong>Aadhaar:</strong> {employeeProfile.aadhaarNumber}</p>
-                <p><strong>PAN:</strong> {employeeProfile.panNumber}</p>
-                <p><strong>Emergency:</strong> {employeeProfile.emergencyContactName} ({employeeProfile.emergencyContactNumber})</p>
+                {renderField('Date of Birth', 'dateOfBirth', 'date')}
+                {renderField('Gender', 'gender', 'select', ['male', 'female', 'other'])}
+                {renderField('Marital Status', 'maritalStatus', 'select', ['single', 'married', 'divorced'])}
+                {renderField('Father\'s Name', 'fatherName')}
+                {renderField('Father\'s Phone', 'fatherPhone', 'tel')}
+                {renderField('Mother\'s Name', 'motherName')}
+                {renderField('Mother\'s Phone', 'motherPhone', 'tel')}
+                {renderField('Address', 'address')}
+                {renderField('Aadhaar', 'aadhaarNumber', 'number')}
+                {renderField('PAN', 'panNumber')}
+                {renderField('Emergency Contact Name', 'emergencyContactName')}
+                {renderField('Emergency Contact Number', 'emergencyContactNumber', 'tel')}
               </div>
 
               {/* Financial Info */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Financial Information</h3>
-                <p><strong>Salary:</strong> {employeeProfile.salary?.toLocaleString() || 'N/A'}</p>
-                <p><strong>Bank:</strong> {employeeProfile.bankName}</p>
-                <p><strong>Account #:</strong> {employeeProfile.bankAccountNumber}</p>
-                <p><strong>IFSC:</strong> {employeeProfile.bankIFSCCode}</p>
-                <p><strong>Payment Mode:</strong> {employeeProfile.paymentMode}</p>
+                {renderField('Bank', 'bankName')}
+                {renderField('Account #', 'bankAccountNumber')}
+                {renderField('IFSC', 'bankIFSCCode')}
+                {renderField('Payment Mode', 'paymentMode', 'select', ['Bank Transfer', 'Cheque', 'Cash'])}
               </div>
             </div>
 

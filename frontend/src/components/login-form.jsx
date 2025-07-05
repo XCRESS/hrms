@@ -8,12 +8,14 @@ import apiClient from "../service/apiClient.js";
 import { useState } from "react";   
 import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
+import { Eye, EyeOff } from "lucide-react";
 
 
 export default function LoginForm({ className, ...props }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   //for navigation
   const navigate = useNavigate();
@@ -59,7 +61,7 @@ export default function LoginForm({ className, ...props }) {
                 <div className="flex flex-col items-center text-center">
                   <h1 className="text-2xl font-bold">Welcome back</h1>
                   <p className="text-muted-foreground text-balance">
-                    Login to your Punch-In account
+                    Login to your HRMS account
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -83,7 +85,28 @@ export default function LoginForm({ className, ...props }) {
                       Forgot your password?
                     </a>
                   </div>
-                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <div className="relative">
+                    <Input 
+                      id="password" 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      required 
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent focus:outline-none z-10 flex items-center justify-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
