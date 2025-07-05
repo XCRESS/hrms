@@ -52,7 +52,7 @@ const handleSubmit = async (e) => {
                 <div className="flex flex-col items-center text-center">
                   <h1 className="text-2xl font-bold">Admin only</h1>
                   <p className="text-muted-foreground text-balance">
-                    Create new user for Punch-In account
+                    Create new user for HRMS account
                   </p>
                 </div>
                 <div className="grid gap-3">
