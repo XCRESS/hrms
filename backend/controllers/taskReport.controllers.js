@@ -79,13 +79,30 @@ export const submitTaskReport = async (req, res) => {
       // Update existing report
       existingReport.tasks = tasks;
       existingReport.updatedAt = new Date();
+      
+      // Ensure employeeId is set if missing
+      if (!existingReport.employeeId) {
+        const employee = await Employee.findById(employeeObjId);
+        if (employee) {
+          existingReport.employeeId = employee.employeeId;
+        }
+      }
+      
       await existingReport.save();
 
       return res.json(formatResponse(true, "Task report updated successfully", { taskReport: existingReport }));
     } else {
+      // Get employee details for employeeId
+      const employee = await Employee.findById(employeeObjId);
+      if (!employee) {
+        console.error("submitTaskReport: Employee not found", { employeeObjId });
+        return res.status(400).json(formatResponse(false, "Employee profile not found"));
+      }
+
       // Create new report
       const taskReport = new TaskReport({
         employee: employeeObjId,
+        employeeId: employee.employeeId,
         tasks,
         date: reportDate
       });
