@@ -9,26 +9,31 @@ const passwordResetRequestSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      // We can add an index here for faster lookups if needed
-      // index: true, 
+      index: true,
     },
-    // Storing the new password directly in the request is part of the current flow.
-    // Ideally, a token-based system would be more secure.
-    // The newPassword will be used to update the user's password upon approval.
-    newPassword: {
+    // Secure token-based system instead of storing plain text passwords
+    resetToken: {
       type: String,
-      required: [true, "New password is required"],
+      required: [true, "Reset token is required"],
+      unique: true,
+    },
+    resetTokenExpires: {
+      type: Date,
+      required: [true, "Reset token expiry is required"],
     },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "expired", "completed"],
       default: "pending",
     },
-    // Optional: to link the request to an actual user ID if found.
-    // This can be populated when the request is processed.
+    // Link to actual user ID
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    // Optional remarks from admin
+    remarks: {
+      type: String,
     }
   },
   { timestamps: true }
