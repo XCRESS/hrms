@@ -248,9 +248,10 @@ export default function HRMSDashboard() {
 
   const loadMissingCheckouts = async () => {
     try {
-      // This function is used to load missing checkouts data
-      // For now, it's a placeholder since MissingCheckoutAlert component handles its own data loading
-      console.log("Loading missing checkouts...");
+      // Trigger refresh of MissingCheckoutAlert component
+      if (window.refreshMissingCheckouts) {
+        window.refreshMissingCheckouts();
+      }
     } catch (err) {
       console.error("Failed to load missing checkouts:", err);
     }

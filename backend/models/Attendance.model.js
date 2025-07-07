@@ -36,6 +36,10 @@ const attendanceSchema = new mongoose.Schema({
   comments: {
     type: String,
     trim: true
+  },
+  reason: {
+    type: String,
+    trim: true
   }
 }, { timestamps: true });
 

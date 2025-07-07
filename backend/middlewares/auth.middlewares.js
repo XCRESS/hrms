@@ -32,10 +32,9 @@ const authMiddleware = (allowedRoles = []) => {
         }
       }
       
-      // For employees, we should still allow access even if employeeId is missing
-      // This is because some employees might not have an associated ID yet
+      // For employees, check if their Employee profile is active
       if (user.role === "employee") {
-        // Only check if the user is active, don't block based on missing employeeId
+        // Check if the user account is active
         const userExists = await User.findOne({ 
           _id: user._id,
           isActive: true
@@ -45,8 +44,17 @@ const authMiddleware = (allowedRoles = []) => {
           return res.status(403).json({ success: false, message: "Access Forbidden: Invalid user ID or inactive account" });
         }
         
-        // If employeeId is missing, add a warning in the request object but don't block access
-        if (!user.employeeId) {
+        // If employeeId exists, check if the employee profile is active
+        if (user.employeeId) {
+          const employee = await Employee.findOne({ employeeId: user.employeeId });
+          if (!employee || !employee.isActive) {
+            return res.status(403).json({ 
+              success: false, 
+              message: "Access Forbidden: Employee account is deactivated. Please contact HR." 
+            });
+          }
+        } else {
+          // If employeeId is missing, add a warning in the request object but don't block access
           req.missingEmployeeId = true;
           console.warn(`User ${user._id} has role 'employee' but no employeeId`);
         }

@@ -3,7 +3,9 @@ import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
-import { Edit } from 'lucide-react';
+import InactiveEmployees from '../InactiveEmployees';
+import { Edit, Users, UserX, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useToast } from '../../ui/toast';
 
 
 
@@ -15,6 +17,7 @@ import { Edit } from 'lucide-react';
 
 export default function EmployeeDirectory() {
   const userObject = useAuth();
+  const { toast } = useToast();
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [employeeProfile, setEmployeeProfile] = useState(null);
@@ -35,6 +38,8 @@ export default function EmployeeDirectory() {
   const [attendanceUpdateTrigger, setAttendanceUpdateTrigger] = useState(0);
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
   const [editedEmployee, setEditedEmployee] = useState(null);
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'inactive'
+  const [togglingStatus, setTogglingStatus] = useState(null);
 
   const fetchEmployeeData = useCallback(async () => {
     if (!selectedEmployeeId) return;
@@ -79,7 +84,8 @@ export default function EmployeeDirectory() {
     setError(null);
     (async () => {
       try {
-        const res = await apiClient.getEmployees();
+        // Load only active employees for main directory
+        const res = await apiClient.getEmployees({ status: 'active' });
         setEmployees(res.employees || []);
         try {
           const userRes = await apiClient.getAllUsers();
@@ -139,11 +145,57 @@ export default function EmployeeDirectory() {
       setIsEditingEmployee(false);
       setEditedEmployee(null);
       // Refresh employee list
-      const res = await apiClient.getEmployees();
+      const res = await apiClient.getEmployees({ status: 'active' });
       setEmployees(res.employees || []);
     } catch (error) {
       console.error('Failed to update employee:', error);
       alert('Failed to update employee: ' + error.message);
+    }
+  };
+
+  const handleToggleEmployeeStatus = async (employeeId, currentStatus, employeeName) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    const confirmMessage = currentStatus 
+      ? `Are you sure you want to deactivate ${employeeName}? This will prevent them from logging in and remove them from active employee lists.`
+      : `Are you sure you want to activate ${employeeName}? This will restore their access to the system.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setTogglingStatus(employeeId);
+      const response = await apiClient.toggleEmployeeStatus(employeeId);
+      
+      if (response.message) {
+        toast({
+          variant: "success",
+          title: `Employee ${action}d`,
+          description: response.message
+        });
+        
+        // Refresh employee list and profile if needed
+        const res = await apiClient.getEmployees({ status: 'active' });
+        setEmployees(res.employees || []);
+        
+        // If the current profile was deactivated, clear the selection
+        if (selectedEmployeeId === employeeId && currentStatus) {
+          setSelectedEmployeeId(null);
+          setEmployeeProfile(null);
+        } else if (selectedEmployeeId === employeeId) {
+          // Refresh the current profile
+          fetchEmployeeData();
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} employee:`, error);
+      toast({
+        variant: "error",
+        title: "Error",
+        description: error.message || `Failed to ${action} employee`
+      });
+    } finally {
+      setTogglingStatus(null);
     }
   };
 
@@ -204,18 +256,53 @@ export default function EmployeeDirectory() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
-      {/* Sidebar: Employee List */}
-      <div className="w-full lg:w-80 lg:h-screen lg:sticky lg:top-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 lg:sticky lg:top-0 bg-white dark:bg-slate-800 z-10">
-          <input
-            type="text"
-            placeholder="Search employees..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors"
-          />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+      {/* Tab Navigation */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
+        <div className="flex space-x-1 p-4">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'active'
+                ? 'bg-cyan-600 text-white shadow-md'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Active Employees</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('inactive')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'inactive'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
+          >
+            <UserX className="w-4 h-4" />
+            <span>Inactive Employees</span>
+          </button>
         </div>
+      </div>
+
+      {/* Content based on active tab */}
+      {activeTab === 'inactive' ? (
+        <div className="p-6">
+          <InactiveEmployees />
+        </div>
+      ) : (
+        <div className="flex flex-col lg:flex-row">
+          {/* Sidebar: Employee List */}
+          <div className="w-full lg:w-80 lg:h-[calc(100vh-80px)] lg:sticky lg:top-20 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 lg:sticky lg:top-0 bg-white dark:bg-slate-800 z-10">
+              <input
+                type="text"
+                placeholder="Search employees..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-colors"
+              />
+            </div>
         <div className="flex-grow overflow-y-auto max-h-96 lg:max-h-none">
           {loading && employees.length === 0 ? (
             <div className="p-4 text-slate-500 dark:text-slate-400">Loading employees...</div>
@@ -299,13 +386,40 @@ export default function EmployeeDirectory() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={handleEditEmployee}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit Employee
-                    </button>
+                    <>
+                      <button
+                        onClick={handleEditEmployee}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit Employee
+                      </button>
+                      <button
+                        onClick={() => handleToggleEmployeeStatus(
+                          employeeProfile._id, 
+                          employeeProfile.isActive, 
+                          `${employeeProfile.firstName} ${employeeProfile.lastName}`
+                        )}
+                        disabled={togglingStatus === employeeProfile._id}
+                        className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                          employeeProfile.isActive
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        } disabled:opacity-50`}
+                      >
+                        {togglingStatus === employeeProfile._id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            {employeeProfile.isActive ? <ToggleLeft className="w-4 h-4" /> : <ToggleRight className="w-4 h-4" />}
+                            <span>{employeeProfile.isActive ? 'Deactivate' : 'Activate'}</span>
+                          </>
+                        )}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -386,6 +500,8 @@ export default function EmployeeDirectory() {
           onUpdate={handleAttendanceUpdate}
         />
       </div>
+    </div>
+    )}
     </div>
   );
 } 

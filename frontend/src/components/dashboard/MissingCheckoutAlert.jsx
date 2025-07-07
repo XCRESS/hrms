@@ -9,6 +9,16 @@ const MissingCheckoutAlert = ({ onRegularizationRequest }) => {
 
   useEffect(() => {
     loadMissingCheckouts();
+    
+    // Register refresh function for external calls
+    window.refreshMissingCheckouts = loadMissingCheckouts;
+    
+    // Cleanup function
+    return () => {
+      if (window.refreshMissingCheckouts === loadMissingCheckouts) {
+        delete window.refreshMissingCheckouts;
+      }
+    };
   }, []);
 
   const loadMissingCheckouts = async () => {

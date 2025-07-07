@@ -107,10 +107,20 @@ export const createEmployee = async (req, res) => {
   }
 };
 
-// get all employees
+// get all employees (with optional status filter)
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().select('-__v');
+    const { status } = req.query; // 'active', 'inactive', or undefined for all
+    let filter = {};
+    
+    if (status === 'active') {
+      filter.isActive = true;
+    } else if (status === 'inactive') {
+      filter.isActive = false;
+    }
+    // If status is undefined, get all employees
+    
+    const employees = await Employee.find(filter).select('-__v').sort({ createdAt: -1 });
     const employeeList = employees.map(employee => ({
       _id: employee._id,
       employeeId: employee.employeeId,
@@ -204,5 +214,50 @@ export const getEmployeeById = async (req, res) => {
     res.json(employee);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch employee", error: err.message });
+  }
+};
+
+// Toggle employee active status
+export const toggleEmployeeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the employee
+    const employee = await Employee.findById(id);
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    
+    // Toggle the isActive status
+    employee.isActive = !employee.isActive;
+    await employee.save();
+    
+    // If employee is being deactivated, unlink from user account
+    if (!employee.isActive) {
+      // Import User model to unlink the employee
+      const User = (await import("../models/User.model.js")).default;
+      
+      // Find and unlink the user account
+      const user = await User.findOne({ employeeId: employee.employeeId });
+      if (user) {
+        user.employeeId = null;
+        user.employee = null;
+        await user.save();
+        console.log(`Unlinked user ${user.email} from deactivated employee ${employee.employeeId}`);
+      }
+    }
+    
+    res.json({
+      message: `Employee ${employee.isActive ? 'activated' : 'deactivated'} successfully`,
+      employee: {
+        _id: employee._id,
+        employeeId: employee.employeeId,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        isActive: employee.isActive
+      }
+    });
+  } catch (err) {
+    console.error('Toggle employee status error:', err);
+    res.status(500).json({ message: "Failed to toggle employee status", error: err.message });
   }
 };
