@@ -333,30 +333,67 @@ export const getMissingCheckouts = async (req, res) => {
     // Also check if there are pending or approved regularization requests for these dates
     // to avoid showing reminders for dates already being processed or resolved
     const RegularizationRequest = (await import("../models/Regularization.model.js")).default;
+    
+    // Check for any regularization requests for the dates with missing checkouts
+    const attendanceDates = missingCheckouts.map(att => att.date);
+    console.log("📅 Checking regularizations for dates:", attendanceDates.map(d => d.toISOString().split('T')[0]));
+    
+    // Create date range for each attendance date to handle timezone issues
+    const dateRanges = attendanceDates.map(date => {
+      const startOfDay = new Date(date);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      return { startOfDay, endOfDay };
+    });
+    
     const existingRegularizations = await RegularizationRequest.find({
       employeeId: req.user.employeeId,
       status: { $in: ["pending", "approved"] }, // Include both pending and approved
-      date: { 
-        $gte: startDate, 
-        $lt: today 
-      }
+      $or: dateRanges.map(range => ({
+        date: { $gte: range.startOfDay, $lte: range.endOfDay }
+      }))
     });
 
     console.log("📝 Existing regularizations found:", existingRegularizations.length);
+    if (existingRegularizations.length > 0) {
+      console.log("📝 Regularization details:", existingRegularizations.map(reg => ({
+        date: reg.date.toISOString().split('T')[0],
+        status: reg.status,
+        reason: reg.reason
+      })));
+    }
 
-    // Filter out dates that already have pending or approved regularization requests
-    const processedDates = new Set(
-      existingRegularizations.map(reg => reg.date.toISOString().split('T')[0])
-    );
-
-    console.log("📅 Processed dates set:", Array.from(processedDates));
-
+    // Create a more precise date comparison using date ranges
     const reminderNeeded = missingCheckouts.filter(attendance => {
-      const attendanceDate = new Date(attendance.date).toISOString().split('T')[0];
-      return !processedDates.has(attendanceDate);
+      const attendanceDate = new Date(attendance.date);
+      const attendanceDateKey = attendanceDate.toISOString().split('T')[0];
+      
+      // Check if any regularization exists for this attendance date
+      const hasRegularization = existingRegularizations.some(reg => {
+        const regDate = new Date(reg.date);
+        const regDateKey = regDate.toISOString().split('T')[0];
+        
+        // Compare normalized date strings for exact match
+        const dateMatch = attendanceDateKey === regDateKey;
+        
+        if (dateMatch) {
+          console.log(`📋 Date ${attendanceDateKey}: matched regularization ${reg._id} (${reg.status})`);
+        }
+        
+        return dateMatch;
+      });
+      
+      console.log(`📋 Date ${attendanceDateKey}: hasRegularization=${hasRegularization}`);
+      return !hasRegularization;
     });
 
     console.log("🎯 Final reminder needed:", reminderNeeded.length, "records");
+    if (reminderNeeded.length > 0) {
+      console.log("🎯 Reminder dates:", reminderNeeded.map(att => 
+        new Date(att.date).toISOString().split('T')[0]
+      ));
+    }
 
     res.json(formatResponse(true, "Missing checkouts retrieved successfully", { 
       missingCheckouts: reminderNeeded,

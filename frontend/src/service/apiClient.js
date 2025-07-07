@@ -226,9 +226,10 @@ class ApiClient {
       });
     }
 
-    async getEmployees() {
+    async getEmployees(params = {}) {
       const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch("/employees", {
+      const queryString = params.status ? `?status=${params.status}` : '';
+      return this.customFetch(`/employees${queryString}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -240,6 +241,16 @@ class ApiClient {
       const token = localStorage.getItem("authToken"); // get token
       return this.customFetch(`/employees/delete/${employeeId}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    async toggleEmployeeStatus(employeeId) {
+      const token = localStorage.getItem("authToken"); // get token
+      return this.customFetch(`/employees/toggle-status/${employeeId}`, {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
         },
