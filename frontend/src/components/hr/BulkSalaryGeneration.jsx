@@ -90,7 +90,31 @@ const BulkSalaryGeneration = ({ employees = [], onBack }) => {
           const employee = employees.find(emp => emp.employeeId === employeeId);
           
           // Check if employee has salary structure
-          const structureResponse = await apiClient.getSalaryStructure(employeeId);
+          let structureResponse;
+          try {
+            structureResponse = await apiClient.getSalaryStructure(employeeId);
+          } catch (error) {
+            // Handle 404 specifically - no salary structure found
+            if (error.status === 404) {
+              results.push({
+                employeeId,
+                employeeName: `${employee.firstName} ${employee.lastName}`,
+                success: false,
+                error: "No salary structure found. Please create salary structure first."
+              });
+              continue;
+            } else {
+              // Other errors
+              results.push({
+                employeeId,
+                employeeName: `${employee.firstName} ${employee.lastName}`,
+                success: false,
+                error: `Error fetching salary structure: ${error.message}`
+              });
+              continue;
+            }
+          }
+
           if (!structureResponse.success) {
             results.push({
               employeeId,

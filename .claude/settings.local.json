@@ -9,7 +9,9 @@
       "Bash(timeout 30 pnpm dev)",
       "Bash(timeout:*)",
       "Bash(rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }
