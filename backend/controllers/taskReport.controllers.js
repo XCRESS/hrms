@@ -64,6 +64,13 @@ export const submitTaskReport = async (req, res) => {
       return res.status(400).json(formatResponse(false, "Tasks array is required and cannot be empty"));
     }
 
+    // Filter out empty tasks and validate
+    const validTasks = tasks.filter(task => task && typeof task === 'string' && task.trim() !== '');
+    if (validTasks.length === 0) {
+      console.error("submitTaskReport: No valid tasks after filtering", { tasks, validTasks });
+      return res.status(400).json(formatResponse(false, "At least one non-empty task is required"));
+    }
+
     const reportDate = date ? new Date(date) : new Date();
     
     // Check if a task report already exists for this date
@@ -77,7 +84,7 @@ export const submitTaskReport = async (req, res) => {
 
     if (existingReport) {
       // Update existing report
-      existingReport.tasks = tasks;
+      existingReport.tasks = validTasks;
       existingReport.updatedAt = new Date();
       
       // Ensure employeeId is set if missing
@@ -103,8 +110,15 @@ export const submitTaskReport = async (req, res) => {
       const taskReport = new TaskReport({
         employee: employeeObjId,
         employeeId: employee.employeeId,
-        tasks,
+        tasks: validTasks,
         date: reportDate
+      });
+
+      console.log("submitTaskReport: Attempting to save task report", { 
+        employee: employeeObjId, 
+        employeeId: employee.employeeId, 
+        tasks: validTasks, 
+        date: reportDate 
       });
 
       await taskReport.save();
@@ -112,6 +126,7 @@ export const submitTaskReport = async (req, res) => {
       const populatedReport = await TaskReport.findById(taskReport._id)
         .populate('employee', 'firstName lastName employeeId department');
 
+      console.log("submitTaskReport: Task report saved successfully", { taskReportId: taskReport._id });
       return res.status(201).json(formatResponse(true, "Task report submitted successfully", { taskReport: populatedReport }));
     }
 
