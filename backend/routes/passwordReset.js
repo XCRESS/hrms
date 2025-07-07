@@ -4,6 +4,7 @@ import {
   getAllPasswordResetRequests,
   approvePasswordResetRequest,
   rejectPasswordResetRequest,
+  resetPassword,
 } from "../controllers/passwordReset.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
@@ -28,5 +29,10 @@ router.put("/request/:id/approve", authMiddleware(["admin", "hr"]), approvePassw
 // @desc    Admin/HR rejects a password reset request
 // @access  Private (Admin, HR)
 router.put("/request/:id/reject", authMiddleware(["admin", "hr"]), rejectPasswordResetRequest);
+
+// @route   POST /api/password-reset/reset
+// @desc    User resets password using approved token
+// @access  Public
+router.post("/reset", resetPassword);
 
 export default router; 
