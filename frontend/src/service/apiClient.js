@@ -571,11 +571,16 @@ class ApiClient {
 
     // Salary Structure Management
     async createOrUpdateSalaryStructure(data) {
+      console.log('apiClient.createOrUpdateSalaryStructure: Endpoint:', API_ENDPOINTS.SALARY_STRUCTURES.CREATE_OR_UPDATE);
+      console.log('apiClient.createOrUpdateSalaryStructure: Data:', data);
       return this.post(API_ENDPOINTS.SALARY_STRUCTURES.CREATE_OR_UPDATE, data);
     }
 
     async getSalaryStructure(employeeId) {
-      return this.get(API_ENDPOINTS.SALARY_STRUCTURES.GET_BY_EMPLOYEE(employeeId));
+      const endpoint = API_ENDPOINTS.SALARY_STRUCTURES.GET_BY_EMPLOYEE(employeeId);
+      console.log('apiClient.getSalaryStructure: Endpoint:', endpoint);
+      console.log('apiClient.getSalaryStructure: EmployeeId:', employeeId);
+      return this.get(endpoint);
     }
 
     async getAllSalaryStructures(params = {}) {

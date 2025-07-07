@@ -201,16 +201,51 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   };
 
   const loadSalaryStructure = async (employeeId) => {
+    console.log('loadSalaryStructure: Starting to load structure for employee:', employeeId);
+    
     try {
+      console.log('loadSalaryStructure: Making API call to getSalaryStructure');
       const response = await apiClient.getSalaryStructure(employeeId);
+      
+      console.log('loadSalaryStructure: API response:', {
+        success: response.success,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : null
+      });
+      
       if (response.success && response.data) {
+        console.log('loadSalaryStructure: Structure found, setting earnings:', response.data.earnings);
         setSalaryStructure(response.data.earnings);
+        
+        // Show success toast to inform user that structure was loaded
+        toast({
+          title: "Success",
+          description: "Existing salary structure loaded successfully"
+        });
       }
     } catch (error) {
-      // If no salary structure exists, keep default empty structure
-      // This is expected for new employees, so we don't show an error toast
-      if (error.status !== 404) {
-        console.error('Error loading salary structure:', error);
+      console.log('loadSalaryStructure: Caught error:', {
+        status: error.status,
+        message: error.message,
+        data: error.data
+      });
+      
+      // If no salary structure exists (404), this is expected for new employees
+      if (error.status === 404) {
+        console.log('loadSalaryStructure: 404 - No existing salary structure found for employee:', employeeId);
+        
+        // Log additional error details if available
+        if (error.data && error.data.reason) {
+          console.log('loadSalaryStructure: 404 details:', error.data);
+        }
+        
+        toast({
+          title: "No Salary Structure",
+          description: "No existing salary structure found. Please create one.",
+          variant: "default"
+        });
+      } else {
+        console.error('loadSalaryStructure: Unexpected error loading salary structure:', error);
         toast({
           title: "Warning",
           description: "Could not load existing salary structure. Starting with empty structure.",
@@ -251,7 +286,12 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   };
 
   const saveSalaryStructure = async () => {
+    console.log('saveSalaryStructure: Starting save process');
+    console.log('saveSalaryStructure: selectedEmployee:', selectedEmployee);
+    console.log('saveSalaryStructure: salaryStructure:', salaryStructure);
+    
     if (!selectedEmployee || !salaryStructure.basic) {
+      console.log('saveSalaryStructure: Validation failed - missing employee or basic salary');
       toast({
         title: "Error",
         description: "Please select employee and enter basic salary",
@@ -262,18 +302,30 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
 
     try {
       setSaving(true);
+      console.log('saveSalaryStructure: Making API call to createOrUpdateSalaryStructure');
+      
       const response = await apiClient.createOrUpdateSalaryStructure({
         employeeId: selectedEmployee,
         earnings: salaryStructure
       });
 
+      console.log('saveSalaryStructure: API response:', response);
+
       if (response.success) {
+        console.log('saveSalaryStructure: Structure saved successfully');
         toast({
           title: "Success",
           description: "Salary structure saved successfully"
         });
+        
+        // Immediately try to load the structure to verify it was saved
+        console.log('saveSalaryStructure: Verifying by reloading structure');
+        setTimeout(() => {
+          loadSalaryStructure(selectedEmployee);
+        }, 1000);
       }
     } catch (error) {
+      console.error('saveSalaryStructure: Error saving structure:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save salary structure",

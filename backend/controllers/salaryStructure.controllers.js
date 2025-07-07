@@ -31,23 +31,59 @@ export const createOrUpdateSalaryStructure = async (req, res) => {
         specialAllowance: earnings.specialAllowance || 0,
         mobileAllowance: earnings.mobileAllowance || 0
       },
+      isActive: true, // Explicitly set to true
       lastUpdatedBy: req.user._id
     };
 
+    console.log("createOrUpdateSalaryStructure: Structure data to save:", {
+      employeeObjectId: employee._id,
+      employeeId: employeeId,
+      earnings: structureData.earnings,
+      isActive: structureData.isActive
+    });
+
     // Check if salary structure already exists
     const existingStructure = await SalaryStructure.findOne({ employee: employee._id });
+    console.log("createOrUpdateSalaryStructure: Existing structure found:", !!existingStructure);
 
     let salaryStructure;
     if (existingStructure) {
       // Update existing structure
+      console.log("createOrUpdateSalaryStructure: Updating existing structure ID:", existingStructure._id);
       Object.assign(existingStructure, structureData);
       salaryStructure = await existingStructure.save();
+      console.log("createOrUpdateSalaryStructure: Updated structure saved with ID:", salaryStructure._id);
     } else {
       // Create new structure
+      console.log("createOrUpdateSalaryStructure: Creating new structure");
       structureData.createdBy = req.user._id;
       salaryStructure = new SalaryStructure(structureData);
       await salaryStructure.save();
+      console.log("createOrUpdateSalaryStructure: New structure created with ID:", salaryStructure._id);
     }
+
+    // Verify the structure was saved correctly by re-fetching it
+    const verificationStructure = await SalaryStructure.findOne({ 
+      employee: employee._id, 
+      isActive: true 
+    });
+    
+    console.log("createOrUpdateSalaryStructure: Verification - structure exists after save:", !!verificationStructure);
+    if (verificationStructure) {
+      console.log("createOrUpdateSalaryStructure: Verification - structure details:", {
+        id: verificationStructure._id,
+        employeeId: verificationStructure.employeeId,
+        isActive: verificationStructure.isActive,
+        grossSalary: verificationStructure.grossSalary
+      });
+    }
+
+    console.log("createOrUpdateSalaryStructure: Structure saved successfully:", { 
+      id: salaryStructure._id, 
+      employeeId: salaryStructure.employeeId,
+      isActive: salaryStructure.isActive,
+      grossSalary: salaryStructure.grossSalary
+    });
 
     // Populate employee data
     await salaryStructure.populate('employee', 'firstName lastName employeeId department position');
@@ -66,12 +102,16 @@ export const createOrUpdateSalaryStructure = async (req, res) => {
 export const getSalaryStructure = async (req, res) => {
   try {
     const { employeeId } = req.params;
+    console.log("getSalaryStructure: Looking for employeeId:", employeeId);
 
     // Find employee
     const employee = await Employee.findOne({ employeeId });
     if (!employee) {
+      console.log("getSalaryStructure: Employee not found:", employeeId);
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
+
+    console.log("getSalaryStructure: Found employee:", { id: employee._id, employeeId: employee.employeeId });
 
     // Find salary structure
     const salaryStructure = await SalaryStructure.findOne({ 
@@ -79,8 +119,29 @@ export const getSalaryStructure = async (req, res) => {
       isActive: true 
     }).populate('employee', 'firstName lastName employeeId department position');
 
+    // Also check if there are any inactive structures for debugging
+    const allStructuresForEmployee = await SalaryStructure.find({ employee: employee._id });
+    console.log("getSalaryStructure: All structures for employee (including inactive):", allStructuresForEmployee.length);
+    console.log("getSalaryStructure: Active structure found:", !!salaryStructure);
+
     if (!salaryStructure) {
-      return res.status(404).json(formatResponse(false, "Salary structure not found"));
+      // Log additional debugging info
+      console.log("getSalaryStructure: Employee Object ID:", employee._id);
+      console.log("getSalaryStructure: All structures for this employee:", 
+        allStructuresForEmployee.map(s => ({ 
+          id: s._id, 
+          employeeId: s.employeeId, 
+          isActive: s.isActive,
+          createdAt: s.createdAt 
+        }))
+      );
+
+      return res.status(404).json(formatResponse(false, "No salary structure found for this employee", null, { 
+        reason: "NO_STRUCTURE",
+        employeeId: employeeId,
+        employeeObjectId: employee._id.toString(),
+        totalStructuresFound: allStructuresForEmployee.length
+      }));
     }
 
     res.status(200).json(formatResponse(true, "Salary structure fetched successfully", salaryStructure));
