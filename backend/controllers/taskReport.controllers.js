@@ -117,6 +117,35 @@ export const submitTaskReport = async (req, res) => {
 
   } catch (err) {
     console.error("Error submitting task report:", err);
+    console.error("Request body:", req.body);
+    console.error("User data:", { 
+      userId: req.user?._id, 
+      employeeId: req.user?.employeeId, 
+      employee: req.user?.employee 
+    });
+    
+    // Handle validation errors specifically
+    if (err.name === 'ValidationError') {
+      const validationErrors = Object.keys(err.errors).reduce((acc, key) => {
+        acc[key] = err.errors[key].message;
+        return acc;
+      }, {});
+      console.error("Validation errors:", validationErrors);
+      return res.status(400).json(
+        formatResponse(false, "Validation failed", null, validationErrors)
+      );
+    }
+    
+    // Handle duplicate key errors
+    if (err.code === 11000) {
+      console.error("Duplicate key error:", err.keyValue);
+      return res.status(409).json(
+        formatResponse(false, "A task report already exists for this date", null, {
+          duplicate: "Task report for this date already exists"
+        })
+      );
+    }
+    
     res.status(500).json(
       formatResponse(false, "Failed to submit task report.", null, {
         server: err.message
