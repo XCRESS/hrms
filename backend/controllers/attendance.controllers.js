@@ -156,21 +156,35 @@ export const checkOut = async (req, res) => {
       return res.status(400).json(formatResponse(false, "Already checked out for today"));
     }
 
-    // 1. Create and save the task report
+    // 1. Get employee details for employeeId
+    const employee = await Employee.findById(employeeObjId);
+    if (!employee) {
+      return res.status(400).json(formatResponse(false, "Employee profile not found"));
+    }
+
+    // 2. Create and save the task report
     await TaskReport.create({
       employee: employeeObjId,
-      employeeId: req.user.employeeId,
+      employeeId: employee.employeeId,
       date: attendance.date, // Use the date from the attendance record
       tasks: tasks.filter(t => typeof t === 'string' && t.trim() !== ''), // Sanitize tasks
     });
 
-    // 2. Update attendance with checkout time
+    // 3. Update attendance with checkout time
     attendance.checkOut = new Date();
     await attendance.save();
 
     res.json(formatResponse(true, "Checked out successfully with task report.", { attendance }));
 
   } catch (err) {
+    console.error("Error in checkOut:", err);
+    console.error("Request body:", req.body);
+    console.error("User data:", { 
+      userId: req.user?._id, 
+      employeeId: req.user?.employeeId, 
+      employee: req.user?.employee 
+    });
+    
     let errorMessage = "Check-out failed";
     let errorDetails = { server: err.message };
 
@@ -186,6 +200,7 @@ export const checkOut = async (req, res) => {
         acc[key] = err.errors[key].message;
         return acc;
       }, {});
+      console.error("Validation errors:", errorDetails);
       return res.status(400).json(formatResponse(false, errorMessage, null, errorDetails));
     }
 

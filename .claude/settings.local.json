@@ -5,7 +5,11 @@
       "Bash(ls:*)",
       "Bash(node:*)",
       "Bash(rg:*)",
-      "Bash(pnpm dev:*)"
+      "Bash(pnpm dev:*)",
+      "Bash(timeout 30 pnpm dev)",
+      "Bash(timeout:*)",
+      "Bash(rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
