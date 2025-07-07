@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import DatePicker from "@/components/ui/datepicker";
-import JoinDate from "@/components/ui/dateOfJoining";
+import EnhancedDOBPicker from "@/components/ui/enhanced-dob-picker";
+import EnhancedJoiningPicker from "@/components/ui/enhanced-joining-picker";
 import apiClient from "../../service/apiClient";
 import {
   Select,
@@ -193,7 +193,7 @@ export default function CreateEmployee() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <LabelInputContainer>
                   <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
-                  <DatePicker onDateChange={handleDateChange} selected={dateOfBirth} onChange={setDateOfBirth}/>
+                  <EnhancedDOBPicker value={dateOfBirth} onChange={handleDateChange} required />
                 </LabelInputContainer>
                 <LabelInputContainer>
                   <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
@@ -438,7 +438,7 @@ export default function CreateEmployee() {
 
               <LabelInputContainer>
                 <Label htmlFor="joiningDate">Date of Joining <span className="text-red-500">*</span></Label> 
-                <JoinDate onDateChange={handleJoinDateChange} selected={joiningDate} onChange={setJoiningDate}/>
+                <EnhancedJoiningPicker value={joiningDate} onChange={handleJoinDateChange} required />
               </LabelInputContainer>
             </div>
 
