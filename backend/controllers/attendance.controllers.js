@@ -851,19 +851,21 @@ export const updateAttendanceRecord = async (req, res) => {
       
       switch (status) {
         case 'present':
-          if (!attendanceRecord.checkIn) {
+          // Only set defaults if not explicitly provided in request
+          if (!checkIn && !attendanceRecord.checkIn) {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
-          if (!attendanceRecord.checkOut) {
+          if (checkOut === undefined && !attendanceRecord.checkOut) {
             attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
           }
           break;
         case 'half-day':
-          if (!attendanceRecord.checkIn) {
+          // Only set default check-in if not explicitly provided in request
+          if (!checkIn && !attendanceRecord.checkIn) {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
-          // Always set checkout for half-day unless explicitly provided
-          if (!checkOut) {
+          // Set half-day checkout (1:30 PM) unless explicitly provided
+          if (checkOut === undefined) {
             // Half day - checkout at 1:30 PM
             const halfDayCheckout = new Date(recordDate);
             halfDayCheckout.setUTCHours(8, 0, 0, 0); // 1:30 PM IST (UTC+5:30)
@@ -876,14 +878,15 @@ export const updateAttendanceRecord = async (req, res) => {
            attendanceRecord.workHours = 0;
            break;
          case 'late':
-           // Always set check-in for late unless explicitly provided
-           if (!checkIn) {
+           // Set late check-in (10:00 AM) unless explicitly provided
+           if (checkIn === undefined) {
              // Late arrival - 10:00 AM
              const lateCheckIn = new Date(recordDate);
              lateCheckIn.setUTCHours(4, 30, 0, 0); // 10:00 AM IST (UTC+5:30)
              attendanceRecord.checkIn = lateCheckIn;
            }
-           if (!attendanceRecord.checkOut) {
+           // Only set default checkout if not explicitly provided in request
+           if (checkOut === undefined && !attendanceRecord.checkOut) {
              attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
            }
            break;
