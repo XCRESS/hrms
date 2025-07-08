@@ -576,10 +576,10 @@ const SalaryStructureManagement = ({ onBack }) => {
                   <Calculator className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Avg. Gross Salary</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Gross Salary</p>
                   <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     ₹{salaryStructures.length > 0 ? 
-                      Math.round(salaryStructures.reduce((sum, s) => sum + s.grossSalary, 0) / salaryStructures.length).toLocaleString() 
+                      salaryStructures.reduce((sum, s) => sum + s.grossSalary, 0).toLocaleString() 
                       : '0'}
                   </p>
                 </div>
