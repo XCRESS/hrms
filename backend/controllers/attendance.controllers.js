@@ -837,7 +837,9 @@ export const updateAttendanceRecord = async (req, res) => {
 
       // Update existing record
       if (status) attendanceRecord.status = status;
-      if (checkIn) attendanceRecord.checkIn = new Date(checkIn);
+      if (checkIn !== undefined) {
+        attendanceRecord.checkIn = checkIn ? new Date(checkIn) : null;
+      }
       if (checkOut !== undefined) {
         attendanceRecord.checkOut = checkOut ? new Date(checkOut) : null;
       }
@@ -860,7 +862,8 @@ export const updateAttendanceRecord = async (req, res) => {
           if (!attendanceRecord.checkIn) {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
-          if (!attendanceRecord.checkOut) {
+          // Always set checkout for half-day unless explicitly provided
+          if (!checkOut) {
             // Half day - checkout at 1:30 PM
             const halfDayCheckout = new Date(recordDate);
             halfDayCheckout.setUTCHours(8, 0, 0, 0); // 1:30 PM IST (UTC+5:30)
@@ -873,7 +876,8 @@ export const updateAttendanceRecord = async (req, res) => {
            attendanceRecord.workHours = 0;
            break;
          case 'late':
-           if (!attendanceRecord.checkIn) {
+           // Always set check-in for late unless explicitly provided
+           if (!checkIn) {
              // Late arrival - 10:00 AM
              const lateCheckIn = new Date(recordDate);
              lateCheckIn.setUTCHours(4, 30, 0, 0); // 10:00 AM IST (UTC+5:30)
