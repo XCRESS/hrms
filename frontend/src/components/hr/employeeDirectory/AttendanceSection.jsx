@@ -118,42 +118,36 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
   }, [record, isOpen]);
 
   const handleStatusChange = (status) => {
-    setFormData(prev => ({ ...prev, status }));
-    
-    // Auto-fill times based on status
     const recordDate = new Date(record?.date || new Date());
     const baseDate = recordDate.toISOString().split('T')[0];
     
-    switch (status) {
-      case 'present':
-        setFormData(prev => ({
-          ...prev,
-          checkIn: prev.checkIn || `${baseDate}T09:30`,
-          checkOut: prev.checkOut || `${baseDate}T17:30`
-        }));
-        break;
-      case 'half-day':
-        setFormData(prev => ({
-          ...prev,
-          checkIn: prev.checkIn || `${baseDate}T09:30`,
-          checkOut: `${baseDate}T13:30`
-        }));
-        break;
-      case 'late':
-        setFormData(prev => ({
-          ...prev,
-          checkIn: `${baseDate}T10:00`,
-          checkOut: prev.checkOut || `${baseDate}T17:30`
-        }));
-        break;
-      case 'absent':
-        setFormData(prev => ({
-          ...prev,
-          checkIn: '',
-          checkOut: ''
-        }));
-        break;
-    }
+    setFormData(prev => {
+      const newData = { ...prev, status };
+      
+      // Only auto-fill times if they are currently empty or for specific status changes
+      switch (status) {
+        case 'present':
+          if (!newData.checkIn) newData.checkIn = `${baseDate}T09:30`;
+          if (!newData.checkOut) newData.checkOut = `${baseDate}T17:30`;
+          break;
+        case 'half-day':
+          if (!newData.checkIn) newData.checkIn = `${baseDate}T09:30`;
+          // Always set checkout for half-day
+          newData.checkOut = `${baseDate}T13:30`;
+          break;
+        case 'late':
+          // Always set checkin for late
+          newData.checkIn = `${baseDate}T10:00`;
+          if (!newData.checkOut) newData.checkOut = `${baseDate}T17:30`;
+          break;
+        case 'absent':
+          newData.checkIn = '';
+          newData.checkOut = '';
+          break;
+      }
+      
+      return newData;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -167,6 +161,19 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
         checkIn: formData.checkIn ? new Date(formData.checkIn).toISOString() : null,
         checkOut: formData.checkOut ? new Date(formData.checkOut).toISOString() : null
       };
+
+      // For non-absent status, ensure we have valid times
+      if (formData.status !== 'absent') {
+        if (!updateData.checkIn) {
+          setError('Check-in time is required for non-absent status');
+          setLoading(false);
+          return;
+        }
+        // For present status, if no checkout is provided, keep the existing one or set null
+        if (formData.status === 'present' && !updateData.checkOut && record?.checkOut) {
+          updateData.checkOut = new Date(record.checkOut).toISOString();
+        }
+      }
 
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
