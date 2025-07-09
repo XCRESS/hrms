@@ -1,8 +1,14 @@
+import { formatIndianNumber, getCompanyAddress } from './indianNumber';
+
 export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeData = null) => {
   // Create a new window for PDF
   const printWindow = window.open('', '_blank');
   
   const companyLogo = '/cfg-logo.jpg'; // Logo from public folder
+  
+  // Get company name and address
+  const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Service Limited';
+  const companyAddress = getCompanyAddress(companyName);
   
   const htmlContent = `
     <!DOCTYPE html>
@@ -49,6 +55,13 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
           font-weight: bold;
           margin: 0;
           color: #2c3e50;
+        }
+        
+        .company-address {
+          font-size: 14px;
+          color: #7f8c8d;
+          margin: 5px 0 0 0;
+          line-height: 1.3;
         }
         
         .payslip-info {
@@ -188,7 +201,8 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
         <div class="header">
           <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'">
           <div class="company-info">
-            <h1 class="company-name">${employeeData?.companyName || slip.employee?.companyName || 'CFG Corporation'}</h1>
+            <h1 class="company-name">${companyName}</h1>
+            ${companyAddress ? `<p class="company-address">${companyAddress}</p>` : ''}
           </div>
           <div class="payslip-info">
             <h2 class="payslip-title">PAYSLIP</h2>
@@ -250,15 +264,15 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
               ${generateSalaryRows(slip)}
               <tr class="total-row">
                 <td><strong>GROSS SALARY</strong></td>
-                <td class="amount"><strong>₹${slip.grossSalary.toLocaleString()}</strong></td>
+                <td class="amount"><strong>₹${formatIndianNumber(slip.grossSalary)}</strong></td>
                 <td><strong>TOTAL DEDUCTIONS</strong></td>
-                <td class="amount"><strong>₹${slip.totalDeductions.toLocaleString()}</strong></td>
+                <td class="amount"><strong>₹${formatIndianNumber(slip.totalDeductions)}</strong></td>
               </tr>
             </tbody>
           </table>
 
           <div class="net-salary">
-            <strong>NET SALARY: ₹${slip.netSalary.toLocaleString()}</strong>
+            <strong>NET SALARY: ₹${formatIndianNumber(slip.netSalary)}</strong>
           </div>
 
           <div class="amount-words">
@@ -310,9 +324,9 @@ const generateSalaryRows = (slip) => {
     rows += `
       <tr>
         <td>${earning ? earning.label : ''}</td>
-        <td class="amount">${earning ? '₹' + earning.value.toLocaleString() : ''}</td>
+        <td class="amount">${earning ? '₹' + formatIndianNumber(earning.value) : ''}</td>
         <td>${deduction ? deduction.label : ''}</td>
-        <td class="amount">${deduction ? '₹' + deduction.value.toLocaleString() : ''}</td>
+        <td class="amount">${deduction ? '₹' + formatIndianNumber(deduction.value) : ''}</td>
       </tr>
     `;
   }

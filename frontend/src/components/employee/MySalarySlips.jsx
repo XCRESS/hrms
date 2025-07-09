@@ -18,6 +18,7 @@ import apiClient from "../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
 import useAuth from "../../hooks/authjwt";
 import { downloadSalarySlipPDF } from "../../utils/pdfGenerator";
+import { formatIndianNumber } from "../../utils/indianNumber";
 
 const MySalarySlips = () => {
   const [loading, setLoading] = useState(false);
@@ -285,7 +286,7 @@ const MySalarySlips = () => {
                             Gross Salary
                           </p>
                           <p className="text-2xl font-bold">
-                            ₹{slip.grossSalary.toLocaleString()}
+                            ₹{formatIndianNumber(slip.grossSalary)}
                           </p>
                         </div>
                         <DollarSign className="absolute -top-2 -right-2 h-16 w-16 text-white/10" />
@@ -298,7 +299,7 @@ const MySalarySlips = () => {
                             Deductions
                           </p>
                           <p className="text-lg font-bold text-red-700 dark:text-red-300">
-                            ₹{slip.totalDeductions.toLocaleString()}
+                            ₹{formatIndianNumber(slip.totalDeductions)}
                           </p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
@@ -306,7 +307,7 @@ const MySalarySlips = () => {
                             Net Pay
                           </p>
                           <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                            ₹{slip.netSalary.toLocaleString()}
+                            ₹{formatIndianNumber(slip.netSalary)}
                           </p>
                         </div>
                       </div>

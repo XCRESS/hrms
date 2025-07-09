@@ -13,6 +13,7 @@ import {
   XCircle
 } from "lucide-react";
 import { downloadSalarySlipPDF } from "../../utils/pdfGenerator";
+import { formatIndianNumber } from "../../utils/indianNumber";
 
 const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, onPublish, employeeData }) => {
   const handleDownloadPDF = () => {
@@ -103,7 +104,7 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, onPub
               Gross Salary
             </p>
             <p className="text-xl font-bold text-green-800 dark:text-green-300">
-              ₹{slip.grossSalary.toLocaleString()}
+              ₹{formatIndianNumber(slip.grossSalary)}
             </p>
           </div>
           
@@ -113,7 +114,7 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, onPub
                 Deductions
               </p>
               <p className="text-lg font-semibold text-red-800 dark:text-red-300">
-                ₹{slip.totalDeductions.toLocaleString()}
+                ₹{formatIndianNumber(slip.totalDeductions)}
               </p>
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
@@ -121,7 +122,7 @@ const SalarySlipCard = ({ slip, employeeName, monthName, onEdit, onDelete, onPub
                 Net Salary
               </p>
               <p className="text-lg font-semibold text-blue-800 dark:text-blue-300">
-                ₹{slip.netSalary.toLocaleString()}
+                ₹{formatIndianNumber(slip.netSalary)}
               </p>
             </div>
           </div>
