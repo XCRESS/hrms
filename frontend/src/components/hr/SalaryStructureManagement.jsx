@@ -21,6 +21,7 @@ import apiClient from "../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
 import useAuth from "../../hooks/authjwt";
 import BackButton from "../ui/BackButton";
+import { formatIndianNumber } from "../../utils/indianNumber";
 
 const SalaryStructureManagement = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
@@ -454,7 +455,7 @@ const SalaryStructureManagement = ({ onBack }) => {
                           <div key={key} className="flex justify-between text-sm">
                             <span className="text-slate-600 dark:text-slate-300">{labels[key]}:</span>
                             <span className="font-medium text-slate-900 dark:text-slate-100">
-                              ₹{parseFloat(value).toLocaleString()}
+                              ₹{formatIndianNumber(parseFloat(value))}
                             </span>
                           </div>
                         );
@@ -464,7 +465,7 @@ const SalaryStructureManagement = ({ onBack }) => {
                         <div className="flex justify-between">
                           <span className="font-semibold text-slate-900 dark:text-slate-100">Gross Salary:</span>
                           <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">
-                            ₹{grossSalary.toLocaleString()}
+                            ₹{formatIndianNumber(grossSalary)}
                           </span>
                         </div>
                       </div>
@@ -579,7 +580,7 @@ const SalaryStructureManagement = ({ onBack }) => {
                   <p className="text-sm text-slate-600 dark:text-slate-400">Gross Salary</p>
                   <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     ₹{salaryStructures.length > 0 ? 
-                      salaryStructures.reduce((sum, s) => sum + s.grossSalary, 0).toLocaleString() 
+                      formatIndianNumber(salaryStructures.reduce((sum, s) => sum + s.grossSalary, 0)) 
                       : '0'}
                   </p>
                 </div>
@@ -663,11 +664,11 @@ const SalaryStructureManagement = ({ onBack }) => {
                               {employee?.department || structure.employee?.department || 'N/A'}
                             </td>
                             <td className="py-3 px-4 text-slate-900 dark:text-slate-100">
-                              ₹{structure.earnings.basic.toLocaleString()}
+                              ₹{formatIndianNumber(structure.earnings.basic)}
                             </td>
                             <td className="py-3 px-4">
                               <span className="font-semibold text-green-600 dark:text-green-400">
-                                ₹{structure.grossSalary.toLocaleString()}
+                                ₹{formatIndianNumber(structure.grossSalary)}
                               </span>
                             </td>
                             <td className="py-3 px-4 text-slate-900 dark:text-slate-100">

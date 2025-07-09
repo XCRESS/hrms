@@ -28,6 +28,7 @@ import SalarySlipForm from "./SalarySlipForm";
 import SalarySlipCard from "./SalarySlipCard";
 import SalarySlipFilters from "./SalarySlipFilters";
 import BulkSalaryGeneration from "./BulkSalaryGeneration";
+import { formatIndianNumber } from "../../utils/indianNumber";
 
 const SalarySlipManagement = ({ onBack }) => {
   const [loading, setLoading] = useState(false);

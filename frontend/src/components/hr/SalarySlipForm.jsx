@@ -20,6 +20,7 @@ import apiClient from "../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
 import useAuth from "../../hooks/authjwt";
 import { downloadSalarySlipPDF } from "../../utils/pdfGenerator";
+import { formatIndianNumber } from "../../utils/indianNumber";
 
 const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null }) => {
   const [loading, setLoading] = useState(false);
@@ -751,14 +752,14 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-300">Gross Salary:</span>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">
-                          ₹{grossSalary.toLocaleString()}
+                          ₹{formatIndianNumber(grossSalary)}
                         </span>
                       </div>
                       
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-300">Income Tax (Monthly):</span>
                         <span className="font-semibold text-red-600 dark:text-red-400">
-                          ₹{(taxCalculation?.monthlyTax || 0).toLocaleString()}
+                          ₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}
                         </span>
                       </div>
                       
@@ -766,7 +767,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                         <div className="flex justify-between">
                           <span className="font-semibold text-slate-900 dark:text-slate-100">Net Salary:</span>
                           <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                            ₹{netSalary.toLocaleString()}
+                            ₹{formatIndianNumber(netSalary)}
                           </span>
                         </div>
                       </div>
@@ -851,49 +852,49 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                               {salaryStructure.basic > 0 && (
                                 <div className="flex justify-between">
                                   <span>Basic Salary</span>
-                                  <span>₹{parseFloat(salaryStructure.basic).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.basic))}</span>
                                 </div>
                               )}
                               {salaryStructure.hra > 0 && (
                                 <div className="flex justify-between">
                                   <span>HRA</span>
-                                  <span>₹{parseFloat(salaryStructure.hra).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.hra))}</span>
                                 </div>
                               )}
                               {salaryStructure.conveyance > 0 && (
                                 <div className="flex justify-between">
                                   <span>Conveyance</span>
-                                  <span>₹{parseFloat(salaryStructure.conveyance).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.conveyance))}</span>
                                 </div>
                               )}
                               {salaryStructure.medical > 0 && (
                                 <div className="flex justify-between">
                                   <span>Medical</span>
-                                  <span>₹{parseFloat(salaryStructure.medical).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.medical))}</span>
                                 </div>
                               )}
                               {salaryStructure.lta > 0 && (
                                 <div className="flex justify-between">
                                   <span>LTA</span>
-                                  <span>₹{parseFloat(salaryStructure.lta).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.lta))}</span>
                                 </div>
                               )}
                               {salaryStructure.specialAllowance > 0 && (
                                 <div className="flex justify-between">
                                   <span>Special Allowance</span>
-                                  <span>₹{parseFloat(salaryStructure.specialAllowance).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.specialAllowance))}</span>
                                 </div>
                               )}
                               {salaryStructure.mobileAllowance > 0 && (
                                 <div className="flex justify-between">
                                   <span>Mobile Allowance</span>
-                                  <span>₹{parseFloat(salaryStructure.mobileAllowance).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(parseFloat(salaryStructure.mobileAllowance))}</span>
                                 </div>
                               )}
                               <div className="border-t border-slate-300 dark:border-slate-500 pt-1 mt-2">
                                 <div className="flex justify-between font-semibold">
                                   <span>Gross Salary</span>
-                                  <span>₹{grossSalary.toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(grossSalary)}</span>
                                 </div>
                               </div>
                             </div>
@@ -905,13 +906,13 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                               {(taxCalculation?.monthlyTax || 0) > 0 && (
                                 <div className="flex justify-between">
                                   <span>Income Tax (TDS)</span>
-                                  <span>₹{(taxCalculation?.monthlyTax || 0).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}</span>
                                 </div>
                               )}
                               <div className="border-t border-slate-300 dark:border-slate-500 pt-1 mt-2">
                                 <div className="flex justify-between font-semibold">
                                   <span>Total Deductions</span>
-                                  <span>₹{(taxCalculation?.monthlyTax || 0).toLocaleString()}</span>
+                                  <span>₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}</span>
                                 </div>
                               </div>
                             </div>
@@ -922,7 +923,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                           <div className="flex justify-between items-center">
                             <span className="text-lg font-bold text-slate-900 dark:text-slate-100">Net Salary:</span>
                             <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                              ₹{netSalary.toLocaleString()}
+                              ₹{formatIndianNumber(netSalary)}
                             </span>
                           </div>
                           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
