@@ -16,7 +16,7 @@ export const API_ENDPOINTS = {
   EMPLOYEES: {
     BASE: "/employees",
     PROFILE: "/employees/profile",
-    CREATE: "/employees",
+    CREATE: "/employees/create",
     GET_ALL: "/employees",
     GET_BY_ID: (id) => `/employees/${id}`,
     UPDATE: (id) => `/employees/${id}`,
