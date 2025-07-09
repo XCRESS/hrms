@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
 import InactiveEmployees from '../InactiveEmployees';
-import { Edit, Users, UserX, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle } from 'lucide-react';
 import { useToast } from '../../ui/toast';
 
 
@@ -16,6 +17,7 @@ import { useToast } from '../../ui/toast';
 
 
 export default function EmployeeDirectory() {
+  const navigate = useNavigate();
   const userObject = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState([]);
@@ -281,6 +283,13 @@ export default function EmployeeDirectory() {
           >
             <UserX className="w-4 h-4" />
             <span>Inactive Employees</span>
+          </button>
+          <button
+            onClick={() => navigate('/employees/add')}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors bg-green-600 text-white shadow-md hover:bg-green-700"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Add Employee</span>
           </button>
         </div>
       </div>

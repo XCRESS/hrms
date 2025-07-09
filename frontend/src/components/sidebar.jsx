@@ -64,14 +64,10 @@ export default function SidebarDemo() {
           return [
             {
               label: "Employees",
-              href: "/employee",
+              href: "/employees",
               icon: <Users className={iconClass} />,
             },
-            {
-              label: "Add Employee",
-              href: "/create",
-              icon: <UserPlus className={accentIconClass('green')} />,
-            },
+            
             {
               label: "Link User",
               href: "/link",

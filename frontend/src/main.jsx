@@ -5,7 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./components/login-form.jsx";
 import Signup from "./components/singup-form.jsx";
 import ForgotPassword from "./components/forgotPassword.jsx";
-import CreateEmployee from './components/hr/create-employee.jsx';
+
 import NotFound from './components/404page.jsx';
 import GetProfile from './components/getProfile.jsx';
 import HRMSDashboard from './components/dashboard.jsx';
@@ -14,6 +14,7 @@ import LoaderGate from './components/loadingAnimation.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
 import EmployeeDirectory from './components/hr/employeeDirectory/EmployeeDirectory.jsx';
+import AddEmployee from './components/hr/employeeDirectory/AddEmployee.jsx';
 import EmployeeLink from './components/hr/EmployeeLink.jsx';
 import HolidayManagementPage from './components/hr/HolidayManagementPage.jsx';
 import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
@@ -44,8 +45,9 @@ createRoot(document.getElementById('root')).render(
               <Route path="/" element={<SidebarDemo />}>
                 <Route index element={<HRMSDashboard />} />
                 <Route path="dashboard" element={<HRMSDashboard />} />
-                <Route path="create" element={<CreateEmployee />} />
-                <Route path="employee" element={<EmployeeDirectory />} />
+                
+                <Route path="employees" element={<EmployeeDirectory />} />
+                <Route path="employees/add" element={<AddEmployee />} />
                 <Route path="link" element={<EmployeeLink />} />
                 <Route path="holidays" element={<HolidayManagementPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
