@@ -736,7 +736,8 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
             workHours: workHours,
             comments: attendanceRecord.comments,
             reason: attendanceRecord.reason,
-            employeeName: `${employee.firstName} ${employee.lastName}`
+            employeeName: `${employee.firstName} ${employee.lastName}`,
+            location: attendanceRecord.location // Include location data
           });
         } else {
           // Employee was absent this day
