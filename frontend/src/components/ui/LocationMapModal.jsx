@@ -78,7 +78,7 @@ const LocationMapModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
@@ -152,14 +152,23 @@ const LocationMapModal = ({
         </div>
 
         {/* Map Content */}
-        <div className="p-6">
+        <div className="p-6 flex-grow overflow-y-auto">
           {hasLocation ? (
             <div className="space-y-4">
               {/* Coordinates Display */}
               <div className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Coordinates</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-slate-500" />
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Coordinates</span>
+                  </div>
+                  <button
+                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`, '_blank')}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs transition-colors flex items-center gap-1"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    Open in Map
+                  </button>
                 </div>
                 <p className="text-sm font-mono text-slate-700 dark:text-slate-300">
                   Latitude: {latitude?.toFixed(6)}, Longitude: {longitude?.toFixed(6)}
@@ -198,23 +207,7 @@ const LocationMapModal = ({
                 </MapContainer>
               </div>
 
-              {/* Additional Location Info */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-600 text-white rounded-lg">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
-                      Location Information
-                    </h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      The map shows the exact location where the employee checked in. 
-                      This helps verify attendance and provides location-based insights.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              
             </div>
           ) : (
             <div className="text-center py-12">
@@ -239,16 +232,7 @@ const LocationMapModal = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <X className="w-4 h-4" />
-            Close
-          </button>
-        </div>
+        
       </div>
     </div>
   );
