@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../service/apiClient';
-import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar, Edit3, X, Save } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar, Edit3, X, Save, MapPin, Eye } from 'lucide-react';
+import LocationMapModal from '../../ui/LocationMapModal';
 
 // Custom Time Input Component with AM/PM support
-const TimeInput = ({ value, onChange, className, placeholder }) => {
+const TimeInput = ({ value, onChange, className }) => {
   const [timeState, setTimeState] = useState({
     hour: '',
     minute: '',
@@ -102,7 +103,7 @@ const TimeInput = ({ value, onChange, className, placeholder }) => {
 };
 
 // Enhanced Attendance Analytics Component
-const AttendanceAnalytics = ({ attendance, employeeProfile }) => {
+const AttendanceAnalytics = ({ attendance }) => {
   const calculateAttendanceStats = () => {
     if (!attendance || attendance.length === 0) return null;
 
@@ -357,7 +358,6 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
                   value={formData.checkIn}
                   onChange={(value) => setFormData(prev => ({ ...prev, checkIn: value }))}
                   className="w-full"
-                  placeholder="Select check-in time"
                 />
               </div>
 
@@ -369,7 +369,6 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
                   value={formData.checkOut}
                   onChange={(value) => setFormData(prev => ({ ...prev, checkOut: value }))}
                   className="w-full"
-                  placeholder="Select check-out time"
                 />
               </div>
             </>
@@ -405,7 +404,7 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
 };
 
 // Enhanced Attendance Table with filters and sorting
-const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAttendance, updateTrigger }) => {
+const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, dateRange, onDateRangeChange, onEditAttendance, updateTrigger }) => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -423,6 +422,11 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
   const [bulkStatus, setBulkStatus] = useState('present');
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  
+  // Location modal state
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedLocationRecord, setSelectedLocationRecord] = useState(null);
+  const [employeeProfile, setEmployeeProfile] = useState(null);
 
   const recordsPerPage = 7;
 
@@ -445,9 +449,13 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
           let allRecords = response.data.records || [];
           setStatistics(response.data.statistics);
           
-          // Store joining date and effective date range info
-          if (response.data.employee?.joiningDate) {
-            setJoiningDate(response.data.employee.joiningDate);
+          // Store employee profile and joining date info
+          if (response.data.employee && !passedEmployeeProfile) {
+            setEmployeeProfile(response.data.employee);
+          }
+          const currentEmployeeProfile = passedEmployeeProfile || response.data.employee;
+          if (currentEmployeeProfile?.joiningDate) {
+            setJoiningDate(currentEmployeeProfile.joiningDate);
           }
           if (response.data.dateRange) {
             setEffectiveDateRange(response.data.dateRange);
@@ -474,7 +482,9 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
             ...record,
             date: new Date(record.date),
             checkIn: record.checkIn ? new Date(record.checkIn) : null,
-            checkOut: record.checkOut ? new Date(record.checkOut) : null
+            checkOut: record.checkOut ? new Date(record.checkOut) : null,
+            // Preserve location data
+            location: record.location || null
           })));
           
           setTotalRecords(sortedRecords.length);
@@ -510,7 +520,9 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
             ...record,
             date: new Date(record.date),
             checkIn: record.checkIn ? new Date(record.checkIn) : null,
-            checkOut: record.checkOut ? new Date(record.checkOut) : null
+            checkOut: record.checkOut ? new Date(record.checkOut) : null,
+            // Preserve location data
+            location: record.location || null
           })));
           
           setTotalRecords(response.data.total || sortedRecords.length);
@@ -518,7 +530,14 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
         }
       }
     } catch (err) {
-      console.error("Failed to fetch attendance:", err);
+      console.error("Failed to fetch attendance data:", err);
+      console.error("Error details:", {
+        message: err.message,
+        employeeId,
+        dateRange,
+        showAbsentDays,
+        statusFilter
+      });
       setAttendanceData([]);
     } finally {
       setLoading(false);
@@ -573,6 +592,34 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
     }
+  };
+
+  // Location handling functions
+  const handleViewLocation = (record) => {
+    try {
+      console.log("Opening location modal for record:", {
+        recordId: record._id,
+        date: record.date,
+        hasLocation: !!record.location,
+        location: record.location
+      });
+      
+      setSelectedLocationRecord(record);
+      setShowLocationModal(true);
+    } catch (err) {
+      console.error("Failed to open location modal:", err);
+      console.error("Record data:", record);
+    }
+  };
+
+  const closeLocationModal = () => {
+    setShowLocationModal(false);
+    setSelectedLocationRecord(null);
+  };
+
+  const hasValidLocation = (record) => {
+    return record?.location?.latitude && record?.location?.longitude &&
+           !isNaN(record.location.latitude) && !isNaN(record.location.longitude);
   };
 
   // Bulk selection handlers
@@ -851,7 +898,7 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check In</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Check Out</th>
-                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Work Hours</th>
+                  <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Location</th>
                   <th className="p-3 text-left font-semibold text-slate-600 dark:text-slate-300">Actions</th>
                 </tr>
               </thead>
@@ -903,9 +950,25 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
                       </div>
                     </td>
                     <td className="p-3">
-                      <span className="font-semibold">
-                        {record.workHours ? `${record.workHours.toFixed(1)}h` : "—"}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        {hasValidLocation(record) ? (
+                          <>
+                            <MapPin className="w-4 h-4 text-green-500" />
+                            <button
+                              onClick={() => handleViewLocation(record)}
+                              className="flex items-center space-x-1 px-2 py-1 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg text-xs transition-colors"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>View</span>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 text-sm flex items-center space-x-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>Not found</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
                       <button
@@ -954,10 +1017,24 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
                     <p className="font-mono text-gray-900 dark:text-gray-100">{formatTime(record.checkOut)}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">Work Hours:</span>
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">
-                      {record.workHours ? `${record.workHours.toFixed(1)}h` : "—"}
-                    </p>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">Location:</span>
+                    <div className="mt-1">
+                      {hasValidLocation(record) ? (
+                        <button
+                          onClick={() => handleViewLocation(record)}
+                          className="flex items-center space-x-1 px-2 py-1 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg text-xs transition-colors"
+                        >
+                          <MapPin className="w-3 h-3" />
+                          <Eye className="w-3 h-3" />
+                          <span>View</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-500 text-sm flex items-center space-x-1">
+                          <MapPin className="w-4 h-4" />
+                          <span>Not found</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <button
@@ -1024,6 +1101,14 @@ const AttendanceTable = ({ employeeId, dateRange, onDateRangeChange, onEditAtten
           )}
         </>
       )}
+
+      {/* Location Map Modal */}
+      <LocationMapModal
+        isOpen={showLocationModal}
+        onClose={closeLocationModal}
+        attendanceRecord={selectedLocationRecord}
+        employeeProfile={passedEmployeeProfile || employeeProfile}
+      />
     </div>
   );
 };
@@ -1034,6 +1119,7 @@ const AttendanceSection = ({ employeeProfile, dateRange, onDateRangeChange, onEd
     <div className="space-y-6">
       <AttendanceTable 
         employeeId={employeeProfile?.employeeId} 
+        employeeProfile={employeeProfile}
         dateRange={dateRange} 
         onDateRangeChange={onDateRangeChange}
         onEditAttendance={onEditAttendance}
