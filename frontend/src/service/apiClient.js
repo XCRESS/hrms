@@ -258,8 +258,8 @@ class ApiClient {
     }
 
     // Check-in and Check-out
-    async checkIn() {
-      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN);
+    async checkIn(locationData = {}) {
+      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, locationData);
     }
     
     async checkOut(tasks) {
