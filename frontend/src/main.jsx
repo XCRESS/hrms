@@ -48,7 +48,7 @@ createRoot(document.getElementById('root')).render(
                 
                 <Route path="employees" element={<EmployeeDirectory />} />
                 <Route path="employees/add" element={<AddEmployee />} />
-                <Route path="link" element={<EmployeeLink />} />
+                <Route path="employees/link" element={<EmployeeLink />} />
                 <Route path="holidays" element={<HolidayManagementPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
                 <Route path="regularization/my" element={<MyRegularizations />} />

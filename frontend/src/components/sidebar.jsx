@@ -68,11 +68,7 @@ export default function SidebarDemo() {
               icon: <Users className={iconClass} />,
             },
             
-            {
-              label: "Link User",
-              href: "/link",
-              icon: <Link2 className={accentIconClass('orange')} />,
-            },
+            
             {
               label: "Requests",
               href: "/admin/requests",
