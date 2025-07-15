@@ -15,17 +15,16 @@ import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
 import EmployeeDirectory from './components/hr/employeeDirectory/EmployeeDirectory.jsx';
 import AddEmployee from './components/hr/employeeDirectory/AddEmployee.jsx';
-import EmployeeLink from './components/hr/EmployeeLink.jsx';
+import EmployeeLink from './components/hr/employeeDirectory/EmployeeLink.jsx';
 import HolidayManagementPage from './components/hr/HolidayManagementPage.jsx';
 import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
-import MyRegularizations from './components/regularization/MyRegularizations.jsx';
 import TaskReportsManage from './components/hr/TaskReportsManage.jsx';
 import MyAttendance from './components/employee/MyAttendance.jsx';
 import MyTaskReports from './components/employee/MyTaskReports.jsx';
 import MySalarySlips from './components/employee/MySalarySlips.jsx';
-import SalarySlipManagement from './components/hr/SalarySlipManagement.jsx';
-import SalaryStructureManagement from './components/hr/SalaryStructureManagement.jsx';
-import SalaryHub from './components/salary/SalaryHub.jsx';
+import SalarySlipManagement from './components/hr/salary/SalarySlipManagement.jsx';
+import SalaryStructureManagement from './components/hr/salary/SalaryStructureManagement.jsx';
+import SalaryHub from './components/hr/salary/SalaryHub.jsx';
 import RequestsPage from './components/requests/RequestsPage.jsx';
 import AdminRequestsPage from './components/hr/AdminRequestsPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
@@ -51,7 +50,6 @@ createRoot(document.getElementById('root')).render(
                 <Route path="employees/link" element={<EmployeeLink />} />
                 <Route path="holidays" element={<HolidayManagementPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
-                <Route path="regularization/my" element={<MyRegularizations />} />
                 <Route path="attendance/my" element={<MyAttendance />} />
                 <Route path="task-reports/my" element={<MyTaskReports />} />
                 <Route path="salary-slips/my" element={<MySalarySlips />} />
