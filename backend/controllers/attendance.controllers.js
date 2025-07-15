@@ -746,6 +746,7 @@ export const getAdminAttendanceRange = async (req, res) => {
         if (attendanceRecord) {
           // Has attendance record
           weekData[dateKey] = {
+            _id: attendanceRecord._id,
             checkIn: attendanceRecord.checkIn,
             checkOut: attendanceRecord.checkOut,
             status: attendanceRecord.status || 'present'
