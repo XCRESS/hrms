@@ -457,23 +457,56 @@ const AdminAttendanceTable = () => {
       return;
     }
 
-    let present = 0, absent = 0, leave = 0, weekend = 0;
-    const total = records.length;
+    // Calculate unique employees for each status across all days in the window
+    const employeeStatuses = new Set();
+    const presentEmployees = new Set();
+    const absentEmployees = new Set();
+    const leaveEmployees = new Set();
+    const weekendEmployees = new Set();
 
     records.forEach(record => {
+      const employeeId = record.employee?._id || record.employee?.employeeId;
+      if (!employeeId) return;
+
+      let hasPresence = false;
+      let hasAbsence = false;
+      let hasLeave = false;
+      let hasWeekend = false;
+
+      // Check this employee's status across all days in the window
       windowDays.forEach(day => {
         const attendance = getAttendanceForDay(record, day);
+        
         if (attendance.status === 'weekend') {
-          weekend++;
+          hasWeekend = true;
         } else if (attendance.status === 'leave') {
-          leave++;
+          hasLeave = true;
         } else if (attendance.checkIn || attendance.checkOut) {
-          present++;
+          hasPresence = true;
         } else {
-          absent++;
+          hasAbsence = true;
         }
       });
+
+      // Prioritize status: present > leave > absent > weekend
+      if (hasPresence) {
+        presentEmployees.add(employeeId);
+      } else if (hasLeave) {
+        leaveEmployees.add(employeeId);
+      } else if (hasAbsence) {
+        absentEmployees.add(employeeId);
+      } else if (hasWeekend) {
+        weekendEmployees.add(employeeId);
+      }
+
+      employeeStatuses.add(employeeId);
     });
+
+    const total = employeeStatuses.size;
+    const present = presentEmployees.size;
+    const absent = absentEmployees.size;
+    const leave = leaveEmployees.size;
+    const weekend = weekendEmployees.size;
 
     setStats({ total, present, absent, leave, weekend });
   };
