@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut } from "lucide-react";
+import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin } from "lucide-react";
 
 const Header = ({
   username,
@@ -10,6 +10,7 @@ const Header = ({
   dailyCycleComplete,
   checkInLoading,
   checkOutLoading,
+  locationLoading,
   handleCheckIn,
   handleCheckOut,
   isLoading,
@@ -86,21 +87,30 @@ const Header = ({
       <div className="grid grid-cols-2 gap-4 w-full mt-6">
         <button
           onClick={handleCheckIn}
-          disabled={isCheckedIn || checkInLoading || dailyCycleComplete}
+          disabled={isCheckedIn || checkInLoading || locationLoading || dailyCycleComplete}
           className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 shadow-lg border ${
             dailyCycleComplete
               ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed dark:bg-neutral-700/50 dark:text-neutral-500 border-neutral-300 dark:border-neutral-600'
-              : isCheckedIn || checkInLoading
+              : isCheckedIn || checkInLoading || locationLoading
               ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed dark:bg-neutral-600 dark:text-neutral-400 border-neutral-400 dark:border-neutral-500'
               : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 focus:ring-green-400 border-green-600 hover:shadow-xl'
           }`}
         >
-          <LogIn size={18} className="mr-2" />
-          {checkInLoading
-            ? "Checking in..."
-            : dailyCycleComplete
-              ? "Completed"
-              : "Check In"}
+          {locationLoading ? (
+            <>
+              <MapPin size={18} className="mr-2 animate-pulse" />
+              Getting location...
+            </>
+          ) : (
+            <>
+              <LogIn size={18} className="mr-2" />
+              {checkInLoading
+                ? "Checking in..."
+                : dailyCycleComplete
+                  ? "Completed"
+                  : "Check In"}
+            </>
+          )}
         </button>
 
         <button
