@@ -5,7 +5,7 @@ import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
 import InactiveEmployees from '../InactiveEmployees';
-import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle } from 'lucide-react';
+import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2 } from 'lucide-react';
 import { useToast } from '../../ui/toast';
 
 
@@ -290,6 +290,13 @@ export default function EmployeeDirectory() {
           >
             <PlusCircle className="w-4 h-4" />
             <span>Add Employee</span>
+          </button>
+          <button
+            onClick={() => navigate('/employees/link')}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 text-white shadow-md hover:bg-blue-700"
+          >
+            <Link2 className="w-4 h-4" />
+            <span>Link User</span>
           </button>
         </div>
       </div>
