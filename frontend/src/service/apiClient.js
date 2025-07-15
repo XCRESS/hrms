@@ -283,6 +283,15 @@ class ApiClient {
       return this.get("/attendance/today-with-absents");
     }
 
+    // Get admin attendance data for a date range - optimized for AdminAttendanceTable
+    async getAdminAttendanceRange(startDate, endDate) {
+      const queryParams = new URLSearchParams({
+        startDate: startDate,
+        endDate: endDate
+      });
+      return this.get(`/attendance/admin-range?${queryParams.toString()}`);
+    }
+
     // Get employee attendance with absent days included
     async getEmployeeAttendanceWithAbsents(params = {}) {
       const queryString = new URLSearchParams(params).toString();
