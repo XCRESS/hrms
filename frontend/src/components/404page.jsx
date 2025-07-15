@@ -141,7 +141,7 @@ export default function Epic404Page() {
       window.cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [cursorPosition.x, cursorPosition.y, particles]);
   
   // Track cursor position for interactive elements
   useEffect(() => {

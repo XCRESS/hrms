@@ -75,6 +75,9 @@ export const checkIn = async (req, res) => {
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
 
+    // Extract location data from request body
+    const { latitude, longitude } = req.body;
+
     // Determine start and end of the current day in UTC
     const now = new Date();
     const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
@@ -95,13 +98,24 @@ export const checkIn = async (req, res) => {
     // For this fix, we're primarily concerned with the query for existing records.
     // The `new Date()` for `date` and `checkIn` fields will store the exact current UTC timestamp.
     const employeeDoc = await Employee.findById(employeeObjId);
-    attendance = await Attendance.create({
+    
+    const attendanceData = {
       employee: employeeObjId,
       employeeName: employeeDoc ? `${employeeDoc.firstName} ${employeeDoc.lastName}` : "",
       date: new Date(), // Exact timestamp of check-in
       checkIn: new Date(), // Exact timestamp of check-in
       status: "present"
-    });
+    };
+
+    // Add location data if provided
+    if (latitude && longitude) {
+      attendanceData.location = {
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude)
+      };
+    }
+
+    attendance = await Attendance.create(attendanceData);
     res.status(201).json(formatResponse(true, "Checked in successfully", { attendance }));
   } catch (err) {
     let errorMessage = "Check-in failed";
@@ -941,7 +955,8 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
             workHours: workHours,
             comments: attendanceRecord.comments,
             reason: attendanceRecord.reason,
-            employeeName: `${employee.firstName} ${employee.lastName}`
+            employeeName: `${employee.firstName} ${employee.lastName}`,
+            location: attendanceRecord.location // Include location data
           });
         } else {
           // Employee was absent this day

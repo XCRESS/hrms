@@ -48,6 +48,7 @@ export default function HRMSDashboard() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState([]);
   const [holidaysData, setHolidaysData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -260,8 +261,43 @@ export default function HRMSDashboard() {
 
   const handleCheckIn = async () => {
     setCheckInLoading(true);
+    let locationData = {};
+    
     try {
-      const response = await apiClient.checkIn();
+      // First try to get location
+      setLocationLoading(true);
+      
+      if (navigator.geolocation) {
+        try {
+          locationData = await new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                resolve({
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude
+                });
+              },
+              (error) => {
+                console.warn("Location access denied or failed:", error.message);
+                resolve({}); // Continue with check-in even if location fails
+              },
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+              }
+            );
+          });
+        } catch (error) {
+          console.warn("Geolocation error:", error);
+          // Continue with check-in even if location fails
+        }
+      }
+      
+      setLocationLoading(false);
+      
+      // Proceed with check-in
+      const response = await apiClient.checkIn(locationData);
       if (response.success) {
         toast({
           variant: "success",
@@ -283,6 +319,7 @@ export default function HRMSDashboard() {
       });
     } finally {
       setCheckInLoading(false);
+      setLocationLoading(false);
     }
   };
 
@@ -505,6 +542,7 @@ export default function HRMSDashboard() {
           dailyCycleComplete={dailyCycleComplete}
           checkInLoading={checkInLoading}
           checkOutLoading={checkOutLoading}
+          locationLoading={locationLoading}
           handleCheckIn={handleCheckIn}
           handleCheckOut={handleCheckOut}
           isLoading={isLoading}
