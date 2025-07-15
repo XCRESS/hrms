@@ -608,6 +608,225 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
 };
 
 /**
+ * Get admin attendance data for a date range - optimized for AdminAttendanceTable
+ * This shows all employees and their attendance for multiple dates
+ */
+export const getAdminAttendanceRange = async (req, res) => {
+  try {
+    // Only allow admin/hr to access this endpoint
+    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
+      return res.status(403).json(formatResponse(false, "Access denied. Admin/HR role required."));
+    }
+
+    const { startDate, endDate } = req.query;
+    
+    // Validate required parameters
+    if (!startDate || !endDate) {
+      return res.status(400).json(formatResponse(false, "Start date and end date are required"));
+    }
+
+    // Parse date range using local time
+    const startDateObj = new Date(startDate + 'T00:00:00');
+    const endDateObj = new Date(endDate + 'T23:59:59');
+
+    // Get all active employees
+    const allEmployees = await Employee.find({ isActive: true })
+      .select('_id firstName lastName employeeId department position')
+      .sort({ firstName: 1, lastName: 1 });
+
+    // Get all attendance records for the date range
+    const attendanceRecords = await Attendance.find({
+      date: { $gte: startDateObj, $lte: endDateObj }
+    }).populate('employee', 'firstName lastName employeeId department');
+
+    // Get approved leaves for the date range
+    const approvedLeaves = await Leave.find({
+      status: 'approved',
+      leaveDate: { $gte: startDateObj, $lte: endDateObj }
+    });
+
+    // Create maps for quick lookup
+    const attendanceMap = new Map();
+    const leaveMap = new Map();
+
+    // Group attendance by employee and date
+    attendanceRecords.forEach(record => {
+      if (record.employee && record.employee._id) {
+        const empId = record.employee._id.toString();
+        // Format date as YYYY-MM-DD using local time
+        const year = record.date.getFullYear();
+        const month = String(record.date.getMonth() + 1).padStart(2, '0');
+        const day = String(record.date.getDate()).padStart(2, '0');
+        const dateKey = `${year}-${month}-${day}`;
+        
+        if (!attendanceMap.has(empId)) {
+          attendanceMap.set(empId, new Map());
+        }
+        attendanceMap.get(empId).set(dateKey, record);
+      }
+    });
+
+    // Group leaves by employee and date
+    approvedLeaves.forEach(leave => {
+      const empId = leave.employeeId;
+      // Format date as YYYY-MM-DD using local time
+      const year = leave.leaveDate.getFullYear();
+      const month = String(leave.leaveDate.getMonth() + 1).padStart(2, '0');
+      const day = String(leave.leaveDate.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
+      
+      if (!leaveMap.has(empId)) {
+        leaveMap.set(empId, new Set());
+      }
+      leaveMap.get(empId).add(dateKey);
+    });
+
+    // Helper function to check if date is working day
+    const isWorkingDay = (date) => {
+      const dayOfWeek = date.getDay();
+      // Skip Sundays
+      if (dayOfWeek === 0) return false;
+      
+      // Check if it's 2nd Saturday of the month
+      if (dayOfWeek === 6) {
+        const dateNum = date.getDate();
+        const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const firstSaturday = 7 - firstOfMonth.getDay();
+        const secondSaturday = firstSaturday + 7;
+        
+        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+          return false; // 2nd Saturday is not a working day
+        }
+      }
+      
+      return true;
+    };
+
+    // Generate working days in the range
+    const workingDays = [];
+    const currentDate = new Date(startDateObj);
+    
+    while (currentDate <= endDateObj) {
+      if (isWorkingDay(currentDate)) {
+        workingDays.push(new Date(currentDate));
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Build the complete attendance data
+    const employeeAttendanceData = allEmployees.map(employee => {
+      const empId = employee._id.toString();
+      const employeeAttendance = attendanceMap.get(empId) || new Map();
+      const employeeLeaves = leaveMap.get(employee.employeeId) || new Set();
+      
+      const weekData = {};
+      
+      workingDays.forEach(day => {
+        // Format date as YYYY-MM-DD using local time
+        const year = day.getFullYear();
+        const month = String(day.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(day.getDate()).padStart(2, '0');
+        const dateKey = `${year}-${month}-${dayNum}`;
+        const attendanceRecord = employeeAttendance.get(dateKey);
+        
+        if (attendanceRecord) {
+          // Has attendance record
+          weekData[dateKey] = {
+            checkIn: attendanceRecord.checkIn,
+            checkOut: attendanceRecord.checkOut,
+            status: attendanceRecord.status || 'present'
+          };
+        } else if (employeeLeaves.has(dateKey)) {
+          // On approved leave
+          weekData[dateKey] = {
+            checkIn: null,
+            checkOut: null,
+            status: 'leave'
+          };
+        } else {
+          // Absent
+          weekData[dateKey] = {
+            checkIn: null,
+            checkOut: null,
+            status: 'absent'
+          };
+        }
+      });
+
+      return {
+        employee: {
+          _id: employee._id,
+          employeeId: employee.employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          department: employee.department
+        },
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        weekData: weekData
+      };
+    });
+
+    // Calculate summary stats for today if it's in the range
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+    const todayDay = String(today.getDate()).padStart(2, '0');
+    const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
+    let todayStats = { total: 0, present: 0, absent: 0, leave: 0 };
+    
+    if (workingDays.some(day => {
+      const year = day.getFullYear();
+      const month = String(day.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(day.getDate()).padStart(2, '0');
+      return `${year}-${month}-${dayNum}` === todayKey;
+    })) {
+      employeeAttendanceData.forEach(record => {
+        const todayData = record.weekData[todayKey];
+        if (todayData) {
+          todayStats.total++;
+          if (todayData.status === 'present' || todayData.checkIn) {
+            todayStats.present++;
+          } else if (todayData.status === 'leave') {
+            todayStats.leave++;
+          } else {
+            todayStats.absent++;
+          }
+        }
+      });
+    }
+
+    res.json(formatResponse(true, "Admin attendance range retrieved successfully", {
+      records: employeeAttendanceData,
+      workingDays: workingDays.map(day => {
+        const year = day.getFullYear();
+        const month = String(day.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(day.getDate()).padStart(2, '0');
+        return `${year}-${month}-${dayNum}`;
+      }),
+      stats: todayStats,
+      dateRange: {
+        startDate: (() => {
+          const year = startDateObj.getFullYear();
+          const month = String(startDateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(startDateObj.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
+        endDate: (() => {
+          const year = endDateObj.getFullYear();
+          const month = String(endDateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(endDateObj.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })()
+      }
+    }));
+
+  } catch (err) {
+    console.error("Error fetching admin attendance range:", err);
+    res.status(500).json(formatResponse(false, "Failed to fetch admin attendance range", null, { server: err.message }));
+  }
+};
+
+/**
  * Get employee attendance with absent days included for a date range
  * This shows all working days in the range, marking days without records as absent
  */

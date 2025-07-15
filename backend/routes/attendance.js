@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
+import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getAdminAttendanceRange, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
 const router = Router();
@@ -20,6 +20,9 @@ router.get("/my", authMiddleware(), getMyAttendance);
 
 // Admin/HR: Get today's attendance for all employees (including absent ones)
 router.get("/today-with-absents", authMiddleware(), getTodayAttendanceWithAbsents);
+
+// Admin/HR: Get attendance data for a date range - optimized for AdminAttendanceTable
+router.get("/admin-range", authMiddleware(), getAdminAttendanceRange);
 
 // Get employee attendance with absent days included
 router.get("/employee-with-absents", authMiddleware(), getEmployeeAttendanceWithAbsents);
