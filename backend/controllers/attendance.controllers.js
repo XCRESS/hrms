@@ -639,9 +639,12 @@ export const getAdminAttendanceRange = async (req, res) => {
       return res.status(400).json(formatResponse(false, "Start date and end date are required"));
     }
 
-    // Parse date range using local time
-    const startDateObj = new Date(startDate + 'T00:00:00');
-    const endDateObj = new Date(endDate + 'T23:59:59');
+    // Parse date range using local time - handle as local dates
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+    
+    const startDateObj = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const endDateObj = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
     // Get all active employees
     const allEmployees = await Employee.find({ isActive: true })
@@ -695,7 +698,7 @@ export const getAdminAttendanceRange = async (req, res) => {
       leaveMap.get(empId).add(dateKey);
     });
 
-    // Helper function to check if date is working day
+    // Helper function to check if date is working day (for styling/metadata purposes)
     const isWorkingDay = (date) => {
       const dayOfWeek = date.getDay();
       // Skip Sundays
@@ -716,14 +719,15 @@ export const getAdminAttendanceRange = async (req, res) => {
       return true;
     };
 
-    // Generate working days in the range
-    const workingDays = [];
+    // Generate all calendar days in the range (including weekends)
+    const allDays = [];
     const currentDate = new Date(startDateObj);
     
     while (currentDate <= endDateObj) {
-      if (isWorkingDay(currentDate)) {
-        workingDays.push(new Date(currentDate));
-      }
+      allDays.push({
+        date: new Date(currentDate),
+        isWorkingDay: isWorkingDay(currentDate)
+      });
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
@@ -735,7 +739,8 @@ export const getAdminAttendanceRange = async (req, res) => {
       
       const weekData = {};
       
-      workingDays.forEach(day => {
+      allDays.forEach(dayObj => {
+        const day = dayObj.date;
         // Format date as YYYY-MM-DD using local time
         const year = day.getFullYear();
         const month = String(day.getMonth() + 1).padStart(2, '0');
@@ -749,21 +754,24 @@ export const getAdminAttendanceRange = async (req, res) => {
             _id: attendanceRecord._id,
             checkIn: attendanceRecord.checkIn,
             checkOut: attendanceRecord.checkOut,
-            status: attendanceRecord.status || 'present'
+            status: attendanceRecord.status || 'present',
+            isWorkingDay: dayObj.isWorkingDay
           };
         } else if (employeeLeaves.has(dateKey)) {
           // On approved leave
           weekData[dateKey] = {
             checkIn: null,
             checkOut: null,
-            status: 'leave'
+            status: 'leave',
+            isWorkingDay: dayObj.isWorkingDay
           };
         } else {
-          // Absent
+          // Absent (or weekend)
           weekData[dateKey] = {
             checkIn: null,
             checkOut: null,
-            status: 'absent'
+            status: dayObj.isWorkingDay ? 'absent' : 'weekend',
+            isWorkingDay: dayObj.isWorkingDay
           };
         }
       });
@@ -787,9 +795,10 @@ export const getAdminAttendanceRange = async (req, res) => {
     const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
     const todayDay = String(today.getDate()).padStart(2, '0');
     const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
-    let todayStats = { total: 0, present: 0, absent: 0, leave: 0 };
+    let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0 };
     
-    if (workingDays.some(day => {
+    if (allDays.some(dayObj => {
+      const day = dayObj.date;
       const year = day.getFullYear();
       const month = String(day.getMonth() + 1).padStart(2, '0');
       const dayNum = String(day.getDate()).padStart(2, '0');
@@ -803,6 +812,8 @@ export const getAdminAttendanceRange = async (req, res) => {
             todayStats.present++;
           } else if (todayData.status === 'leave') {
             todayStats.leave++;
+          } else if (todayData.status === 'weekend') {
+            todayStats.weekend++;
           } else {
             todayStats.absent++;
           }
@@ -812,7 +823,19 @@ export const getAdminAttendanceRange = async (req, res) => {
 
     res.json(formatResponse(true, "Admin attendance range retrieved successfully", {
       records: employeeAttendanceData,
-      workingDays: workingDays.map(day => {
+      allDays: allDays.map(dayObj => {
+        const day = dayObj.date;
+        const year = day.getFullYear();
+        const month = String(day.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(day.getDate()).padStart(2, '0');
+        return {
+          date: `${year}-${month}-${dayNum}`,
+          isWorkingDay: dayObj.isWorkingDay
+        };
+      }),
+      // Keep workingDays for backward compatibility
+      workingDays: allDays.map(dayObj => {
+        const day = dayObj.date;
         const year = day.getFullYear();
         const month = String(day.getMonth() + 1).padStart(2, '0');
         const dayNum = String(day.getDate()).padStart(2, '0');

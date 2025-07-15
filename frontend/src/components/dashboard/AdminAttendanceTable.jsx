@@ -333,7 +333,7 @@ const AdminAttendanceTable = () => {
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0 });
+  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
   const [allWorkingDays, setAllWorkingDays] = useState([]);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0); // Index for sliding window
   const [selectedMonth, setSelectedMonth] = useState(new Date()); // Current selected month
@@ -376,15 +376,24 @@ const AdminAttendanceTable = () => {
         setMonthlyAttendanceData(response.data.records || []);
         setAttendanceData(response.data.records || []);
         
-        // Use backend's working days
-        if (response.data.workingDays) {
-          const monthWorkingDays = response.data.workingDays.map(dateStr => {
-            // Parse date string as local date to avoid timezone shift
+        // Use backend's all days (including weekends)
+        if (response.data.allDays || response.data.workingDays) {
+          // Use allDays if available, otherwise fallback to workingDays for backward compatibility
+          const dayData = response.data.allDays || response.data.workingDays.map(dateStr => ({ 
+            date: dateStr, 
+            isWorkingDay: true 
+          }));
+          
+          const monthAllDays = dayData.map(dayObj => {
+            const dateStr = dayObj.date || dayObj;
             const [year, month, day] = dateStr.split('-');
-            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            return {
+              date: new Date(parseInt(year), parseInt(month) - 1, parseInt(day)),
+              isWorkingDay: dayObj.isWorkingDay !== undefined ? dayObj.isWorkingDay : true
+            };
           });
           
-          setAllWorkingDays(monthWorkingDays);
+          setAllWorkingDays(monthAllDays.map(d => d.date));
           
           // Find initial window that includes today (if current month) or last 4 days
           const today = new Date();
@@ -394,26 +403,28 @@ const AdminAttendanceTable = () => {
           let initialWindow;
           let initialWindowIndex = 0;
           
-          if (isCurrentMonth && monthWorkingDays.length > 0) {
-            // Find today in working days and center the window around it
-            const todayIndex = monthWorkingDays.findIndex(day => 
+          const allDates = monthAllDays.map(d => d.date);
+          
+          if (isCurrentMonth && allDates.length > 0) {
+            // Find today in all days and center the window around it
+            const todayIndex = allDates.findIndex(day => 
               day.toDateString() === today.toDateString()
             );
             
             if (todayIndex !== -1) {
               // Show window ending with today
-              const endIndex = Math.min(todayIndex + 1, monthWorkingDays.length);
+              const endIndex = Math.min(todayIndex + 1, allDates.length);
               const startIndex = Math.max(0, endIndex - 4);
-              initialWindow = monthWorkingDays.slice(startIndex, startIndex + 4);
-              initialWindowIndex = Math.max(0, monthWorkingDays.length - 4 - startIndex);
+              initialWindow = allDates.slice(startIndex, startIndex + 4);
+              initialWindowIndex = Math.max(0, allDates.length - 4 - startIndex);
             } else {
               // Today not found, show last 4 days
-              initialWindow = monthWorkingDays.slice(-4);
+              initialWindow = allDates.slice(-4);
               initialWindowIndex = 0;
             }
           } else {
-            // For past months, show last 4 working days
-            initialWindow = monthWorkingDays.slice(-4);
+            // For past months, show last 4 days
+            initialWindow = allDates.slice(-4);
             initialWindowIndex = 0;
           }
           
@@ -426,7 +437,7 @@ const AdminAttendanceTable = () => {
           // Fallback: if no working days from backend, show empty
           setAllWorkingDays([]);
           setWorkingDays([]);
-          setStats({ total: 0, present: 0, absent: 0, leave: 0 });
+          setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
         }
       } else {
         setError(response.message || 'Failed to fetch attendance data');
@@ -442,17 +453,19 @@ const AdminAttendanceTable = () => {
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
     if (windowDays.length === 0 || records.length === 0) {
-      setStats({ total: 0, present: 0, absent: 0, leave: 0 });
+      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
       return;
     }
 
-    let present = 0, absent = 0, leave = 0;
+    let present = 0, absent = 0, leave = 0, weekend = 0;
     const total = records.length;
 
     records.forEach(record => {
       windowDays.forEach(day => {
         const attendance = getAttendanceForDay(record, day);
-        if (attendance.status === 'leave') {
+        if (attendance.status === 'weekend') {
+          weekend++;
+        } else if (attendance.status === 'leave') {
           leave++;
         } else if (attendance.checkIn || attendance.checkOut) {
           present++;
@@ -462,7 +475,7 @@ const AdminAttendanceTable = () => {
       });
     });
 
-    setStats({ total, present, absent, leave });
+    setStats({ total, present, absent, leave, weekend });
   };
 
   const handleEditClick = (record, day) => {
@@ -554,6 +567,9 @@ const AdminAttendanceTable = () => {
   }, [selectedMonth]);
 
   const getAttendanceIcon = (attendance) => {
+    if (attendance.status === 'weekend') {
+      return <XCircle className="w-4 h-4 text-gray-400" />;
+    }
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) {
       return <XCircle className="w-4 h-4 text-red-500" />;
     }
@@ -572,6 +588,9 @@ const AdminAttendanceTable = () => {
   const getAttendanceBadgeClass = (attendance) => {
     const baseClasses = "px-3 py-2 rounded-lg text-sm font-medium flex flex-col items-center gap-1 min-h-[60px] justify-center";
     
+    if (attendance.status === 'weekend') {
+      return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
+    }
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) {
       return `${baseClasses} bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300`;
     }
@@ -600,11 +619,17 @@ const AdminAttendanceTable = () => {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    const day = dayNames[date.getDay()];
+    const dayOfWeek = date.getDay();
+    const day = dayNames[dayOfWeek];
     const dateNum = date.getDate().toString().padStart(2, '0');
     const month = monthNames[date.getMonth()];
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
     
-    return { day, dateStr: `${dateNum} ${month}` };
+    return { 
+      day, 
+      dateStr: `${dateNum} ${month}`,
+      isWeekend
+    };
   };
 
   const getAttendanceForDay = (record, date) => {
@@ -617,6 +642,7 @@ const AdminAttendanceTable = () => {
   };
 
   const getAttendanceStatusText = (attendance) => {
+    if (attendance.status === 'weekend') return 'Weekend';
     if (attendance.status === 'leave') return 'Leave';
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) return 'Absent';
     if (attendance.checkIn && !attendance.checkOut) return null; // No text for check-in only
@@ -647,7 +673,7 @@ const AdminAttendanceTable = () => {
         <div className="text-center text-red-500 py-4">
           <p>{error}</p>
           <button 
-            onClick={fetchAttendanceData}
+            onClick={() => fetchMonthlyAttendanceData(selectedMonth)}
             className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
           >
             Retry
@@ -696,16 +722,19 @@ const AdminAttendanceTable = () => {
             <select 
               value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
               onChange={handleMonthChange}
-              className="text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
             >
               {(() => {
                 const options = [];
                 const today = new Date();
+                const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 // Show last 12 months
                 for (let i = 0; i < 12; i++) {
                   const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
                   const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                  const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                  const monthShort = monthShortNames[date.getMonth()];
+                  const yearShort = String(date.getFullYear()).slice(-2);
+                  const label = `${monthShort} ${yearShort}`;
                   options.push(
                     <option key={value} value={value}>
                       {label}
@@ -752,16 +781,26 @@ const AdminAttendanceTable = () => {
                 <div className="mt-3 space-y-2">
                   {workingDays.map((day, dayIndex) => {
                     const dayAttendance = getAttendanceForDay(record, day);
-                    const { day: dayName, dateStr } = formatDayDate(day);
+                    const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                     return (
                       <div 
                         key={dayIndex} 
-                        className="border rounded-lg p-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        className={`border rounded-lg p-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 ${
+                          isWeekend ? 'bg-neutral-50 dark:bg-neutral-800/50' : ''
+                        }`}
                         onClick={() => handleEditClick(record, day)}
                       >
                         <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{dayName}</span>
-                          <span className="text-xs text-neutral-500 dark:text-neutral-400">{dateStr}</span>
+                          <span className={`text-sm font-medium ${
+                            isWeekend 
+                              ? 'text-neutral-500 dark:text-neutral-400' 
+                              : 'text-neutral-700 dark:text-neutral-300'
+                          }`}>{dayName}</span>
+                          <span className={`text-xs ${
+                            isWeekend 
+                              ? 'text-neutral-400 dark:text-neutral-500' 
+                              : 'text-neutral-500 dark:text-neutral-400'
+                          }`}>{dateStr}</span>
                         </div>
                         <div className={getAttendanceBadgeClass(dayAttendance)}>
                           {getAttendanceIcon(dayAttendance)}
@@ -798,12 +837,20 @@ const AdminAttendanceTable = () => {
             <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
               <th className="text-left py-4 px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-sm">Employee</th>
               {workingDays.map((day, index) => {
-                const { day: dayName, dateStr } = formatDayDate(day);
+                const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                 return (
-                  <th key={index} className="text-center py-4 px-2 font-semibold text-neutral-700 dark:text-neutral-300 text-sm min-w-[80px]">
+                  <th key={index} className={`text-center py-4 px-2 font-semibold text-sm min-w-[80px] ${
+                    isWeekend 
+                      ? 'text-neutral-500 dark:text-neutral-400' 
+                      : 'text-neutral-700 dark:text-neutral-300'
+                  }`}>
                     <div className="flex flex-col items-center">
-                      <span>{dayName}</span>
-                      <span className="text-xs text-neutral-500 dark:text-neutral-400">{dateStr}</span>
+                      <span className={isWeekend ? 'text-neutral-400 dark:text-neutral-500' : ''}>{dayName}</span>
+                      <span className={`text-xs ${
+                        isWeekend 
+                          ? 'text-neutral-400 dark:text-neutral-500' 
+                          : 'text-neutral-500 dark:text-neutral-400'
+                      }`}>{dateStr}</span>
                     </div>
                   </th>
                 );
