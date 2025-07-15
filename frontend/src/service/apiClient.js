@@ -80,7 +80,10 @@ class ApiClient {
         // If it's a network error (like server not available), mark it as such
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
           error.isServerUnavailable = true;
-          console.error("API Server Unavailable", error);
+          // Only log server unavailable errors in development or if not already logged
+          if (import.meta.env.MODE !== 'production') {
+            console.error("API Server Unavailable", error);
+          }
         } else if (!error.isValidationError) {
           // Only log unexpected errors that haven't been logged already
           console.error("API Error", error);

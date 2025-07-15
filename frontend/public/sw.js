@@ -2,7 +2,7 @@
 // Handles push notifications and background sync
 
 // Install event - activate immediately
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   console.log('Service Worker installing...');
   self.skipWaiting();
 });
@@ -19,14 +19,42 @@ self.addEventListener('activate', (event) => {
           return caches.delete(cacheName);
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => self.clients.claim()).then(() => {
+      // Start scheduling check-in reminders when service worker activates
+      scheduleCheckInReminder();
+    })
   );
 });
 
-// No caching - all requests go to network
+// No caching - all requests go to network with error handling
 self.addEventListener('fetch', (event) => {
-  // Simply fetch from network without caching
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    fetch(event.request).catch(error => {
+      console.warn('Service Worker fetch failed:', error);
+      // Return a custom offline response for API calls
+      if (event.request.url.includes('/api/')) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Server temporarily unavailable. Please try again.',
+            error: 'NETWORK_ERROR'
+          }),
+          {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+      }
+      // For other requests, return a basic error response
+      return new Response('Network error occurred', {
+        status: 503,
+        statusText: 'Service Unavailable'
+      });
+    })
+  );
 });
 
 // Push notification handler
@@ -70,7 +98,7 @@ self.addEventListener('notificationclick', (event) => {
   const urlToOpen = event.notification.data?.url || '/';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Check if app is already open
         for (const client of clientList) {
@@ -84,8 +112,8 @@ self.addEventListener('notificationclick', (event) => {
         }
         
         // Open new window if app is not open
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(urlToOpen);
         }
       })
   );
@@ -133,10 +161,6 @@ function scheduleCheckInReminder() {
   }, timeUntilReminder);
 }
 
-// Start scheduling check-in reminders when service worker activates
-self.addEventListener('activate', (event) => {
-  scheduleCheckInReminder();
-});
 
 // Handle background sync
 self.addEventListener('sync', (event) => {
