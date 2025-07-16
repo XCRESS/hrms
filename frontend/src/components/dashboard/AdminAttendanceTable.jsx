@@ -41,7 +41,16 @@ const TimeInput = ({ value, onChange, className, placeholder }) => {
       if (newTimeState.period === 'AM' && hour24 === 12) hour24 = 0;
       if (newTimeState.period === 'PM' && hour24 !== 12) hour24 += 12;
       
-      const baseDate = value ? value.split('T')[0] : new Date().toISOString().split('T')[0];
+      // Get the base date from the existing value to preserve the correct attendance date
+      let baseDate;
+      if (value) {
+        baseDate = value.split('T')[0];
+      } else {
+        // If no existing value, we should not default to today's date - this should come from the record date
+        console.warn('No base date available for time input');
+        baseDate = new Date().toISOString().split('T')[0];
+      }
+      
       const datetimeValue = `${baseDate}T${hour24.toString().padStart(2, '0')}:${newTimeState.minute}:00`;
       onChange(datetimeValue);
     } else if (!newTimeState.hour && !newTimeState.minute) {
@@ -116,14 +125,19 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       const formatTimeForInput = (date, defaultTime) => {
         if (!date && !defaultTime) return '';
         
+        // Use the record date to ensure we're working with the correct date
         const recordDate = new Date(record.date);
-        const baseDate = recordDate.toISOString().split('T')[0];
+        // Format as YYYY-MM-DD using local time components to avoid timezone issues
+        const year = recordDate.getFullYear();
+        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+        const day = String(recordDate.getDate()).padStart(2, '0');
+        const baseDate = `${year}-${month}-${day}`;
         
         if (date) {
-          // Convert existing UTC date to local time for display
-          const localDate = new Date(date);
-          const hours = localDate.getHours().toString().padStart(2, '0');
-          const minutes = localDate.getMinutes().toString().padStart(2, '0');
+          // Convert existing date to local time for display
+          const existingDate = new Date(date);
+          const hours = existingDate.getHours().toString().padStart(2, '0');
+          const minutes = existingDate.getMinutes().toString().padStart(2, '0');
           return `${baseDate}T${hours}:${minutes}`;
         } else if (defaultTime) {
           return `${baseDate}T${defaultTime}`;
@@ -142,7 +156,11 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
 
   const handleStatusChange = (status) => {
     const recordDate = new Date(record?.date || new Date());
-    const baseDate = recordDate.toISOString().split('T')[0];
+    // Format as YYYY-MM-DD using local time components to avoid timezone issues
+    const year = recordDate.getFullYear();
+    const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+    const day = String(recordDate.getDate()).padStart(2, '0');
+    const baseDate = `${year}-${month}-${day}`;
     
     setFormData(prev => {
       const newData = { ...prev, status };
