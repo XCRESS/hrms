@@ -1110,7 +1110,7 @@ export const updateAttendanceRecord = async (req, res) => {
       switch (status) {
         case 'present':
           // Only set defaults if not explicitly provided in request
-          if (!checkIn && !attendanceRecord.checkIn) {
+          if (checkIn === undefined && !attendanceRecord.checkIn) {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
           if (checkOut === undefined && !attendanceRecord.checkOut) {
@@ -1119,7 +1119,7 @@ export const updateAttendanceRecord = async (req, res) => {
           break;
         case 'half-day':
           // Only set default check-in if not explicitly provided in request
-          if (!checkIn && !attendanceRecord.checkIn) {
+          if (checkIn === undefined && !attendanceRecord.checkIn) {
             attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
           }
           // Set half-day checkout (1:30 PM) unless explicitly provided
