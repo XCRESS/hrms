@@ -38,7 +38,7 @@ const AddEmployee = () => {
     fatherPhone: "",
     motherPhone: "",
     officeAddress: "",
-    companyName: "Codefast ",
+    companyName: "",
     department: "",
     position: "",
     paymentMode: "",
@@ -76,7 +76,7 @@ const AddEmployee = () => {
     const requiredFields = [
       "employeeId", "firstName", "lastName", "gender",
       "maritalStatus", "email", "phone", "aadhaarNumber", "panNumber",
-      "officeAddress", "department", "position", "employmentType",
+      "officeAddress", "companyName", "department", "position", "employmentType",
       "reportingSupervisor", "paymentMode", "bankName",
       "bankAccountNumber", "bankIFSCCode", "emergencyContactName",
       "emergencyContactNumber",
@@ -404,12 +404,27 @@ const AddEmployee = () => {
               </LabelInputContainer>
               <LabelInputContainer>
                 <Label htmlFor="companyName">Company Name</Label>
-                <Input
-                  id="companyName"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                />
+                <Select
+                  onValueChange={(value) =>
+                    handleSelectChange("companyName", value)
+                  }
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Indra Financial Services Limited">
+                      Indra Financial Services Limited
+                    </SelectItem>
+                    <SelectItem value="COSMOS INVESTIFIASSET MANAGEMENT LLP">
+                      COSMOS INVESTIFIASSET MANAGEMENT LLP
+                    </SelectItem>
+                    <SelectItem value="SENSIBLE TAX ADVISORY LLP">
+                      SENSIBLE TAX ADVISORY LLP
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </LabelInputContainer>
               <LabelInputContainer>
                 <Label htmlFor="department">Department</Label>

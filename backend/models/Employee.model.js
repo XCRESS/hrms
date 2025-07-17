@@ -81,6 +81,8 @@ const employeeSchema = new mongoose.Schema(
         },
         companyName: {
             type: String,
+            enum: ["Indra Financial Services Limited", "COSMOS INVESTIFIASSET MANAGEMENT LLP", "SENSIBLE TAX ADVISORY LLP"],
+            required: true,
         },
         department: {
             type: String,
