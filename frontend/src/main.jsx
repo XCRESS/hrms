@@ -19,6 +19,7 @@ import EmployeeLink from './components/hr/employeeDirectory/EmployeeLink.jsx';
 import HolidayManagementPage from './components/hr/HolidaysPage.jsx';
 import AnnouncementsPage from './components/hr/AnnouncementsPage.jsx';
 import TaskReportsManage from './components/hr/TaskReportsPage.jsx';
+import TaskReportGenerator from './components/hr/TaskReportGenerator.jsx';
 import MyAttendance from './components/employee/MyAttendance.jsx';
 import MyTaskReports from './components/employee/MyTaskReports.jsx';
 import MySalarySlips from './components/employee/MySalarySlips.jsx';
@@ -55,6 +56,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="salary-slips/my" element={<MySalarySlips />} />
                 <Route path="profile" element={<GetProfile />} />
                 <Route path="task-reports" element={<TaskReportsManage />} />
+                <Route path="task-reports/generate" element={<TaskReportGenerator />} />
                 <Route path="salary" element={<SalaryHub />} />
                 <Route path="salary-structures" element={<SalaryStructureManagement />} />
                 <Route path="salary-slips" element={<SalarySlipManagement />} />

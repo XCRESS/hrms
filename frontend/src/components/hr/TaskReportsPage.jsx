@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../../service/apiClient';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { FileSpreadsheet } from 'lucide-react';
 
 const TaskReportsPage = () => {
+  const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filters, setFilters] = useState({
@@ -83,14 +86,23 @@ const TaskReportsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-            <div className="h-6 w-6 bg-blue-600 dark:bg-blue-400 rounded"></div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <div className="h-6 w-6 bg-blue-600 dark:bg-blue-400 rounded"></div>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Employee Task Reports</h1>
+              <p className="text-slate-600 dark:text-slate-400">View and manage all employee task reports</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Employee Task Reports</h1>
-            <p className="text-slate-600 dark:text-slate-400">View and manage all employee task reports</p>
-          </div>
+          <Button
+            onClick={() => navigate('/task-reports/generate')}
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Generate Report
+          </Button>
         </div>
         
         {/* Filter Section */}
