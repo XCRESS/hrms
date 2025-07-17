@@ -25,7 +25,7 @@ import MySalarySlips from './components/employee/MySalarySlips.jsx';
 import SalarySlipManagement from './components/hr/salary/SalarySlipManagement.jsx';
 import SalaryStructureManagement from './components/hr/salary/SalaryStructureManagement.jsx';
 import SalaryHub from './components/hr/salary/SalaryHub.jsx';
-import RequestsPage from './components/requests/RequestsPage.jsx';
+import MyRequests from './components/employee/MyRequests.jsx';
 import AdminRequestsPage from './components/hr/AdminRequestsPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
@@ -58,7 +58,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="salary" element={<SalaryHub />} />
                 <Route path="salary-structures" element={<SalaryStructureManagement />} />
                 <Route path="salary-slips" element={<SalarySlipManagement />} />
-                <Route path="requests" element={<RequestsPage />} />
+                <Route path="requests" element={<MyRequests />} />
                 <Route path="admin/requests" element={<AdminRequestsPage />} />
               </Route>
 
