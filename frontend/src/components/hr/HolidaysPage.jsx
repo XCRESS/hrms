@@ -4,7 +4,7 @@ import useAuth from '../../hooks/authjwt';
 import notificationService from '../../service/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'; // Using lucide-react for icons
 
-const HolidayManagementPage = () => {
+const HolidaysPage = () => {
   const user = useAuth();
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -292,4 +292,4 @@ const HolidayManagementPage = () => {
   );
 };
 
-export default HolidayManagementPage; 
+export default HolidaysPage; 
