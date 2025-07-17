@@ -7,7 +7,7 @@ export const downloadSalarySlipPDF = (slip, employeeName, monthName, employeeDat
   const companyLogo = '/cfg-logo.jpg'; // Logo from public folder
   
   // Get company name and address
-  const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Service Limited';
+  const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Services Limited';
   const companyAddress = getCompanyAddress(companyName);
   
   const htmlContent = `

@@ -48,9 +48,8 @@ export const formatIndianNumber = (num) => {
  */
 export const getCompanyAddress = (companyName) => {
   const addresses = {
-    'Indra Financial Service Limited': 'C-756, Front Basement, New Friends Colony, South Delhi 110025',
     'Indra Financial Services Limited': 'C-756, Front Basement, New Friends Colony, South Delhi 110025',
-    'Cosmos Financial Group': 'Unit No. 513, SKYE CORPORATE PARK, INDORE-452001, MP',
+    'COSMOS INVESTIFIASSET MANAGEMENT LLP': 'Unit No. 513, SKYE CORPORATE PARK, INDORE-452001, MP',
     'SENSIBLE TAX ADVISORY LLP': 'B-495, 1st Floor, Nehru Ground, NIT, Faridabad, Haryana-121001'
   };
   
@@ -71,7 +70,7 @@ export const getCompanyAddress = (companyName) => {
   if (lowerCaseName?.includes('indra') || lowerCaseName?.includes('financial service')) {
     return 'C-756, Front Basement, New Friends Colony, South Delhi 110025';
   }
-  if (lowerCaseName?.includes('cosmos')) {
+  if (lowerCaseName?.includes('cosmos') || lowerCaseName?.includes('investifiasset') || lowerCaseName?.includes('management')) {
     return 'Unit No. 513, SKYE CORPORATE PARK, INDORE-452001, MP';
   }
   if (lowerCaseName?.includes('sensible') || lowerCaseName?.includes('tax advisory')) {
