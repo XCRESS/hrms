@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserX, Calendar, Mail, Phone, Building, User, RotateCcw, AlertTriangle, Eye, X } from 'lucide-react';
-import apiClient from '../../service/apiClient';
-import { useToast } from '../ui/toast';
+import apiClient from '../../../service/apiClient';
+import { useToast } from '../../ui/toast';
 
 const InactiveEmployees = () => {
   const [inactiveEmployees, setInactiveEmployees] = useState([]);
