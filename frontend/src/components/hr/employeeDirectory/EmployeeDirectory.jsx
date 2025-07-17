@@ -4,7 +4,7 @@ import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
-import InactiveEmployees from '../InactiveEmployees';
+import InactiveEmployees from './InactiveEmployees';
 import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2 } from 'lucide-react';
 import { useToast } from '../../ui/toast';
 
