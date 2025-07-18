@@ -30,10 +30,9 @@ const shapeColors = [
   "bg-[rgb(0,245,212)] z-[2]",   // Shape 7: teal/cyan
 ];
 
-const LoaderGate = ({ serverUrl, children }) => {
+const LoaderGate = ({ children }) => {
   const [isReady, setIsReady] = useState(false);
   const [config, setConfig] = useState(combinations[0]);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
 
   // Animate
   useEffect(() => {
@@ -42,79 +41,18 @@ const LoaderGate = ({ serverUrl, children }) => {
       const index = getRandomIndex(prev);
       setConfig(combinations[index]);
       prev = index;
-    }, 1100);
+    }, 800);
     return () => clearInterval(interval);
   }, []);
 
-  // Ping with enhanced production server handling
+  // Simple loading timeout for visual polish
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 30; // Allow up to 1 minute of retries for cold start
-    const isProduction = !serverUrl.includes('localhost') && !serverUrl.includes('127.0.0.1');
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 1200);
     
-    const pingServer = async () => {
-      try {
-        setConnectionStatus('connecting');
-        
-        // Use a health check endpoint or fallback to base URL
-        const healthCheckUrl = `${serverUrl}/health`;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), isProduction ? 15000 : 5000);
-        
-        const res = await fetch(healthCheckUrl, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (res.ok) {
-          setConnectionStatus('connected');
-          setTimeout(() => setIsReady(true), 500);
-          return;
-        } else if (res.status === 404) {
-          // Health check endpoint doesn't exist, try base URL
-          const baseRes = await fetch(serverUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-          });
-          
-          if (baseRes.ok || baseRes.status === 404) {
-            // Server is responding, even if with 404
-            setConnectionStatus('connected');
-            setTimeout(() => setIsReady(true), 500);
-            return;
-          }
-        }
-        
-        throw new Error(`Server responded with status: ${res.status}`);
-      } catch (error) {
-        retryCount++;
-        console.log(`Connection attempt ${retryCount} failed:`, error.message);
-        
-        if (retryCount >= maxRetries) {
-          setConnectionStatus('failed');
-          // Still allow app to load after max retries
-          setTimeout(() => setIsReady(true), 2000);
-          return;
-        }
-        
-        setConnectionStatus(isProduction ? 'cold-start' : 'retrying');
-        
-        // Exponential backoff with jitter for production
-        const baseDelay = isProduction ? 3000 : 2000;
-        const backoffMultiplier = Math.min(1.5 ** retryCount, 4);
-        const jitter = Math.random() * 1000;
-        const delay = baseDelay * backoffMultiplier + jitter;
-        
-        setTimeout(pingServer, delay);
-      }
-    };
-    
-    pingServer();
-  }, [serverUrl]);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Return app
   if (isReady) {
@@ -136,23 +74,6 @@ const LoaderGate = ({ serverUrl, children }) => {
           ></div>
         ))}
         
-        {/* Status indicator */}
-        <div className="absolute bottom-[-4rem] left-1/2 transform -translate-x-1/2 text-center">
-          <div className="text-white text-lg font-medium mb-2">
-            {connectionStatus === 'connecting' && 'Connecting to server...'}
-            {connectionStatus === 'retrying' && 'Server starting up...'}
-            {connectionStatus === 'cold-start' && 'Server waking up...'}
-            {connectionStatus === 'failed' && 'Connection timeout - Loading anyway...'}
-            {connectionStatus === 'connected' && 'Connected!'}
-          </div>
-          <div className="text-gray-300 text-sm">
-            {connectionStatus === 'cold-start' && 'Production server is starting, this may take up to a minute...'}
-            {connectionStatus === 'failed' && 'Unable to reach server, but the app will still work...'}
-            {connectionStatus === 'connecting' && 'Please wait while we connect...'}
-            {connectionStatus === 'retrying' && 'Please wait while we connect...'}
-            {connectionStatus === 'connected' && 'Ready to go!'}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -31,13 +31,10 @@ import AdminRequestsPage from './components/hr/AdminRequestsPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
 
-// Get server URL for LoaderGate
-const serverUrl = API_ENDPOINTS.BASE_URL.replace('/api', '');
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <LoaderGate serverUrl={serverUrl}>
+      <LoaderGate>
         <Toaster>
           <ThemeProvider>
             <BrowserRouter>
