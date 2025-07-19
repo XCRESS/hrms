@@ -343,7 +343,7 @@ export default function GetProfile() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <InfoField icon={<DollarSign size={16} />} label="Payment Mode" value={employee.paymentMode || "Not provided"} />
-                  <InfoField icon={<CreditCard size={16} />} label="Bank Account" value={employee.bankAccountNumber ? `XXXX ${String(employee.bankAccountNumber).slice(-4)}` : "Not provided"} />
+                  <InfoField icon={<CreditCard size={16} />} label="Bank Account" value={employee.bankAccountNumber || "Not provided"} />
                   <InfoField icon={<Building size={16} />} label="Bank Name" value={employee.bankName || "Not provided"} />
                   <InfoField icon={<CreditCard size={16} />} label="IFSC Code" value={employee.bankIFSCCode || "Not provided"} />
                 </div>
