@@ -15,7 +15,8 @@ import {
   KeyRound,
   FileText,
   Receipt,
-  DollarSign
+  DollarSign,
+  MessageCircle
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -134,6 +135,11 @@ export default function SidebarDemo() {
       }
       return [];
     })(),
+    {
+      label: "HR Buddy",
+      href: "/chatbot",
+      icon: <MessageCircle className={accentIconClass('indigo')} />,
+    },
     {
       label: "Logout",
       onClick: handleLogout,
