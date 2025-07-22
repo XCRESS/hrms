@@ -10,7 +10,7 @@ load_dotenv()
 client = OpenAI()
 
 # Setup basic logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class HRMSClient:
@@ -67,7 +67,8 @@ token = get_bearer_token("veshant@cosmosfin.com","admin")
 
 hrms.set_token(token)
 get_all_employee = hrms._make_request("GET", "/employees")
-
+get_my_profile = hrms._make_request("GET", "/employees/profile")
+print(get_my_profile)
 
 sys_prompt='''You are HR Buddy a helpful hr assistant made for the sole purpose of helping hr manage our hrms portal using various tools provided below. 
 you take the query as input then see if it's a general question that's not asking for any data or imformation or a query that is asking for data insights like for example queries about attendance, requests, task reports, salary slips or employee information, 
@@ -83,6 +84,7 @@ then you will look among the various tools available so best solve the query.
     - Follow the Output JSON Format.
     - Always perform one step at a time and wait for next input
     - Carefully analyse the user query
+    - only call tools that are in the available tools list
 
     Output JSON Format:
     {{
@@ -92,10 +94,10 @@ then you will look among the various tools available so best solve the query.
         "input": "The input parameter for the function",
     }}
      Available Tools:
-     - get_all_employee: This tool will return all the employee information in the hrms portal.
-     The only available tool is get_all_employee, which returns a list of employees."
+     - get_all_employee: This tool will return list of employees with all there information.
+     - get_my_profile: This tool will return the employee profile of the user.
 
-    Example:f
+    Example:
     User Query: What is the total no of employees?
     Output: {{ "step": "plan", "content": "The user is wants to know the total number of employees" }}
     Output: {{ "step": "plan", "content": "From the available tools I should call get_all_employee" }}
@@ -105,7 +107,8 @@ then you will look among the various tools available so best solve the query.
 '''
 
 available_tools = {
-    "get_all_employee": get_all_employee
+    "get_all_employee": get_all_employee,
+    "get_my_profile": get_my_profile
 }
 messages = [
   { "role": "system", "content": sys_prompt }
@@ -117,7 +120,7 @@ while True:
 
     while True:
         response = client.chat.completions.create(
-            model="gpt-4.1",
+            model="gpt-4.1-mini",
             response_format={"type": "json_object"},
             messages=messages
         )
