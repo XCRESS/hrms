@@ -338,16 +338,7 @@ const AddEmployee = () => {
                   value={formData.fatherName}
                   onChange={handleChange}
                 />
-              </LabelInputContainer>
-              <LabelInputContainer>
-                <Label htmlFor="motherName">Mother's Name</Label>
-                <Input
-                  id="motherName"
-                  name="motherName"
-                  value={formData.motherName}
-                  onChange={handleChange}
-                />
-              </LabelInputContainer>
+              </LabelInputContainer>              
               <LabelInputContainer>
                 <Label htmlFor="fatherPhone">Father's Phone</Label>
                 <Input
@@ -355,6 +346,15 @@ const AddEmployee = () => {
                   id="fatherPhone"
                   name="fatherPhone"
                   value={formData.fatherPhone}
+                  onChange={handleChange}
+                />
+              </LabelInputContainer>
+              <LabelInputContainer>
+                <Label htmlFor="motherName">Mother's Name</Label>
+                <Input
+                  id="motherName"
+                  name="motherName"
+                  value={formData.motherName}
                   onChange={handleChange}
                 />
               </LabelInputContainer>
