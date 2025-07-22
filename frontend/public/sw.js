@@ -26,12 +26,8 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Let network requests pass through normally - don't intercept failures
-// This allows proper error handling in the application code
-self.addEventListener('fetch', (event) => {
-  // Don't intercept - let requests pass through naturally
-  // This prevents masking of real network errors
-});
+// No fetch event handler needed - requests pass through naturally
+// This prevents masking of real network errors and avoids no-op handler overhead
 
 // Push notification handler
 self.addEventListener('push', (event) => {
