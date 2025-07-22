@@ -9,16 +9,20 @@ class ApiClient {
       };    
     }    
     async customFetch(endpoint, options = {}) {
-      try {
-        const url = `${this.baseURL}${endpoint}`;
-        const headers = { ...this.defaultHeaders, ...options.headers };
-        const config = {
-          ...options,
-          headers,
-          credentials: "include",
-        };
-        console.log(`Fetching ${url}`);
-        const response = await fetch(url, config);
+      const maxRetries = options.retries || 2;
+      const retryDelay = options.retryDelay || 1000;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const url = `${this.baseURL}${endpoint}`;
+          const headers = { ...this.defaultHeaders, ...options.headers };
+          const config = {
+            ...options,
+            headers,
+            credentials: "include",
+          };
+          console.log(`Fetching ${url} (attempt ${attempt + 1}/${maxRetries + 1})`);
+          const response = await fetch(url, config);
         
         // Handle non-JSON responses
         const contentType = response.headers.get("content-type");
@@ -70,26 +74,30 @@ class ApiClient {
           }
           return { success: response.ok };
         }
-      } catch (error) {
-        // If it's already been classified as a validation error, don't log it
-        if (error.isExpectedValidation) {
-          // Silently pass through expected validation errors
+        } catch (error) {
+          // If it's already been classified as a validation error, don't retry
+          if (error.isExpectedValidation) {
+            throw error;
+          }
+          
+          // If it's a network error and we have retries left, retry with delay
+          if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            error.isServerUnavailable = true;
+            
+            if (attempt < maxRetries) {
+              console.warn(`Network error on attempt ${attempt + 1}, retrying in ${retryDelay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              continue; // Retry the request
+            }
+            
+            // Final attempt failed
+            console.error("API Server Unavailable after all retries", error);
+          } else if (!error.isValidationError) {
+            console.error("API Error", error);
+          }
+          
           throw error;
         }
-        
-        // If it's a network error (like server not available), mark it as such
-        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          error.isServerUnavailable = true;
-          // Only log server unavailable errors in development or if not already logged
-          if (import.meta.env.MODE !== 'production') {
-            console.error("API Server Unavailable", error);
-          }
-        } else if (!error.isValidationError) {
-          // Only log unexpected errors that haven't been logged already
-          console.error("API Error", error);
-        }
-        
-        throw error;
       }
     }
 
@@ -262,7 +270,11 @@ class ApiClient {
 
     // Check-in and Check-out
     async checkIn(locationData = {}) {
-      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, locationData);
+      // Use retry logic for check-in as it's critical
+      return this.post(API_ENDPOINTS.ATTENDANCE.CHECK_IN, locationData, { 
+        retries: 3, 
+        retryDelay: 2000 
+      });
     }
     
     async checkOut(tasks) {

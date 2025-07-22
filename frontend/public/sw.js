@@ -26,35 +26,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// No caching - all requests go to network with error handling
+// Let network requests pass through normally - don't intercept failures
+// This allows proper error handling in the application code
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(error => {
-      console.warn('Service Worker fetch failed:', error);
-      // Return a custom offline response for API calls
-      if (event.request.url.includes('/api/')) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: 'Server temporarily unavailable. Please try again.',
-            error: 'NETWORK_ERROR'
-          }),
-          {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-      }
-      // For other requests, return a basic error response
-      return new Response('Network error occurred', {
-        status: 503,
-        statusText: 'Service Unavailable'
-      });
-    })
-  );
+  // Don't intercept - let requests pass through naturally
+  // This prevents masking of real network errors
 });
 
 // Push notification handler
