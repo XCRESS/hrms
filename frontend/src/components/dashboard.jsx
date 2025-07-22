@@ -278,7 +278,21 @@ export default function HRMSDashboard() {
                 });
               },
               (error) => {
-                console.warn("Location access denied or failed:", error.message);
+                let locationError = "Location access failed";
+                switch(error.code) {
+                  case error.PERMISSION_DENIED:
+                    locationError = "Location permission denied";
+                    break;
+                  case error.POSITION_UNAVAILABLE:
+                    locationError = "Location unavailable";
+                    break;
+                  case error.TIMEOUT:
+                    locationError = "Location request timed out";
+                    break;
+                  default:
+                    locationError = `Location error: ${error.message}`;
+                }
+                console.warn(locationError, error);
                 resolve({}); // Continue with check-in even if location fails
               },
               {
@@ -308,13 +322,32 @@ export default function HRMSDashboard() {
         await loadAttendanceData();
       }
     } catch (error) {
-      const description = error.message === "No linked employee profile found for user" 
-        ? "Your user account is not linked to an employee profile. Please contact HR."
-        : error.message || "You have already checked in for today.";
+      console.error("Check-in error:", error);
+      
+      let title = "Check-in Issue";
+      let description = "An unexpected error occurred.";
+      let variant = "warning";
+      
+      // Handle specific error types
+      if (error.message === "No linked employee profile found for user") {
+        description = "Your user account is not linked to an employee profile. Please contact HR.";
+      } else if (error.message === "Already checked in for today") {
+        description = "You have already checked in for today.";
+      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        title = "Network Error";
+        description = "Unable to connect to server. Please check your internet connection and try again.";
+        variant = "destructive";
+      } else if (error.status >= 500) {
+        title = "Server Error";
+        description = "Server error occurred. Please try again in a few moments.";
+        variant = "destructive";
+      } else {
+        description = error.message || "Please try again.";
+      }
       
       toast({
-        variant: "warning",
-        title: "Check-in Issue",
+        variant,
+        title,
         description
       });
     } finally {
