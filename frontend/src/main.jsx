@@ -29,6 +29,7 @@ import SalaryHub from './components/hr/salary/SalaryHub.jsx';
 import MyRequests from './components/employee/MyRequests.jsx';
 import AdminRequestsPage from './components/hr/AdminRequestsPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import ChatBot from './components/chatbot/chatbot.jsx';
 import { API_ENDPOINTS } from './service/apiEndpoints.js';
 
 createRoot(document.getElementById('root')).render(
@@ -59,6 +60,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="salary-slips" element={<SalarySlipManagement />} />
                 <Route path="requests" element={<MyRequests />} />
                 <Route path="admin/requests" element={<AdminRequestsPage />} />
+                <Route path="chatbot" element={<ChatBot />} />
               </Route>
 
               <Route path="/auth/login" element={<Login />} />
