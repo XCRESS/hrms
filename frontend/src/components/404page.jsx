@@ -12,7 +12,7 @@ export default function Epic404Page() {
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [isGlitching, setIsGlitching] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
-  const [particles, setParticles] = useState([]);
+  const particlesRef = useRef([]);
   
   // Handle canvas and animation setup
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function Epic404Page() {
       opacity: Math.random() * 0.5 + 0.2,
       hue: Math.floor(Math.random() * 60) + 220 // Blue to purple hues
     }));
-    setParticles(initialParticles);
+    particlesRef.current = initialParticles;
     
     // Set up canvas
     const canvas = canvasRef.current;
@@ -50,18 +50,16 @@ export default function Epic404Page() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Draw ambient particles
-      particles.forEach((particle, i) => {
-        const newParticles = [...particles];
-        
+      particlesRef.current.forEach((particle, i) => {
         // Update particle positions with slight turbulence
-        newParticles[i].x += particle.speedX + Math.sin(Date.now() * 0.001 + i) * 0.1;
-        newParticles[i].y += particle.speedY + Math.cos(Date.now() * 0.001 + i) * 0.1;
+        particle.x += particle.speedX + Math.sin(Date.now() * 0.001 + i) * 0.1;
+        particle.y += particle.speedY + Math.cos(Date.now() * 0.001 + i) * 0.1;
         
         // Wrap particles around screen edges
-        if (newParticles[i].x < 0) newParticles[i].x = canvas.width;
-        if (newParticles[i].x > canvas.width) newParticles[i].x = 0;
-        if (newParticles[i].y < 0) newParticles[i].y = canvas.height;
-        if (newParticles[i].y > canvas.height) newParticles[i].y = 0;
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y < 0) particle.y = canvas.height;
+        if (particle.y > canvas.height) particle.y = 0;
         
         // Draw the particle with a glow effect
         ctx.save();
@@ -73,8 +71,6 @@ export default function Epic404Page() {
         ctx.fill();
         ctx.closePath();
         ctx.restore();
-        
-        setParticles(newParticles);
       });
       
       // Create a radial background glow that pulses
@@ -102,16 +98,16 @@ export default function Epic404Page() {
       ctx.strokeStyle = 'rgba(120, 140, 255, 0.15)';
       ctx.lineWidth = 0.5;
       
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        for (let j = i + 1; j < particlesRef.current.length; j++) {
+          const dx = particlesRef.current[i].x - particlesRef.current[j].x;
+          const dy = particlesRef.current[i].y - particlesRef.current[j].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < 100) {
             ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.moveTo(particlesRef.current[i].x, particlesRef.current[i].y);
+            ctx.lineTo(particlesRef.current[j].x, particlesRef.current[j].y);
             ctx.stroke();
           }
         }
@@ -141,7 +137,7 @@ export default function Epic404Page() {
       window.cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [cursorPosition.x, cursorPosition.y, particles]);
+  }, [cursorPosition.x, cursorPosition.y]);
   
   // Track cursor position for interactive elements
   useEffect(() => {
