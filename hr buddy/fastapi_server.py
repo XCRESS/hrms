@@ -123,8 +123,8 @@ User Query: What is the total no of employees?
 Output: {{ "step": "plan", "content": "The user is wants to know the total number of employees" }}
 Output: {{ "step": "plan", "content": "From the available tools I should call get_all_employee" }}
 Output: {{ "step": "action", "function": "get_all_employee" }}
-Output: {{ "step": "observe", "output": "96" }}
-Output: {{ "step": "output", "content": "Total number of employees are 96 ." }}
+Output: {{ "step": "observe", "output": "the fetched emoloyee directory have 18 employee names" }}
+Output: {{ "step": "output", "content": "Total number of employees are 18 ." }}
 '''
 
 # Pydantic models
@@ -182,7 +182,7 @@ async def process_query(messages: List[Dict]) -> str:
     while True:
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1",
                 response_format={"type": "json_object"},
                 messages=messages
             )
