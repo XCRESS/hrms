@@ -95,7 +95,7 @@ const ChatBot = () => {
       }
       
       // const response = await fetch('http://localhost:8000/chat', {
-      const response = await fetch('https://hr-buddy-production.up.railway.app/', {
+      const response = await fetch('https://hr-buddy-production.up.railway.app/chat', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
