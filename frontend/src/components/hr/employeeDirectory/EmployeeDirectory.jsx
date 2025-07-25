@@ -202,11 +202,18 @@ export default function EmployeeDirectory() {
   };
 
   const handleFieldChange = (field, value) => {
+        if (type === 'date') {
+      const [day, month, year] = value.split('/');
+      value = new Date(`${year}-${month}-${day}`).toISOString();
+    }
     setEditedEmployee(prev => ({ ...prev, [field]: value }));
   };
 
   const renderField = (label, field, type = 'text', options = []) => {
-    const value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
+        let value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
+    if (type === 'date' && value) {
+        value = new Date(value).toLocaleDateString('en-GB');
+    }
     
     if (!isEditingEmployee) {
       return <p><strong>{label}:</strong> {value || 'N/A'}</p>;
@@ -230,7 +237,7 @@ export default function EmployeeDirectory() {
     }
 
     if (type === 'date') {
-      const formattedValue = value ? new Date(value).toISOString().split('T')[0] : '';
+            const formattedValue = value ? new Date(value).toLocaleDateString('en-GB') : '';
       return (
         <div>
           <strong>{label}:</strong>
