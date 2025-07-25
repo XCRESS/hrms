@@ -103,7 +103,7 @@ const employeeSchema = new mongoose.Schema(
             required: true,
         },
         bankAccountNumber: {
-            type: Number,
+            type: String,
             required: true,
         },
         bankIFSCCode: {

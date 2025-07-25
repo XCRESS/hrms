@@ -118,7 +118,7 @@ const AddEmployee = () => {
       aadhaarNumber: formData.aadhaarNumber ? Number(formData.aadhaarNumber) : null,
       fatherPhone: formData.fatherPhone ? Number(formData.fatherPhone) : null,
       motherPhone: formData.motherPhone ? Number(formData.motherPhone) : null,
-      bankAccountNumber: formData.bankAccountNumber ? Number(formData.bankAccountNumber) : null,
+      bankAccountNumber: formData.bankAccountNumber,
       emergencyContactNumber: formData.emergencyContactNumber ? Number(formData.emergencyContactNumber) : null,
       dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : null,
       joiningDate: formData.joiningDate ? new Date(formData.joiningDate).toISOString() : null,
