@@ -200,7 +200,7 @@ const HolidaysPage = () => {
               holidays.map(holiday => (
                 <tr key={holiday._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{holiday.title}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{new Date(holiday.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-200">{new Date(holiday.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${holiday.isOptional ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' : 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100'}`}>
                       {holiday.isOptional ? 'Optional' : 'Public'}
