@@ -45,11 +45,6 @@ def check_env_file():
 
 def start_server():
     """Start the FastAPI server"""
-    if not check_requirements():
-        return False
-    
-    if not check_env_file():
-        return False
     
     print("\n🚀 Starting HRMS Buddy Server...")
     print("Server will be available at: http://localhost:8000")
