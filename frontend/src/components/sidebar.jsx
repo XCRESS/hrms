@@ -95,6 +95,11 @@ export default function SidebarDemo() {
               href: "/salary",
               icon: <DollarSign className={accentIconClass('green')} />,
             },
+            {
+              label: "HR Buddy",
+              href: "/chatbot",
+              icon: <MessageCircle className={accentIconClass('orange')} />,
+            },
           ];
         } else if (user && user.role === "employee") {
           return [
@@ -135,11 +140,6 @@ export default function SidebarDemo() {
       }
       return [];
     })(),
-    {
-      label: "HR Buddy",
-      href: "/chatbot",
-      icon: <MessageCircle className={accentIconClass('indigo')} />,
-    },
     {
       label: "Logout",
       onClick: handleLogout,
