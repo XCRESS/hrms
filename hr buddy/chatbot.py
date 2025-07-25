@@ -574,7 +574,7 @@ async def process_query(messages: List[Dict]) -> str:
     while True:
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",
                 response_format={"type": "json_object"},
                 messages=messages,
                 timeout=30  # Increased timeout for data formatting
