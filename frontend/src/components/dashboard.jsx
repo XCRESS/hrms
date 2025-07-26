@@ -29,6 +29,7 @@ import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 import Header from './dashboard/Header';
 import AttendanceStats from './dashboard/AttendanceStats';
 import AttendanceTable from './dashboard/AttendanceTable'; 
+import EmployeeAttendanceTable from './dashboard/EmployeeAttendanceTable';
 import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
 import WeeklySummary from './dashboard/WeeklySummary';
 import UpdatesSidebar from './dashboard/UpdatesSidebar';
@@ -60,6 +61,7 @@ export default function HRMSDashboard() {
   const [activityData, setActivityData] = useState([]);
   const [adminSummary, setAdminSummary] = useState(null);
   const [loadingAdminData, setLoadingAdminData] = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(true);
   
   const [regularizationPrefillData, setRegularizationPrefillData] = useState(null);
 
@@ -132,20 +134,34 @@ export default function HRMSDashboard() {
   };
 
   const loadEmployeeDashboardData = async () => {
+    setLoadingRequests(true);
     await Promise.all([
       loadAttendanceData(),
       loadLeaveRequests(),
       loadHelpInquiries(),
       loadRegularizationRequests()
     ]);
+    setLoadingRequests(false);
   };
 
   const loadAttendanceData = async () => {
     try {
-      const params = { limit: 10 };
-      if (user?.employeeId) params.employeeId = user.employeeId;
+      if (!user?.employeeId) return;
       
-      const response = await apiClient.getAttendanceRecords(params);
+      // Get current month data with holidays for charts
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      const startDate = firstDay.toISOString().split('T')[0];
+      const endDate = lastDay.toISOString().split('T')[0];
+      
+      const response = await apiClient.getEmployeeAttendanceWithAbsents({
+        employeeId: user.employeeId,
+        startDate: startDate,
+        endDate: endDate
+      });
+      
       if (response.success && response.data?.records) {
         setAttendanceData(response.data.records.map(record => ({
           ...record,
@@ -620,15 +636,15 @@ export default function HRMSDashboard() {
                     holidays={holidaysData}
                     formatTime={formatTime}
                     calculateAttendancePercentage={calculateAttendancePercentage}
+                    isLoading={isLoading}
                   />
-                  <AttendanceTable 
-                    attendanceData={attendanceData}
-                    formatTime={formatTime}
+                  <EmployeeAttendanceTable 
+                    onRegularizationRequest={handleRegularizationFromReminder}
                   />
                   <LeaveRequestsTable 
                     leaveRequests={allRequests}
                     helpInquiries={[]}
-                    loadingLeaveRequests={false}
+                    loadingLeaveRequests={loadingRequests}
                     onNewRequest={() => setShowLeaveModal(true)}
                     onNewHelpRequest={() => setShowHelpModal(true)}
                     formatLeaveType={formatLeaveType}
