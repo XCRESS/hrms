@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { X, Clock, ChevronDown } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import * as dateFnsTz from 'date-fns-tz';
 
@@ -91,32 +92,106 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4 text-cyan-700 dark:text-cyan-300">Regularize Attendance</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Regularize Attendance</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-semibold mb-1">Date</label>
-            <input type="date" className="w-full p-2 border rounded-lg" value={date} onChange={e => setDate(e.target.value)} required />
+            <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date</label>
+            <input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              required
+            />
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block font-semibold mb-1">Check In (optional)</label>
-              <input type="time" className="w-full p-2 border rounded-lg" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                <div className="flex items-center gap-2">
+                  <Clock size={16} />
+                  Check In Time (optional)
+                </div>
+              </label>
+              <input
+                id="checkIn"
+                type="time"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              />
             </div>
-            <div className="flex-1">
-              <label className="block font-semibold mb-1">Check Out (optional)</label>
-              <input type="time" className="w-full p-2 border rounded-lg" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
+            
+            <div>
+              <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                <div className="flex items-center gap-2">
+                  <Clock size={16} />
+                  Check Out Time (optional)
+                </div>
+              </label>
+              <input
+                id="checkOut"
+                type="time"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              />
             </div>
           </div>
+
           <div>
-            <label className="block font-semibold mb-1">Reason</label>
-            <textarea className="w-full p-2 border rounded-lg" value={reason} onChange={e => setReason(e.target.value)} required rows={3} />
+            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason for Regularization</label>
+            <textarea
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Please provide a detailed reason for this attendance regularization request..."
+              rows="4"
+              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              required
+              data-gramm="false"
+            />
           </div>
-          {message && <p className={`text-sm ${message.startsWith("Invalid") ? 'text-red-500' : 'text-green-500'}`}>{message}</p>}
-          <div className="flex justify-end gap-2 mt-4">
-            <button type="button" className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200" onClick={onClose} disabled={loading}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded-lg bg-cyan-600 text-white font-semibold hover:bg-cyan-700" disabled={loading}>{loading ? "Submitting..." : "Submit"}</button>
+
+          {message && (
+            <div className={`p-3 rounded-lg text-sm ${
+              message.startsWith("Invalid") || message.includes("Failed") 
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800' 
+                : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          <div className="flex justify-end items-center gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700/80 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:bg-cyan-500 dark:hover:bg-cyan-600 dark:focus:ring-cyan-700 rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? "Submitting..." : "Submit Request"}
+            </button>
           </div>
         </form>
       </div>

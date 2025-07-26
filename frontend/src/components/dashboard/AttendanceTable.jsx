@@ -1,6 +1,6 @@
 import React from "react";
 
-const AttendanceTable = ({ attendanceData }) => {
+const AttendanceTable = ({ attendanceData, isLoading = false }) => {
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date) : "—";
 
   return (
@@ -15,7 +15,14 @@ const AttendanceTable = ({ attendanceData }) => {
         </div>
       </div>
       <div className="p-3">
-        {attendanceData.length > 0 ? (
+        {isLoading ? (
+          <div className="animate-pulse space-y-3">
+            <div className="h-12 bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 bg-neutral-200 dark:bg-neutral-700 rounded opacity-75"></div>
+            ))}
+          </div>
+        ) : attendanceData.length > 0 ? (
           <div className="w-full">
             {/* Desktop Table Headers */}
             <div className="hidden md:table-header-group w-full">
@@ -93,7 +100,13 @@ const AttendanceTable = ({ attendanceData }) => {
             </div>
           </div>
         ) : (
-          <div className="py-8 text-center text-gray-500 dark:text-slate-400">No attendance records found</div>
+          <div className="py-8 text-center text-gray-500 dark:text-slate-400">
+            <div className="flex flex-col items-center">
+              <div className="text-4xl mb-3">📊</div>
+              <p className="text-lg font-medium">No attendance records found</p>
+              <p className="text-sm">Your attendance data will appear here once available</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

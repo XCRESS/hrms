@@ -985,7 +985,7 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       leaveMap.set(dateKey, leave);
     });
 
-    // Generate all working days in the range (excluding weekends and holidays)
+    // Generate all days in the range (including weekends and holidays for proper display)
     const workingDays = [];
     const currentDate = new Date(effectiveStartDate);
     
@@ -993,60 +993,95 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       const dayOfWeek = currentDate.getDay();
       const isWorkingDay = await isWorkingDayForCompany(currentDate);
       
-      // Only include working days
-      if (isWorkingDay) {
-        const dateKey = currentDate.toISOString().split('T')[0];
-        const attendanceRecord = attendanceMap.get(dateKey);
-        const approvedLeave = leaveMap.get(dateKey);
-        
-        if (approvedLeave) {
-          // Employee has an approved leave for this day
-          workingDays.push({
-            _id: attendanceRecord?._id || null,
-            date: new Date(currentDate),
-            checkIn: null,
-            checkOut: null,
-            status: 'leave',
-            workHours: null,
-            comments: `Leave: ${approvedLeave.leaveType}`,
-            reason: approvedLeave.leaveReason || 'Approved leave',
-            employeeName: `${employee.firstName} ${employee.lastName}`
-          });
-        } else if (attendanceRecord) {
-          // Employee has a record for this day
-          let workHours = null;
-          if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
-            const checkInTime = new Date(attendanceRecord.checkIn);
-            const checkOutTime = new Date(attendanceRecord.checkOut);
-            workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60));
-          }
-
-          workingDays.push({
-            _id: attendanceRecord._id,
-            date: attendanceRecord.date,
-            checkIn: attendanceRecord.checkIn,
-            checkOut: attendanceRecord.checkOut,
-            status: attendanceRecord.status,
-            workHours: workHours,
-            comments: attendanceRecord.comments,
-            reason: attendanceRecord.reason,
-            employeeName: `${employee.firstName} ${employee.lastName}`,
-            location: attendanceRecord.location // Include location data
-          });
-        } else {
-          // Employee was absent this day
-          workingDays.push({
-            _id: null,
-            date: new Date(currentDate),
-            checkIn: null,
-            checkOut: null,
-            status: 'absent',
-            workHours: null,
-            comments: null,
-            reason: 'No check-in recorded',
-            employeeName: `${employee.firstName} ${employee.lastName}`
-          });
+      // Include all days - working days, weekends, and holidays
+      const dateKey = currentDate.toISOString().split('T')[0];
+      const attendanceRecord = attendanceMap.get(dateKey);
+      const approvedLeave = leaveMap.get(dateKey);
+      
+      // Check if it's a holiday
+      const startOfDay = new Date(currentDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(currentDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      
+      const holiday = await Holiday.findOne({
+        date: { $gte: startOfDay, $lte: endOfDay }
+      });
+      
+      if (holiday) {
+        // It's a holiday
+        workingDays.push({
+          _id: attendanceRecord?._id || null,
+          date: new Date(currentDate),
+          checkIn: attendanceRecord?.checkIn || null,
+          checkOut: attendanceRecord?.checkOut || null,
+          status: 'holiday',
+          workHours: null,
+          comments: null,
+          reason: null,
+          employeeName: `${employee.firstName} ${employee.lastName}`,
+          holidayTitle: holiday.title || holiday.holidayName || 'Holiday'
+        });
+      } else if (!isWorkingDay) {
+        // It's a weekend (Sunday or 2nd Saturday)
+        workingDays.push({
+          _id: attendanceRecord?._id || null,
+          date: new Date(currentDate),
+          checkIn: attendanceRecord?.checkIn || null,
+          checkOut: attendanceRecord?.checkOut || null,
+          status: 'weekend',
+          workHours: null,
+          comments: null,
+          reason: null,
+          employeeName: `${employee.firstName} ${employee.lastName}`
+        });
+      } else if (approvedLeave) {
+        // Employee has an approved leave for this day
+        workingDays.push({
+          _id: attendanceRecord?._id || null,
+          date: new Date(currentDate),
+          checkIn: null,
+          checkOut: null,
+          status: 'leave',
+          workHours: null,
+          comments: `Leave: ${approvedLeave.leaveType}`,
+          reason: approvedLeave.leaveReason || 'Approved leave',
+          employeeName: `${employee.firstName} ${employee.lastName}`
+        });
+      } else if (attendanceRecord) {
+        // Employee has a record for this day
+        let workHours = null;
+        if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
+          const checkInTime = new Date(attendanceRecord.checkIn);
+          const checkOutTime = new Date(attendanceRecord.checkOut);
+          workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60));
         }
+
+        workingDays.push({
+          _id: attendanceRecord._id,
+          date: attendanceRecord.date,
+          checkIn: attendanceRecord.checkIn,
+          checkOut: attendanceRecord.checkOut,
+          status: attendanceRecord.status,
+          workHours: workHours,
+          comments: attendanceRecord.comments,
+          reason: attendanceRecord.reason,
+          employeeName: `${employee.firstName} ${employee.lastName}`,
+          location: attendanceRecord.location // Include location data
+        });
+      } else {
+        // Employee was absent this working day
+        workingDays.push({
+          _id: null,
+          date: new Date(currentDate),
+          checkIn: null,
+          checkOut: null,
+          status: 'absent',
+          workHours: null,
+          comments: null,
+          reason: 'No check-in recorded',
+          employeeName: `${employee.firstName} ${employee.lastName}`
+        });
       }
       
       currentDate.setDate(currentDate.getDate() + 1);

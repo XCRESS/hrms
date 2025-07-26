@@ -28,42 +28,60 @@ import {
 } from 'lucide-react';
 
 const WeeklySummary = ({ attendanceData }) => {
-  const weeklyMetrics = useMemo(() => {
+  const monthlyMetrics = useMemo(() => {
     const today = new Date();
-    const startOfWeek = new Date(today);
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
     const safeAttendanceData = Array.isArray(attendanceData) ? attendanceData : [];
     
-    // Filter this week's data
-    const thisWeekData = safeAttendanceData.filter(record => {
+    // Filter this month's data
+    const thisMonthData = safeAttendanceData.filter(record => {
       if (!record?.date) return false;
       const recordDate = new Date(record.date);
-      return recordDate >= startOfWeek && recordDate <= endOfWeek;
+      return recordDate >= startOfMonth && recordDate <= endOfMonth;
     });
 
-    // Days of the week
-    const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const weekDays = [];
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
+    // Helper function to check if date is a working day
+    const isWorkingDayForCompany = (date) => {
+      const dayOfWeek = date.getDay();
       
-      const dayRecord = thisWeekData.find(record => {
+      // Sunday is always a non-working day
+      if (dayOfWeek === 0) {
+        return false;
+      }
+      
+      // Saturday logic: exclude 2nd Saturday of the month
+      if (dayOfWeek === 6) {
+        const dateNum = date.getDate();
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+        const secondSaturday = firstSaturday + 7;
+        
+        // If this Saturday is the 2nd Saturday, it's a non-working day
+        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
+    // Generate all working days in the month
+    const monthDays = [];
+    const currentDate = new Date(startOfMonth);
+    
+    while (currentDate <= endOfMonth) {
+      const dayRecord = thisMonthData.find(record => {
         const recordDate = new Date(record.date);
-        return recordDate.toDateString() === date.toDateString();
+        return recordDate.toDateString() === currentDate.toDateString();
       });
 
-      const isWorkDay = i < 5; // Monday to Friday
-      const isPastDay = date <= today;
+      const isWorkDay = isWorkingDayForCompany(currentDate);
+      const isPastDay = currentDate <= today;
       
       let status = 'not-marked';
       let hoursWorked = 0;
@@ -96,11 +114,20 @@ const WeeklySummary = ({ attendanceData }) => {
         } else if (status === 'half-day') {
           productivity = 50;
         }
+      } else if (!isWorkDay) {
+        // Set status for weekends when no record exists
+        status = 'weekend';
+      } else {
+        // No record for a working day - mark as absent only if past day
+        if (isPastDay) {
+          status = 'absent';
+        }
       }
 
-      weekDays.push({
-        day: daysOfWeek[i],
-        date: date.getDate(),
+      monthDays.push({
+        day: currentDate.getDate(),
+        date: currentDate.getDate(),
+        fullDate: new Date(currentDate),
         status,
         hoursWorked: Math.round(hoursWorked * 100) / 100,
         checkInTime,
@@ -109,14 +136,23 @@ const WeeklySummary = ({ attendanceData }) => {
         isWorkDay,
         isPastDay
       });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Calculate summary metrics
-    const workDays = weekDays.filter(day => day.isWorkDay);
+    // Calculate summary metrics - only count working days for work-related stats
+    const workDays = monthDays.filter(day => day.isWorkDay);
     const pastWorkDays = workDays.filter(day => day.isPastDay);
+    
+    // Count only work-related statuses from working days
     const presentDays = workDays.filter(day => day.status === 'present').length;
     const halfDays = workDays.filter(day => day.status === 'half-day').length;
-    const absentDays = pastWorkDays.filter(day => day.status === 'absent' || (day.isPastDay && day.status === 'not-marked')).length;
+    const absentDays = pastWorkDays.filter(day => day.status === 'absent').length;
+    const leaveDays = workDays.filter(day => day.status === 'leave').length;
+    
+    // Count non-working days separately (these shouldn't be in attendance distribution)
+    const weekendDays = monthDays.filter(day => day.status === 'weekend').length;
+    const holidayDays = monthDays.filter(day => day.status === 'holiday').length;
     
     const totalHoursWorked = workDays.reduce((sum, day) => sum + day.hoursWorked, 0);
     const expectedHours = pastWorkDays.length * 8;
@@ -131,21 +167,28 @@ const WeeklySummary = ({ attendanceData }) => {
     const overtimeHours = Math.max(0, totalHoursWorked - expectedHours);
     const efficiency = expectedHours > 0 ? Math.round((totalHoursWorked / expectedHours) * 100) : 0;
 
-    // Check-in pattern analysis
-    const checkInPattern = workDays.filter(day => day.checkInTime).map(day => ({
+    // Check-in pattern analysis - only for working days with actual check-ins
+    const checkInPattern = workDays.filter(day => day.checkInTime && day.status !== 'weekend' && day.status !== 'holiday').map(day => ({
       day: day.day,
       time: day.checkInTime.getHours() + (day.checkInTime.getMinutes() / 60),
-      isLate: day.checkInTime.getHours() >= 10
+      isLate: day.checkInTime.getHours() > 10 || (day.checkInTime.getHours() === 10 && day.checkInTime.getMinutes() > 10)
     }));
 
     const avgCheckInTime = checkInPattern.length > 0 ? 
       checkInPattern.reduce((sum, day) => sum + day.time, 0) / checkInPattern.length : 9;
 
+    // Get recent days for trend analysis (last 7 working days)
+    const recentWorkDays = pastWorkDays.slice(-7);
+
     return {
-      weekDays,
+      monthDays,
+      workDays,
       presentDays,
       halfDays,
       absentDays,
+      leaveDays,
+      weekendDays,
+      holidayDays,
       totalHoursWorked: Math.round(totalHoursWorked * 10) / 10,
       expectedHours,
       avgDailyHours: Math.round(avgDailyHours * 10) / 10,
@@ -155,7 +198,8 @@ const WeeklySummary = ({ attendanceData }) => {
       efficiency,
       checkInPattern,
       avgCheckInTime: Math.round(avgCheckInTime * 10) / 10,
-      pastWorkDays: pastWorkDays.length
+      pastWorkDays: pastWorkDays.length,
+      recentWorkDays
     };
   }, [attendanceData]);
 
@@ -169,15 +213,18 @@ const WeeklySummary = ({ attendanceData }) => {
     cyan: '#06B6D4'
   };
 
-  // Status distribution data for pie chart
+  // Status distribution data for pie chart - only work-related statuses
   const statusData = [
-    { name: 'Present', value: weeklyMetrics.presentDays, color: chartColors.secondary },
-    { name: 'Half Day', value: weeklyMetrics.halfDays, color: chartColors.accent },
-    { name: 'Absent', value: weeklyMetrics.absentDays, color: chartColors.danger }
+    { name: 'Present', value: monthlyMetrics.presentDays, color: chartColors.secondary },
+    { name: 'Half Day', value: monthlyMetrics.halfDays, color: chartColors.accent },
+    { name: 'Absent', value: monthlyMetrics.absentDays, color: chartColors.danger },
+    { name: 'Leave', value: monthlyMetrics.leaveDays, color: chartColors.purple }
   ].filter(item => item.value > 0);
 
-  // Productivity trend data
-  const productivityTrendData = weeklyMetrics.weekDays.filter(day => day.isWorkDay && day.isPastDay);
+  // Productivity trend data - filter out weekends and holidays
+  const productivityTrendData = monthlyMetrics.recentWorkDays.filter(day => 
+    day.status !== 'weekend' && day.status !== 'holiday'
+  );
 
   const MetricCard = ({ icon: Icon, title, value, subtitle, color = "blue", trend }) => (
     <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all duration-200">
@@ -237,15 +284,15 @@ const WeeklySummary = ({ attendanceData }) => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
-              Weekly Performance Summary
+              Monthly Performance Summary
             </h2>
             <p className="text-neutral-600 dark:text-neutral-300">
-              Comprehensive analysis of your work patterns and productivity
+              Comprehensive analysis of your work patterns and productivity this month
             </p>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {weeklyMetrics.attendanceRate}%
+              {monthlyMetrics.attendanceRate}%
             </div>
             <div className="text-sm text-neutral-600 dark:text-neutral-400">
               Attendance Rate
@@ -259,30 +306,30 @@ const WeeklySummary = ({ attendanceData }) => {
         <MetricCard
           icon={CheckCircle}
           title="Present Days"
-          value={`${weeklyMetrics.presentDays}/${weeklyMetrics.pastWorkDays}`}
-          subtitle="This week"
+          value={`${monthlyMetrics.presentDays}/${monthlyMetrics.pastWorkDays}`}
+          subtitle="This month"
           color="green"
         />
         <MetricCard
           icon={Clock}
           title="Hours Worked"
-          value={`${weeklyMetrics.totalHoursWorked}h`}
-          subtitle={`Avg: ${weeklyMetrics.avgDailyHours}h/day`}
+          value={`${monthlyMetrics.totalHoursWorked}h`}
+          subtitle={`Avg: ${monthlyMetrics.avgDailyHours}h/day`}
           color="blue"
         />
         <MetricCard
           icon={Target}
           title="Productivity"
-          value={`${weeklyMetrics.avgProductivity}%`}
-          subtitle="Weekly average"
+          value={`${monthlyMetrics.avgProductivity}%`}
+          subtitle="Monthly average"
           color="purple"
         />
         <MetricCard
           icon={Timer}
           title="Efficiency"
-          value={`${weeklyMetrics.efficiency}%`}
-          subtitle={weeklyMetrics.overtimeHours > 0 ? `+${weeklyMetrics.overtimeHours}h overtime` : 'On track'}
-          color={weeklyMetrics.efficiency >= 100 ? "green" : "amber"}
+          value={`${monthlyMetrics.efficiency}%`}
+          subtitle={monthlyMetrics.overtimeHours > 0 ? `+${monthlyMetrics.overtimeHours}h overtime` : 'On track'}
+          color={monthlyMetrics.efficiency >= 100 ? "green" : "amber"}
         />
       </div>
 
@@ -409,10 +456,10 @@ const WeeklySummary = ({ attendanceData }) => {
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
             Check-in Pattern Analysis
           </h3>
-          {weeklyMetrics.checkInPattern.length > 0 ? (
+          {monthlyMetrics.checkInPattern.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={weeklyMetrics.checkInPattern} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={monthlyMetrics.checkInPattern} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.1} />
                   <XAxis 
                     dataKey="day" 
@@ -446,14 +493,14 @@ const WeeklySummary = ({ attendanceData }) => {
               </ResponsiveContainer>
               <div className="mt-4 flex items-center justify-between text-sm">
                 <span className="text-neutral-600 dark:text-neutral-300">
-                  Average: {Math.floor(weeklyMetrics.avgCheckInTime)}:{String(Math.round((weeklyMetrics.avgCheckInTime % 1) * 60)).padStart(2, '0')}
+                  Average: {Math.floor(monthlyMetrics.avgCheckInTime)}:{String(Math.round((monthlyMetrics.avgCheckInTime % 1) * 60)).padStart(2, '0')}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  weeklyMetrics.avgCheckInTime <= 9.6 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                  monthlyMetrics.avgCheckInTime > 10.17 // 10:10 AM in decimal format
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                 }`}>
-                  {weeklyMetrics.avgCheckInTime <= 9.6 ? 'On Time' : 'Often Late'}
+                  {monthlyMetrics.avgCheckInTime > 10.17 ? 'Often Late' : 'On Time'}
                 </span>
               </div>
             </>
@@ -465,10 +512,10 @@ const WeeklySummary = ({ attendanceData }) => {
           )}
         </div>
 
-        {/* Weekly Goals & Achievements */}
+        {/* Monthly Goals & Achievements */}
         <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-sm">
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
-            Weekly Goals & Achievements
+            Monthly Goals & Achievements
           </h3>
           <div className="space-y-6">
             {/* Attendance Goal */}
@@ -478,15 +525,15 @@ const WeeklySummary = ({ attendanceData }) => {
                   Attendance Target
                 </span>
                 <span className="text-sm font-bold text-neutral-900 dark:text-white">
-                  {weeklyMetrics.attendanceRate}% / 95%
+                  {monthlyMetrics.attendanceRate}% / 95%
                 </span>
               </div>
               <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full transition-all duration-700 ${
-                    weeklyMetrics.attendanceRate >= 95 ? 'bg-green-500' : 'bg-blue-500'
+                    monthlyMetrics.attendanceRate >= 95 ? 'bg-green-500' : 'bg-blue-500'
                   }`}
-                  style={{ width: `${Math.min(100, (weeklyMetrics.attendanceRate / 95) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (monthlyMetrics.attendanceRate / 95) * 100)}%` }}
                 />
               </div>
             </div>
@@ -498,16 +545,16 @@ const WeeklySummary = ({ attendanceData }) => {
                   Hours Target
                 </span>
                 <span className="text-sm font-bold text-neutral-900 dark:text-white">
-                  {weeklyMetrics.totalHoursWorked}h / {weeklyMetrics.expectedHours}h
+                  {monthlyMetrics.totalHoursWorked}h / {monthlyMetrics.expectedHours}h
                 </span>
               </div>
               <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full transition-all duration-700 ${
-                    weeklyMetrics.totalHoursWorked >= weeklyMetrics.expectedHours ? 'bg-green-500' : 'bg-blue-500'
+                    monthlyMetrics.totalHoursWorked >= monthlyMetrics.expectedHours ? 'bg-green-500' : 'bg-blue-500'
                   }`}
                   style={{ 
-                    width: `${Math.min(100, (weeklyMetrics.totalHoursWorked / Math.max(weeklyMetrics.expectedHours, 1)) * 100)}%` 
+                    width: `${Math.min(100, (monthlyMetrics.totalHoursWorked / Math.max(monthlyMetrics.expectedHours, 1)) * 100)}%` 
                   }}
                 />
               </div>
@@ -516,34 +563,34 @@ const WeeklySummary = ({ attendanceData }) => {
             {/* Achievement Badges */}
             <div className="pt-2">
               <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
-                This Week's Achievements
+                This Month's Achievements
               </p>
               <div className="flex flex-wrap gap-2">
-                {weeklyMetrics.attendanceRate === 100 && (
+                {monthlyMetrics.attendanceRate === 100 && (
                   <span className="px-3 py-1.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full flex items-center font-medium">
                     <Award size={12} className="mr-1.5" />
                     Perfect Attendance
                   </span>
                 )}
-                {weeklyMetrics.avgProductivity >= 90 && (
+                {monthlyMetrics.avgProductivity >= 90 && (
                   <span className="px-3 py-1.5 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs rounded-full flex items-center font-medium">
                     <Award size={12} className="mr-1.5" />
                     High Performer
                   </span>
                 )}
-                {weeklyMetrics.overtimeHours > 5 && (
+                {monthlyMetrics.overtimeHours > 10 && (
                   <span className="px-3 py-1.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full flex items-center font-medium">
                     <Award size={12} className="mr-1.5" />
                     Dedicated Worker
                   </span>
                 )}
-                {weeklyMetrics.avgCheckInTime <= 8.5 && (
+                {monthlyMetrics.avgCheckInTime <= 8.5 && (
                   <span className="px-3 py-1.5 bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 text-xs rounded-full flex items-center font-medium">
                     <Award size={12} className="mr-1.5" />
                     Early Bird
                   </span>
                 )}
-                {(weeklyMetrics.attendanceRate < 100 && weeklyMetrics.avgProductivity < 90 && weeklyMetrics.overtimeHours <= 5 && weeklyMetrics.avgCheckInTime > 8.5) && (
+                {(monthlyMetrics.attendanceRate < 100 && monthlyMetrics.avgProductivity < 90 && monthlyMetrics.overtimeHours <= 10 && monthlyMetrics.avgCheckInTime > 8.5) && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400 text-xs rounded-full flex items-center font-medium">
                     <Target size={12} className="mr-1.5" />
                     Keep Going!
