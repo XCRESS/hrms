@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 
 // Custom Time Input Component with AM/PM support
@@ -351,7 +351,7 @@ const AdminAttendanceTable = () => {
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
+  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
   const [allWorkingDays, setAllWorkingDays] = useState([]);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0); // Index for sliding window
   const [selectedMonth, setSelectedMonth] = useState(new Date()); // Current selected month
@@ -455,7 +455,7 @@ const AdminAttendanceTable = () => {
           // Fallback: if no working days from backend, show empty
           setAllWorkingDays([]);
           setWorkingDays([]);
-          setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
+          setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
         }
       } else {
         setError(response.message || 'Failed to fetch attendance data');
@@ -471,7 +471,7 @@ const AdminAttendanceTable = () => {
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
     if (windowDays.length === 0 || records.length === 0) {
-      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
+      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
       return;
     }
 
@@ -481,6 +481,7 @@ const AdminAttendanceTable = () => {
     const absentEmployees = new Set();
     const leaveEmployees = new Set();
     const weekendEmployees = new Set();
+    const holidayEmployees = new Set();
 
     records.forEach(record => {
       const employeeId = record.employee?._id || record.employee?.employeeId;
@@ -490,6 +491,7 @@ const AdminAttendanceTable = () => {
       let hasAbsence = false;
       let hasLeave = false;
       let hasWeekend = false;
+      let hasHoliday = false;
 
       // Check this employee's status across all days in the window
       windowDays.forEach(day => {
@@ -497,6 +499,8 @@ const AdminAttendanceTable = () => {
         
         if (attendance.status === 'weekend') {
           hasWeekend = true;
+        } else if (attendance.status === 'holiday') {
+          hasHoliday = true;
         } else if (attendance.status === 'leave') {
           hasLeave = true;
         } else if (attendance.checkIn || attendance.checkOut) {
@@ -506,13 +510,15 @@ const AdminAttendanceTable = () => {
         }
       });
 
-      // Prioritize status: present > leave > absent > weekend
+      // Prioritize status: present > leave > absent > holiday > weekend
       if (hasPresence) {
         presentEmployees.add(employeeId);
       } else if (hasLeave) {
         leaveEmployees.add(employeeId);
       } else if (hasAbsence) {
         absentEmployees.add(employeeId);
+      } else if (hasHoliday) {
+        holidayEmployees.add(employeeId);
       } else if (hasWeekend) {
         weekendEmployees.add(employeeId);
       }
@@ -525,8 +531,9 @@ const AdminAttendanceTable = () => {
     const absent = absentEmployees.size;
     const leave = leaveEmployees.size;
     const weekend = weekendEmployees.size;
+    const holiday = holidayEmployees.size;
 
-    setStats({ total, present, absent, leave, weekend });
+    setStats({ total, present, absent, leave, weekend, holiday });
   };
 
   const handleEditClick = (record, day) => {
@@ -621,6 +628,9 @@ const AdminAttendanceTable = () => {
     if (attendance.status === 'weekend') {
       return <XCircle className="w-4 h-4 text-gray-400" />;
     }
+    if (attendance.status === 'holiday') {
+      return <Calendar className="w-4 h-4 text-orange-500" />;
+    }
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) {
       return <XCircle className="w-4 h-4 text-red-500" />;
     }
@@ -641,6 +651,9 @@ const AdminAttendanceTable = () => {
     
     if (attendance.status === 'weekend') {
       return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
+    }
+    if (attendance.status === 'holiday') {
+      return `${baseClasses} bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300`;
     }
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) {
       return `${baseClasses} bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300`;
@@ -694,6 +707,7 @@ const AdminAttendanceTable = () => {
 
   const getAttendanceStatusText = (attendance) => {
     if (attendance.status === 'weekend') return 'Weekend';
+    if (attendance.status === 'holiday') return attendance.holidayTitle || 'Holiday';
     if (attendance.status === 'leave') return 'Leave';
     if (attendance.status === 'absent' || (!attendance.checkIn && !attendance.checkOut)) return 'Absent';
     if (attendance.checkIn && !attendance.checkOut) return null; // No text for check-in only
@@ -759,6 +773,12 @@ const AdminAttendanceTable = () => {
             <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
               <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
               <span className="text-purple-600 dark:text-purple-400 font-medium text-xs sm:text-sm">{stats.leave} leave</span>
+            </div>
+          )}
+          {stats.holiday > 0 && (
+            <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
+              <span className="text-orange-600 dark:text-orange-400 font-medium text-xs sm:text-sm">{stats.holiday} holiday</span>
             </div>
           )}
           <div className="flex items-center gap-2 ml-2">

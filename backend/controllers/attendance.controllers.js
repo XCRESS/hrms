@@ -2,13 +2,14 @@ import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import TaskReport from "../models/TaskReport.model.js";
 import Leave from "../models/Leave.model.js";
+import Holiday from "../models/Holiday.model.js";
 
 /**
  * Helper: Determine if a date is a working day
- * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday)
- * Non-working days: Sunday + 2nd Saturday of each month
+ * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday and holidays)
+ * Non-working days: Sunday + 2nd Saturday of each month + holidays
  */
-const isWorkingDayForCompany = (date) => {
+const isWorkingDayForCompany = async (date) => {
   const dayOfWeek = date.getDay();
   
   // Sunday is always a non-working day
@@ -16,7 +17,21 @@ const isWorkingDayForCompany = (date) => {
     return false;
   }
   
-  // Monday to Friday are always working days
+  // Check if it's a holiday (most important check)
+  const startOfDay = new Date(date);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+  
+  const holiday = await Holiday.findOne({
+    date: { $gte: startOfDay, $lte: endOfDay }
+  });
+  
+  if (holiday) {
+    return false; // It's a holiday, so not a working day
+  }
+  
+  // Monday to Friday are working days (if not a holiday)
   if (dayOfWeek >= 1 && dayOfWeek <= 5) {
     return true;
   }
@@ -33,7 +48,7 @@ const isWorkingDayForCompany = (date) => {
       return false;
     }
     
-    // All other Saturdays are working days
+    // All other Saturdays are working days (if not a holiday)
     return true;
   }
   
@@ -698,11 +713,34 @@ export const getAdminAttendanceRange = async (req, res) => {
       leaveMap.get(empId).add(dateKey);
     });
 
+    // Get all holidays in the date range
+    const holidays = await Holiday.find({
+      date: { $gte: startDateObj, $lte: endDateObj }
+    });
+    
+    // Create a map of holidays by date for quick lookup
+    const holidayMap = new Map();
+    holidays.forEach(holiday => {
+      const year = holiday.date.getFullYear();
+      const month = String(holiday.date.getMonth() + 1).padStart(2, '0');
+      const day = String(holiday.date.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
+      holidayMap.set(dateKey, holiday);
+    });
+
     // Helper function to check if date is working day (for styling/metadata purposes)
     const isWorkingDay = (date) => {
       const dayOfWeek = date.getDay();
+      
       // Skip Sundays
       if (dayOfWeek === 0) return false;
+      
+      // Check if it's a holiday
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
+      if (holidayMap.has(dateKey)) return false;
       
       // Check if it's 2nd Saturday of the month
       if (dayOfWeek === 6) {
@@ -766,12 +804,23 @@ export const getAdminAttendanceRange = async (req, res) => {
             isWorkingDay: dayObj.isWorkingDay
           };
         } else {
-          // Absent (or weekend)
+          // Check if it's a holiday
+          const isHoliday = holidayMap.has(dateKey);
+          let status;
+          if (isHoliday) {
+            status = 'holiday';
+          } else if (!dayObj.isWorkingDay) {
+            status = 'weekend';
+          } else {
+            status = 'absent';
+          }
+          
           weekData[dateKey] = {
             checkIn: null,
             checkOut: null,
-            status: dayObj.isWorkingDay ? 'absent' : 'weekend',
-            isWorkingDay: dayObj.isWorkingDay
+            status: status,
+            isWorkingDay: dayObj.isWorkingDay && !isHoliday,
+            holidayTitle: isHoliday ? holidayMap.get(dateKey).title : undefined
           };
         }
       });
@@ -795,7 +844,7 @@ export const getAdminAttendanceRange = async (req, res) => {
     const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
     const todayDay = String(today.getDate()).padStart(2, '0');
     const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
-    let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0 };
+    let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 };
     
     if (allDays.some(dayObj => {
       const day = dayObj.date;
@@ -814,6 +863,8 @@ export const getAdminAttendanceRange = async (req, res) => {
             todayStats.leave++;
           } else if (todayData.status === 'weekend') {
             todayStats.weekend++;
+          } else if (todayData.status === 'holiday') {
+            todayStats.holiday++;
           } else {
             todayStats.absent++;
           }
@@ -934,13 +985,13 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       leaveMap.set(dateKey, leave);
     });
 
-    // Generate all working days in the range (excluding weekends)
+    // Generate all working days in the range (excluding weekends and holidays)
     const workingDays = [];
     const currentDate = new Date(effectiveStartDate);
     
     while (currentDate <= endDateObj) {
       const dayOfWeek = currentDate.getDay();
-      const isWorkingDay = isWorkingDayForCompany(currentDate);
+      const isWorkingDay = await isWorkingDayForCompany(currentDate);
       
       // Only include working days
       if (isWorkingDay) {
