@@ -13,7 +13,6 @@ import { lazy, Suspense } from 'react';
 import Header from './dashboard/Header';
 
 const AttendanceStats = lazy(() => import('./dashboard/AttendanceStats'));
-const AttendanceTable = lazy(() => import('./dashboard/AttendanceTable')); 
 const EmployeeAttendanceTable = lazy(() => import('./dashboard/EmployeeAttendanceTable'));
 const LeaveRequestsTable = lazy(() => import('./dashboard/LeaveRequestsTable'));
 const WeeklySummary = lazy(() => import('./dashboard/WeeklySummary'));
