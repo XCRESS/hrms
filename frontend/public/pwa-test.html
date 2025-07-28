@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRMS PWA Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-item { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .pass { background-color: #d4edda; }
+        .fail { background-color: #f8d7da; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>HRMS PWA Compatibility Test</h1>
+    
+    <div id="tests">
+        <div class="test-item" id="sw-test">
+            <h3>Service Worker</h3>
+            <p id="sw-status">Testing...</p>
+        </div>
+        
+        <div class="test-item" id="manifest-test">
+            <h3>Web App Manifest</h3>
+            <p id="manifest-status">Testing...</p>
+        </div>
+        
+        <div class="test-item" id="notification-test">
+            <h3>Push Notifications</h3>
+            <p id="notification-status">Testing...</p>
+            <button onclick="testNotification()">Test Notification</button>
+        </div>
+        
+        <div class="test-item" id="install-test">
+            <h3>Installation</h3>
+            <p id="install-status">Testing...</p>
+            <button id="install-button" onclick="installPWA()" style="display:none;">Install PWA</button>
+        </div>
+        
+        <div class="test-item" id="offline-test">
+            <h3>Offline Support</h3>
+            <p id="offline-status">Testing...</p>
+            <button onclick="testOffline()">Test Offline</button>
+        </div>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        
+        // Test Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    document.getElementById('sw-status').textContent = '✅ Service Worker registered successfully';
+                    document.getElementById('sw-test').classList.add('pass');
+                })
+                .catch(error => {
+                    document.getElementById('sw-status').textContent = '❌ Service Worker registration failed: ' + error;
+                    document.getElementById('sw-test').classList.add('fail');
+                });
+        } else {
+            document.getElementById('sw-status').textContent = '❌ Service Worker not supported';
+            document.getElementById('sw-test').classList.add('fail');
+        }
+        
+        // Test Manifest
+        fetch('/manifest.json')
+            .then(response => response.json())
+            .then(manifest => {
+                document.getElementById('manifest-status').textContent = '✅ Manifest loaded: ' + manifest.name;
+                document.getElementById('manifest-test').classList.add('pass');
+            })
+            .catch(error => {
+                document.getElementById('manifest-status').textContent = '❌ Manifest load failed: ' + error;
+                document.getElementById('manifest-test').classList.add('fail');
+            });
+        
+        // Test Notifications
+        if ('Notification' in window) {
+            const permission = Notification.permission;
+            if (permission === 'granted') {
+                document.getElementById('notification-status').textContent = '✅ Notifications permitted';
+                document.getElementById('notification-test').classList.add('pass');
+            } else if (permission === 'denied') {
+                document.getElementById('notification-status').textContent = '❌ Notifications denied';
+                document.getElementById('notification-test').classList.add('fail');
+            } else {
+                document.getElementById('notification-status').textContent = '⚠️ Notification permission not requested';
+            }
+        } else {
+            document.getElementById('notification-status').textContent = '❌ Notifications not supported';
+            document.getElementById('notification-test').classList.add('fail');
+        }
+        
+        function testNotification() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification('HRMS Test', {
+                            body: 'PWA notifications are working!',
+                            icon: '/icon-192x192.png'
+                        });
+                        document.getElementById('notification-status').textContent = '✅ Test notification sent';
+                        document.getElementById('notification-test').classList.add('pass');
+                    }
+                });
+            }
+        }
+        
+        // Test Installation
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-button').style.display = 'block';
+            document.getElementById('install-status').textContent = '✅ PWA can be installed';
+            document.getElementById('install-test').classList.add('pass');
+        });
+        
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        document.getElementById('install-status').textContent = '✅ PWA installed';
+                    } else {
+                        document.getElementById('install-status').textContent = '⚠️ PWA installation declined';
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
+        
+        // Test Offline
+        function testOffline() {
+            if (navigator.onLine) {
+                document.getElementById('offline-status').textContent = '✅ Online - Check network tab to test offline functionality';
+            } else {
+                document.getElementById('offline-status').textContent = '✅ Offline mode detected';
+                document.getElementById('offline-test').classList.add('pass');
+            }
+        }
+        
+        // Check if already installed
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            document.getElementById('install-status').textContent = '✅ PWA is running in standalone mode';
+            document.getElementById('install-test').classList.add('pass');
+        } else {
+            document.getElementById('install-status').textContent = '⚠️ PWA not installed or not in standalone mode';
+        }
+    </script>
+</body>
+</html>

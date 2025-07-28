@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   Clock,
@@ -489,16 +489,16 @@ export default function HRMSDashboard() {
     }
   };
 
-  // Helper functions
-  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
+  // Helper functions (memoized to prevent unnecessary re-renders)
+  const formatDate = useCallback((date) => new Intl.DateTimeFormat('en-US', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }).format(date);
+  }).format(date), []);
   
-  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
+  const formatTime = useCallback((date) => date ? new Intl.DateTimeFormat('en-US', { 
     hour: '2-digit', minute: '2-digit', hour12: true 
-  }).format(date) : "—";
+  }).format(date) : "—", []);
 
-  const formatLeaveType = (type) => {
+  const formatLeaveType = useCallback((type) => {
     const types = {
       "full-day": "Full Day",
       "half-day": "Half Day", 
@@ -507,11 +507,13 @@ export default function HRMSDashboard() {
       "personal": "Personal Leave"
     };
     return types[type] || type;
-  };
+  }, []);
 
-  const calculateAttendancePercentage = () => {
-    const currentMonth = currentTime.getMonth();
-    const currentYear = currentTime.getFullYear();
+  const calculateAttendancePercentage = useCallback(() => {
+    // Use a fixed date instead of currentTime to prevent constant re-renders
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const presentDays = attendanceData.filter(day => day.status === "present").length;
     const holidaysCount = holidaysData.length;
@@ -519,7 +521,7 @@ export default function HRMSDashboard() {
     
     if (workingDays <= 0) return "0.0";
     return Math.min((presentDays / workingDays) * 100, 100).toFixed(1);
-  };
+  }, [attendanceData, holidaysData]);
 
   // Merge all requests for the unified table
   const allRequests = [
