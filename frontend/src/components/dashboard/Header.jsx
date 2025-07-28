@@ -1,11 +1,38 @@
-import React from "react";
+import React, { useState, useEffect, memo } from "react";
 import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin } from "lucide-react";
+
+// Separate memoized component for time display to prevent unnecessary re-renders
+const TimeDisplay = memo(() => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
+    hour: '2-digit', minute: '2-digit', hour12: true 
+  }).format(date) : "—";
+
+  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+  }).format(date);
+
+  return (
+    <div className="hidden sm:flex items-center gap-3 bg-white dark:bg-neutral-800 px-4 py-3 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+      <div className="bg-neutral-100 dark:bg-neutral-700 p-2 rounded-full">
+        <Clock size={16} className="text-neutral-600 dark:text-neutral-300" />
+      </div>
+      <div>
+        <p className="text-base font-medium text-neutral-700 dark:text-neutral-200 tabular-nums">{formatTime(currentTime)}</p>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(currentTime)}</p>
+      </div>
+    </div>
+  );
+});
 
 const Header = ({
   username,
-  currentTime,
-  formatDate,
-  formatTime,
   isCheckedIn,
   dailyCycleComplete,
   checkInLoading,
@@ -71,15 +98,7 @@ const Header = ({
                 </button>
             </div>
             {/* Time Display */}
-            <div className="hidden sm:flex items-center gap-3 bg-white dark:bg-neutral-800 px-4 py-3 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
-                <div className="bg-neutral-100 dark:bg-neutral-700 p-2 rounded-full">
-                    <Clock size={16} className="text-neutral-600 dark:text-neutral-300" />
-                </div>
-                <div>
-                    <p className="text-base font-medium text-neutral-700 dark:text-neutral-200 tabular-nums">{formatTime(currentTime)}</p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(currentTime)}</p>
-                </div>
-            </div>
+            <TimeDisplay />
         </div>
       </div>
 

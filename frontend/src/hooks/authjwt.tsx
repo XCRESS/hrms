@@ -31,7 +31,13 @@ export default function useAuth() {
             return;
           }
           
-          setUser(decoded);
+          // Only update user if it actually changed to prevent unnecessary re-renders
+          setUser(prev => {
+            if (!prev || JSON.stringify(prev) !== JSON.stringify(decoded)) {
+              return decoded;
+            }
+            return prev;
+          });
         } catch (error) {
           console.error("Invalid token", error);
           localStorage.removeItem("authToken");
@@ -45,8 +51,8 @@ export default function useAuth() {
     // Check immediately on component mount
     checkAndSetUser();
     
-    // Also set up an interval to periodically check (every minute)
-    const interval = setInterval(checkAndSetUser, 60000);
+    // Also set up an interval to periodically check (every 5 minutes)
+    const interval = setInterval(checkAndSetUser, 300000);
     
     return () => clearInterval(interval);
   }, []);
