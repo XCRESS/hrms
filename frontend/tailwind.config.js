@@ -11,7 +11,8 @@ module.exports = {
         'xs': '375px', // Add extra small breakpoint
       },
       fontFamily: {
-        'inter': ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        'sans': ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'segoe ui', 'roboto', 'helvetica', 'arial', 'sans-serif'],
+        'inter': ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'segoe ui', 'roboto', 'helvetica', 'arial', 'sans-serif'],
       },
     },
   },

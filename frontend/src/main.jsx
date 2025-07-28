@@ -33,10 +33,10 @@ const MyRequests = lazy(() => import('./components/employee/MyRequests.jsx'));
 const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage.jsx'));
 const ChatBot = lazy(() => import('./components/chatbot/chatbot.jsx'));
 
-// Loading component
+// Optimized loading component with reduced animation
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
   </div>
 );
 

@@ -1,21 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  Calendar,
-  Clock,
-  User,
-  LogOut,
-  HelpCircle,
-  Bell,
-  Paperclip,
-  X,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Moon,
-  Sun,
-  ChevronDown,
-  UploadCloud
-} from "lucide-react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
 import LeaveRequestModal from "./LeaveRequestModal";
@@ -122,7 +105,6 @@ export default function HRMSDashboard() {
       // Load missing checkouts for all users (admin/HR can also have missing checkouts)
       await loadMissingCheckouts();
     } catch (error) {
-      console.error("Initialization failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +128,6 @@ export default function HRMSDashboard() {
         setDailyCycleComplete(!!record.checkIn && !!record.checkOut);
       }
     } catch (error) {
-      console.error('Error fetching attendance:', error);
     }
   };
 
@@ -188,7 +169,6 @@ export default function HRMSDashboard() {
         })));
       }
     } catch (error) {
-      console.error("Failed to load attendance data:", error);
     }
   };
 
@@ -200,7 +180,7 @@ export default function HRMSDashboard() {
         setAdminSummary(summaryRes.data);
       }
     } catch (error) {
-      console.error("Failed to load admin dashboard data:", error);
+      // console.error("Failed to load admin dashboard data:", error);
     } finally {
       setLoadingAdminData(false);
     }
@@ -222,7 +202,7 @@ export default function HRMSDashboard() {
         setHolidaysData(mapped);
       }
     } catch (error) {
-      console.error("Failed to load holidays:", error);
+      // console.error("Failed to load holidays:", error);
     }
   };
 
@@ -232,7 +212,7 @@ export default function HRMSDashboard() {
       const anns = response.announcements || response.data?.announcements || response.data;
       setAnnouncements(Array.isArray(anns) ? anns : []);
     } catch (error) {
-      console.error("Failed to load announcements:", error);
+      // console.error("Failed to load announcements:", error);
     }
   };
 
@@ -250,7 +230,7 @@ export default function HRMSDashboard() {
         setLeaveRequests(formattedLeaves);
       }
     } catch (error) {
-      console.error("Failed to load leave requests:", error);
+      // console.error("Failed to load leave requests:", error);
     }
   };
 
@@ -267,7 +247,7 @@ export default function HRMSDashboard() {
         setHelpInquiries(formattedInquiries);
       }
     } catch (error) {
-      console.error("Failed to load help inquiries:", error);
+      // console.error("Failed to load help inquiries:", error);
     }
   };
 
@@ -276,7 +256,7 @@ export default function HRMSDashboard() {
       const res = await apiClient.getMyRegularizations();
       setRegularizationRequests(res.regs || []);
     } catch (err) {
-      console.error("Failed to load regularization requests:", err);
+      // console.error("Failed to load regularization requests:", err);
     }
   };
 
@@ -287,7 +267,7 @@ export default function HRMSDashboard() {
         window.refreshMissingCheckouts();
       }
     } catch (err) {
-      console.error("Failed to load missing checkouts:", err);
+      // console.error("Failed to load missing checkouts:", err);
     }
   };
 
@@ -325,7 +305,7 @@ export default function HRMSDashboard() {
                   default:
                     locationError = `Location error: ${error.message}`;
                 }
-                console.warn(locationError, error);
+                // console.warn(locationError, error);
                 resolve({}); // Continue with check-in even if location fails
               },
               {
@@ -355,7 +335,7 @@ export default function HRMSDashboard() {
         await loadAttendanceData();
       }
     } catch (error) {
-      console.error("Check-in error:", error);
+      // console.error("Check-in error:", error);
       
       let title = "Check-in Issue";
       let description = "An unexpected error occurred.";
@@ -588,7 +568,7 @@ export default function HRMSDashboard() {
           window.refreshPendingRequests();
         }
       } catch (error) {
-        console.error("Failed to refresh admin dashboard:", error);
+        // console.error("Failed to refresh admin dashboard:", error);
       } finally {
         setIsLoading(false);
       }
