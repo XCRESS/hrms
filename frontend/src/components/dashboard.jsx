@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
 import LeaveRequestModal from "./LeaveRequestModal";
@@ -40,7 +40,6 @@ const ComponentSkeleton = () => (
 
 
 export default function HRMSDashboard() {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
@@ -72,16 +71,11 @@ export default function HRMSDashboard() {
   const isAdmin = user?.role === 'admin' || user?.role === 'hr';
 
   // Update time every second
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Initialize data on mount
   useEffect(() => {
-    if (!user) return;
+    if (!user?.employeeId) return;
     initializeData();
-  }, [user]);
+  }, [user?.employeeId]); // Only depend on employeeId to prevent unnecessary re-renders
 
   const initializeData = async () => {
     try {
@@ -486,14 +480,6 @@ export default function HRMSDashboard() {
   };
 
   // Helper functions (memoized to prevent unnecessary re-renders)
-  const formatDate = useCallback((date) => new Intl.DateTimeFormat('en-US', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }).format(date), []);
-  
-  const formatTime = useCallback((date) => date ? new Intl.DateTimeFormat('en-US', { 
-    hour: '2-digit', minute: '2-digit', hour12: true 
-  }).format(date) : "—", []);
-
   const formatLeaveType = useCallback((type) => {
     const types = {
       "full-day": "Full Day",
@@ -582,9 +568,6 @@ export default function HRMSDashboard() {
       <div className="flex flex-col h-full">
         <Header 
           username={username}
-          currentTime={currentTime}
-          formatDate={formatDate}
-          formatTime={formatTime}
           isCheckedIn={isCheckedIn}
           dailyCycleComplete={dailyCycleComplete}
           checkInLoading={checkInLoading}
@@ -641,7 +624,6 @@ export default function HRMSDashboard() {
                     <AttendanceStats 
                       attendanceData={attendanceData}
                       holidays={holidaysData}
-                      formatTime={formatTime}
                       calculateAttendancePercentage={calculateAttendancePercentage}
                       isLoading={isLoading}
                     />

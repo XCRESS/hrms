@@ -243,7 +243,7 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
     if (user?.employeeId) {
       fetchMonthlyAttendanceData();
     }
-  }, [fetchMonthlyAttendanceData]);
+  }, [user?.employeeId]); // Remove fetchMonthlyAttendanceData dependency to prevent loops
 
   // Handle month change
   const handleMonthChange = (event) => {
