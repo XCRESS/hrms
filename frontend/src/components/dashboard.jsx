@@ -25,18 +25,35 @@ import { useToast } from "./ui/toast.jsx";
 import RegularizationModal from "./dashboard/RegularizationModal.jsx";
 import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 
-// Import dashboard components from their subdirectory
+// Lazy load dashboard components for better performance
+import { lazy, Suspense } from 'react';
 import Header from './dashboard/Header';
-import AttendanceStats from './dashboard/AttendanceStats';
-import AttendanceTable from './dashboard/AttendanceTable'; 
-import EmployeeAttendanceTable from './dashboard/EmployeeAttendanceTable';
-import LeaveRequestsTable from './dashboard/LeaveRequestsTable';
-import WeeklySummary from './dashboard/WeeklySummary';
-import UpdatesSidebar from './dashboard/UpdatesSidebar';
-import AdminStats from './dashboard/AdminStats'; // Import AdminStats
-import AdminAttendanceTable from './dashboard/AdminAttendanceTable';
-import AdminPendingRequests from './dashboard/AdminPendingRequests';
-import MissingCheckoutAlert from './dashboard/MissingCheckoutAlert';
+
+const AttendanceStats = lazy(() => import('./dashboard/AttendanceStats'));
+const AttendanceTable = lazy(() => import('./dashboard/AttendanceTable')); 
+const EmployeeAttendanceTable = lazy(() => import('./dashboard/EmployeeAttendanceTable'));
+const LeaveRequestsTable = lazy(() => import('./dashboard/LeaveRequestsTable'));
+const WeeklySummary = lazy(() => import('./dashboard/WeeklySummary'));
+const UpdatesSidebar = lazy(() => import('./dashboard/UpdatesSidebar'));
+const AdminStats = lazy(() => import('./dashboard/AdminStats'));
+const AdminAttendanceTable = lazy(() => import('./dashboard/AdminAttendanceTable'));
+const AdminPendingRequests = lazy(() => import('./dashboard/AdminPendingRequests'));
+const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert'));
+
+// Component loading skeleton
+const ComponentSkeleton = () => (
+  <div className="animate-pulse bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700">
+    <div className="flex items-center justify-between mb-4">
+      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+    </div>
+  </div>
+);
 
 
 
@@ -620,51 +637,69 @@ export default function HRMSDashboard() {
             <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {isAdmin ? (
                 <>
-                  <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
+                  </Suspense>
                   
                   {/* Changed: Stack components vertically instead of side-by-side */}
                   <div className="space-y-6">
-                    <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
-                    <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
+                    </Suspense>
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                    </Suspense>
                   </div>
                 </>
               ) : (
                 <>
-                  <MissingCheckoutAlert 
-                    onRegularizationRequest={handleRegularizationFromReminder}
-                  />
-                  <AttendanceStats 
-                    attendanceData={attendanceData}
-                    holidays={holidaysData}
-                    formatTime={formatTime}
-                    calculateAttendancePercentage={calculateAttendancePercentage}
-                    isLoading={isLoading}
-                  />
-                  <EmployeeAttendanceTable 
-                    onRegularizationRequest={handleRegularizationFromReminder}
-                  />
-                  <LeaveRequestsTable 
-                    leaveRequests={allRequests}
-                    helpInquiries={[]}
-                    loadingLeaveRequests={loadingRequests}
-                    onNewRequest={() => setShowLeaveModal(true)}
-                    onNewHelpRequest={() => setShowHelpModal(true)}
-                    formatLeaveType={formatLeaveType}
-                  />
-                  <WeeklySummary 
-                    attendanceData={attendanceData}
-                  />
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <MissingCheckoutAlert 
+                      onRegularizationRequest={handleRegularizationFromReminder}
+                    />
+                  </Suspense>
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <AttendanceStats 
+                      attendanceData={attendanceData}
+                      holidays={holidaysData}
+                      formatTime={formatTime}
+                      calculateAttendancePercentage={calculateAttendancePercentage}
+                      isLoading={isLoading}
+                    />
+                  </Suspense>
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <EmployeeAttendanceTable 
+                      onRegularizationRequest={handleRegularizationFromReminder}
+                    />
+                  </Suspense>
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <LeaveRequestsTable 
+                      leaveRequests={allRequests}
+                      helpInquiries={[]}
+                      loadingLeaveRequests={loadingRequests}
+                      onNewRequest={() => setShowLeaveModal(true)}
+                      onNewHelpRequest={() => setShowHelpModal(true)}
+                      formatLeaveType={formatLeaveType}
+                    />
+                  </Suspense>
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <WeeklySummary 
+                      attendanceData={attendanceData}
+                    />
+                  </Suspense>
                 </>
               )}
             </div>
             
             <div className="w-full lg:w-1/4">
-              <UpdatesSidebar 
-                announcements={announcements}
-                holidays={holidaysData}
-                username={username}
-                activityData={activityData}
-              />
+              <Suspense fallback={<ComponentSkeleton />}>
+                <UpdatesSidebar 
+                  announcements={announcements}
+                  holidays={holidaysData}
+                  username={username}
+                  activityData={activityData}
+                />
+              </Suspense>
             </div>
           </div>
         </main>
