@@ -578,8 +578,8 @@ export default function HRMSDashboard() {
   };
 
   return (
-    <div className="flex bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50">
-      <div className="flex-1 flex flex-col">
+    <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50 min-h-screen">
+      <div className="flex flex-col h-full">
         <Header 
           username={username}
           currentTime={currentTime}
@@ -611,7 +611,7 @@ export default function HRMSDashboard() {
           </button>
         </div>
         
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {isAdmin ? (
