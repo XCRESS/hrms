@@ -394,69 +394,53 @@ const AdminAttendanceTable = () => {
         setMonthlyAttendanceData(response.data.records || []);
         setAttendanceData(response.data.records || []);
         
-        // Use backend's all days (including weekends)
-        if (response.data.allDays || response.data.workingDays) {
-          // Use allDays if available, otherwise fallback to workingDays for backward compatibility
-          const dayData = response.data.allDays || response.data.workingDays.map(dateStr => ({ 
-            date: dateStr, 
-            isWorkingDay: true 
-          }));
+        // Generate all calendar days for the month - same logic as EmployeeAttendanceTable
+        const allDays = [];
+        const currentDate = new Date(firstDay);
+        
+        while (currentDate <= lastDay) {
+          allDays.push(new Date(currentDate));
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        setAllWorkingDays(allDays);
+        
+        // Find initial window that includes today (if current month) or last 4 days
+        const today = new Date();
+        const isCurrentMonth = monthDate.getFullYear() === today.getFullYear() && 
+                              monthDate.getMonth() === today.getMonth();
+        
+        let initialWindow;
+        let initialWindowIndex = 0;
+        
+        if (isCurrentMonth && allDays.length > 0) {
+          // Find today in all days and center the window around it
+          const todayIndex = allDays.findIndex(day => 
+            day.toDateString() === today.toDateString()
+          );
           
-          const monthAllDays = dayData.map(dayObj => {
-            const dateStr = dayObj.date || dayObj;
-            const [year, month, day] = dateStr.split('-');
-            return {
-              date: new Date(parseInt(year), parseInt(month) - 1, parseInt(day)),
-              isWorkingDay: dayObj.isWorkingDay !== undefined ? dayObj.isWorkingDay : true
-            };
-          });
-          
-          setAllWorkingDays(monthAllDays.map(d => d.date));
-          
-          // Find initial window that includes today (if current month) or last 4 days
-          const today = new Date();
-          const isCurrentMonth = monthDate.getFullYear() === today.getFullYear() && 
-                                monthDate.getMonth() === today.getMonth();
-          
-          let initialWindow;
-          let initialWindowIndex = 0;
-          
-          const allDates = monthAllDays.map(d => d.date);
-          
-          if (isCurrentMonth && allDates.length > 0) {
-            // Find today in all days and center the window around it
-            const todayIndex = allDates.findIndex(day => 
-              day.toDateString() === today.toDateString()
-            );
-            
-            if (todayIndex !== -1) {
-              // Show window ending with today
-              const endIndex = Math.min(todayIndex + 1, allDates.length);
-              const startIndex = Math.max(0, endIndex - 4);
-              initialWindow = allDates.slice(startIndex, startIndex + 4);
-              initialWindowIndex = Math.max(0, allDates.length - 4 - startIndex);
-            } else {
-              // Today not found, show last 4 days
-              initialWindow = allDates.slice(-4);
-              initialWindowIndex = 0;
-            }
+          if (todayIndex !== -1) {
+            // Show window ending with today
+            const endIndex = Math.min(todayIndex + 1, allDays.length);
+            const startIndex = Math.max(0, endIndex - 4);
+            initialWindow = allDays.slice(startIndex, startIndex + 4);
+            initialWindowIndex = Math.max(0, allDays.length - 4 - startIndex);
           } else {
-            // For past months, show last 4 days
-            initialWindow = allDates.slice(-4);
+            // Today not found, show last 4 days
+            initialWindow = allDays.slice(-4);
             initialWindowIndex = 0;
           }
-          
-          setCurrentWindowIndex(initialWindowIndex);
-          setWorkingDays(initialWindow);
-          
-          // Calculate stats for the current window
-          updateStatsForWindow(response.data.records || [], initialWindow);
         } else {
-          // Fallback: if no working days from backend, show empty
-          setAllWorkingDays([]);
-          setWorkingDays([]);
-          setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
+          // For past months, show last 4 days
+          initialWindow = allDays.slice(-4);
+          initialWindowIndex = 0;
         }
+        
+        setCurrentWindowIndex(initialWindowIndex);
+        setWorkingDays(initialWindow);
+        
+        // Calculate stats for the current window
+        updateStatsForWindow(response.data.records || [], initialWindow);
       } else {
         setError(response.message || 'Failed to fetch attendance data');
       }
