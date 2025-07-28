@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
 
 const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
   const currentDate = new Date();
@@ -83,23 +83,77 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
     return weekends;
   };
 
-  const presentDays = attendanceData.filter(day => day.status === "present").length;
-  const absentDays = attendanceData.filter(day => day.status === "absent").length;
-  const halfDays = attendanceData.filter(day => day.status === "half-day").length;
-  const holidaysCount = holidays.length;
-  const weekendsCount = calculateWeekends();
+  // Calculate stats based on working days and actual attendance data
+  const today = new Date();
+  
+  // Filter attendance data to only include days up to today and working days
+  const relevantAttendanceData = attendanceData.filter(record => {
+    const recordDate = new Date(record.date);
+    return recordDate <= today;
+  });
+  
+  // Count present days (including half-days as present + count missing checkouts as present)
+  const presentDays = relevantAttendanceData.filter(day => 
+    day.status === "present" || day.status === "half-day" || (day.checkIn && !day.checkOut)
+  ).length;
+  
+  // Count only actual absent days from working days (not future dates)
+  const absentDays = relevantAttendanceData.filter(day => 
+    day.status === "absent" && isWorkingDayForCompany(new Date(day.date))
+  ).length;
+  
+  // Count half days
+  const halfDays = relevantAttendanceData.filter(day => day.status === "half-day").length;
+  
+  // Count invalid days (missing checkout - check-in without check-out)
+  const invalidDays = relevantAttendanceData.filter(day => 
+    day.checkIn && !day.checkOut && day.status !== "half-day"
+  ).length;
 
   const calculateAttendancePercentage = () => {
     if (workingDaysInMonth <= 0) return "0.0";
-    return Math.min(((presentDays + (halfDays * 0.5)) / workingDaysInMonth) * 100, 100).toFixed(1);
+    // Present days now includes half-days and invalid days (missing checkouts)
+    const effectivePresentDays = presentDays - halfDays + (halfDays * 0.5); // Half days count as 0.5
+    return Math.min((effectivePresentDays / workingDaysInMonth) * 100, 100).toFixed(1);
   };
+
+  // Calculate working days up to today only for stats display
+  const workingDaysUpToToday = () => {
+    let count = 0;
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDay = new Date(Math.min(today.getTime(), new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getTime()));
+    
+    const currentDateIterator = new Date(firstDay);
+    
+    while (currentDateIterator <= lastDay) {
+      if (isWorkingDayForCompany(currentDateIterator)) {
+        // Check if this date is not a holiday
+        const isHoliday = holidays.some(holiday => {
+          if (holiday.date) {
+            const holidayDate = new Date(holiday.date);
+            return holidayDate.toDateString() === currentDateIterator.toDateString();
+          }
+          return false;
+        });
+        
+        if (!isHoliday) {
+          count++;
+        }
+      }
+      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
+    }
+    
+    return count;
+  };
+
+  const workingDaysToDate = workingDaysUpToToday();
 
   const cards = [
     { title: "Working Days", value: workingDaysInMonth, icon: Calendar, color: "cyan", barWidth: `${(workingDaysInMonth / (daysInMonth || 1)) * 100}%` },
     { title: "Present Days", value: presentDays, icon: CheckCircle, color: "green", barWidth: `${calculateAttendancePercentage()}%`, subText: `${calculateAttendancePercentage()}% att.` },
-    { title: "Absent Days", value: absentDays, icon: XCircle, color: "red", barWidth: `${workingDaysInMonth > 0 ? (absentDays / workingDaysInMonth) * 100 : 0}%` },
-    { title: "Half Days", value: halfDays, icon: AlertCircle, color: "amber", barWidth: `${workingDaysInMonth > 0 ? (halfDays / workingDaysInMonth) * 100 : 0}%` },
-    { title: "Holidays", value: holidaysCount, icon: Calendar, color: "purple", barWidth: `${(holidaysCount / (daysInMonth || 1)) * 100}%` },
+    { title: "Absent Days", value: absentDays, icon: XCircle, color: "red", barWidth: `${workingDaysToDate > 0 ? (absentDays / workingDaysToDate) * 100 : 0}%` },
+    { title: "Half Days", value: halfDays, icon: AlertCircle, color: "amber", barWidth: `${workingDaysToDate > 0 ? (halfDays / workingDaysToDate) * 100 : 0}%` },
+    { title: "Invalid Days", value: invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (invalidDays / workingDaysToDate) * 100 : 0}%` },
   ];
 
   if (isLoading) {
@@ -129,6 +183,7 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
           green: "text-green-600 dark:text-green-400", 
           red: "text-red-600 dark:text-red-400", 
           amber: "text-amber-600 dark:text-amber-400", 
+          orange: "text-orange-600 dark:text-orange-400",
           purple: "text-purple-600 dark:text-purple-400"
         };
         const iconClasses = { 
@@ -136,6 +191,7 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
           green: "text-green-500 dark:text-green-400", 
           red: "text-red-500 dark:text-red-400", 
           amber: "text-amber-500 dark:text-amber-400", 
+          orange: "text-orange-500 dark:text-orange-400",
           purple: "text-purple-500 dark:text-purple-400"
         };
         const barClasses = { 
@@ -143,6 +199,7 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
           green: "bg-green-500 dark:bg-green-500", 
           red: "bg-red-500 dark:bg-red-500", 
           amber: "bg-amber-500 dark:bg-amber-500", 
+          orange: "bg-orange-500 dark:bg-orange-500",
           purple: "bg-purple-500 dark:bg-purple-500"
         };
         

@@ -9,7 +9,7 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
+  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
   const [allWorkingDays, setAllWorkingDays] = useState([]);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -164,11 +164,11 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
     if (windowDays.length === 0 || records.length === 0) {
-      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 });
+      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
       return;
     }
 
-    let present = 0, absent = 0, leave = 0, weekend = 0, holiday = 0;
+    let present = 0, absent = 0, leave = 0, weekend = 0;
 
     windowDays.forEach(day => {
       const attendance = getAttendanceForDay(records[0], day);
@@ -176,7 +176,8 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
       if (attendance.status === 'weekend') {
         weekend++;
       } else if (attendance.status === 'holiday') {
-        holiday++;
+        // Don't count holidays in stats anymore
+        return;
       } else if (attendance.status === 'leave') {
         leave++;
       } else if (attendance.checkIn || attendance.checkOut) {
@@ -186,7 +187,7 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
       }
     });
 
-    setStats({ total: windowDays.length, present, absent, leave, weekend, holiday });
+    setStats({ total: windowDays.length, present, absent, leave, weekend });
   };
 
   const handleAttendanceClick = (record, day) => {
@@ -387,7 +388,7 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
     return (
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
         <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
-          My Attendance Overview
+          Attendance Overview
         </h3>
         <div className="animate-pulse space-y-3">
           <div className="h-8 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
@@ -464,12 +465,6 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
             <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
               <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
               <span className="text-purple-600 dark:text-purple-400 font-medium text-xs sm:text-sm">{stats.leave} leave</span>
-            </div>
-          )}
-          {stats.holiday > 0 && (
-            <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
-              <span className="text-orange-600 dark:text-orange-400 font-medium text-xs sm:text-sm">{stats.holiday} holiday</span>
             </div>
           )}
           <div className="flex items-center gap-2 ml-2">
