@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Use system fonts instead of Google Fonts for better performance */
 @import "tailwindcss";
 @import "tw-animate-css";
 

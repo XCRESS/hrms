@@ -11,6 +11,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   server: {
     // Disable service worker in development
     headers: {
@@ -20,7 +23,13 @@ export default defineConfig({
   build: {
     // Ensure proper MIME types for JS modules
     assetsInlineLimit: 0,
+    minify: 'esbuild',
     rollupOptions: {
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false
+      },
       output: {
         // Add cache busting for better service worker handling
         entryFileNames: 'assets/[name]-[hash].js',

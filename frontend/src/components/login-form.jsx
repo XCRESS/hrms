@@ -120,6 +120,7 @@ export default function LoginForm({ className, ...props }) {
             </form>
             <div className="bg-muted relative hidden md:block">
               <img
+                loading="lazy"
                 src= {singup}
                 alt="Login-Image"
                 className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.9]"
