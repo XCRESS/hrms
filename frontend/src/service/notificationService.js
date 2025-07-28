@@ -177,22 +177,79 @@ class NotificationService {
   /**
    * Subscribe to push notifications (for future implementation with backend push service)
    */
-  async subscribeToPush() {
+  async subscribeToPush(vapidPublicKey = null) {
     if (!this.registration) {
       await this.initialize();
     }
 
     try {
-      const subscription = await this.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: null // Add VAPID key here when implementing server push
-      });
+      // Check if already subscribed
+      const existingSubscription = await this.registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        console.log('Already subscribed to push notifications');
+        return existingSubscription;
+      }
+
+      const subscriptionOptions = {
+        userVisibleOnly: true
+      };
+
+      // Add VAPID key if provided
+      if (vapidPublicKey) {
+        subscriptionOptions.applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
+      }
+
+      const subscription = await this.registration.pushManager.subscribe(subscriptionOptions);
       
       console.log('Push subscription created:', subscription);
+      
+      // Send subscription to backend (when implemented)
+      // await this.sendSubscriptionToBackend(subscription);
+      
       return subscription;
     } catch (error) {
       console.error('Failed to subscribe to push notifications:', error);
       return null;
+    }
+  }
+
+  /**
+   * Convert VAPID key from base64 to Uint8Array
+   */
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  /**
+   * Unsubscribe from push notifications
+   */
+  async unsubscribeFromPush() {
+    if (!this.registration) {
+      return false;
+    }
+
+    try {
+      const subscription = await this.registration.pushManager.getSubscription();
+      if (subscription) {
+        await subscription.unsubscribe();
+        console.log('Unsubscribed from push notifications');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to unsubscribe from push notifications:', error);
+      return false;
     }
   }
 }
@@ -212,5 +269,8 @@ export const {
   testNotification,
   requestPermission,
   getPermissionStatus,
-  isNotificationSupported
+  isNotificationSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+  clearNotifications
 } = notificationService;

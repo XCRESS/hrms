@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.well-known/
+Disallow: /pwa-test.html
+
+Sitemap: https://hr.intakesense.com/sitemap.xml

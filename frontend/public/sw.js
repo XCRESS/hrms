@@ -1,22 +1,45 @@
-// Service Worker for HRMS PWA - No Caching Version
-// Handles push notifications and background sync
+// Service Worker for HRMS PWA
+// Handles push notifications, background sync, and minimal offline support
 
-// Install event - activate immediately
-self.addEventListener('install', () => {
+const CACHE_NAME = 'hrms-cache-v1';
+const ESSENTIAL_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png'
+];
+
+// Install event - cache essential assets
+self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
-  self.skipWaiting();
+  
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Caching essential assets');
+        return cache.addAll(ESSENTIAL_ASSETS);
+      })
+      .catch((error) => {
+        console.log('Failed to cache assets:', error);
+      })
+      .finally(() => {
+        self.skipWaiting();
+      })
+  );
 });
 
 // Activate event - take control immediately
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
   event.waitUntil(
-    // Clean up any old caches if they exist
+    // Clean up old caches
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          console.log('Deleting cache:', cacheName);
-          return caches.delete(cacheName);
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
         })
       );
     }).then(() => self.clients.claim()).then(() => {
@@ -26,8 +49,39 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// No fetch event handler needed - requests pass through naturally
-// This prevents masking of real network errors and avoids no-op handler overhead
+// Fetch event - minimal offline support for essential assets only
+self.addEventListener('fetch', (event) => {
+  // Only handle GET requests for essential assets
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Check if it's an essential asset
+  const url = new URL(event.request.url);
+  const isEssentialAsset = ESSENTIAL_ASSETS.some(asset => 
+    url.pathname === asset || url.pathname.includes('icon-')
+  );
+
+  if (isEssentialAsset) {
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => {
+          // Return cached version or fetch from network
+          return response || fetch(event.request);
+        })
+        .catch(() => {
+          // Offline fallback for root path
+          if (url.pathname === '/') {
+            return new Response(
+              '<html><body><h1>HRMS Offline</h1><p>Please check your internet connection</p></body></html>',
+              { headers: { 'Content-Type': 'text/html' } }
+            );
+          }
+        })
+    );
+  }
+  // All other requests pass through naturally to prevent masking network errors
+});
 
 // Push notification handler
 self.addEventListener('push', (event) => {
