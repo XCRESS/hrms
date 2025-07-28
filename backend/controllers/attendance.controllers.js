@@ -761,7 +761,10 @@ export const getAdminAttendanceRange = async (req, res) => {
     const allDays = [];
     const currentDate = new Date(startDateObj);
     
-    while (currentDate <= endDateObj) {
+    // Create end boundary using same approach as employee side - only compare dates, not times
+    const endBoundary = new Date(endYear, endMonth - 1, endDay);
+    
+    while (currentDate <= endBoundary) {
       allDays.push({
         date: new Date(currentDate),
         isWorkingDay: isWorkingDay(currentDate)
