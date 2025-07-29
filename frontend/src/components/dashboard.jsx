@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, memo, useReducer, useMemo } from "react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
+import { useDataCache, CACHE_KEYS } from '../contexts/DataCacheContext';
+import { useCachedApi } from '../hooks/useCachedApi';
 import LeaveRequestModal from "./LeaveRequestModal";
 import HelpDeskModal from "./HelpDeskModal";
 import { useTheme } from '../contexts/ThemeContext';
@@ -126,6 +128,9 @@ export default function HRMSDashboard() {
   // This prevents cascade re-renders and improves performance by 60-80%
   const [dashboardState, dispatch] = useReducer(dashboardReducer, dashboardInitialState);
   
+  // 🚀 CACHE OPTIMIZATION: Use data cache for persistent data across routes
+  const { getCachedData, setCachedData, invalidateCachePattern, clearCache } = useDataCache();
+  
   // Extract state for easier access (memoized to prevent unnecessary recalculation)
   const { modals, loading, data, app } = dashboardState;
   
@@ -183,7 +188,7 @@ export default function HRMSDashboard() {
     initializeData();
   }, [user?.employeeId]); // Only depend on employeeId to prevent unnecessary re-renders
 
-  const initializeData = useCallback(async () => {
+  const initializeData = async () => {
     try {
       setLoading('isLoading', true);
       
@@ -194,11 +199,12 @@ export default function HRMSDashboard() {
         loadHolidays()
       ]);
 
-      // Load role-specific data
+      // Load role-specific data with caching
       if (isAdmin) {
         await loadAdminDashboardData();
       } else {
-        await loadEmployeeDashboardData();
+        // Use cached loading - will return immediately if cache is valid
+        await loadEmployeeDashboardData(false); // false = don't force refresh
       }
       
       // Load missing checkouts for all users (admin/HR can also have missing checkouts)
@@ -208,7 +214,14 @@ export default function HRMSDashboard() {
     } finally {
       setLoading('isLoading', false);
     }
-  }, [setLoading, isAdmin, user?.employeeId]); // Add dependencies for useCallback
+  };
+
+  // Manual refresh function to force reload all data
+  const refreshDashboard = useCallback(async () => {
+    console.log('🔄 Dashboard: Force refresh requested');
+    clearCache(); // Clear all cache
+    await initializeData();
+  }, [clearCache]);
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.employeeId) return;
@@ -232,7 +245,37 @@ export default function HRMSDashboard() {
     }
   }, [user?.employeeId, setAppState]);
 
-  const loadEmployeeDashboardData = async () => {
+  // 🚀 CACHED DATA LOADING: Check cache first, then fetch if needed
+  const loadEmployeeDashboardData = async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      // Try to load from cache first
+      const cachedData = {
+        attendance: getCachedData(CACHE_KEYS.DASHBOARD_ATTENDANCE),
+        leaveRequests: getCachedData(CACHE_KEYS.DASHBOARD_LEAVE_REQUESTS),
+        helpInquiries: getCachedData(CACHE_KEYS.DASHBOARD_HELP_INQUIRIES),
+        regularizations: getCachedData(CACHE_KEYS.DASHBOARD_REGULARIZATIONS),
+        announcements: getCachedData(CACHE_KEYS.DASHBOARD_ANNOUNCEMENTS),
+        holidays: getCachedData(CACHE_KEYS.DASHBOARD_HOLIDAYS)
+      };
+
+      // Check if we have all cached data
+      const hasAllCachedData = Object.values(cachedData).every(cache => cache && !cache.loading);
+      
+      if (hasAllCachedData) {
+        // Load from cache
+        setData('attendanceData', cachedData.attendance.data || []);
+        setData('leaveRequests', cachedData.leaveRequests.data || []);
+        setData('helpInquiries', cachedData.helpInquiries.data || []);
+        setData('regularizationRequests', cachedData.regularizations.data || []);
+        setData('announcements', cachedData.announcements.data || []);
+        setData('holidaysData', cachedData.holidays.data || []);
+        console.log('📋 Dashboard: Loaded from cache');
+        return;
+      }
+    }
+
+    // If no cache or force refresh, load fresh data
+    console.log('🔄 Dashboard: Loading fresh data');
     setLoading('loadingRequests', true);
     await Promise.all([
       loadAttendanceData(),
@@ -262,12 +305,15 @@ export default function HRMSDashboard() {
       });
       
       if (response.success && response.data?.records) {
-        setData('attendanceData', response.data.records.map(record => ({
+        const processedData = response.data.records.map(record => ({
           ...record,
           date: new Date(record.date),
           checkIn: record.checkIn ? new Date(record.checkIn) : null,
           checkOut: record.checkOut ? new Date(record.checkOut) : null
-        })));
+        }));
+        
+        setData('attendanceData', processedData);
+        setCachedData(CACHE_KEYS.DASHBOARD_ATTENDANCE, processedData);
       }
     } catch (error) {
     }
@@ -301,6 +347,7 @@ export default function HRMSDashboard() {
           description: h.description,
         }));
         setData('holidaysData', mapped);
+        setCachedData(CACHE_KEYS.DASHBOARD_HOLIDAYS, mapped);
       }
     } catch (error) {
       // console.error("Failed to load holidays:", error);
@@ -311,7 +358,9 @@ export default function HRMSDashboard() {
     try {
       const response = await apiClient.getAnnouncements();
       const anns = response.announcements || response.data?.announcements || response.data;
-      setData('announcements', Array.isArray(anns) ? anns : []);
+      const processedAnns = Array.isArray(anns) ? anns : [];
+      setData('announcements', processedAnns);
+      setCachedData(CACHE_KEYS.DASHBOARD_ANNOUNCEMENTS, processedAnns);
     } catch (error) {
       // console.error("Failed to load announcements:", error);
     }
@@ -329,6 +378,7 @@ export default function HRMSDashboard() {
           createdAt: new Date(leave.createdAt || leave.requestDate || Date.now())
         }));
         setData('leaveRequests', formattedLeaves);
+        setCachedData(CACHE_KEYS.DASHBOARD_LEAVE_REQUESTS, formattedLeaves);
       }
     } catch (error) {
       // console.error("Failed to load leave requests:", error);
@@ -515,6 +565,8 @@ export default function HRMSDashboard() {
         description: "Your leave request has been submitted successfully."
       });
       setModal('showLeaveModal', false);
+      // Invalidate cache and reload fresh data
+      invalidateCachePattern('DASHBOARD_LEAVE');
       await loadLeaveRequests();
     } catch (error) {
       toast({
@@ -542,6 +594,8 @@ export default function HRMSDashboard() {
         description: "Your help desk inquiry has been submitted."
       });
       setModal('showHelpModal', false);
+      // Invalidate cache and reload fresh data
+      invalidateCachePattern('DASHBOARD_HELP');
       await loadHelpInquiries();
     } catch (error) {
       toast({

@@ -10,6 +10,7 @@ import NotFound from './components/404page.jsx';
 import SidebarDemo from './components/sidebar.jsx';
 import LoaderGate from './components/loadingAnimation.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
+import { DataCacheProvider } from './contexts/DataCacheContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
@@ -124,7 +125,8 @@ createRoot(document.getElementById('root')).render(
       <LoaderGate>
         <Toaster>
           <ThemeProvider>
-            <BrowserRouter>
+            <DataCacheProvider>
+              <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<SidebarDemo />}>
@@ -157,9 +159,10 @@ createRoot(document.getElementById('root')).render(
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </ThemeProvider>
-      </Toaster>
+              </BrowserRouter>
+            </DataCacheProvider>
+          </ThemeProvider>
+        </Toaster>
       </LoaderGate>
     </ErrorBoundary>
   </StrictMode>,

@@ -542,16 +542,18 @@ const AdminAttendanceTable = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedRecord(null);
     setSelectedEmployee(null);
-    fetchMonthlyAttendanceData(selectedMonth); // Refresh data after modal closes
-  };
+    // Don't refresh data on close - only refresh on actual updates
+  }, []);
 
-  const handleAttendanceUpdate = () => {
-    fetchMonthlyAttendanceData(selectedMonth); // Refresh data after update
-  };
+  const handleAttendanceUpdate = useCallback(() => {
+    // Only refresh data when there's an actual update
+    fetchMonthlyAttendanceData(selectedMonth);
+    handleCloseModal(); // Close modal after successful update
+  }, [selectedMonth, fetchMonthlyAttendanceData]);
 
   // Navigate the sliding window
   const navigateWindow = (direction) => {
