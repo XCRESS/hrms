@@ -36,14 +36,29 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks: {
-          // Split vendor libraries into separate chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-tabs'],
+          // 🚀 PHASE 2 OPTIMIZATION: Enhanced code splitting for better performance
+          // Core React libraries - loaded immediately
+          'react-vendor': ['react', 'react-dom'],
+          // Router - loaded when navigating
+          'router-vendor': ['react-router-dom'],
+          // UI component libraries - loaded when UI components are rendered
+          'ui-vendor': ['@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-tabs', 'lucide-react'],
+          // Charts - only loaded when dashboard charts are needed
           'chart-vendor': ['recharts'],
-          'utils-vendor': ['date-fns', 'date-fns-tz', 'jwt-decode', 'clsx'],
+          // Date/time utilities - loaded when date pickers are used
+          'date-vendor': ['date-fns', 'date-fns-tz', 'moment-timezone'],
+          // Form handling - loaded when forms are rendered
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Authentication utilities - loaded immediately
+          'auth-vendor': ['jwt-decode'],
+          // Utility libraries - loaded as needed
+          'utils-vendor': ['clsx', 'tailwind-merge'],
+          // Map functionality - only loaded when location features are used
           'map-vendor': ['leaflet', 'react-leaflet'],
-          'office-vendor': ['xlsx']
+          // Office/PDF functionality - only loaded when generating reports
+          'office-vendor': ['xlsx', 'jspdf'],
+          // Dashboard specific chunks for lazy loading
+          'dashboard-vendor': ['@headlessui/react']
         }
       }
     }

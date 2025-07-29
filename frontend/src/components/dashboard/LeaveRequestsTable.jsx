@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, memo, useMemo } from "react";
 import { Paperclip, HelpCircle, AlertCircle, CheckCircle } from "lucide-react";
 
-const LeaveRequestsTable = ({ 
+// 🚀 OPTIMIZED: Leave Requests Table with memoization
+const LeaveRequestsTable = memo(({ 
   leaveRequests, 
   helpInquiries = [],
   loadingLeaveRequests, 
@@ -13,23 +14,24 @@ const LeaveRequestsTable = ({
   const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
   const safeHelpInquiries = Array.isArray(helpInquiries) ? helpInquiries : [];
   
-  // Process leave requests with better error handling for both backend and mock data formats
-  const processedLeaveRequests = safeLeaveRequests
-    .filter(request => request && typeof request === 'object' && (request.id || request._id))
-    .map(request => ({
-      ...request,
-      // Ensure we have an id (backend might use _id instead of id)
-      id: request.id || request._id,
-      // Type is already set in dashboard.jsx for allRequests
-      // Map fields that might have different names in backend vs mock data
-      leaveType: request.leaveType || request.type || 'vacation',
-      displayDate: request.displayDate || request.leaveDate || request.date,
-      displayReason: request.displayReason || request.leaveReason || request.reason || request.description || '',
-      status: request.status || 'pending',
-      requestedCheckIn: request.requestedCheckIn,
-      requestedCheckOut: request.requestedCheckOut,
-      reviewComment: request.reviewComment,
-    }));
+  // 🚀 OPTIMIZED: Process leave requests with better error handling (memoized)
+  const processedLeaveRequests = useMemo(() => 
+    safeLeaveRequests
+      .filter(request => request && typeof request === 'object' && (request.id || request._id))
+      .map(request => ({
+        ...request,
+        // Ensure we have an id (backend might use _id instead of id)
+        id: request.id || request._id,
+        // Type is already set in dashboard.jsx for allRequests
+        // Map fields that might have different names in backend vs mock data
+        leaveType: request.leaveType || request.type || 'vacation',
+        displayDate: request.displayDate || request.leaveDate || request.date,
+        displayReason: request.displayReason || request.leaveReason || request.reason || request.description || '',
+        status: request.status || 'pending',
+        requestedCheckIn: request.requestedCheckIn,
+        requestedCheckOut: request.requestedCheckOut,
+        reviewComment: request.reviewComment,
+    })), [safeLeaveRequests]);
 
   // Process help inquiries with better error handling for both backend and mock data formats
   const processedHelpInquiries = safeHelpInquiries
@@ -321,6 +323,6 @@ const LeaveRequestsTable = ({
       </div>
     </div>
   );
-};
+});
 
 export default LeaveRequestsTable; 
