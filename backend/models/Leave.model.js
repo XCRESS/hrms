@@ -33,6 +33,12 @@ const leaveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Performance indexes for common queries
+leaveSchema.index({ employeeId: 1, status: 1 }); // Employee leave queries with status filter
+leaveSchema.index({ status: 1, leaveDate: 1 }); // Status-based queries with date sorting
+leaveSchema.index({ leaveDate: 1, status: 1 }); // Date range queries for approved leaves
+leaveSchema.index({ employeeId: 1, leaveDate: -1 }); // Employee leave history
+
 const Leave = mongoose.model("Leave", leaveSchema);
 
 export default Leave; 

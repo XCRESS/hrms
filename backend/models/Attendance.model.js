@@ -96,5 +96,17 @@ attendanceSchema.pre('save', async function(next) {
 // Prevent duplicate attendance records per employee per day
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 
+// Performance indexes for common queries
+attendanceSchema.index({ date: 1, status: 1 }); // Admin queries with date range and status filter
+attendanceSchema.index({ employee: 1, date: -1 }); // Employee attendance history (recent first)
+attendanceSchema.index({ date: 1 }); // Date range queries
+attendanceSchema.index({ status: 1, date: 1 }); // Status-based queries with date sorting
+attendanceSchema.index({ 
+  employee: 1, 
+  date: 1, 
+  checkIn: 1, 
+  checkOut: 1 
+}); // Missing checkout queries
+
 const Attendance = mongoose.model("Attendance", attendanceSchema);
 export default Attendance;

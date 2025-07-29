@@ -141,6 +141,13 @@ const employeeSchema = new mongoose.Schema(
     },{timestamps: true}
 )
 
+// Performance indexes for common queries
+employeeSchema.index({ employeeId: 1 }); // Unique employee lookup
+employeeSchema.index({ isActive: 1, firstName: 1, lastName: 1 }); // Active employees list
+employeeSchema.index({ isActive: 1, department: 1 }); // Department-wise active employees
+// Email index already exists due to unique: true in schema definition
+employeeSchema.index({ joiningDate: 1 }); // Date-based filtering
+
 const Employee = mongoose.model("Employee", employeeSchema);
 
 export default Employee;

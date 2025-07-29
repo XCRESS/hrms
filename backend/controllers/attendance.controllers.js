@@ -3,13 +3,83 @@ import Employee from "../models/Employee.model.js";
 import TaskReport from "../models/TaskReport.model.js";
 import Leave from "../models/Leave.model.js";
 import Holiday from "../models/Holiday.model.js";
+import cache, { TTL } from "../utils/cache.js";
 
 /**
- * Helper: Determine if a date is a working day
+ * OPTIMIZED: Bulk fetch holidays for date range with caching to avoid N+1 queries
+ */
+const getHolidaysInRange = async (startDate, endDate) => {
+  const cacheKey = `holidays:${startDate.toISOString().split('T')[0]}:${endDate.toISOString().split('T')[0]}`;
+  
+  return await cache.getOrSet(cacheKey, async () => {
+    const holidays = await Holiday.find({
+      date: { $gte: startDate, $lte: endDate }
+    }).lean(); // Use .lean() for better performance
+    
+    // Create a Map for O(1) lookup by date key
+    const holidayMap = new Map();
+    holidays.forEach(holiday => {
+      const dateKey = holiday.date.toISOString().split('T')[0];
+      holidayMap.set(dateKey, holiday);
+    });
+    
+    return holidayMap;
+  }, TTL.HOLIDAYS);
+};
+
+/**
+ * Helper: Determine if a date is a working day (OPTIMIZED VERSION)
  * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday and holidays)
  * Non-working days: Sunday + 2nd Saturday of each month + holidays
+ * 
+ * @param {Date} date - The date to check
+ * @param {Map} holidayMap - Pre-fetched holiday map for O(1) lookup
  */
-const isWorkingDayForCompany = async (date) => {
+const isWorkingDayForCompany = (date, holidayMap = null) => {
+  const dayOfWeek = date.getDay();
+  
+  // Sunday is always a non-working day
+  if (dayOfWeek === 0) {
+    return false;
+  }
+  
+  // Check if it's a holiday using pre-fetched map (O(1) lookup)
+  if (holidayMap) {
+    const dateKey = date.toISOString().split('T')[0];
+    if (holidayMap.has(dateKey)) {
+      return false; // It's a holiday, so not a working day
+    }
+  }
+  
+  // Monday to Friday are working days (if not a holiday)
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    return true;
+  }
+  
+  // Saturday logic: exclude 2nd Saturday of the month
+  if (dayOfWeek === 6) {
+    const dateNum = date.getDate();
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstSaturday = 7 - firstDayOfMonth.getDay() || 7; // Get first Saturday of month
+    const secondSaturday = firstSaturday + 7; // Second Saturday is 7 days later
+    
+    // If this Saturday is the 2nd Saturday, it's a non-working day
+    if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+      return false;
+    }
+    
+    // All other Saturdays are working days (if not a holiday)
+    return true;
+  }
+  
+  return false;
+};
+
+/**
+ * LEGACY: Keep async version for backward compatibility where holidayMap isn't available
+ * This should be gradually phased out in favor of the optimized version
+ */
+const isWorkingDayForCompanyLegacy = async (date) => {
   const dayOfWeek = date.getDay();
   
   // Sunday is always a non-working day
@@ -550,10 +620,13 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
     const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
     const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
 
-    // Get all active employees
-    const allEmployees = await Employee.find({ isActive: true })
-      .select('_id firstName lastName employeeId department position')
-      .sort({ firstName: 1, lastName: 1 });
+    // 🚀 Get all active employees with caching
+    const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
+      return await Employee.find({ isActive: true })
+        .select('_id firstName lastName employeeId department position')
+        .sort({ firstName: 1, lastName: 1 })
+        .lean(); // Use .lean() for better performance
+    }, TTL.EMPLOYEES);
 
     // Get today's attendance records
     const todayAttendance = await Attendance.find({
@@ -661,10 +734,13 @@ export const getAdminAttendanceRange = async (req, res) => {
     const startDateObj = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
     const endDateObj = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
-    // Get all active employees
-    const allEmployees = await Employee.find({ isActive: true })
-      .select('_id firstName lastName employeeId department position')
-      .sort({ firstName: 1, lastName: 1 });
+    // 🚀 Get all active employees with caching
+    const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
+      return await Employee.find({ isActive: true })
+        .select('_id firstName lastName employeeId department position')
+        .sort({ firstName: 1, lastName: 1 })
+        .lean(); // Use .lean() for better performance
+    }, TTL.EMPLOYEES);
 
     // Get all attendance records for the date range
     const attendanceRecords = await Attendance.find({
@@ -988,28 +1064,26 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       leaveMap.set(dateKey, leave);
     });
 
+    // 🚀 OPTIMIZED: Bulk fetch holidays for the entire date range (eliminates N+1 queries)
+    const holidayMap = await getHolidaysInRange(effectiveStartDate, endDateObj);
+    
     // Generate all days in the range (including weekends and holidays for proper display)
     const workingDays = [];
     const currentDate = new Date(effectiveStartDate);
     
     while (currentDate <= endDateObj) {
       const dayOfWeek = currentDate.getDay();
-      const isWorkingDay = await isWorkingDayForCompany(currentDate);
+      const dateKey = currentDate.toISOString().split('T')[0];
+      
+      // 🚀 Use optimized working day check with pre-fetched holiday map
+      const isWorkingDay = isWorkingDayForCompany(currentDate, holidayMap);
       
       // Include all days - working days, weekends, and holidays
-      const dateKey = currentDate.toISOString().split('T')[0];
       const attendanceRecord = attendanceMap.get(dateKey);
       const approvedLeave = leaveMap.get(dateKey);
       
-      // Check if it's a holiday
-      const startOfDay = new Date(currentDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(currentDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-      
-      const holiday = await Holiday.findOne({
-        date: { $gte: startOfDay, $lte: endOfDay }
-      });
+      // 🚀 O(1) holiday lookup using pre-fetched map
+      const holiday = holidayMap.get(dateKey);
       
       if (holiday) {
         // It's a holiday
