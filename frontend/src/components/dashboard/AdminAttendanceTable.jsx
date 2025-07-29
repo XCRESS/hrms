@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 
-// Custom Time Input Component with AM/PM support
-const TimeInput = ({ value, onChange, className, placeholder }) => {
+// 🚀 OPTIMIZED: Custom Time Input Component with AM/PM support (memoized)
+const TimeInput = memo(({ value, onChange, className, placeholder }) => {
   const [timeState, setTimeState] = useState({
     hour: '',
     minute: '',
@@ -108,10 +108,10 @@ const TimeInput = ({ value, onChange, className, placeholder }) => {
       )}
     </div>
   );
-};
+});
 
-// Edit Attendance Modal Component
-const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdate }) => {
+// 🚀 OPTIMIZED: Edit Attendance Modal Component (memoized)
+const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, onUpdate }) => {
   const [formData, setFormData] = useState({
     status: '',
     checkIn: '',
@@ -344,7 +344,7 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       </div>
     </div>
   );
-};
+});
 
 const AdminAttendanceTable = () => {
   const [attendanceData, setAttendanceData] = useState([]);

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Calendar, Edit3 } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import useAuth from '@/hooks/authjwt';
 
-const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
+// 🚀 OPTIMIZED: Employee Attendance Table with memoization
+const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const user = useAuth();
   const [attendanceData, setAttendanceData] = useState([]);
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
@@ -15,8 +16,8 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [workingDays, setWorkingDays] = useState([]);
 
-  // Get the current 4-day window from all working days
-  const getCurrentWindow = () => {
+  // 🚀 OPTIMIZED: Get the current 4-day window from all working days (memoized)
+  const getCurrentWindow = useMemo(() => {
     if (allWorkingDays.length === 0) return [];
     
     const maxStartIndex = Math.max(0, allWorkingDays.length - 4);
@@ -24,7 +25,7 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
     const endIndex = Math.min(startIndex + 4, allWorkingDays.length);
     
     return allWorkingDays.slice(startIndex, endIndex);
-  };
+  }, [allWorkingDays, currentWindowIndex]);
 
   // Fetch employee's monthly attendance data
   const fetchMonthlyAttendanceData = useCallback(async (monthDate = selectedMonth) => {
@@ -635,6 +636,6 @@ const EmployeeAttendanceTable = ({ onRegularizationRequest }) => {
       </div>
     </div>
   );
-};
+});
 
 export default EmployeeAttendanceTable;
