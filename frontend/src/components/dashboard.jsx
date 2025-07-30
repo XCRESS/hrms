@@ -9,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast.jsx";
 import RegularizationModal from "./dashboard/RegularizationModal.jsx";
 import TaskReportModal from "./dashboard/TaskReportModal.jsx";
+import DebugUtils from "../utils/debugUtils.js";
 
 // Lazy load dashboard components for better performance
 import { lazy, Suspense } from 'react';
@@ -192,6 +193,13 @@ export default function HRMSDashboard() {
     try {
       setLoading('isLoading', true);
       
+      // Log dashboard initialization
+      DebugUtils.logDebugInfo("Dashboard Initialize", {
+        userRole: user?.role,
+        employeeId: user?.employeeId,
+        isAdmin
+      });
+      
       // Load common data
       await Promise.all([
         fetchTodayAttendance(),
@@ -209,7 +217,21 @@ export default function HRMSDashboard() {
       
       // Load missing checkouts for all users (admin/HR can also have missing checkouts)
       await loadMissingCheckouts();
+      
+      DebugUtils.logDebugInfo("Dashboard Initialize Complete", {
+        loadingTime: Date.now() - Date.now(), // Will be captured by the debug log
+        dataLoaded: {
+          attendanceData: (data.attendanceData || []).length,
+          announcements: (data.announcements || []).length,
+          holidays: (data.holidaysData || []).length
+        }
+      });
     } catch (error) {
+      DebugUtils.logError("Dashboard Initialize", error, {
+        userRole: user?.role,
+        employeeId: user?.employeeId,
+        isAdmin
+      });
       console.error("Dashboard initialization error:", error);
     } finally {
       setLoading('isLoading', false);

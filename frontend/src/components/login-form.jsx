@@ -8,7 +8,8 @@ import apiClient from "../service/apiClient.js";
 import { useState } from "react";   
 import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Bug, Copy, AlertTriangle } from "lucide-react";
+import DebugUtils from "../utils/debugUtils.js";
 
 
 export default function LoginForm({ className, ...props }) {
@@ -16,6 +17,8 @@ export default function LoginForm({ className, ...props }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [lastError, setLastError] = useState(null);
 
   //for navigation
   const navigate = useNavigate();
@@ -24,32 +27,130 @@ export default function LoginForm({ className, ...props }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLastError(null);
+
     try {
-      console.log(`Trying to do a login`);
+      // Log login attempt with debug context
+      DebugUtils.logDebugInfo("Login Attempt", {
+        email,
+        hasPassword: !!password,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      });
+
       const data = await apiClient.login(email, password);
-      console.log("Login response: ", data);
+      
       if (data.success) {
         localStorage.setItem("authToken", data.token);
+        
+        // Log successful login
+        DebugUtils.logDebugInfo("Login Success", {
+          email,
+          tokenLength: data.token?.length,
+          timestamp: new Date().toISOString()
+        });
+        
         navigate("/");
       } else {
+        const errorMessage = data.message || "Invalid credentials. Please try again.";
+        setLastError({
+          type: 'login_failed',
+          message: errorMessage,
+          data: data,
+          timestamp: new Date().toISOString()
+        });
+
         toast({
           id: "login-failed-" + Date.now(),
           variant: "error",
           title: "Login Failed",
-          description: data.message || "Invalid credentials. Please try again."
+          description: errorMessage
         });
       }
     } catch (error) {
       console.error("Login error:", error);
+      
+      // Enhanced error handling with detailed logging
+      const errorDetails = {
+        name: error.name,
+        message: error.message,
+        status: error.status,
+        endpoint: error.endpoint,
+        timestamp: error.timestamp,
+        responseTime: error.responseTime,
+        isNetworkError: error.name === 'TypeError' && error.message.includes('Failed to fetch'),
+        isServerError: error.status >= 500,
+        isAuthError: error.status === 401,
+        isValidationError: error.status === 400
+      };
+
+      setLastError({
+        type: 'login_error',
+        message: error.message,
+        details: errorDetails,
+        timestamp: new Date().toISOString()
+      });
+
+      // Log structured error
+      DebugUtils.logError("Login", error, {
+        email,
+        errorDetails
+      });
+
+      // Provide specific error messages based on error type
+      let title = "Login Error";
+      let description = error.message || "Something went wrong. Please try again.";
+
+      if (errorDetails.isNetworkError) {
+        title = "Connection Error";
+        description = "Unable to connect to the server. Please check your internet connection and try again.";
+      } else if (errorDetails.isServerError) {
+        title = "Server Error";
+        description = "The server is currently experiencing issues. Please try again in a few moments.";
+      } else if (errorDetails.isAuthError) {
+        title = "Authentication Error";
+        description = "Invalid email or password. Please check your credentials and try again.";
+      } else if (errorDetails.isValidationError) {
+        title = "Validation Error";
+        description = error.message || "Please check your input and try again.";
+      }
+
       toast({
         id: "login-error-" + Date.now(),
         variant: "error",
-        title: "Login Error",
-        description: error.message || "Something went wrong. Please try again."
+        title,
+        description
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyDebugInfo = () => {
+    const debugInfo = {
+      lastError,
+      loginAttempt: {
+        email,
+        timestamp: new Date().toISOString()
+      },
+      ...DebugUtils.getAllDebugInfo()
+    };
+
+    navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))
+      .then(() => {
+        toast({
+          variant: "success",
+          title: "Debug Info Copied",
+          description: "Debug information has been copied to clipboard. Please share this with support."
+        });
+      })
+      .catch(() => {
+        toast({
+          variant: "error", 
+          title: "Copy Failed",
+          description: "Failed to copy debug information to clipboard."
+        });
+      });
   };
   return (
     <div className="flex items-center justify-center h-screen p-[2rem]">
@@ -111,6 +212,67 @@ export default function LoginForm({ className, ...props }) {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Logging in..." : "Login"}
                 </Button>
+                
+                {/* Debug Section */}
+                {lastError && (
+                  <div className="space-y-3">
+                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
+                            Login Issue Detected
+                          </h4>
+                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                            {lastError.message}
+                          </p>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowDebugInfo(!showDebugInfo)}
+                              className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 flex items-center gap-1"
+                            >
+                              <Bug className="h-3 w-3" />
+                              {showDebugInfo ? 'Hide' : 'Show'} Debug Info
+                            </button>
+                            <button
+                              type="button"
+                              onClick={copyDebugInfo}
+                              className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 flex items-center gap-1"
+                            >
+                              <Copy className="h-3 w-3" />
+                              Copy Debug Info
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {showDebugInfo && (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <h5 className="text-xs font-medium text-gray-800 dark:text-gray-200 mb-2">
+                          Debug Information
+                        </h5>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                          <p><strong>Error Type:</strong> {lastError.type}</p>
+                          <p><strong>Timestamp:</strong> {lastError.timestamp}</p>
+                          {lastError.details && (
+                            <>
+                              <p><strong>Status:</strong> {lastError.details.status || 'N/A'}</p>
+                              <p><strong>Network Error:</strong> {lastError.details.isNetworkError ? 'Yes' : 'No'}</p>
+                              <p><strong>Server Error:</strong> {lastError.details.isServerError ? 'Yes' : 'No'}</p>
+                              {lastError.details.responseTime && (
+                                <p><strong>Response Time:</strong> {lastError.details.responseTime}ms</p>
+                              )}
+                            </>
+                          )}
+                          <p><strong>Browser:</strong> {navigator.userAgent.split(' ').slice(-2).join(' ')}</p>
+                          <p><strong>Online:</strong> {navigator.onLine ? 'Yes' : 'No'}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                 </div>
                 <div className="text-center text-sm">

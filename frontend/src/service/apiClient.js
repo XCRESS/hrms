@@ -11,6 +11,7 @@ class ApiClient {
     async customFetch(endpoint, options = {}) {
       const maxRetries = options.retries || 2;
       const retryDelay = options.retryDelay || 1000;
+      const startTime = Date.now();
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -21,18 +22,42 @@ class ApiClient {
             headers,
             credentials: "include",
           };
-          console.log(`Fetching ${url} (attempt ${attempt + 1}/${maxRetries + 1})`);
+          
+          // Enhanced logging for debugging
+          console.log(`🔍 API Call: ${options.method || 'GET'} ${url} (attempt ${attempt + 1}/${maxRetries + 1})`);
+          if (options.body && typeof options.body === 'string') {
+            try {
+              const bodyData = JSON.parse(options.body);
+              console.log('📦 Request Body:', bodyData);
+            } catch {
+              console.log('📦 Request Body (raw):', options.body);
+            }
+          }
+          
           const response = await fetch(url, config);
+          const responseTime = Date.now() - startTime;
+          console.log(`⏱️ Response time: ${responseTime}ms`);
         
         // Handle non-JSON responses
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
           
+          // Enhanced response logging
+          console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
+          console.log('📥 Response Data:', data);
+          
           // For 401 unauthorized responses, clear token
           if (response.status === 401) {
-            console.warn("Authentication error - clearing token");
+            console.warn("🔐 Authentication error - clearing token");
             localStorage.removeItem("authToken");
+            // Store detailed auth error info for debugging
+            window.lastAuthError = {
+              endpoint,
+              timestamp: new Date().toISOString(),
+              error: data,
+              userAgent: navigator.userAgent
+            };
           }
           
           if (!response.ok) {
@@ -43,6 +68,9 @@ class ApiClient {
             const error = new Error(errorMessage);
             error.status = response.status;
             error.data = data;
+            error.endpoint = endpoint;
+            error.timestamp = new Date().toISOString();
+            error.responseTime = responseTime;
             
             // For 400 Bad Request, this is often validation errors, not server unavailability
             // Known validation errors should be silently handled
@@ -57,24 +85,93 @@ class ApiClient {
             
             error.isExpectedValidation = expectedValidationMessages.includes(errorMessage);
             
-            // Only log unexpected errors (not validation errors)
+            // Enhanced error logging with more context
             if (!error.isValidationError && !error.isExpectedValidation) {
-              console.error("API Error", error);
+              console.error("🚨 API Error Details:", {
+                endpoint,
+                status: response.status,
+                statusText: response.statusText,
+                message: errorMessage,
+                data,
+                timestamp: error.timestamp,
+                responseTime,
+                url,
+                headers: Object.fromEntries(response.headers.entries())
+              });
+              
+              // Store error in global error log for debugging
+              if (!window.apiErrorLog) window.apiErrorLog = [];
+              window.apiErrorLog.push({
+                endpoint,
+                status: response.status,
+                message: errorMessage,
+                data,
+                timestamp: error.timestamp,
+                responseTime,
+                userAgent: navigator.userAgent
+              });
+              
+              // Keep only last 50 errors to prevent memory issues
+              if (window.apiErrorLog.length > 50) {
+                window.apiErrorLog = window.apiErrorLog.slice(-50);
+              }
             }
             
             throw error;
           }
+          
+          // Log successful responses for important endpoints
+          const importantEndpoints = ['/auth/login', '/auth/profile', '/employees/profile'];
+          if (importantEndpoints.some(ep => endpoint.includes(ep))) {
+            console.log(`✅ Important endpoint success: ${endpoint}`);
+          }
+          
           return data;
         } else {
+          // Enhanced non-JSON response handling
+          console.log(`📄 Non-JSON Response: ${response.status} ${response.statusText}`);
+          console.log('📄 Content-Type:', contentType);
+          
           if (!response.ok) {
-            const error = new Error("API Error");
+            const responseText = await response.text();
+            const error = new Error("API Error - Non-JSON Response");
             error.status = response.status;
-            console.error("API Error (non-JSON)", error);
+            error.responseText = responseText;
+            error.contentType = contentType;
+            error.endpoint = endpoint;
+            error.timestamp = new Date().toISOString();
+            
+            console.error("🚨 Non-JSON API Error:", {
+              endpoint,
+              status: response.status,
+              statusText: response.statusText,
+              contentType,
+              responseText: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
+              timestamp: error.timestamp
+            });
+            
             throw error;
           }
           return { success: response.ok };
         }
         } catch (error) {
+          const errorTime = Date.now() - startTime;
+          
+          // Enhanced error logging with more context
+          if (!error.isExpectedValidation) {
+            console.error(`🚨 Fetch Error (attempt ${attempt + 1}):`, {
+              endpoint,
+              errorName: error.name,
+              errorMessage: error.message,
+              status: error.status,
+              attempt: attempt + 1,
+              maxRetries: maxRetries + 1,
+              timeElapsed: errorTime,
+              isNetworkError: error.name === 'TypeError' && error.message.includes('Failed to fetch'),
+              stack: error.stack
+            });
+          }
+          
           // If it's already been classified as a validation error, don't retry
           if (error.isExpectedValidation) {
             throw error;
@@ -85,15 +182,36 @@ class ApiClient {
             error.isServerUnavailable = true;
             
             if (attempt < maxRetries) {
-              console.warn(`Network error on attempt ${attempt + 1}, retrying in ${retryDelay}ms...`);
+              console.warn(`🔄 Network error on attempt ${attempt + 1}, retrying in ${retryDelay}ms...`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue; // Retry the request
             }
             
-            // Final attempt failed
-            console.error("API Server Unavailable after all retries", error);
+            // Final attempt failed - enhanced logging
+            console.error("🚨 API Server Unavailable after all retries:", {
+              endpoint,
+              attempts: maxRetries + 1,
+              totalTimeElapsed: errorTime,
+              lastError: error.message,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Store network error for debugging
+            if (!window.networkErrors) window.networkErrors = [];
+            window.networkErrors.push({
+              endpoint,
+              attempts: maxRetries + 1,
+              timestamp: new Date().toISOString(),
+              error: error.message
+            });
           } else if (!error.isValidationError) {
-            console.error("API Error", error);
+            console.error("🚨 Unexpected API Error:", {
+              endpoint,
+              error: error.message,
+              status: error.status,
+              timestamp: new Date().toISOString(),
+              stack: error.stack
+            });
           }
           
           throw error;
@@ -203,20 +321,53 @@ class ApiClient {
     }
     
     async login(email, password) {
-      return this.customFetch(API_ENDPOINTS.AUTH.LOGIN, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      console.log("🔐 Login attempt for:", email);
+      try {
+        const result = await this.customFetch(API_ENDPOINTS.AUTH.LOGIN, {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        });
+        console.log("✅ Login successful for:", email);
+        return result;
+      } catch (error) {
+        console.error("❌ Login failed for:", email, error.message);
+        // Store login error for debugging
+        if (!window.loginErrors) window.loginErrors = [];
+        window.loginErrors.push({
+          email,
+          error: error.message,
+          status: error.status,
+          timestamp: new Date().toISOString()
+        });
+        throw error;
+      }
     }
   
     async getProfile() {
-      const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch(API_ENDPOINTS.EMPLOYEES.PROFILE, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const token = localStorage.getItem("authToken");
+      console.log("👤 Getting profile, token exists:", !!token);
+      
+      try {
+        const result = await this.customFetch(API_ENDPOINTS.EMPLOYEES.PROFILE, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log("✅ Profile retrieved successfully");
+        return result;
+      } catch (error) {
+        console.error("❌ Profile retrieval failed:", error.message);
+        // Store profile error for debugging
+        if (!window.profileErrors) window.profileErrors = [];
+        window.profileErrors.push({
+          hasToken: !!token,
+          error: error.message,
+          status: error.status,
+          timestamp: new Date().toISOString()
+        });
+        throw error;
+      }
     }
   
     async passwordChange(name, email, newPassword) {
