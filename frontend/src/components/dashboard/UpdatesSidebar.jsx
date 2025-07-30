@@ -66,21 +66,32 @@ const UpdatesSidebar = ({
           
           {activeTab === 'holidays' && (
             <div className="space-y-2.5 sm:space-y-3.5">
-              {holidays.length > 0 ? (
-                holidays.map((holiday, index) => (
-                  <div key={holiday.id || `holiday-${index}`} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                    <div>
-                      <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm">{holiday.name}</h4>
-                      <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">{holiday.date}</p>
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const upcomingHolidays = holidays.filter(holiday => {
+                  const holidayDate = new Date(holiday.date);
+                  holidayDate.setHours(0, 0, 0, 0);
+                  return holidayDate >= today;
+                });
+                
+                return upcomingHolidays.length > 0 ? (
+                  upcomingHolidays.map((holiday, index) => (
+                    <div key={holiday.id || `holiday-${index}`} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                      <div>
+                        <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm">{holiday.name}</h4>
+                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">{holiday.date}</p>
+                      </div>
+                      <div className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 p-2 sm:p-2.5 rounded-full shadow-sm">
+                        <Calendar size={16} />
+                      </div>
                     </div>
-                    <div className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 p-2 sm:p-2.5 rounded-full shadow-sm">
-                      <Calendar size={16} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-8 text-center text-gray-500 dark:text-slate-400">No upcoming holidays</div>
-              )}
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-gray-500 dark:text-slate-400">No upcoming holidays</div>
+                );
+              })()}
             </div>
           )}
           
