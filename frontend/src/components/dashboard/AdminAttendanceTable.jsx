@@ -816,7 +816,7 @@ const AdminAttendanceTable = () => {
       {/* Mobile Card Layout */}
       <div className="block md:hidden">
         {attendanceData.length > 0 ? (
-          <div className="space-y-3">
+          <div className="max-h-[600px] overflow-y-auto space-y-3">
             {attendanceData.map((record, index) => (
               <div 
                 key={record.employee._id || index} 
@@ -889,87 +889,89 @@ const AdminAttendanceTable = () => {
 
       {/* Desktop Table Layout */}
       <div className="hidden md:block overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
-              <th className="text-left py-4 px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-sm">Employee</th>
-              {workingDays.map((day, index) => {
-                const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
-                return (
-                  <th key={index} className={`text-center py-4 px-2 font-semibold text-sm min-w-[80px] ${
-                    isWeekend 
-                      ? 'text-neutral-500 dark:text-neutral-400' 
-                      : 'text-neutral-700 dark:text-neutral-300'
-                  }`}>
-                    <div className="flex flex-col items-center">
-                      <span className={isWeekend ? 'text-neutral-400 dark:text-neutral-500' : ''}>{dayName}</span>
-                      <span className={`text-xs ${
-                        isWeekend 
-                          ? 'text-neutral-400 dark:text-neutral-500' 
-                          : 'text-neutral-500 dark:text-neutral-400'
-                      }`}>{dateStr}</span>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-            {attendanceData.length > 0 ? attendanceData.map((record, index) => (
-              <tr 
-                key={record.employee._id || index} 
-                className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800"
-              >
-                <td className="py-4 px-4">
-                  <div>
-                    <div className="font-medium text-neutral-800 dark:text-neutral-100">
-                      {record.employeeName || 'Unknown Employee'}
-                    </div>
-                    {record.employee?.employeeId && (
-                      <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                        ID: {record.employee.employeeId}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                {workingDays.map((day, dayIndex) => {
-                  const dayAttendance = getAttendanceForDay(record, day);
+        <div className="max-h-[500px] overflow-y-auto">
+          <table className="w-full">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
+                <th className="text-left py-4 px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-sm">Employee</th>
+                {workingDays.map((day, index) => {
+                  const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                   return (
-                    <td key={dayIndex} className="py-4 px-2">
-                      <div 
-                        className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-2"
-                        onClick={() => handleEditClick(record, day)}
-                      >
-                        <div className={getAttendanceBadgeClass(dayAttendance)}>
-                          {getAttendanceIcon(dayAttendance)}
-                          {getAttendanceStatusText(dayAttendance) && (
-                            <span className="text-xs font-medium">{getAttendanceStatusText(dayAttendance)}</span>
-                          )}
-                          {dayAttendance.checkIn && (
-                            <div className="text-xs font-mono opacity-80">
-                              {formatTime(dayAttendance.checkIn)}
-                              {dayAttendance.checkOut && (
-                                <div>{formatTime(dayAttendance.checkOut)}</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                    <th key={index} className={`text-center py-4 px-2 font-semibold text-sm min-w-[80px] ${
+                      isWeekend 
+                        ? 'text-neutral-500 dark:text-neutral-400' 
+                        : 'text-neutral-700 dark:text-neutral-300'
+                    }`}>
+                      <div className="flex flex-col items-center">
+                        <span className={isWeekend ? 'text-neutral-400 dark:text-neutral-500' : ''}>{dayName}</span>
+                        <span className={`text-xs ${
+                          isWeekend 
+                            ? 'text-neutral-400 dark:text-neutral-500' 
+                            : 'text-neutral-500 dark:text-neutral-400'
+                        }`}>{dateStr}</span>
                       </div>
-                    </td>
+                    </th>
                   );
                 })}
               </tr>
-            )) : (
-              <tr>
-                <td colSpan={workingDays.length + 1} className="py-12 text-center text-neutral-500 dark:text-neutral-400">
-                  <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-lg font-medium">No employees found</p>
-                  <p className="text-sm">Check your employee database</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+              {attendanceData.length > 0 ? attendanceData.map((record, index) => (
+                <tr 
+                  key={record.employee._id || index} 
+                  className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800"
+                >
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                        {record.employeeName || 'Unknown Employee'}
+                      </div>
+                      {record.employee?.employeeId && (
+                        <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                          ID: {record.employee.employeeId}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  {workingDays.map((day, dayIndex) => {
+                    const dayAttendance = getAttendanceForDay(record, day);
+                    return (
+                      <td key={dayIndex} className="py-4 px-2">
+                        <div 
+                          className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-2"
+                          onClick={() => handleEditClick(record, day)}
+                        >
+                          <div className={getAttendanceBadgeClass(dayAttendance)}>
+                            {getAttendanceIcon(dayAttendance)}
+                            {getAttendanceStatusText(dayAttendance) && (
+                              <span className="text-xs font-medium">{getAttendanceStatusText(dayAttendance)}</span>
+                            )}
+                            {dayAttendance.checkIn && (
+                              <div className="text-xs font-mono opacity-80">
+                                {formatTime(dayAttendance.checkIn)}
+                                {dayAttendance.checkOut && (
+                                  <div>{formatTime(dayAttendance.checkOut)}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={workingDays.length + 1} className="py-12 text-center text-neutral-500 dark:text-neutral-400">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-lg font-medium">No employees found</p>
+                    <p className="text-sm">Check your employee database</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {selectedRecord && selectedEmployee && (
