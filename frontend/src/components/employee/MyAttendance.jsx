@@ -3,105 +3,295 @@ import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, Chevro
 import apiClient from "../../service/apiClient";
 import useAuth from "../../hooks/authjwt";
 
+// Enhanced Attendance Analytics Component (consistent with dashboard)
+const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
+  // Helper function to check if date is a working day (same as dashboard)
+  const isWorkingDayForCompany = (date) => {
+    const dayOfWeek = date.getDay();
+    
+    // Sunday is always a non-working day
+    if (dayOfWeek === 0) {
+      return false;
+    }
+    
+    // Saturday logic: exclude 2nd Saturday of the month
+    if (dayOfWeek === 6) {
+      const dateNum = date.getDate();
+      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+      const secondSaturday = firstSaturday + 7;
+      
+      // If this Saturday is the 2nd Saturday, it's a non-working day
+      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // Calculate actual working days in the date range (excluding holidays)
+  const calculateWorkingDaysInRange = () => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return 0;
+    
+    let workingDays = 0;
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      if (isWorkingDayForCompany(currentDate)) {
+        // Check if this date is not a holiday
+        const isHoliday = holidays.some(holiday => {
+          if (holiday.date) {
+            const holidayDate = new Date(holiday.date);
+            return holidayDate.toDateString() === currentDate.toDateString();
+          }
+          return false;
+        });
+        
+        if (!isHoliday) {
+          workingDays++;
+        }
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return workingDays;
+  };
+
+  const calculateAttendanceStats = () => {
+    if (!attendance || attendance.length === 0) return null;
+
+    const totalWorkingDays = calculateWorkingDaysInRange();
+    
+    // Count different types of days - using same logic as dashboard
+    let presentDays = 0;
+    let absentDays = 0;
+    let halfDays = 0;
+    let invalidDays = 0;
+    let lateDays = 0;
+    
+    attendance.forEach(rec => {
+      const dayDate = new Date(rec.date);
+      const isWorkingDay = isWorkingDayForCompany(dayDate);
+      
+      if (rec.status === "present") {
+        presentDays++;
+        // Check if it's a late arrival
+        if (rec.checkIn) {
+          const checkInTime = new Date(rec.checkIn);
+          const checkInHour = checkInTime.getHours();
+          const checkInMinutes = checkInTime.getMinutes();
+          const checkInDecimal = checkInHour + (checkInMinutes / 60);
+          if (checkInDecimal > 9.9167) { // Late after 9:55 AM
+            lateDays++;
+          }
+        }
+      } else if (rec.status === "half-day") {
+        halfDays++;
+        presentDays++; // Half days are also counted as present (same as dashboard)
+      } else if (rec.status === "absent" && isWorkingDay) {
+        absentDays++;
+      } else if (rec.checkIn && !rec.checkOut && rec.status !== "half-day") {
+        invalidDays++;
+        presentDays++; // Missing checkouts are counted as present (same as dashboard)
+      }
+    });
+
+    const totalWorkingHours = attendance.reduce((total, rec) => {
+      if (rec.checkIn && rec.checkOut) {
+        const checkIn = new Date(rec.checkIn);
+        const checkOut = new Date(rec.checkOut);
+        const hours = (checkOut - checkIn) / (1000 * 60 * 60);
+        return total + hours;
+      }
+      return total;
+    }, 0);
+
+    const avgHoursPerDay = presentDays > 0 ? totalWorkingHours / presentDays : 0; // Average per working day
+    const effectivePresentDays = presentDays - halfDays + (halfDays * 0.5); // Half days count as 0.5
+    const attendancePercentage = totalWorkingDays > 0 ? Math.min((effectivePresentDays / totalWorkingDays) * 100, 100) : 0;
+
+    return {
+      presentDays,
+      absentDays,
+      halfDays,
+      invalidDays,
+      lateDays,
+      totalWorkingHours: totalWorkingHours.toFixed(1),
+      avgHoursPerDay: avgHoursPerDay.toFixed(1),
+      totalWorkingDays,
+      attendancePercentage: attendancePercentage.toFixed(1)
+    };
+  };
+
+  const stats = calculateAttendanceStats();
+
+  if (!stats) {
+    return <div className="text-slate-500 dark:text-slate-400">No attendance data available for analysis.</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-6">
+      <div className="bg-cyan-50 dark:bg-cyan-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-cyan-200 dark:border-cyan-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Working Days</p>
+          <Calendar className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
+        </div>
+        <p className="text-xl sm:text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.totalWorkingDays}</p>
+        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-cyan-500 dark:bg-cyan-500 rounded-full transition-all duration-500" style={{ width: '100%' }}></div>
+        </div>
+      </div>
+      
+      <div className="bg-green-50 dark:bg-green-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-green-200 dark:border-green-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Present Days</p>
+          <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />
+        </div>
+        <p className="text-xl sm:text-3xl font-bold text-green-600 dark:text-green-400">{stats.presentDays}</p>
+        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-green-500 dark:bg-green-500 rounded-full transition-all duration-500" style={{ width: `${stats.attendancePercentage}%` }}></div>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">{stats.attendancePercentage}% att.</p>
+      </div>
+      
+      <div className="bg-red-50 dark:bg-red-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-red-200 dark:border-red-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Absent Days</p>
+          <XCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+        </div>
+        <p className="text-xl sm:text-3xl font-bold text-red-600 dark:text-red-400">{stats.absentDays}</p>
+        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-red-500 dark:bg-red-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.absentDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
+        </div>
+      </div>
+      
+      <div className="bg-amber-50 dark:bg-amber-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-amber-200 dark:border-amber-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Half Days</p>
+          <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+        </div>
+        <p className="text-xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.halfDays}</p>
+        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-amber-500 dark:bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.halfDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
+        </div>
+      </div>
+      
+      <div className="bg-orange-50 dark:bg-orange-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-orange-200 dark:border-orange-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Invalid Days</p>
+          <Clock className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+        </div>
+        <p className="text-xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.invalidDays}</p>
+        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-orange-500 dark:bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.invalidDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function MyAttendance() {
   const user = useAuth();
-  const [attendanceData, setAttendanceData] = useState([]);
+  // Core data states - optimized with sliding window
+  const [allAttendanceData, setAllAttendanceData] = useState([]); // Pre-loaded data for entire range
+  const [displayedData, setDisplayedData] = useState([]); // Current window of data
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
+  const [currentWindowIndex, setCurrentWindowIndex] = useState(0); // Index for sliding window
   const [statistics, setStatistics] = useState(null);
-  const [showAbsentDays, setShowAbsentDays] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
     endDate: new Date().toISOString().slice(0, 10) // Today
   });
   const [joiningDate, setJoiningDate] = useState(null);
   const [effectiveDateRange, setEffectiveDateRange] = useState(null);
+  const [holidays, setHolidays] = useState([]);
   
   const recordsPerPage = 15;
 
-  const fetchAttendance = async (page = 1) => {
+  // Fetch holidays for working days calculation
+  const fetchHolidays = async () => {
+    try {
+      const response = await apiClient.getHolidays();
+      if (response.success) {
+        setHolidays(response.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch holidays:", err);
+      setHolidays([]);
+    }
+  };
+
+  // Pre-load all attendance data for the entire date range (like AdminAttendanceTable)
+  const fetchAllAttendanceData = async () => {
     if (!user?.employeeId) return;
     
     setLoading(true);
     try {
-      let response;
+      // Always use the API that includes absent days
+      const response = await apiClient.getEmployeeAttendanceWithAbsents({
+        employeeId: user.employeeId,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
       
-      if (showAbsentDays) {
-        // Use new API that includes absent days
-        response = await apiClient.getEmployeeAttendanceWithAbsents({
-          employeeId: user.employeeId,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        });
+      if (response.success) {
+        const allRecords = response.data.records || [];
+        setStatistics(response.data.statistics);
         
-        if (response.success) {
-          const allRecords = response.data.records || [];
-          setStatistics(response.data.statistics);
-          
-          // Store joining date and effective date range info
-          if (response.data.employee?.joiningDate) {
-            setJoiningDate(response.data.employee.joiningDate);
-          }
-          if (response.data.dateRange) {
-            setEffectiveDateRange(response.data.dateRange);
-          }
-          
-          // Sort records by date in descending order (today first, then yesterday, etc.)
-          const sortedRecords = allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-          // Paginate manually since this endpoint returns all records
-          const startIndex = (page - 1) * recordsPerPage;
-          const endIndex = startIndex + recordsPerPage;
-          const paginatedRecords = sortedRecords.slice(startIndex, endIndex);
-          
-          setAttendanceData(paginatedRecords.map(record => ({
-            ...record,
-            date: new Date(record.date),
-            checkIn: record.checkIn ? new Date(record.checkIn) : null,
-            checkOut: record.checkOut ? new Date(record.checkOut) : null
-          })));
-          
-          setTotalRecords(sortedRecords.length);
-          setTotalPages(Math.ceil(sortedRecords.length / recordsPerPage));
+        // Store joining date and effective date range info
+        if (response.data.employee?.joiningDate) {
+          setJoiningDate(response.data.employee.joiningDate);
         }
-      } else {
-        // Use original API that only shows records with check-ins
-        const params = {
-          page,
-          limit: recordsPerPage,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        };
+        if (response.data.dateRange) {
+          setEffectiveDateRange(response.data.dateRange);
+        }
         
-        response = await apiClient.getMyAttendanceRecords(params);
-        if (response.success && response.data?.records) {
-          // Sort records by date in descending order (today first, then yesterday, etc.)
-          const sortedRecords = response.data.records.sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-          setAttendanceData(sortedRecords.map(record => ({
-            ...record,
-            date: new Date(record.date),
-            checkIn: record.checkIn ? new Date(record.checkIn) : null,
-            checkOut: record.checkOut ? new Date(record.checkOut) : null
-          })));
-          
-          setTotalRecords(response.data.total || sortedRecords.length);
-          setTotalPages(Math.ceil((response.data.total || sortedRecords.length) / recordsPerPage));
-        }
+        // Process and store all data
+        const processedRecords = allRecords.map(record => ({
+          ...record,
+          date: new Date(record.date),
+          checkIn: record.checkIn ? new Date(record.checkIn) : null,
+          checkOut: record.checkOut ? new Date(record.checkOut) : null
+        }));
+        
+        // Sort records by date in descending order (today first, then yesterday, etc.)
+        const sortedRecords = processedRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        setAllAttendanceData(sortedRecords);
+        
+        // Initialize with first window
+        updateCurrentWindow(sortedRecords, 0);
       }
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
-      setAttendanceData([]);
+      setAllAttendanceData([]);
+      setDisplayedData([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Update current window (no API call needed)
+  const updateCurrentWindow = (data = allAttendanceData, windowIndex = currentWindowIndex) => {
+    // Calculate window
+    const startIndex = windowIndex * recordsPerPage;
+    const endIndex = startIndex + recordsPerPage;
+    const windowData = data.slice(startIndex, endIndex);
+    
+    setDisplayedData(windowData);
+    setCurrentWindowIndex(windowIndex);
+  };
+
   useEffect(() => {
-    fetchAttendance(currentPage);
-  }, [currentPage, dateRange, showAbsentDays, user?.employeeId]);
+    fetchHolidays();
+  }, []);
+
+  useEffect(() => {
+    fetchAllAttendanceData();
+  }, [dateRange, user?.employeeId]);
 
   const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
     hour: '2-digit', minute: '2-digit', hour12: true 
@@ -140,15 +330,21 @@ export default function MyAttendance() {
     return <span className={`${baseClasses} bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300`}>{status}</span>;
   };
 
+  // Navigate pages without API calls (sliding window)
   const handlePageChange = (newPage) => {
+    const totalPages = Math.ceil(allAttendanceData.length / recordsPerPage);
     if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+      updateCurrentWindow(allAttendanceData, newPage - 1);
     }
   };
 
+  // Calculate pagination info
+  const totalRecords = allAttendanceData.length;
+  const totalPages = Math.ceil(totalRecords / recordsPerPage);
+  const currentPage = currentWindowIndex + 1;
+
   const handleDateRangeChange = (field, value) => {
     setDateRange(prev => ({ ...prev, [field]: value }));
-    setCurrentPage(1); // Reset to first page when date range changes
   };
 
   // Show loading if user is not loaded yet
@@ -202,32 +398,13 @@ export default function MyAttendance() {
         </div>
       </div>
 
-      {/* Statistics Card */}
-      {statistics && showAbsentDays && (
-        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 mb-6 border border-cyan-200 dark:border-cyan-800">
-          <div className="flex items-center gap-3 mb-4">
-            <BarChart3 className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
-            <h3 className="text-lg font-semibold text-cyan-700 dark:text-cyan-300">Attendance Summary</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{statistics.totalWorkingDays}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Working Days</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statistics.presentDays}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Present Days</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statistics.absentDays}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Absent Days</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statistics.attendancePercentage}%</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Attendance Rate</div>
-            </div>
-          </div>
-        </div>
+      {/* Enhanced Analytics */}
+      {displayedData.length > 0 && (
+        <AttendanceAnalytics 
+          attendance={allAttendanceData} 
+          dateRange={dateRange}
+          holidays={holidays}
+        />
       )}
 
       {/* Joining Date Notice */}
@@ -246,19 +423,8 @@ export default function MyAttendance() {
         </div>
       )}
 
-      {/* View Toggle */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showAbsentDays}
-              onChange={(e) => setShowAbsentDays(e.target.checked)}
-              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
-            />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show absent days</span>
-          </label>
-        </div>
+      {/* Records Info */}
+      <div className="flex justify-end items-center mb-4">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {totalRecords} total records
           {joiningDate && (
@@ -293,7 +459,7 @@ export default function MyAttendance() {
                 </tr>
               </thead>
               <tbody>
-                {attendanceData.length === 0 ? (
+                {displayedData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
                       <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
@@ -301,7 +467,7 @@ export default function MyAttendance() {
                       <p className="text-sm">Try adjusting your date range</p>
                     </td>
                   </tr>
-                ) : attendanceData.map((record, index) => (
+                ) : displayedData.map((record, index) => (
                   <tr 
                     key={record._id || index} 
                     className={`border-b border-gray-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-slate-700/40 transition-colors ${
@@ -347,13 +513,13 @@ export default function MyAttendance() {
 
           {/* Mobile Cards */}
           <div className="lg:hidden space-y-4">
-            {attendanceData.length === 0 ? (
+            {displayedData.length === 0 ? (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                 <p className="text-lg font-medium">No attendance records found</p>
                 <p className="text-sm">Try adjusting your date range</p>
               </div>
-            ) : attendanceData.map((record, index) => (
+            ) : displayedData.map((record, index) => (
               <div 
                 key={record._id || index} 
                 className={`bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 ${
