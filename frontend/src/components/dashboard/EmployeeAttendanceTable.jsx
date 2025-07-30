@@ -225,7 +225,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
     
     setCurrentWindowIndex(newWindowIndex);
     
-    const newWindow = getCurrentWindow();
+    const newWindow = getCurrentWindow;
     setWorkingDays(newWindow);
     
     updateStatsForWindow(monthlyAttendanceData, newWindow);
@@ -234,7 +234,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   // Update window when currentWindowIndex changes
   useEffect(() => {
     if (allWorkingDays.length > 0) {
-      const newWindow = getCurrentWindow();
+      const newWindow = getCurrentWindow;
       setWorkingDays(newWindow);
       updateStatsForWindow(monthlyAttendanceData, newWindow);
     }
