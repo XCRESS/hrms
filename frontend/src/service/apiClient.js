@@ -810,6 +810,10 @@ class ApiClient {
       return this.delete(API_ENDPOINTS.POLICIES.DELETE(id));
     }
 
+    async permanentDeletePolicy(id) {
+      return this.delete(`${API_ENDPOINTS.POLICIES.DELETE(id)}/permanent`);
+    }
+
     async getPolicyStatistics() {
       return this.get(API_ENDPOINTS.POLICIES.STATISTICS);
     }

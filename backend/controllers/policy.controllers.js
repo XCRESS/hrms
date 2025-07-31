@@ -238,6 +238,36 @@ export const deletePolicy = async (req, res) => {
   }
 };
 
+// Permanently delete policy (only for inactive policies)
+export const permanentDeletePolicy = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // First check if policy exists and is inactive
+    const policy = await Policy.findById(id);
+    if (!policy) {
+      return res.status(404).json(formatResponse(false, "Policy not found"));
+    }
+
+    if (policy.isActive) {
+      return res.status(400).json(formatResponse(false, "Cannot permanently delete active policies. Please deactivate first."));
+    }
+
+    // Permanently delete the policy
+    await Policy.findByIdAndDelete(id);
+
+    console.log("Policy permanently deleted successfully:", {
+      id: policy._id,
+      title: policy.title
+    });
+
+    res.status(200).json(formatResponse(true, "Policy permanently deleted successfully"));
+  } catch (error) {
+    console.error("Error permanently deleting policy:", error);
+    res.status(500).json(formatResponse(false, "Server error while permanently deleting policy", error.message));
+  }
+};
+
 // Get policy statistics
 export const getPolicyStatistics = async (req, res) => {
   try {
