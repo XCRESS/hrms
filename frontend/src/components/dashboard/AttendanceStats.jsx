@@ -86,11 +86,20 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
   // 🚀 OPTIMIZED: Calculate attendance statistics (memoized to prevent recalculation)
   const attendanceStats = useMemo(() => {
     const today = new Date();
+    // Use local time formatting to avoid timezone issues
+    const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // Filter attendance data to only include days up to today
     const relevantAttendanceData = attendanceData.filter(record => {
       const recordDate = new Date(record.date);
       return recordDate <= today;
+    });
+    
+    // Check if today's record exists - using local time formatting
+    const todayRecord = relevantAttendanceData.find(record => {
+      const recordDate = new Date(record.date);
+      const recordDateString = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
+      return recordDateString === todayDateString;
     });
     
     // Count different types of days in a single pass for better performance

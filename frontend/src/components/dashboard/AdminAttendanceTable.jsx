@@ -374,7 +374,7 @@ const AdminAttendanceTable = () => {
     return allWorkingDays.slice(startIndex, endIndex);
   };
 
-  // Fetch entire month's attendance data once
+  // Fetch entire month's attendance data once (NO CACHING)
   const fetchMonthlyAttendanceData = useCallback(async (monthDate = selectedMonth) => {
     try {
       setIsLoading(true);
@@ -383,14 +383,18 @@ const AdminAttendanceTable = () => {
       const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
       
-      const startDate = firstDay.toISOString().split('T')[0];
-      const endDate = lastDay.toISOString().split('T')[0];
+      // Use local time formatting instead of UTC to avoid timezone issues
+      const startDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+      const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
       
-      console.log(`Fetching monthly attendance: ${startDate} to ${endDate}`);
+      let response;
       
-      const response = await apiClient.getAdminAttendanceRange(startDate, endDate);
+      // For monthly view, always use the range API 
+      const timestamp = Date.now();
+      response = await apiClient.getAdminAttendanceRange(startDate, endDate, { _t: timestamp });
       
       if (response.success) {
+        
         setMonthlyAttendanceData(response.data.records || []);
         setAttendanceData(response.data.records || []);
         
@@ -405,7 +409,7 @@ const AdminAttendanceTable = () => {
         
         setAllWorkingDays(allDays);
         
-        // Find initial window that includes today (if current month) or last 4 days
+        // Always prioritize showing today if it's in the current month
         const today = new Date();
         const isCurrentMonth = monthDate.getFullYear() === today.getFullYear() && 
                               monthDate.getMonth() === today.getMonth();
@@ -414,16 +418,22 @@ const AdminAttendanceTable = () => {
         let initialWindowIndex = 0;
         
         if (isCurrentMonth && allDays.length > 0) {
-          // Find today in all days and center the window around it
+          // Find today in all days
           const todayIndex = allDays.findIndex(day => 
             day.toDateString() === today.toDateString()
           );
           
           if (todayIndex !== -1) {
-            // Show window ending with today
+            // Always include today in the window - start with today and show 3 previous days
+            const startIndex = Math.max(0, todayIndex - 3);
             const endIndex = Math.min(todayIndex + 1, allDays.length);
-            const startIndex = Math.max(0, endIndex - 4);
-            initialWindow = allDays.slice(startIndex, startIndex + 4);
+            initialWindow = allDays.slice(startIndex, endIndex);
+            
+            // Pad with next days if we don't have 4 days
+            while (initialWindow.length < 4 && endIndex < allDays.length) {
+              initialWindow.push(allDays[endIndex + initialWindow.length - (endIndex - startIndex)]);
+            }
+            
             initialWindowIndex = Math.max(0, allDays.length - 4 - startIndex);
           } else {
             // Today not found, show last 4 days

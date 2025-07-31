@@ -130,7 +130,7 @@ export default function HRMSDashboard() {
   const [dashboardState, dispatch] = useReducer(dashboardReducer, dashboardInitialState);
   
   // 🚀 CACHE OPTIMIZATION: Use data cache for persistent data across routes
-  const { getCachedData, setCachedData, invalidateCachePattern, clearCache } = useDataCache();
+  const { getCachedData, setCachedData, invalidateCachePattern, clearCache, invalidateCache } = useDataCache();
   
   // Extract state for easier access (memoized to prevent unnecessary recalculation)
   const { modals, loading, data, app } = dashboardState;
@@ -242,8 +242,34 @@ export default function HRMSDashboard() {
   const refreshDashboard = useCallback(async () => {
     console.log('🔄 Dashboard: Force refresh requested');
     clearCache(); // Clear all cache
-    await initializeData();
-  }, [clearCache]);
+    
+    try {
+      setLoading('isLoading', true);
+      
+      // Load common data
+      await Promise.all([
+        fetchTodayAttendance(),
+        loadAnnouncements(),
+        loadHolidays()
+      ]);
+
+      // Load role-specific data with FORCE REFRESH = true
+      if (isAdmin) {
+        await loadAdminDashboardData();
+      } else {
+        // Force refresh = true to bypass cache
+        await loadEmployeeDashboardData(true);
+      }
+      
+      // Load missing checkouts for all users
+      await loadMissingCheckouts();
+      
+    } catch (error) {
+      console.error("Dashboard refresh error:", error);
+    } finally {
+      setLoading('isLoading', false);
+    }
+  }, [clearCache, isAdmin, invalidateCache]);
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.employeeId) return;
@@ -291,16 +317,14 @@ export default function HRMSDashboard() {
         setData('regularizationRequests', cachedData.regularizations.data || []);
         setData('announcements', cachedData.announcements.data || []);
         setData('holidaysData', cachedData.holidays.data || []);
-        console.log('📋 Dashboard: Loaded from cache');
         return;
       }
     }
 
     // If no cache or force refresh, load fresh data
-    console.log('🔄 Dashboard: Loading fresh data');
     setLoading('loadingRequests', true);
     await Promise.all([
-      loadAttendanceData(),
+      loadAttendanceData(forceRefresh),
       loadLeaveRequests(),
       loadHelpInquiries(),
       loadRegularizationRequests()
@@ -308,17 +332,23 @@ export default function HRMSDashboard() {
     setLoading('loadingRequests', false);
   };
 
-  const loadAttendanceData = async () => {
+  const loadAttendanceData = async (forceRefresh = false) => {
     try {
       if (!user?.employeeId) return;
+      
+      // If force refresh, invalidate the cache first
+      if (forceRefresh) {
+        invalidateCache(CACHE_KEYS.DASHBOARD_ATTENDANCE);
+      }
       
       // Get current month data with holidays for charts
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
-      const startDate = firstDay.toISOString().split('T')[0];
-      const endDate = lastDay.toISOString().split('T')[0];
+      // Use local time formatting to avoid timezone issues
+      const startDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+      const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
       
       const response = await apiClient.getEmployeeAttendanceWithAbsents({
         employeeId: user.employeeId,
@@ -334,10 +364,12 @@ export default function HRMSDashboard() {
           checkOut: record.checkOut ? new Date(record.checkOut) : null
         }));
         
+        
         setData('attendanceData', processedData);
         setCachedData(CACHE_KEYS.DASHBOARD_ATTENDANCE, processedData);
       }
     } catch (error) {
+      console.error("Error loading attendance data:", error);
     }
   };
 
@@ -505,7 +537,7 @@ export default function HRMSDashboard() {
           description: "You have successfully checked in for today."
         });
         await fetchTodayAttendance();
-        await loadAttendanceData();
+        await loadAttendanceData(true); // Force refresh after check-in
       }
     } catch (error) {
       // console.error("Check-in error:", error);
@@ -566,6 +598,7 @@ export default function HRMSDashboard() {
         setAppState('dailyCycleComplete', true);
         setModal('showTaskReportModal', false);
         await fetchTodayAttendance();
+        await loadAttendanceData(true); // Force refresh after check-out
       }
     } catch (error) {
       toast({
