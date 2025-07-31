@@ -6,6 +6,7 @@ import {
   getPolicyById,
   updatePolicy,
   deletePolicy,
+  permanentDeletePolicy,
   getPolicyStatistics
 } from "../controllers/policy.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
@@ -35,5 +36,8 @@ router.put("/:id", authMiddleware(['hr', 'admin']), updatePolicy);
 
 // Delete policy (HR/Admin only)
 router.delete("/:id", authMiddleware(['hr', 'admin']), deletePolicy);
+
+// Permanently delete policy (HR/Admin only)
+router.delete("/:id/permanent", authMiddleware(['hr', 'admin']), permanentDeletePolicy);
 
 export default router;

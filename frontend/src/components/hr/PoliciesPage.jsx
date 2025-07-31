@@ -17,7 +17,9 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  EyeOff,
+  RotateCcw
 } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
@@ -33,6 +35,7 @@ const PoliciesPage = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   
   // Policy form state
   const [policyForm, setPolicyForm] = useState({
@@ -61,7 +64,7 @@ const PoliciesPage = ({ onBack }) => {
   // Load policies on component mount and when filters change
   useEffect(() => {
     loadPolicies();
-  }, [pagination.currentPage, searchTerm, selectedCategory, selectedPriority]);
+  }, [pagination.currentPage, searchTerm, selectedCategory, selectedPriority, selectedStatus]);
 
   const loadPolicies = async () => {
     setLoading(true);
@@ -71,7 +74,9 @@ const PoliciesPage = ({ onBack }) => {
         limit: pagination.itemsPerPage,
         ...(searchTerm && { search: searchTerm }),
         ...(selectedCategory && selectedCategory !== 'all' && { category: selectedCategory }),
-        ...(selectedPriority && selectedPriority !== 'all' && { priority: selectedPriority })
+        ...(selectedPriority && selectedPriority !== 'all' && { priority: selectedPriority }),
+        ...(selectedStatus === 'active' && { isActive: true }),
+        ...(selectedStatus === 'inactive' && { isActive: false })
       };
 
       const response = await apiClient.getAllPolicies(params);
@@ -130,23 +135,119 @@ const PoliciesPage = ({ onBack }) => {
   };
 
   const handleDelete = async (policy) => {
-    if (!window.confirm(`Are you sure you want to delete the policy "${policy.title}"?`)) {
+    if (!window.confirm(`Are you sure you want to deactivate the policy "${policy.title}"?`)) {
       return;
     }
 
     try {
       await apiClient.deletePolicy(policy._id);
+      
+      // If viewing "All Policies", just update the status
+      if (selectedStatus === 'all') {
+        setPolicies(prevPolicies => 
+          prevPolicies.map(p => 
+            p._id === policy._id ? { ...p, isActive: false } : p
+          )
+        );
+      } else {
+        // If viewing filtered list, reload to maintain filter consistency
+        loadPolicies();
+      }
+      
       toast({
         title: "Success",
-        description: "Policy deleted successfully"
+        description: "Policy deactivated successfully"
       });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to deactivate policy",
+        variant: "destructive"
+      });
+      // Reload in case of error to restore consistent state
+      loadPolicies();
+    }
+  };
+
+  const handleRestore = async (policy) => {
+    if (!window.confirm(`Are you sure you want to activate the policy "${policy.title}"?`)) {
+      return;
+    }
+
+    try {
+      await apiClient.updatePolicy(policy._id, { isActive: true });
+      
+      // If viewing "All Policies", just update the status
+      if (selectedStatus === 'all') {
+        setPolicies(prevPolicies => 
+          prevPolicies.map(p => 
+            p._id === policy._id ? { ...p, isActive: true } : p
+          )
+        );
+      } else {
+        // If viewing filtered list, reload to maintain filter consistency
+        loadPolicies();
+      }
+      
+      toast({
+        title: "Success",
+        description: "Policy activated successfully"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to activate policy",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePermanentDelete = async (policy) => {
+    if (!window.confirm(`⚠️ WARNING: This will permanently delete the policy "${policy.title}" from the database. This action CANNOT be undone. Are you absolutely sure?`)) {
+      return;
+    }
+
+    // Double confirmation for permanent deletion
+    if (!window.confirm(`This is your final warning. The policy "${policy.title}" will be PERMANENTLY DELETED. Type "DELETE" in the next prompt to confirm.`)) {
+      return;
+    }
+
+    const userInput = window.prompt('Type "DELETE" (in capital letters) to confirm permanent deletion:');
+    if (userInput !== 'DELETE') {
+      toast({
+        title: "Deletion Cancelled",
+        description: "Policy was not deleted - confirmation text did not match."
+      });
+      return;
+    }
+
+    try {
+      await apiClient.permanentDeletePolicy(policy._id);
+      
+      // Remove from local state
+      setPolicies(prevPolicies => prevPolicies.filter(p => p._id !== policy._id));
+      
+      // Update pagination count
+      setPagination(prev => ({
+        ...prev,
+        totalItems: Math.max(0, prev.totalItems - 1)
+      }));
+      
+      toast({
+        title: "Success",
+        description: "Policy permanently deleted successfully"
+      });
+      
+      // Reload to ensure data consistency
       loadPolicies();
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete policy",
+        description: error.message || "Failed to permanently delete policy",
         variant: "destructive"
       });
+      // Reload in case of error to restore consistent state
+      loadPolicies();
     }
   };
 
@@ -451,7 +552,7 @@ const PoliciesPage = ({ onBack }) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
@@ -489,6 +590,17 @@ const PoliciesPage = ({ onBack }) => {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
+                  <SelectValue placeholder="Policy Status" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
+                  <SelectItem value="all" className="dark:text-slate-100">All Policies</SelectItem>
+                  <SelectItem value="active" className="dark:text-slate-100">Active Only</SelectItem>
+                  <SelectItem value="inactive" className="dark:text-slate-100">Inactive Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -522,6 +634,7 @@ const PoliciesPage = ({ onBack }) => {
                         <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Title</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Category</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Priority</th>
+                        <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Status</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Target</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Created</th>
                         <th className="text-right py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">Actions</th>
@@ -553,6 +666,15 @@ const PoliciesPage = ({ onBack }) => {
                               {policy.priority}
                             </span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              policy.isActive !== false 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
+                              {policy.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
                           <td className="py-3 px-4 text-slate-900 dark:text-slate-100">
                             <div className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
@@ -573,18 +695,42 @@ const PoliciesPage = ({ onBack }) => {
                                 onClick={() => handleEdit(policy)}
                                 className="h-8 w-8 p-0 text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
                                 title="Edit"
+                                disabled={policy.isActive === false}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(policy)}
-                                className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {policy.isActive !== false ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(policy)}
+                                  className="h-8 w-8 p-0 text-slate-600 hover:text-orange-600 dark:text-slate-400 dark:hover:text-orange-400"
+                                  title="Deactivate Policy"
+                                >
+                                  <EyeOff className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRestore(policy)}
+                                    className="h-8 w-8 p-0 text-slate-600 hover:text-green-600 dark:text-slate-400 dark:hover:text-green-400"
+                                    title="Activate Policy"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePermanentDelete(policy)}
+                                    className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+                                    title="Permanently Delete Policy"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
