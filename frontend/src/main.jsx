@@ -34,6 +34,7 @@ const SalaryStructureManagement = lazy(() => import('./components/hr/salary/Sala
 const SalaryHub = lazy(() => import('./components/hr/salary/SalaryHub.jsx'));
 const MyRequests = lazy(() => import('./components/employee/MyRequests.jsx'));
 const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage.jsx'));
+const PoliciesPage = lazy(() => import('./components/hr/PoliciesPage.jsx'));
 const ChatBot = lazy(() => import('./components/chatbot/chatbot.jsx'));
 
 // 🚀 PHASE 2 OPTIMIZATION: Enhanced loading component with skeleton
@@ -140,6 +141,7 @@ createRoot(document.getElementById('root')).render(
                   <Route path="employees/link" element={<EmployeeLink />} />
                   <Route path="holidays" element={<HolidayManagementPage />} />
                   <Route path="announcements" element={<AnnouncementsPage />} />
+                  <Route path="policies" element={<PoliciesPage />} />
                   <Route path="attendance/my" element={<MyAttendance />} />
                   <Route path="task-reports/my" element={<MyTaskReports />} />
                   <Route path="salary-slips/my" element={<MySalarySlips />} />

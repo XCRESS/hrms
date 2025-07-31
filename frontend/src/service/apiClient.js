@@ -780,6 +780,39 @@ class ApiClient {
     async getEmployeesWithoutStructure() {
       return this.get(API_ENDPOINTS.SALARY_STRUCTURES.EMPLOYEES_WITHOUT_STRUCTURE);
     }
+
+    async getSalaryStatistics() {
+      return this.get(API_ENDPOINTS.SALARY_STRUCTURES.STATISTICS);
+    }
+
+    // Policy methods
+    async createPolicy(policyData) {
+      return this.post(API_ENDPOINTS.POLICIES.CREATE, policyData);
+    }
+
+    async getAllPolicies(params = {}) {
+      return this.get(buildEndpointWithQuery(API_ENDPOINTS.POLICIES.GET_ALL, params));
+    }
+
+    async getActivePolicies(params = {}) {
+      return this.get(buildEndpointWithQuery(API_ENDPOINTS.POLICIES.GET_ACTIVE, params));
+    }
+
+    async getPolicyById(id) {
+      return this.get(API_ENDPOINTS.POLICIES.GET_BY_ID(id));
+    }
+
+    async updatePolicy(id, policyData) {
+      return this.put(API_ENDPOINTS.POLICIES.UPDATE(id), policyData);
+    }
+
+    async deletePolicy(id) {
+      return this.delete(API_ENDPOINTS.POLICIES.DELETE(id));
+    }
+
+    async getPolicyStatistics() {
+      return this.get(API_ENDPOINTS.POLICIES.STATISTICS);
+    }
   }
   
   // Export the instance

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -15,9 +15,40 @@ import {
 import SalaryStructureManagement from '../salary/SalaryStructureManagement';
 import SalarySlipManagement from '../salary/SalarySlipManagement';
 import BackButton from '../../ui/BackButton';
+import apiClient from '../../../service/apiClient';
+import { formatIndianNumber } from '../../../utils/indianNumber';
 
 const SalaryHub = () => {
   const [activeSection, setActiveSection] = useState('overview');
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch salary statistics
+  const fetchStatistics = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getSalaryStatistics();
+      if (response.success) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching salary statistics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'overview') {
+      fetchStatistics();
+    }
+  }, [activeSection]);
+
+  // Function to handle going back to overview and refreshing stats
+  const handleBackToOverview = () => {
+    setActiveSection('overview');
+    // The stats will be refreshed by the useEffect when activeSection changes
+  };
 
   // Overview section with navigation cards
   const OverviewSection = () => (
@@ -47,7 +78,13 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Employees</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">--</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {loading ? (
+                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
+                  ) : (
+                    statistics?.overview?.totalEmployees || '0'
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -61,7 +98,13 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Active Structures</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">--</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {loading ? (
+                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
+                  ) : (
+                    statistics?.overview?.activeSalaryStructures || '0'
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -75,12 +118,55 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">This Month's Slips</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">--</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {loading ? (
+                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
+                  ) : (
+                    statistics?.currentMonth?.slipsGenerated || '0'
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Additional Financial Stats */}
+      {!loading && statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Card className="border-0 shadow-sm bg-white dark:bg-slate-700">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                  <Calculator className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Total Gross Salary</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    ₹{formatIndianNumber(statistics.financial.totalGrossSalary)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm bg-white dark:bg-slate-700">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <Users className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Without Structure</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {statistics.overview.employeesWithoutStructure}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Main Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -201,7 +287,7 @@ const SalaryHub = () => {
       <div className="flex items-center gap-4 mb-8">
         <Button
           variant="outline"
-          onClick={() => setActiveSection('overview')}
+          onClick={handleBackToOverview}
           className="dark:border-slate-600 dark:hover:bg-slate-700"
         >
           ← Back to Overview
@@ -260,9 +346,9 @@ const SalaryHub = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'structure':
-        return <SalaryStructureManagement onBack={() => setActiveSection('overview')} />;
+        return <SalaryStructureManagement onBack={handleBackToOverview} />;
       case 'slips':
-        return <SalarySlipManagement onBack={() => setActiveSection('overview')} />;
+        return <SalarySlipManagement onBack={handleBackToOverview} />;
       case 'payroll':
         return <PayrollSection />;
       default:

@@ -1,4 +1,5 @@
 import SalaryStructure from "../models/SalaryStructure.model.js";
+import SalarySlip from "../models/SalarySlip.model.js";
 import Employee from "../models/Employee.model.js";
 import { formatResponse } from "../utils/response.js";
 
@@ -102,12 +103,13 @@ export const createOrUpdateSalaryStructure = async (req, res) => {
 export const getSalaryStructure = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    console.log("getSalaryStructure: Looking for employeeId:", employeeId);
+    const decodedEmployeeId = decodeURIComponent(employeeId);
+    console.log("getSalaryStructure: Looking for employeeId:", decodedEmployeeId);
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
-      console.log("getSalaryStructure: Employee not found:", employeeId);
+      console.log("getSalaryStructure: Employee not found:", decodedEmployeeId);
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
 
@@ -138,7 +140,7 @@ export const getSalaryStructure = async (req, res) => {
 
       return res.status(404).json(formatResponse(false, "No salary structure found for this employee", null, { 
         reason: "NO_STRUCTURE",
-        employeeId: employeeId,
+        employeeId: decodedEmployeeId,
         employeeObjectId: employee._id.toString(),
         totalStructuresFound: allStructuresForEmployee.length
       }));
@@ -212,10 +214,13 @@ export const getAllSalaryStructures = async (req, res) => {
 export const deleteSalaryStructure = async (req, res) => {
   try {
     const { employeeId } = req.params;
+    const decodedEmployeeId = decodeURIComponent(employeeId);
+    console.log("deleteSalaryStructure: Looking for employeeId:", decodedEmployeeId);
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
+      console.log("deleteSalaryStructure: Employee not found:", decodedEmployeeId);
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
 
@@ -263,5 +268,101 @@ export const getEmployeesWithoutStructure = async (req, res) => {
   } catch (error) {
     console.error("Error fetching employees without salary structure:", error);
     res.status(500).json(formatResponse(false, "Server error while fetching employees", error.message));
+  }
+};
+
+// Get salary statistics for dashboard
+export const getSalaryStatistics = async (req, res) => {
+  try {
+    // Get current month and year
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+    const currentYear = currentDate.getFullYear();
+
+    // Run all queries in parallel for better performance
+    const [
+      totalEmployees,
+      activeSalaryStructures,
+      employeesWithoutStructure,
+      currentMonthSlips,
+      totalSalaryStructures,
+      allActiveSalaryStructures
+    ] = await Promise.all([
+      // Total active employees
+      Employee.countDocuments({ isActive: true }),
+      
+      // Active salary structures count
+      SalaryStructure.countDocuments({ isActive: true }),
+      
+      // Employees without salary structure
+      Employee.find({ isActive: true }).then(async (allEmployees) => {
+        const employeesWithStructures = await SalaryStructure.find({ isActive: true })
+          .populate('employee', 'employeeId');
+        const employeeIdsWithStructure = employeesWithStructures.map(
+          structure => structure.employee.employeeId
+        );
+        return allEmployees.filter(
+          employee => !employeeIdsWithStructure.includes(employee.employeeId)
+        );
+      }),
+      
+      // Current month salary slips
+      SalarySlip.countDocuments({ 
+        month: currentMonth, 
+        year: currentYear 
+      }),
+      
+      // Total salary structures (including inactive for historical data)
+      SalaryStructure.countDocuments({}),
+      
+      // All active salary structures for calculations
+      SalaryStructure.find({ isActive: true })
+    ]);
+
+    // Calculate total gross salary from all active structures
+    const totalGrossSalary = allActiveSalaryStructures.reduce((sum, structure) => {
+      return sum + (structure.grossSalary || 0);
+    }, 0);
+
+    // Find highest and lowest paid employees
+    const sortedStructures = allActiveSalaryStructures
+      .sort((a, b) => (b.grossSalary || 0) - (a.grossSalary || 0));
+    
+    const highestPaid = sortedStructures.length > 0 ? sortedStructures[0].grossSalary : 0;
+    const lowestPaid = sortedStructures.length > 0 ? sortedStructures[sortedStructures.length - 1].grossSalary : 0;
+
+    const statistics = {
+      overview: {
+        totalEmployees,
+        activeSalaryStructures,
+        employeesWithoutStructure: employeesWithoutStructure.length,
+        currentMonthSlips,
+        totalSalaryStructures
+      },
+      financial: {
+        totalGrossSalary,
+        highestPaid,
+        lowestPaid
+      },
+      currentMonth: {
+        month: currentMonth,
+        year: currentYear,
+        slipsGenerated: currentMonthSlips,
+        slipsRemaining: activeSalaryStructures - currentMonthSlips
+      }
+    };
+
+    console.log("Salary statistics calculated:", {
+      totalEmployees,
+      activeSalaryStructures,
+      employeesWithoutStructure: employeesWithoutStructure.length,
+      currentMonthSlips,
+      totalGrossSalary
+    });
+
+    res.status(200).json(formatResponse(true, "Salary statistics fetched successfully", statistics));
+  } catch (error) {
+    console.error("Error fetching salary statistics:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching salary statistics", error.message));
   }
 }; 

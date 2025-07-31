@@ -71,9 +71,10 @@ export const createOrUpdateSalarySlip = async (req, res) => {
 export const getSalarySlip = async (req, res) => {
   try {
     const { employeeId, month, year } = req.params;
+    const decodedEmployeeId = decodeURIComponent(employeeId);
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
@@ -100,10 +101,11 @@ export const getSalarySlip = async (req, res) => {
 export const getEmployeeSalarySlips = async (req, res) => {
   try {
     const { employeeId } = req.params;
+    const decodedEmployeeId = decodeURIComponent(employeeId);
     const { page = 1, limit = 10 } = req.query;
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
@@ -201,9 +203,10 @@ export const getAllSalarySlips = async (req, res) => {
 export const deleteSalarySlip = async (req, res) => {
   try {
     const { employeeId, month, year } = req.params;
+    const decodedEmployeeId = decodeURIComponent(employeeId);
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
@@ -281,7 +284,8 @@ export const updateSalarySlipStatus = async (req, res) => {
     }
 
     // Find employee
-    const employee = await Employee.findOne({ employeeId });
+    const decodedEmployeeId = decodeURIComponent(employeeId);
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
