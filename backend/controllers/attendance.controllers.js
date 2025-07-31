@@ -4,6 +4,7 @@ import TaskReport from "../models/TaskReport.model.js";
 import Leave from "../models/Leave.model.js";
 import Holiday from "../models/Holiday.model.js";
 import cache, { TTL } from "../utils/cache.js";
+import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 
 /**
  * OPTIMIZED: Bulk fetch holidays for date range with caching to avoid N+1 queries
@@ -201,6 +202,11 @@ export const checkIn = async (req, res) => {
     }
 
     attendance = await Attendance.create(attendanceData);
+    
+    // Invalidate relevant caches after check-in
+    invalidateAttendanceCache();
+    invalidateDashboardCache();
+    
     res.status(201).json(formatResponse(true, "Checked in successfully", { attendance }));
   } catch (err) {
     let errorMessage = "Check-in failed";
@@ -272,6 +278,10 @@ export const checkOut = async (req, res) => {
     // 3. Update attendance with checkout time
     attendance.checkOut = new Date();
     await attendance.save();
+
+    // Invalidate relevant caches after check-out
+    invalidateAttendanceCache();
+    invalidateDashboardCache();
 
     res.json(formatResponse(true, "Checked out successfully with task report.", { attendance }));
 
@@ -734,7 +744,7 @@ export const getAdminAttendanceRange = async (req, res) => {
     const startDateObj = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
     const endDateObj = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
-    // 🚀 Get all active employees with caching
+    // 🚀 Get all active employees with reasonable caching
     const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
       return await Employee.find({ isActive: true })
         .select('_id firstName lastName employeeId department position')
@@ -771,6 +781,7 @@ export const getAdminAttendanceRange = async (req, res) => {
           attendanceMap.set(empId, new Map());
         }
         attendanceMap.get(empId).set(dateKey, record);
+        
       }
     });
 
@@ -874,6 +885,7 @@ export const getAdminAttendanceRange = async (req, res) => {
             status: attendanceRecord.status || 'present',
             isWorkingDay: dayObj.isWorkingDay
           };
+          
         } else if (employeeLeaves.has(dateKey)) {
           // On approved leave
           weekData[dateKey] = {
@@ -901,6 +913,7 @@ export const getAdminAttendanceRange = async (req, res) => {
             isWorkingDay: dayObj.isWorkingDay && !isHoliday,
             holidayTitle: isHoliday ? holidayMap.get(dateKey).title : undefined
           };
+          
         }
       });
 
@@ -918,11 +931,11 @@ export const getAdminAttendanceRange = async (req, res) => {
     });
 
     // Calculate summary stats for today if it's in the range
-    const today = new Date();
-    const todayYear = today.getFullYear();
-    const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
-    const todayDay = String(today.getDate()).padStart(2, '0');
-    const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
+    const todayForStats = new Date();
+    const todayYear = todayForStats.getFullYear();
+    const todayMonth = String(todayForStats.getMonth() + 1).padStart(2, '0');
+    const todayDay = String(todayForStats.getDate()).padStart(2, '0');
+    const todayStatsKey = `${todayYear}-${todayMonth}-${todayDay}`;
     let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 };
     
     if (allDays.some(dayObj => {
@@ -930,10 +943,10 @@ export const getAdminAttendanceRange = async (req, res) => {
       const year = day.getFullYear();
       const month = String(day.getMonth() + 1).padStart(2, '0');
       const dayNum = String(day.getDate()).padStart(2, '0');
-      return `${year}-${month}-${dayNum}` === todayKey;
+      return `${year}-${month}-${dayNum}` === todayStatsKey;
     })) {
       employeeAttendanceData.forEach(record => {
-        const todayData = record.weekData[todayKey];
+        const todayData = record.weekData[todayStatsKey];
         if (todayData) {
           todayStats.total++;
           if (todayData.status === 'present' || todayData.checkIn) {

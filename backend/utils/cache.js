@@ -168,9 +168,9 @@ const cache = new SimpleCache();
 // Cache TTL constants for different data types
 export const TTL = {
   HOLIDAYS: 60 * 60 * 1000, // 1 hour (holidays change infrequently)
-  EMPLOYEES: 30 * 60 * 1000, // 30 minutes (employee data changes occasionally)
+  EMPLOYEES: 10 * 60 * 1000, // 10 minutes (reasonable balance)
   WORKING_DAYS: 60 * 60 * 1000, // 1 hour (working day calculation)
-  ATTENDANCE_SUMMARY: 5 * 60 * 1000, // 5 minutes (attendance changes frequently)
+  ATTENDANCE_SUMMARY: 2 * 60 * 1000, // 2 minutes (frequent but not excessive)
   USER_PROFILE: 30 * 60 * 1000, // 30 minutes (user profile changes occasionally)
   DASHBOARD_STATS: 2 * 60 * 1000 // 2 minutes (dashboard data changes frequently)
 };
