@@ -6,8 +6,7 @@ import PolicyModal from "../ui/PolicyModal";
 const UpdatesSidebar = ({ 
   announcements, 
   holidays, 
-  username,
-  activityData
+  username
 }) => {
   const [activeTab, setActiveTab] = useState("policies");
   const [policies, setPolicies] = useState([]);
@@ -63,7 +62,7 @@ const UpdatesSidebar = ({
           {[
             {id: 'policies', label: 'Policies'}, 
             {id: 'holidays', label: 'Holidays'}, 
-            {id: 'activity', label: 'Activity'}
+            {id: 'announcements', label: 'Announcements'}
           ].map(tab => (
             <button 
               key={tab.id}
@@ -158,34 +157,44 @@ const UpdatesSidebar = ({
             </div>
           )}
           
-          {activeTab === 'activity' && (
+          {activeTab === 'announcements' && (
             <div className="space-y-3 sm:space-y-4">
-              {activityData && activityData.length > 0 ? (
-                activityData.map((activity, index) => (
-                  <div key={activity.id || `activity-${index}`} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+              {announcements && announcements.length > 0 ? (
+                announcements.map((announcement, index) => (
+                  <div key={announcement.id || `announcement-${index}`} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
                     <div className="flex items-start gap-2 sm:gap-3.5">
-                      <div className={`
-                        ${activity.theme === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' : 
-                          activity.theme === 'green' ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-300' :
-                          activity.theme === 'purple' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300' : 
-                          activity.theme === 'red' ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-300' :
-                          'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300'} 
-                        rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm`}>
-                        {activity.initials}
+                      <div className="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm">
+                        <Bell size={14} />
                       </div>
-                      <div>
-                        <p className="text-xs sm:text-sm text-gray-700 dark:text-slate-200 leading-snug">{activity.text}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 mt-0.5">{new Date(activity.date).toLocaleDateString()}</p>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm leading-snug">{announcement.title}</h4>
+                          {announcement.priority && (
+                            <span className={`ml-2 flex-shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(announcement.priority)}`}>
+                              {announcement.priority}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-gray-600 dark:text-slate-400 mb-2 leading-relaxed line-clamp-3">
+                          {announcement.content}
+                        </p>
+                        <div className="flex justify-between items-center">
+                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                            {new Date(announcement.createdAt || announcement.date).toLocaleDateString()}
+                          </p>
+                          {announcement.author && (
+                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                              by {announcement.author}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-gray-500 dark:text-slate-400">No recent activity</div>
+                <div className="py-8 text-center text-gray-500 dark:text-slate-400">No announcements</div>
               )}
-              <div className="pt-2 text-center">
-                <button className="text-cyan-600 dark:text-cyan-400 text-xs sm:text-sm hover:underline font-semibold py-2">View All Activities</button>
-              </div>
             </div>
           )}
         </div>
