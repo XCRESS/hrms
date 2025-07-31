@@ -161,8 +161,40 @@ const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
 
   const calculateAttendanceStats = () => {
     if (!attendance || attendance.length === 0) return null;
-
-    const totalWorkingDays = calculateWorkingDaysInRange();
+    
+    // Calculate breakdown for tooltip using attendance data like employee dashboard
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+    let totalDaysInRange = 0;
+    let weekendDays = 0;
+    let holidayDays = 0;
+    
+    // Count from attendance records which already includes holidays from API
+    const attendanceDateSet = new Set();
+    attendance.forEach(rec => {
+      const dateKey = new Date(rec.date).toDateString();
+      attendanceDateSet.add(dateKey);
+      
+      if (rec.status === 'weekend') {
+        weekendDays++;
+      } else if (rec.status === 'holiday') {
+        holidayDays++;
+      }
+    });
+    
+    // Count total days in range and any missing weekend days
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      totalDaysInRange++;
+      const dateKey = currentDate.toDateString();
+      
+      // If this date is not in attendance records, check if it should be a weekend
+      if (!attendanceDateSet.has(dateKey) && !isWorkingDayForCompany(currentDate)) {
+        weekendDays++;
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
     
     // Count different types of days - using same logic as dashboard
     let presentDays = 0;
@@ -208,9 +240,12 @@ const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
       return total;
     }, 0);
 
+    // Calculate working days using same logic as breakdown
+    const calculatedWorkingDays = totalDaysInRange - weekendDays - holidayDays;
+    
     const avgHoursPerDay = presentDays > 0 ? totalWorkingHours / presentDays : 0; // Average per working day
     const effectivePresentDays = presentDays - halfDays + (halfDays * 0.5); // Half days count as 0.5
-    const attendancePercentage = totalWorkingDays > 0 ? Math.min((effectivePresentDays / totalWorkingDays) * 100, 100) : 0;
+    const attendancePercentage = calculatedWorkingDays > 0 ? Math.min((effectivePresentDays / calculatedWorkingDays) * 100, 100) : 0;
 
     return {
       presentDays,
@@ -220,8 +255,15 @@ const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
       lateDays,
       totalWorkingHours: totalWorkingHours.toFixed(1),
       avgHoursPerDay: avgHoursPerDay.toFixed(1),
-      totalWorkingDays,
-      attendancePercentage: attendancePercentage.toFixed(1)
+      totalWorkingDays: calculatedWorkingDays,
+      attendancePercentage: attendancePercentage.toFixed(1),
+      // Breakdown data for tooltip
+      breakdown: {
+        totalDaysInRange,
+        weekendDays,
+        holidayDays,
+        workingDays: calculatedWorkingDays
+      }
     };
   };
 
@@ -233,7 +275,10 @@ const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-6">
-      <div className="bg-cyan-50 dark:bg-cyan-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-cyan-200 dark:border-cyan-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+      <div 
+        className="bg-cyan-50 dark:bg-cyan-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-cyan-200 dark:border-cyan-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5 relative group cursor-help"
+        title={`Working Days Calculation:\nTotal days in range: ${stats.breakdown.totalDaysInRange}\n- Weekend days: ${stats.breakdown.weekendDays}\n- Holiday days: ${stats.breakdown.holidayDays}\n= Working days: ${stats.breakdown.workingDays}`}
+      >
         <div className="flex items-center justify-between mb-2 sm:mb-3.5">
           <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Working Days</p>
           <Calendar className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
@@ -241,6 +286,21 @@ const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
         <p className="text-xl sm:text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.totalWorkingDays}</p>
         <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
           <div className="h-2 bg-cyan-500 dark:bg-cyan-500 rounded-full transition-all duration-500" style={{ width: '100%' }}></div>
+        </div>
+        
+        {/* Custom Tooltip */}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black dark:bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+          <div className="text-center">
+            <div className="font-semibold mb-1">Working Days Calculation:</div>
+            <div>Total days in range: {stats.breakdown.totalDaysInRange}</div>
+            <div className="text-red-300">- Weekend days: {stats.breakdown.weekendDays}</div>
+            <div className="text-orange-300">- Holiday days: {stats.breakdown.holidayDays}</div>
+            <div className="border-t border-gray-600 mt-1 pt-1 font-semibold text-cyan-300">
+              = Working days: {stats.breakdown.workingDays}
+            </div>
+          </div>
+          {/* Tooltip arrow */}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black dark:border-t-gray-900"></div>
         </div>
       </div>
       
@@ -307,14 +367,19 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
       const formatTimeForInput = (date, defaultTime) => {
         if (!date && !defaultTime) return '';
         
+        // Use the record date to ensure we're working with the correct date
         const recordDate = new Date(record.date);
-        const baseDate = recordDate.toISOString().split('T')[0];
+        // Format as YYYY-MM-DD using local time components to avoid timezone issues
+        const year = recordDate.getFullYear();
+        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+        const day = String(recordDate.getDate()).padStart(2, '0');
+        const baseDate = `${year}-${month}-${day}`;
         
         if (date) {
-          // Convert existing UTC date to local time for display
-          const localDate = new Date(date);
-          const hours = localDate.getHours().toString().padStart(2, '0');
-          const minutes = localDate.getMinutes().toString().padStart(2, '0');
+          // Convert existing date to local time for display
+          const existingDate = new Date(date);
+          const hours = existingDate.getHours().toString().padStart(2, '0');
+          const minutes = existingDate.getMinutes().toString().padStart(2, '0');
           return `${baseDate}T${hours}:${minutes}`;
         } else if (defaultTime) {
           return `${baseDate}T${defaultTime}`;
@@ -333,7 +398,11 @@ const EditAttendanceModal = ({ isOpen, onClose, record, employeeProfile, onUpdat
 
   const handleStatusChange = (status) => {
     const recordDate = new Date(record?.date || new Date());
-    const baseDate = recordDate.toISOString().split('T')[0];
+    // Format as YYYY-MM-DD using local time components to avoid timezone issues
+    const year = recordDate.getFullYear();
+    const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+    const day = String(recordDate.getDate()).padStart(2, '0');
+    const baseDate = `${year}-${month}-${day}`;
     
     setFormData(prev => {
       const newData = { ...prev, status };
@@ -651,9 +720,11 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
 
   const formatTime = (date) => {
     if (!date) return "—";
-    return new Intl.DateTimeFormat('en-US', { 
-      hour: '2-digit', minute: '2-digit', hour12: true 
-    }).format(new Date(date));
+    return new Date(date).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 

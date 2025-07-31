@@ -10,7 +10,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
+  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 } });
   const [allWorkingDays, setAllWorkingDays] = useState([]);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -166,11 +166,11 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
     if (windowDays.length === 0 || records.length === 0) {
-      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0 });
+      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 } });
       return;
     }
 
-    let present = 0, absent = 0, leave = 0, weekend = 0;
+    let present = 0, absent = 0, leave = 0, weekend = 0, holiday = 0;
 
     windowDays.forEach(day => {
       const attendance = getAttendanceForDay(records[0], day);
@@ -178,8 +178,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       if (attendance.status === 'weekend') {
         weekend++;
       } else if (attendance.status === 'holiday') {
-        // Don't count holidays in stats anymore
-        return;
+        holiday++;
       } else if (attendance.status === 'leave') {
         leave++;
       } else if (attendance.checkIn || attendance.checkOut) {
@@ -189,7 +188,21 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       }
     });
 
-    setStats({ total: windowDays.length, present, absent, leave, weekend });
+    const workingDays = windowDays.length - weekend - holiday;
+    
+    setStats({ 
+      total: windowDays.length, 
+      present, 
+      absent, 
+      leave, 
+      weekend,
+      breakdown: {
+        totalDays: windowDays.length,
+        weekendDays: weekend,
+        holidayDays: holiday,
+        workingDays: workingDays
+      }
+    });
   };
 
   const handleAttendanceClick = (record, day) => {

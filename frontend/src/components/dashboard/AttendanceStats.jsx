@@ -83,6 +83,35 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
     return weekends;
   }, [currentDate.getMonth(), currentDate.getFullYear(), isWorkingDayForCompany]);
 
+  // 🚀 OPTIMIZED: Count holidays in the month (memoized)
+  const holidaysInMonth = useMemo(() => {
+    let holidayCount = 0;
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    const currentDateIterator = new Date(firstDay);
+    
+    while (currentDateIterator <= lastDay) {
+      if (isWorkingDayForCompany(currentDateIterator)) {
+        // Check if this working day is a holiday
+        const isHoliday = holidays.some(holiday => {
+          if (holiday.date) {
+            const holidayDate = new Date(holiday.date);
+            return holidayDate.toDateString() === currentDateIterator.toDateString();
+          }
+          return false;
+        });
+        
+        if (isHoliday) {
+          holidayCount++;
+        }
+      }
+      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
+    }
+    
+    return holidayCount;
+  }, [currentDate.getMonth(), currentDate.getFullYear(), holidays, isWorkingDayForCompany]);
+
   // 🚀 OPTIMIZED: Calculate attendance statistics (memoized to prevent recalculation)
   const attendanceStats = useMemo(() => {
     const today = new Date();
@@ -168,12 +197,24 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
 
   // 🚀 OPTIMIZED: Memoize cards array to prevent recreation on every render
   const cards = useMemo(() => [
-    { title: "Working Days", value: workingDaysInMonth, icon: Calendar, color: "cyan", barWidth: `${(workingDaysInMonth / (daysInMonth || 1)) * 100}%` },
+    { 
+      title: "Working Days", 
+      value: workingDaysInMonth, 
+      icon: Calendar, 
+      color: "cyan", 
+      barWidth: `${(workingDaysInMonth / (daysInMonth || 1)) * 100}%`,
+      breakdown: {
+        totalDays: daysInMonth,
+        weekendDays: weekendsInMonth,
+        holidayDays: holidaysInMonth,
+        workingDays: workingDaysInMonth
+      }
+    },
     { title: "Present Days", value: attendanceStats.presentDays, icon: CheckCircle, color: "green", barWidth: `${attendancePercentage}%`, subText: `${attendancePercentage}% att.` },
     { title: "Absent Days", value: attendanceStats.absentDays, icon: XCircle, color: "red", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.absentDays / workingDaysToDate) * 100 : 0}%` },
     { title: "Half Days", value: attendanceStats.halfDays, icon: AlertCircle, color: "amber", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.halfDays / workingDaysToDate) * 100 : 0}%` },
     { title: "Invalid Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
-  ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate]);
+  ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate, weekendsInMonth, holidaysInMonth]);
 
   if (isLoading) {
     return (
@@ -223,7 +264,10 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
         };
         
         return (
-          <div key={card.title} className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
+          <div 
+            key={card.title} 
+            className={`bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5 ${card.breakdown ? 'relative group cursor-help' : ''}`}
+          >
             <div className="flex items-center justify-between mb-2 sm:mb-3.5">
               <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">{card.title}</p>
               <Icon size={20} className={`${iconClasses[card.color]}`} />
@@ -233,6 +277,23 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
               <div className={`h-2 ${barClasses[card.color]} rounded-full transition-all duration-500`} style={{ width: card.barWidth }}></div>
             </div>
             {card.subText && <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">{card.subText}</p>}
+            
+            {/* Custom Tooltip for Working Days */}
+            {card.breakdown && (
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-black dark:bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                <div className="text-center">
+                  <div className="font-semibold mb-1">Working Days Calculation:</div>
+                  <div>Total days in month: {card.breakdown.totalDays}</div>
+                  <div className="text-red-300">- Weekend days: {card.breakdown.weekendDays}</div>
+                  <div className="text-orange-300">- Holiday days: {card.breakdown.holidayDays}</div>
+                  <div className="border-t border-gray-600 mt-1 pt-1 font-semibold text-cyan-300">
+                    = Working days: {card.breakdown.workingDays}
+                  </div>
+                </div>
+                {/* Tooltip arrow */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black dark:border-b-gray-900"></div>
+              </div>
+            )}
           </div>
         );
       })}
