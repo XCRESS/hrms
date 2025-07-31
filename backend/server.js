@@ -84,6 +84,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import taskReportRoutes from "./routes/taskReport.routes.js";
 import salarySlipRoutes from "./routes/salarySlip.routes.js";
 import salaryStructureRoutes from "./routes/salaryStructure.routes.js";
+import policyRoutes from "./routes/policy.routes.js";
 import healthRoutes from "./routes/health.js";
 
 // API health check endpoint
@@ -134,6 +135,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/task-reports", taskReportRoutes); // Fixed: plural form with dash
 app.use("/api/salary-slips", salarySlipRoutes);
 app.use("/api/salary-structures", salaryStructureRoutes);
+app.use("/api/policies", policyRoutes);
 app.use("/health", healthRoutes);
 
 app.get('/', (req, res) => {

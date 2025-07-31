@@ -18,9 +18,9 @@ export const API_ENDPOINTS = {
     PROFILE: "/employees/profile",
     CREATE: "/employees/create",
     GET_ALL: "/employees",
-    GET_BY_ID: (id) => `/employees/${id}`,
-    UPDATE: (id) => `/employees/${id}`,
-    DELETE: (id) => `/employees/${id}`
+    GET_BY_ID: (id) => `/employees/${encodeURIComponent(id)}`,
+    UPDATE: (id) => `/employees/${encodeURIComponent(id)}`,
+    DELETE: (id) => `/employees/${encodeURIComponent(id)}`
   },
   
   // Attendance Management
@@ -117,9 +117,9 @@ export const API_ENDPOINTS = {
     BASE: "/salary-slips",
     CREATE_OR_UPDATE: "/salary-slips",
     GET_ALL: "/salary-slips",
-    GET_BY_EMPLOYEE_MONTH_YEAR: (employeeId, month, year) => `/salary-slips/${employeeId}/${month}/${year}`,
-    GET_EMPLOYEE_SLIPS: (employeeId) => `/salary-slips/employee/${employeeId}`,
-    DELETE: (employeeId, month, year) => `/salary-slips/${employeeId}/${month}/${year}`,
+    GET_BY_EMPLOYEE_MONTH_YEAR: (employeeId, month, year) => `/salary-slips/${encodeURIComponent(employeeId)}/${month}/${year}`,
+    GET_EMPLOYEE_SLIPS: (employeeId) => `/salary-slips/employee/${encodeURIComponent(employeeId)}`,
+    DELETE: (employeeId, month, year) => `/salary-slips/${encodeURIComponent(employeeId)}/${month}/${year}`,
     TAX_CALCULATION: "/salary-slips/tax-calculation"
   },
 
@@ -128,16 +128,29 @@ export const API_ENDPOINTS = {
     BASE: "/salary-structures",
     CREATE_OR_UPDATE: "/salary-structures",
     GET_ALL: "/salary-structures",
-    GET_BY_EMPLOYEE: (employeeId) => `/salary-structures/${employeeId}`,
-    DELETE: (employeeId) => `/salary-structures/${employeeId}`,
-    EMPLOYEES_WITHOUT_STRUCTURE: "/salary-structures/employees-without-structure"
+    GET_BY_EMPLOYEE: (employeeId) => `/salary-structures/${encodeURIComponent(employeeId)}`,
+    DELETE: (employeeId) => `/salary-structures/${encodeURIComponent(employeeId)}`,
+    EMPLOYEES_WITHOUT_STRUCTURE: "/salary-structures/employees-without-structure",
+    STATISTICS: "/salary-structures/stats/overview"
+  },
+
+  // Policies
+  POLICIES: {
+    BASE: "/policies",
+    CREATE: "/policies",
+    GET_ALL: "/policies",
+    GET_ACTIVE: "/policies/active",
+    GET_BY_ID: (id) => `/policies/${id}`,
+    UPDATE: (id) => `/policies/${id}`,
+    DELETE: (id) => `/policies/${id}`,
+    STATISTICS: "/policies/statistics"
   }
 };
 
 // Helper function to build query string
 export const buildQueryString = (params = {}) => {
   const filteredParams = Object.entries(params)
-    .filter(([key, value]) => value !== null && value !== undefined && value !== '')
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
   
   const queryString = new URLSearchParams(filteredParams).toString();

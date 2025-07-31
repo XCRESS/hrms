@@ -4,7 +4,8 @@ import {
   getSalaryStructure,
   getAllSalaryStructures,
   deleteSalaryStructure,
-  getEmployeesWithoutStructure
+  getEmployeesWithoutStructure,
+  getSalaryStatistics
 } from "../controllers/salaryStructure.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
@@ -21,6 +22,9 @@ router.get("/", getAllSalaryStructures);
 
 // Get employees without salary structure
 router.get("/employees-without-structure", getEmployeesWithoutStructure);
+
+// Get salary statistics
+router.get("/stats/overview", getSalaryStatistics);
 
 // Get salary structure by employee ID
 router.get("/:employeeId", getSalaryStructure);

@@ -16,7 +16,8 @@ import {
   FileText,
   Receipt,
   DollarSign,
-  MessageCircle
+  MessageCircle,
+  Shield
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -84,6 +85,11 @@ export default function SidebarDemo() {
               label: "Announcements",
               href: "/announcements",
               icon: <Megaphone className={accentIconClass('pink')} />,
+            },
+            {
+              label: "Policies",
+              href: "/policies",
+              icon: <Shield className={accentIconClass('indigo')} />,
             },
             {
               label: "Task Reports",

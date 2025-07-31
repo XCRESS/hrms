@@ -176,7 +176,8 @@ export const findUsersWithMissingEmployeeId = async (req, res) => {
 export const getUserByEmployeeId = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    const employee = await Employee.findOne({ employeeId });
+    const decodedEmployeeId = decodeURIComponent(employeeId);
+    const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found for this employeeId" });
     }
