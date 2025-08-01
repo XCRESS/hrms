@@ -277,43 +277,54 @@ export default function EmployeeDirectory() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
-        <div className="flex space-x-1 p-4">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'active'
-                ? 'bg-cyan-600 text-white shadow-md'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Active Employees</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('inactive')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'inactive'
-                ? 'bg-red-600 text-white shadow-md'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-            }`}
-          >
-            <UserX className="w-4 h-4" />
-            <span>Inactive Employees</span>
-          </button>
-          <button
-            onClick={() => navigate('/employees/add')}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors bg-green-600 text-white shadow-md hover:bg-green-700"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add Employee</span>
-          </button>
-          <button
-            onClick={() => navigate('/employees/link')}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 text-white shadow-md hover:bg-blue-700"
-          >
-            <Link2 className="w-4 h-4" />
-            <span>Link User</span>
-          </button>
+        <div className="px-4 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Main Navigation Tabs */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`flex-1 sm:flex-none flex items-center justify-center sm:justify-start space-x-2 px-4 py-3 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                  activeTab === 'active'
+                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/25'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:shadow-md'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span className="text-sm">Active</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('inactive')}
+                className={`flex-1 sm:flex-none flex items-center justify-center sm:justify-start space-x-2 px-4 py-3 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                  activeTab === 'inactive'
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:shadow-md'
+                }`}
+              >
+                <UserX className="w-4 h-4" />
+                <span className="text-sm">Inactive</span>
+              </button>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => navigate('/employees/add')}
+                className="flex-1 sm:flex-none flex items-center justify-center sm:justify-start space-x-2 px-4 py-3 sm:py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-green-600 text-white shadow-lg shadow-green-600/25 hover:bg-green-700 hover:shadow-green-600/30"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Employee</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/employees/link')}
+                className="flex-1 sm:flex-none flex items-center justify-center sm:justify-start space-x-2 px-4 py-3 sm:py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-blue-600 text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/30"
+              >
+                <Link2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Link User</span>
+                <span className="sm:hidden">Link</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -326,7 +337,7 @@ export default function EmployeeDirectory() {
         <div className="flex flex-col lg:flex-row">
           {/* Sidebar: Employee List */}
           <div className="w-full lg:w-80 lg:h-[calc(100vh-80px)] lg:sticky lg:top-20 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700 lg:sticky lg:top-0 bg-white dark:bg-slate-800 z-10">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10">
               <input
                 type="text"
                 placeholder="Search employees..."
