@@ -1,45 +1,22 @@
-// Service Worker for HRMS PWA
-// Handles push notifications, background sync, and minimal offline support
+// Service Worker for HRMS PWA  
+// Handles push notifications and background sync
 
-const CACHE_NAME = 'hrms-cache-v2';
-const ESSENTIAL_ASSETS = [
-  '/',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
-];
-
-// Install event - cache essential assets
+// Install event - skip waiting immediately
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Caching essential assets');
-        return cache.addAll(ESSENTIAL_ASSETS);
-      })
-      .catch((error) => {
-        console.log('Failed to cache assets:', error);
-      })
-      .finally(() => {
-        self.skipWaiting();
-      })
-  );
+  self.skipWaiting();
 });
 
 // Activate event - take control immediately
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
   event.waitUntil(
-    // Clean up old caches
+    // Clean up any existing caches
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+          console.log('Deleting cache:', cacheName);
+          return caches.delete(cacheName);
         })
       );
     }).then(() => self.clients.claim()).then(() => {
@@ -49,40 +26,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - minimal offline support for essential assets only
-self.addEventListener('fetch', (event) => {
-  // Only handle GET requests for essential assets
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  // Check if it's an essential asset
-  const url = new URL(event.request.url);
-  const isEssentialAsset = ESSENTIAL_ASSETS.some(asset => 
-    url.pathname === asset || url.pathname.includes('icon-')
-  );
-
-  if (isEssentialAsset) {
-    event.respondWith(
-      caches.match(event.request)
-        .then((response) => {
-          // Return cached version or fetch from network
-          return response || fetch(event.request);
-        })
-        .catch(() => {
-          // Offline fallback for root path
-          if (url.pathname === '/') {
-            return new Response(
-              '<html><body><h1>HRMS Offline</h1><p>Please check your internet connection</p></body></html>',
-              { headers: { 'Content-Type': 'text/html' } }
-            );
-          }
-        })
-    );
-  }
-  // All other requests pass through naturally to prevent masking network errors
-});
-
 // Push notification handler
 self.addEventListener('push', (event) => {
   console.log('Push notification received:', event);
@@ -90,8 +33,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'HRMS Notification',
     body: 'You have a new notification',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
+    icon: '/icon-192x192.png',
+    badge: '/icon-192x192.png',
     tag: 'hrms-notification',
     requireInteraction: true
   };
@@ -164,8 +107,8 @@ function scheduleCheckInReminder() {
     if (day >= 1 && day <= 5) { // Monday to Friday
       self.registration.showNotification('Check-in Reminder', {
         body: 'Don\'t forget to check in for work today!',
-        icon: '/icon.svg',
-        badge: '/icon.svg',
+        icon: '/icon-192x192.png',
+        badge: '/icon-192x192.png',
         tag: 'checkin-reminder',
         requireInteraction: true,
         actions: [
@@ -214,8 +157,8 @@ self.addEventListener('message', (event) => {
     const { title, body, data } = event.data;
     self.registration.showNotification(title, {
       body,
-      icon: '/icon.svg',
-      badge: '/icon.svg',
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
       tag: 'app-notification',
       data
     });
