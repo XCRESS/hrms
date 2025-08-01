@@ -1,7 +1,7 @@
 // Service Worker for HRMS PWA
 // Handles push notifications, background sync, and minimal offline support
 
-const CACHE_NAME = 'hrms-cache-v1';
+const CACHE_NAME = 'hrms-cache-v2';
 const ESSENTIAL_ASSETS = [
   '/',
   '/manifest.json',
