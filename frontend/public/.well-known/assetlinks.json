@@ -1,8 +1,11 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.intakesense.hr.twa",
-    "sha256_cert_fingerprints": ["B6:E5:4C:67:C0:4B:BA:3F:62:60:80:C7:7B:B9:D3:C9:C0:CD:D3:C6:05:41:FB:F8:F6:4B:10:F8:D5:40:EC:6A"]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.intakesense.hr.twa",
+      "sha256_cert_fingerprints":
+        ["3C:18:71:BC:4B:85:F7:4D:D8:B0:09:C8:2F:0C:ED:83:07:9F:C6:1F:8F:19:02:4C:47:0E:9F:E2:2B:F7:74:8B"]
+    }
   }
-}]
+]
