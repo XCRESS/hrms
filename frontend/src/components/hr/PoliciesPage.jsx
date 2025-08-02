@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,12 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, 
-  Search, 
   Edit, 
   Trash2, 
   Save,
   FileText,
-  Filter,
   Calendar,
   Users,
   AlertTriangle,
@@ -27,15 +26,12 @@ import useAuth from "../../hooks/authjwt";
 import BackButton from "../ui/BackButton";
 
 const PoliciesPage = ({ onBack }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [policies, setPolicies] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
   
   // Policy form state
   const [policyForm, setPolicyForm] = useState({
@@ -61,22 +57,17 @@ const PoliciesPage = ({ onBack }) => {
   const { toast } = useToast();
   const user = useAuth();
 
-  // Load policies on component mount and when filters change
+  // Load policies on component mount
   useEffect(() => {
     loadPolicies();
-  }, [pagination.currentPage, searchTerm, selectedCategory, selectedPriority, selectedStatus]);
+  }, [pagination.currentPage]);
 
   const loadPolicies = async () => {
     setLoading(true);
     try {
       const params = {
         page: pagination.currentPage,
-        limit: pagination.itemsPerPage,
-        ...(searchTerm && { search: searchTerm }),
-        ...(selectedCategory && selectedCategory !== 'all' && { category: selectedCategory }),
-        ...(selectedPriority && selectedPriority !== 'all' && { priority: selectedPriority }),
-        ...(selectedStatus === 'active' && { isActive: true }),
-        ...(selectedStatus === 'inactive' && { isActive: false })
+        limit: pagination.itemsPerPage
       };
 
       const response = await apiClient.getAllPolicies(params);
@@ -142,17 +133,12 @@ const PoliciesPage = ({ onBack }) => {
     try {
       await apiClient.deletePolicy(policy._id);
       
-      // If viewing "All Policies", just update the status
-      if (selectedStatus === 'all') {
-        setPolicies(prevPolicies => 
-          prevPolicies.map(p => 
-            p._id === policy._id ? { ...p, isActive: false } : p
-          )
-        );
-      } else {
-        // If viewing filtered list, reload to maintain filter consistency
-        loadPolicies();
-      }
+      // Update the policy status in local state
+      setPolicies(prevPolicies => 
+        prevPolicies.map(p => 
+          p._id === policy._id ? { ...p, isActive: false } : p
+        )
+      );
       
       toast({
         title: "Success",
@@ -177,17 +163,12 @@ const PoliciesPage = ({ onBack }) => {
     try {
       await apiClient.updatePolicy(policy._id, { isActive: true });
       
-      // If viewing "All Policies", just update the status
-      if (selectedStatus === 'all') {
-        setPolicies(prevPolicies => 
-          prevPolicies.map(p => 
-            p._id === policy._id ? { ...p, isActive: true } : p
-          )
-        );
-      } else {
-        // If viewing filtered list, reload to maintain filter consistency
-        loadPolicies();
-      }
+      // Update the policy status in local state
+      setPolicies(prevPolicies => 
+        prevPolicies.map(p => 
+          p._id === policy._id ? { ...p, isActive: true } : p
+        )
+      );
       
       toast({
         title: "Success",
@@ -517,7 +498,7 @@ const PoliciesPage = ({ onBack }) => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4">
-          <BackButton onClick={onBack || (() => {})} label="Back" variant="ghost" className="w-auto" />
+          <BackButton onClick={() => navigate('/dashboard')} label="Back to Dashboard" variant="ghost" className="w-auto" />
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -543,67 +524,6 @@ const PoliciesPage = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Filters */}
-        <Card className="border-0 shadow-md bg-white dark:bg-slate-700">
-          <CardHeader className="border-b border-slate-200 dark:border-slate-600">
-            <CardTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Search & Filter
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input
-                  placeholder="Search policies..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100"
-                />
-              </div>
-              
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                  <SelectItem value="all" className="dark:text-slate-100">All Categories</SelectItem>
-                  {['General', 'HR', 'IT', 'Security', 'Leave', 'Attendance', 'Code of Conduct', 'Safety', 'Other'].map(cat => (
-                    <SelectItem key={cat} value={cat} className="dark:text-slate-100 dark:focus:bg-slate-700">
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                  <SelectValue placeholder="All Priorities" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                  <SelectItem value="all" className="dark:text-slate-100">All Priorities</SelectItem>
-                  {['Low', 'Medium', 'High', 'Critical'].map(priority => (
-                    <SelectItem key={priority} value={priority} className="dark:text-slate-100 dark:focus:bg-slate-700">
-                      {priority}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                  <SelectValue placeholder="Policy Status" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                  <SelectItem value="all" className="dark:text-slate-100">All Policies</SelectItem>
-                  <SelectItem value="active" className="dark:text-slate-100">Active Only</SelectItem>
-                  <SelectItem value="inactive" className="dark:text-slate-100">Inactive Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Policies Table */}
         <Card className="border-0 shadow-md bg-white dark:bg-slate-700">

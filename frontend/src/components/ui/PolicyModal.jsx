@@ -228,31 +228,6 @@ const PolicyModal = ({ policyId, isOpen, onClose }) => {
                 </div>
               )}
 
-              {/* Policy Metadata */}
-              <div className="border-t border-slate-200 dark:border-slate-600 pt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400">
-                  <div>
-                    <p className="font-medium">Created by:</p>
-                    <p>
-                      {policy.createdBy 
-                        ? `${policy.createdBy.firstName} ${policy.createdBy.lastName}`
-                        : 'Unknown'
-                      }
-                    </p>
-                    <p className="text-xs">{formatDate(policy.createdAt)}</p>
-                  </div>
-                  
-                  {policy.lastUpdatedBy && (
-                    <div>
-                      <p className="font-medium">Last updated by:</p>
-                      <p>
-                        {`${policy.lastUpdatedBy.firstName} ${policy.lastUpdatedBy.lastName}`}
-                      </p>
-                      <p className="text-xs">{formatDate(policy.updatedAt)}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           ) : null}
         </div>
