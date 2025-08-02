@@ -2,9 +2,7 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "com.hrms.twa",
-    "sha256_cert_fingerprints": [
-      "REPLACE_WITH_YOUR_SHA256_FINGERPRINT"
-    ]
+    "package_name": "com.intakesense.hr.twa",
+    "sha256_cert_fingerprints": ["B6:E5:4C:67:C0:4B:BA:3F:62:60:80:C7:7B:B9:D3:C9:C0:CD:D3:C6:05:41:FB:F8:F6:4B:10:F8:D5:40:EC:6A"]
   }
 }]
