@@ -49,7 +49,7 @@ const UpdatesSidebar = ({
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl h-full flex flex-col overflow-hidden">
+    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl h-full flex flex-col overflow-hidden min-w-80">
       <div className="p-3 sm:p-5 border-b border-gray-200 dark:border-neutral-700 flex justify-between items-center sticky top-0 bg-white dark:bg-neutral-800 z-10">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-neutral-100">Updates</h2>
         <div className="bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 rounded-full h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center text-xs sm:text-sm font-bold shadow-sm">
@@ -200,19 +200,6 @@ const UpdatesSidebar = ({
         </div>
       </div>
       
-      <div className="sticky bottom-0 border-t border-gray-200 dark:border-neutral-700 p-3 sm:p-4 bg-white dark:bg-neutral-800 mt-auto">
-        <div className="bg-cyan-50 dark:bg-cyan-500/10 border-l-4 border-cyan-500 dark:border-cyan-400 p-3 sm:p-4 rounded-md shadow-md">
-          <div className="flex items-center">
-            <Bell size={18} className="text-cyan-600 dark:text-cyan-400 mr-2 sm:mr-3" />
-            <h3 className="font-semibold text-cyan-800 dark:text-cyan-300 text-xs sm:text-sm">Meeting Reminder</h3>
-          </div>
-          <p className="text-xs text-cyan-700 dark:text-cyan-300/90 mt-1.5">Team standup at 10:00 AM today</p>
-          <div className="mt-2.5 sm:mt-3.5 flex gap-2">
-            <button className="text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors focus:outline-none focus:ring-2 ring-offset-2 dark:ring-offset-slate-800 focus:ring-cyan-500 shadow-sm">Join</button>
-            <button className="text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 border border-cyan-500 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400 rounded-md hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors focus:outline-none focus:ring-2 ring-offset-2 dark:ring-offset-slate-800 focus:ring-cyan-500">Snooze</button>
-          </div>
-        </div>
-      </div>
 
       {/* Policy Modal */}
       <PolicyModal
