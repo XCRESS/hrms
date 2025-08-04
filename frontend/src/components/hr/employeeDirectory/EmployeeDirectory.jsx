@@ -120,9 +120,15 @@ export default function EmployeeDirectory() {
     return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
   }
 
-  const filteredEmployees = employees.filter(e =>
-    (e.fullName || `${e.firstName} ${e.lastName}`).toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredEmployees = employees
+    .filter(e =>
+      (e.fullName || `${e.firstName} ${e.lastName}`).toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const nameA = a.fullName || `${a.firstName} ${a.lastName}`;
+      const nameB = b.fullName || `${b.firstName} ${b.lastName}`;
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    });
 
   const isEmployeeLinked = (employeeId) => {
     return users.some(u => u.employeeId === employeeId);
