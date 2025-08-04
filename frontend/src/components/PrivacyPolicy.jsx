@@ -139,7 +139,7 @@ const PrivacyPolicy = () => {
 
           <h2 className="text-2xl font-semibold mt-6 mb-2">12. Contact Us</h2>
           <p>
-            If you have questions about this Privacy Policy or our data practices, contact: <a href="mailto:example@example.com" className="text-blue-500 hover:underline">example@example.com</a>
+            If you have questions about this Privacy Policy or our data practices, contact: <a href="mailto:sonali@cosmosfin.com" className="text-blue-500 hover:underline">sonali@cosmosfin.com</a>
           </p>
         </div>
       </main>
