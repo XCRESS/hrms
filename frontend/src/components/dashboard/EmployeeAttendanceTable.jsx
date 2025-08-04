@@ -527,60 +527,8 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
         </div>
       </div>
       
-      {/* Mobile Card Layout */}
-      <div className="block md:hidden">
-        <div className="space-y-3">
-          {workingDays.map((day, dayIndex) => {
-            const dayAttendance = getAttendanceForDay(record, day);
-            const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
-            return (
-              <div 
-                key={dayIndex} 
-                className={`border rounded-lg p-4 transition-colors border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 cursor-pointer ${
-                  isWeekend ? 'bg-neutral-50 dark:bg-neutral-800/50' : ''
-                }`}
-                onClick={() => handleAttendanceClick(record, day)}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center space-x-3">
-                    {getAttendanceIcon(dayAttendance)}
-                    <div>
-                      <span className={`font-medium ${
-                        isWeekend 
-                          ? 'text-neutral-500 dark:text-neutral-400' 
-                          : 'text-neutral-700 dark:text-neutral-300'
-                      }`}>{dayName}</span>
-                      <div className={`text-xs ${
-                        isWeekend 
-                          ? 'text-neutral-400 dark:text-neutral-500' 
-                          : 'text-neutral-500 dark:text-neutral-400'
-                      }`}>{dateStr}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getAttendanceStatusText(dayAttendance) && (
-                      <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                        {getAttendanceStatusText(dayAttendance)}
-                      </span>
-                    )}
-                    <Edit3 className="w-4 h-4 text-neutral-400" />
-                  </div>
-                </div>
-                
-                {dayAttendance.checkIn && (
-                  <div className="text-xs font-mono text-neutral-600 dark:text-neutral-400">
-                    {formatTime(dayAttendance.checkIn)}
-                    {dayAttendance.checkOut && ` - ${formatTime(dayAttendance.checkOut)}`}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Desktop Table Layout */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+      {/* Table Layout */}
+      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">

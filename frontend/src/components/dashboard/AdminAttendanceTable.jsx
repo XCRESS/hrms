@@ -823,82 +823,8 @@ const AdminAttendanceTable = () => {
         </div>
       </div>
       
-      {/* Mobile Card Layout */}
-      <div className="block md:hidden">
-        {attendanceData.length > 0 ? (
-          <div className="max-h-[600px] overflow-y-auto space-y-3">
-            {attendanceData.map((record, index) => (
-              <div 
-                key={record.employee._id || index} 
-                className="border rounded-lg p-4 transition-colors border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700/30"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-neutral-800 dark:text-neutral-100 truncate">
-                      {record.employeeName || 'Unknown Employee'}
-                    </div>
-                    {record.employee?.employeeId && (
-                      <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                        ID: {record.employee.employeeId}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="mt-3 space-y-2">
-                  {workingDays.map((day, dayIndex) => {
-                    const dayAttendance = getAttendanceForDay(record, day);
-                    const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
-                    return (
-                      <div 
-                        key={dayIndex} 
-                        className={`border rounded-lg p-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 ${
-                          isWeekend ? 'bg-neutral-50 dark:bg-neutral-800/50' : ''
-                        }`}
-                        onClick={() => handleEditClick(record, day)}
-                      >
-                        <div className="flex justify-between items-center mb-2">
-                          <span className={`text-sm font-medium ${
-                            isWeekend 
-                              ? 'text-neutral-500 dark:text-neutral-400' 
-                              : 'text-neutral-700 dark:text-neutral-300'
-                          }`}>{dayName}</span>
-                          <span className={`text-xs ${
-                            isWeekend 
-                              ? 'text-neutral-400 dark:text-neutral-500' 
-                              : 'text-neutral-500 dark:text-neutral-400'
-                          }`}>{dateStr}</span>
-                        </div>
-                        <div className={getAttendanceBadgeClass(dayAttendance)}>
-                          {getAttendanceIcon(dayAttendance)}
-                          {getAttendanceStatusText(dayAttendance) && (
-                            <span className="text-xs font-medium">{getAttendanceStatusText(dayAttendance)}</span>
-                          )}
-                          {dayAttendance.checkIn && (
-                            <div className="text-xs font-mono opacity-80">
-                              {formatTime(dayAttendance.checkIn)}
-                              {dayAttendance.checkOut && ` - ${formatTime(dayAttendance.checkOut)}`}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-12 text-center text-neutral-500 dark:text-neutral-400">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-lg font-medium">No employees found</p>
-            <p className="text-sm">Check your employee database</p>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop Table Layout */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+      {/* Table Layout */}
+      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
         <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full">
             <thead className="sticky top-0 z-10">
