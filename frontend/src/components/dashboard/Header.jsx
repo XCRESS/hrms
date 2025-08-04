@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from "react";
-import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin } from "lucide-react";
+import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin, Edit3 } from "lucide-react";
 
 // Separate memoized component for time display to prevent unnecessary re-renders
 const TimeDisplay = memo(() => {
@@ -44,6 +44,7 @@ const Header = ({
   retryConnection,
   setShowLeaveModal,
   setShowHelpModal,
+  setShowRegularizationModal,
   toggleTheme,
   theme
 }) => {
@@ -73,6 +74,13 @@ const Header = ({
                     className="p-2.5 text-neutral-600 dark:text-neutral-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-white dark:bg-neutral-700 rounded-xl shadow-md hover:shadow-lg border border-neutral-200 dark:border-neutral-600 transition-all duration-200 hover:scale-105"
                 >
                     <Calendar size={18} />
+                </button>
+                <button 
+                    onClick={() => setShowRegularizationModal(true)}
+                    title="Regularize Attendance"
+                    className="p-2.5 text-neutral-600 dark:text-neutral-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-white dark:bg-neutral-700 rounded-xl shadow-md hover:shadow-lg border border-neutral-200 dark:border-neutral-600 transition-all duration-200 hover:scale-105"
+                >
+                    <Edit3 size={18} />
                 </button>
                 <button 
                     onClick={() => setShowHelpModal(true)}

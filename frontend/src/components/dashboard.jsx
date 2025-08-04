@@ -796,20 +796,11 @@ export default function HRMSDashboard() {
           retryConnection={isAdmin ? refreshAdminDashboard : retryConnection}
           setShowLeaveModal={(value) => setModal('showLeaveModal', value)}
           setShowHelpModal={(value) => setModal('showHelpModal', value)}
+          setShowRegularizationModal={(value) => setModal('showRegularizationModal', value)}
           toggleTheme={toggleTheme}
           theme={theme}
         />
 
-        {/* Regularization Button */}
-        <div className="mx-4 mt-4 flex justify-end">
-          <button
-            className="px-3 py-2 sm:px-4 sm:py-2 bg-cyan-600 text-white rounded-lg text-sm sm:text-base font-semibold hover:bg-cyan-700 transition-colors"
-            onClick={() => setModal('showRegularizationModal', true)}
-          >
-            <span className="hidden sm:inline">Regularize Attendance</span>
-            <span className="sm:hidden">Regularize</span>
-          </button>
-        </div>
         
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
