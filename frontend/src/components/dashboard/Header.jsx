@@ -54,12 +54,12 @@ const Header = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
         {/* Welcome Message */}
         <div className="flex items-center mb-4 sm:mb-0">
-          <div className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-3 rounded-xl shadow-lg">
+          <div className="bg-gradient-to-br from-[#EBA04B] to-[#D4881A] text-white p-3 rounded-xl shadow-lg">
             <User size={22} />
           </div>
           <div className="ml-4">
             <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Welcome back,</p>
-            <p className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+            <p className="text-xl font-bold" style={{ color: '#FEE2A1' }}>
               {username}
             </p>
           </div>
