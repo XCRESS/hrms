@@ -33,20 +33,45 @@ from hr_functions import (
 )
 
 load_dotenv()
-client = OpenAI()
 
-# Setup logging
+# Check for OpenAI API key
+import os
+openai_api_key = os.getenv('OPENAI_API_KEY')
+if not openai_api_key:
+    print("❌ ERROR: OPENAI_API_KEY not found in environment variables!")
+    print("Please set your OpenAI API key in .env file or environment variables")
+    exit(1)
+else:
+    print(f"✅ OpenAI API key loaded: {openai_api_key[:10]}...")
+
+try:
+    client = OpenAI()
+    print("✅ OpenAI client initialized successfully")
+except Exception as e:
+    print(f"❌ ERROR: Failed to initialize OpenAI client: {e}")
+    exit(1)
+
+# Setup enhanced logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
     handlers=[
-        logging.FileHandler('hrms_buddy.log'),
+        logging.FileHandler('hrms_buddy.log', mode='a', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
+# Set more verbose logging for debugging
+logging.getLogger('hr_functions').setLevel(logging.INFO)
+logging.getLogger('hr_api_client').setLevel(logging.INFO)
+
+print("✅ Logging system initialized")
+logger.info("HR Buddy server starting up...")
+logger.info(f"OpenAI client status: {'✅ Ready' if client else '❌ Not initialized'}")
+
 app = FastAPI(title="HRMS Buddy API - Unified", version="2.0.0")
+print("✅ FastAPI app created")
 
 # CORS middleware
 app.add_middleware(
@@ -56,9 +81,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+print("✅ CORS middleware added")
 
 # Initialize unified HR client
-hr_client = UnifiedHRClient()
+try:
+    hr_client = UnifiedHRClient()
+    print("✅ HR client initialized")
+    logger.info("HR client initialized successfully")
+except Exception as e:
+    print(f"❌ ERROR: Failed to initialize HR client: {e}")
+    logger.error(f"HR client initialization failed: {e}")
+    exit(1)
 
 def get_bearer_token(email: str, password: str):
     url = "https://hrms-backend.up.railway.app/api/auth/login"
@@ -229,6 +262,12 @@ def get_productivity_analytics(period: str = 'month') -> dict:
 sys_prompt = '''You are HR Buddy, an advanced AI assistant designed specifically for HR management using unified, intelligent APIs. 
 You help users manage attendance, task reports, productivity analytics, and employee performance with powerful, industry-standard tools.
 
+CRITICAL: You MUST always respond in valid JSON format with one of these structures:
+
+For planning: {"step": "plan", "thinking": "your planning thoughts"}
+For taking action: {"step": "action", "function": "function_name", "input": "parameter_value_or_json"}
+For final response: {"step": "output", "content": "your final response to the user"}
+
 You operate in a plan → action → observe → output workflow, providing comprehensive insights and analysis.
 
 IMPORTANT CAPABILITIES:
@@ -244,6 +283,10 @@ ERROR HANDLING RULES:
 - For employee name queries, suggest using full names or employee IDs
 - Handle date formatting automatically (support "today", "yesterday", "this month", etc.)
 - Offer alternative approaches when primary methods fail
+- When tools fail, explain the specific issue and suggest solutions
+- For "Sonali" or similar queries, try different name variations if initial search fails
+- Log all errors with context for debugging purposes
+- Never give generic "try again later" responses without specific error details
 
 UNIFIED FEATURES:
 - All attendance data includes analytics, trends, and insights
@@ -336,35 +379,179 @@ async def health_check():
         "timestamp": datetime.now()
     }
 
+@app.post("/debug/direct-search")
+async def debug_direct_search(
+    request: dict,
+    authorization: Optional[str] = Header(None)
+):
+    """Direct test endpoint to debug employee search issues"""
+    try:
+        employee_name = request.get("employee_name", "sonali")
+        
+        # Set up HR client
+        token = extract_token_from_header(authorization)
+        if token:
+            hr_client.set_token(token)
+        else:
+            fallback_token = get_bearer_token("veshant@cosmosfin.com", "admin")
+            if isinstance(fallback_token, str):
+                hr_client.set_token(fallback_token)
+            else:
+                return {"error": "Authentication failed"}
+        
+        logger.info(f"DEBUG: Direct search for employee: {employee_name}")
+        
+        # Test employee search directly
+        search_result = search_employee_by_name(hr_client, employee_name)
+        logger.info(f"DEBUG: Search result: {search_result}")
+        
+        if search_result.get("success"):
+            # If employee found, try to get task analysis
+            employee_id = search_result["data"]["employeeId"]
+            task_result = get_employee_task_analysis(hr_client, employee_id, "month")
+            logger.info(f"DEBUG: Task analysis result: {task_result}")
+            
+            return {
+                "search_result": search_result,
+                "task_result": task_result
+            }
+        else:
+            return {
+                "search_result": search_result,
+                "message": "Employee search failed, no task analysis attempted"
+            }
+            
+    except Exception as e:
+        logger.error(f"DEBUG endpoint error: {e}", exc_info=True)
+        return {"error": str(e), "type": type(e).__name__}
+
+@app.get("/debug/employees")
+async def debug_get_employees(authorization: Optional[str] = Header(None)):
+    """Debug endpoint to check employee list"""
+    try:
+        # Set up HR client
+        token = extract_token_from_header(authorization)
+        if token:
+            hr_client.set_token(token)
+        else:
+            fallback_token = get_bearer_token("veshant@cosmosfin.com", "admin")
+            if isinstance(fallback_token, str):
+                hr_client.set_token(fallback_token)
+            else:
+                return {"error": "Authentication failed"}
+        
+        logger.info("DEBUG: Getting all employees")
+        result = get_all_employees(hr_client)
+        logger.info(f"DEBUG: Employee list result success: {result.get('success')}")
+        
+        if result.get("success"):
+            employees = result.get("data", {}).get("data", [])
+            employee_names = [f"{emp.get('firstName', '')} {emp.get('lastName', '')}".strip() for emp in employees[:20]]
+            return {
+                "success": True,
+                "total_employees": len(employees),
+                "sample_names": employee_names,
+                "raw_sample": employees[:3] if employees else []
+            }
+        else:
+            return result
+            
+    except Exception as e:
+        logger.error(f"DEBUG employees endpoint error: {e}", exc_info=True)
+        return {"error": str(e), "type": type(e).__name__}
+
+@app.post("/test/simple")
+async def test_simple_response():
+    """Simple test endpoint that bypasses AI completely"""
+    return {
+        "response": "Hello! This is a direct response without AI processing. The system is working at the basic HTTP level.",
+        "conversation_id": "test_simple",
+        "timestamp": datetime.now()
+    }
+
+@app.post("/test/openai")
+async def test_openai_direct():
+    """Test OpenAI API directly with a simple request"""
+    try:
+        logger.info("Testing OpenAI API directly...")
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant. Always respond in JSON format."},
+                {"role": "user", "content": "Say hello in JSON format"}
+            ],
+            timeout=30
+        )
+        
+        raw_content = response.choices[0].message.content
+        logger.info(f"OpenAI raw response: {raw_content}")
+        
+        try:
+            parsed = json.loads(raw_content)
+            return {
+                "success": True,
+                "openai_response": parsed,
+                "raw_content": raw_content
+            }
+        except json.JSONDecodeError as e:
+            return {
+                "success": False,
+                "error": f"JSON decode error: {e}",
+                "raw_content": raw_content
+            }
+            
+    except Exception as e:
+        logger.error(f"OpenAI test error: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "type": type(e).__name__
+        }
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
     chat_request: ChatMessage, 
     authorization: Optional[str] = Header(None)
 ):
+    print(f"🔥 CHAT REQUEST RECEIVED: {chat_request.message}")
+    logger.info(f"🔥 CHAT REQUEST RECEIVED: {chat_request.message}")
+    
     try:
+        logger.info(f"Received chat request: {chat_request.message[:100]}...")
+        
         # Extract and set token for this request
         token = extract_token_from_header(authorization)
         if token:
+            logger.info("Using provided authorization token")
             hr_client.set_token(token)
         else:
+            logger.info("No token provided, using fallback credentials")
             # Fallback to default credentials if no token provided
             fallback_token = get_bearer_token("veshant@cosmosfin.com", "admin")
             if isinstance(fallback_token, str):
                 hr_client.set_token(fallback_token)
+                logger.info("Successfully obtained fallback token")
             else:
-                raise HTTPException(status_code=401, detail="Authentication required")
+                logger.error(f"Failed to obtain fallback token: {fallback_token}")
+                raise HTTPException(status_code=401, detail="Authentication required and fallback failed")
         
         conversation_id = chat_request.conversation_id or str(datetime.now().timestamp())
+        logger.info(f"Processing conversation: {conversation_id}")
         
         # Initialize conversation if new
         if conversation_id not in conversations:
             conversations[conversation_id] = [{"role": "system", "content": sys_prompt}]
+            logger.info(f"Initialized new conversation: {conversation_id}")
         
         messages = conversations[conversation_id]
         messages.append({"role": "user", "content": chat_request.message})
         
         # Process the query through the AI system
+        logger.info("Starting query processing...")
         final_response = await process_query(messages)
+        logger.info(f"Query processed successfully, response length: {len(final_response)}")
         
         # Store the conversation
         conversations[conversation_id] = messages
@@ -375,39 +562,63 @@ async def chat_endpoint(
             timestamp=datetime.now()
         )
         
-    except HTTPException:
+    except HTTPException as http_e:
+        logger.error(f"HTTP exception in chat endpoint: {http_e.detail}")
         raise
     except Exception as e:
-        logger.error(f"Chat endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in chat endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal server error: {str(e)}. Please check the logs for more details."
+        )
 
 async def process_query(messages: List[Dict]) -> str:
     """Process the query through the AI system and return final response"""
     
-    while True:
+    iteration_count = 0
+    max_iterations = 10
+    
+    while iteration_count < max_iterations:
+        iteration_count += 1
+        logger.info(f"Processing iteration {iteration_count}/{max_iterations}")
+        
         try:
+            logger.info(f"Sending request to OpenAI with {len(messages)} messages")
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-4o-mini",  # Fixed model name
                 response_format={"type": "json_object"},
                 messages=messages,
                 timeout=30
             )
             
-            messages.append({"role": "assistant", "content": response.choices[0].message.content})
-            parsed_response = json.loads(response.choices[0].message.content)
+            raw_content = response.choices[0].message.content
+            logger.info(f"Received OpenAI response: {raw_content[:200]}...")
+            
+            messages.append({"role": "assistant", "content": raw_content})
+            
+            try:
+                parsed_response = json.loads(raw_content)
+                logger.info(f"Parsed response step: {parsed_response.get('step', 'unknown')}")
+            except json.JSONDecodeError as json_err:
+                logger.error(f"Failed to parse OpenAI response as JSON: {json_err}")
+                logger.error(f"Raw response content: {raw_content}")
+                return f"I received an invalid response format from the AI system. Raw response: {raw_content[:500]}..."
             
             step = parsed_response.get("step")
             
             if step == "plan":
+                logger.info("AI is in planning phase, continuing...")
                 continue
                 
             elif step == "action":
+                logger.info(f"AI wants to execute action: {parsed_response.get('function', 'unknown')}")
                 tool_name = parsed_response.get("function")
                 
                 if tool_name in available_tools:
                     try:
                         # Handle tool function parameters
                         tool_input = parsed_response.get("input")
+                        logger.info(f"Executing tool {tool_name} with input: {tool_input}")
                         
                         # Parse parameters for different tool types
                         if tool_input:
@@ -428,47 +639,76 @@ async def process_query(messages: List[Dict]) -> str:
                                 else:
                                     # Single string parameter
                                     output = available_tools[tool_name](tool_input)
-                            except json.JSONDecodeError:
+                            except json.JSONDecodeError as json_err:
+                                logger.warning(f"JSON decode error for tool input, treating as string: {json_err}")
                                 # Treat as string parameter
                                 output = available_tools[tool_name](tool_input)
                         else:
                             # No parameters
                             output = available_tools[tool_name]()
                         
+                        logger.info(f"Tool {tool_name} output success: {output.get('success', True) if isinstance(output, dict) else True}")
+                        
                         # Handle the response
                         if isinstance(output, dict) and not output.get("success", True):
-                            if "user_message" in output:
-                                messages.append({"role": "user", "content": json.dumps({"step": "observe", "error": output["user_message"], "details": output})})
-                            else:
-                                messages.append({"role": "user", "content": json.dumps({"step": "observe", "error": output.get("error", "Unknown error occurred"), "details": output})})
+                            error_message = output.get("user_message", output.get("error", "Unknown error occurred"))
+                            logger.error(f"Tool {tool_name} failed: {error_message}")
+                            messages.append({
+                                "role": "user", 
+                                "content": json.dumps({
+                                    "step": "observe", 
+                                    "error": error_message,
+                                    "tool_name": tool_name,
+                                    "details": output
+                                })
+                            })
                         else:
                             # Use formatted response if available, otherwise raw data
                             response_content = output.get("formatted_response") if isinstance(output, dict) and "formatted_response" in output else output
-                            messages.append({"role": "user", "content": json.dumps({"step": "observe", "output": response_content})})
+                            messages.append({"role": "user", "content": json.dumps({"step": "observe", "output": response_content, "tool_name": tool_name})})
                         continue
                         
                     except Exception as e:
-                        error_msg = f"Tool execution failed: {str(e)}"
-                        logger.error(f"Tool {tool_name} execution error: {e}")
-                        messages.append({"role": "user", "content": json.dumps({"step": "observe", "error": error_msg})})
+                        error_msg = f"Tool execution failed for {tool_name}: {str(e)}"
+                        logger.error(f"Tool {tool_name} execution error: {e}", exc_info=True)
+                        messages.append({
+                            "role": "user", 
+                            "content": json.dumps({
+                                "step": "observe", 
+                                "error": error_msg,
+                                "tool_name": tool_name,
+                                "exception_type": type(e).__name__
+                            })
+                        })
                         continue
                 else:
-                    error_msg = f"Tool '{tool_name}' not available"
-                    messages.append({"role": "user", "content": json.dumps({"step": "observe", "error": error_msg})})
+                    error_msg = f"Tool '{tool_name}' not available. Available tools: {', '.join(available_tools.keys())}"
+                    logger.error(f"Unknown tool requested: {tool_name}")
+                    messages.append({"role": "user", "content": json.dumps({"step": "observe", "error": error_msg, "available_tools": list(available_tools.keys())})})
                     continue
                     
             elif step == "output":
-                return parsed_response.get("content", "I couldn't process your request properly.")
+                final_content = parsed_response.get("content", "I couldn't process your request properly.")
+                logger.info(f"AI provided final output, length: {len(final_content)}")
+                return final_content
                 
             else:
-                return parsed_response.get("content", "I encountered an issue processing your request.")
+                logger.warning(f"Unknown step received: {step}")
+                fallback_content = parsed_response.get("content", f"I encountered an unknown processing step: {step}")
+                return fallback_content
                 
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
-            return "I encountered an error processing your request. Please try again."
+            logger.error(f"JSON decode error in process_query iteration {iteration_count}: {e}")
+            logger.error(f"Failed response content: {response.choices[0].message.content if 'response' in locals() else 'No response'}")
+            return f"I encountered a JSON parsing error while processing your request. Error details: {str(e)}. Please try rephrasing your question."
         except Exception as e:
-            logger.error(f"Processing error: {e}")
-            return "I'm having trouble processing your request right now. Please try again later."
+            logger.error(f"Processing error in process_query iteration {iteration_count}: {e}")
+            logger.error(f"Full error context: {str(e)}", exc_info=True)
+            return f"I encountered an unexpected error while processing your request: {str(e)}. Please check the logs for more details or try a different approach."
+    
+    # Max iterations reached
+    logger.error(f"Max iterations ({max_iterations}) reached without resolution")
+    return f"I reached the maximum processing iterations ({max_iterations}) without completing your request. This might indicate a complex query or system issue. Please try a simpler request or check the logs."
 
 @app.get("/conversations/{conversation_id}")
 async def get_conversation(conversation_id: str):
@@ -491,5 +731,11 @@ async def delete_conversation(conversation_id: str):
     return {"message": "Conversation deleted successfully"}
 
 if __name__ == "__main__":
+    print("\n" + "="*60)
+    print("🚀 Starting HR Buddy Server...")
+    print("="*60)
+    logger.info("Starting HR Buddy server on port 8000")
+    
     import uvicorn
+    print("✅ All systems ready - starting uvicorn server...")
     uvicorn.run(app, host="0.0.0.0", port=8000)

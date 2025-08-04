@@ -2,8 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageCircle, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import signupImg from '../../assets/signupImg.png';
+import { apiCallWithFallback, isDevelopment, getEnvironmentInfo } from '../../config/api';
 
 const ChatBot = () => {
+  // Log environment info on component mount
+  useEffect(() => {
+    if (isDevelopment()) {
+      console.log('🤖 [ChatBot] Initialized with environment:', getEnvironmentInfo());
+    }
+  }, []);
+
   const welcomeMessages = [
     "Welcome back! Let's get your HR tasks running smoothly — I'm here to support you.",
     "Great to see you! Ready when you are to help with whatever's next on your HR list.",
@@ -94,19 +102,20 @@ const ChatBot = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      // const response = await fetch('http://localhost:8000/chat', {
-      const response = await fetch('https://hr-buddy-production.up.railway.app/chat', {
+      const requestOptions = {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
           message: currentInput,
           conversation_id: sessionStorage.getItem('hrms_chat_id') || undefined
         }),
-      });
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      console.log(`🌐 [ChatBot] Environment: ${isDevelopment() ? 'Development' : 'Production'}`);
+      
+      const response = await apiCallWithFallback('/chat', requestOptions);
+      
+      // apiCallWithFallback already handles response.ok checks
 
       const data = await response.json();
       
@@ -127,9 +136,22 @@ const ChatBot = () => {
     } catch (error) {
       console.error('Chat API error:', error);
       clearInterval(loadingInterval);
+      
+      // Create more informative error message
+      let errorMessage = "I'm sorry, I'm having trouble connecting right now.";
+      
+      if (error.message.includes('Both API endpoints are unavailable')) {
+        errorMessage = "Both local and production servers are unavailable. Please check:\n\n" +
+                      "• Local server: Make sure it's running on localhost:8000\n" +
+                      "• Production server: Check network connectivity\n" +
+                      "• Try refreshing the page";
+      } else if (error.message.includes('Primary endpoint failed')) {
+        errorMessage = "Primary server is unavailable, but fallback succeeded. Your request should work normally.";
+      }
+      
       const errorResponse = {
         id: messages.length + 2,
-        text: "I'm sorry, I'm having trouble connecting right now. Please make sure the HRMS Buddy server is running and try again.",
+        text: errorMessage,
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -167,7 +189,7 @@ const ChatBot = () => {
   return (
     <div className="flex flex-col h-full max-h-screen bg-white dark:bg-[#212121] font-inter">
       {/* Header */}
-      <div className="flex items-center px-4 sm:px-6 py-3 bg-white dark:bg-[#212121] h-[50px]">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-white dark:bg-[#212121] h-[50px]">
         <div className="flex items-center space-x-3">
           <img 
             src={signupImg} 
@@ -180,6 +202,13 @@ const ChatBot = () => {
             </h1>
           </div>
         </div>
+        
+        {/* Environment indicator (only show in development) */}
+        {isDevelopment() && (
+          <div className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 font-medium">
+            DEV MODE
+          </div>
+        )}
       </div>
 
       {/* Welcome Screen or Messages Container */}
