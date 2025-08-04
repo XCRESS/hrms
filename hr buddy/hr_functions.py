@@ -370,12 +370,44 @@ def get_task_reports_overview(hr_client, period: str = 'month') -> dict:
 def get_employee_task_analysis(hr_client, employee_id: str, period: str = 'month') -> dict:
     """Get individual employee task analysis"""
     try:
+        logger.info(f"Getting task analysis for employee {employee_id} for period: {period}")
         start_date, end_date = get_date_range(period)
+        logger.info(f"Date range: {start_date} to {end_date}")
+        
         response = hr_client.get_employee_task_reports(employee_id, start_date, end_date)
-        return handle_api_response(response, "task_employee_analysis")
+        
+        if not response.get("success"):
+            logger.error(f"Task analysis API call failed for employee {employee_id}: {response.get('message', 'Unknown error')}")
+            
+            # Provide more specific error messages based on the error type
+            error_type = response.get("error_type", "unknown")
+            if error_type == "not_found_error":
+                user_message = f"No task reports found for employee {employee_id} in the {period} period. The employee might not have submitted any task reports during this time."
+            elif error_type == "permission_error":
+                user_message = f"You don't have permission to view task reports for employee {employee_id}."
+            elif error_type == "authentication_error":
+                user_message = "Authentication failed. Please check if you're logged in properly."
+            else:
+                user_message = f"Unable to retrieve task analysis for employee {employee_id}. Error: {response.get('message', 'Unknown error')}"
+            
+            return {
+                "success": False,
+                "error": response.get("message", "API call failed"),
+                "user_message": user_message,
+                "details": response
+            }
+        
+        result = handle_api_response(response, "task_employee_analysis")
+        logger.info(f"Successfully retrieved task analysis for employee {employee_id}")
+        return result
+        
     except Exception as e:
-        logger.error(f"get_employee_task_analysis error: {e}")
-        return {"success": False, "error": str(e), "user_message": f"Unable to retrieve task analysis for employee {employee_id}."}
+        logger.error(f"get_employee_task_analysis error for employee {employee_id}: {e}", exc_info=True)
+        return {
+            "success": False, 
+            "error": str(e), 
+            "user_message": f"Unable to retrieve task analysis for employee {employee_id} due to an unexpected error: {str(e)}"
+        }
 
 def get_productivity_insights(hr_client, period: str = 'month') -> dict:
     """Get AI-powered productivity insights"""
@@ -403,15 +435,32 @@ def get_team_productivity_metrics(hr_client, period: str = 'month') -> dict:
 def search_employee_by_name(hr_client, employee_name: str) -> dict:
     """Search for employee by name and return employee ID"""
     try:
+        logger.info(f"Searching for employee: '{employee_name}'")
         response = hr_client.get_all_employees()
+        
         if not response.get("success"):
-            return response
+            logger.error(f"Failed to get employees list: {response.get('message', 'Unknown error')}")
+            return {
+                "success": False,
+                "error": response.get("message", "Failed to retrieve employees list"),
+                "user_message": f"Unable to search for employee '{employee_name}' because I couldn't retrieve the employees list. Error: {response.get('message', 'Unknown error')}"
+            }
             
         employees = response.get("data", {}).get("data", [])
+        logger.info(f"Retrieved {len(employees)} employees for search")
+        
+        if not employees:
+            return {
+                "success": False,
+                "error": "No employees found in the system",
+                "user_message": "No employees found in the system. Please check if the employee data is properly loaded."
+            }
         
         # Search for employee by name (case-insensitive)
         matching_employees = []
         search_name = employee_name.lower().strip()
+        
+        logger.info(f"Searching for employee with name containing: '{search_name}'")
         
         for emp in employees:
             full_name = f"{emp.get('firstName', '')} {emp.get('lastName', '')}".lower().strip()
@@ -429,14 +478,21 @@ def search_employee_by_name(hr_client, employee_name: str) -> dict:
                     'position': emp.get('position', 'N/A')
                 })
         
+        logger.info(f"Found {len(matching_employees)} matching employees")
+        
         if not matching_employees:
+            # Provide suggestions of similar names
+            all_names = [f"{emp.get('firstName', '')} {emp.get('lastName', '')}".strip() for emp in employees[:10]]  # Show first 10 names as suggestions
+            suggestions = ", ".join(all_names)
+            
             return {
                 "success": False,
                 "error": f"No employee found with name '{employee_name}'",
-                "user_message": f"I couldn't find any employee named '{employee_name}'. Please check the spelling or try with a different name."
+                "user_message": f"I couldn't find any employee named '{employee_name}'. Please check the spelling or try with a different name.\n\nSome employee names in the system: {suggestions}..."
             }
         
         if len(matching_employees) == 1:
+            logger.info(f"Found exact match: {matching_employees[0]['name']} (ID: {matching_employees[0]['employeeId']})")
             return {
                 "success": True,
                 "data": matching_employees[0],
@@ -445,6 +501,7 @@ def search_employee_by_name(hr_client, employee_name: str) -> dict:
         else:
             # Multiple matches found
             matches_text = "\n".join([f"• {emp['name']} ({emp['employeeId']}) - {emp['department']}" for emp in matching_employees])
+            logger.info(f"Found multiple matches: {[emp['name'] for emp in matching_employees]}")
             return {
                 "success": False,
                 "error": f"Multiple employees found with name '{employee_name}'",
@@ -452,8 +509,12 @@ def search_employee_by_name(hr_client, employee_name: str) -> dict:
             }
         
     except Exception as e:
-        logger.error(f"search_employee_by_name error: {e}")
-        return {"success": False, "error": str(e), "user_message": f"Unable to search for employee '{employee_name}'."}
+        logger.error(f"search_employee_by_name error: {e}", exc_info=True)
+        return {
+            "success": False, 
+            "error": str(e), 
+            "user_message": f"Unable to search for employee '{employee_name}' due to an unexpected error: {str(e)}"
+        }
 
 def get_all_employees(hr_client) -> dict:
     """Get all employees list"""
