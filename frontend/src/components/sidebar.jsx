@@ -181,7 +181,7 @@ export default function SidebarDemo() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0">
+      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0 md:ml-[60px] transition-all duration-300">
         <Outlet />
       </div>
     </div>
