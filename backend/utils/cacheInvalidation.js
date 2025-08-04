@@ -21,7 +21,13 @@ export const CACHE_PATTERNS = {
   ATTENDANCE: {
     ALL: 'attendance:*',
     EMPLOYEE: 'attendance:employee:*',
-    ADMIN: 'attendance:admin:*'
+    ADMIN: 'attendance:admin:*',
+    HR: 'hr:attendance:*'
+  },
+  TASK_REPORTS: {
+    ALL: 'task-reports:*',
+    HR: 'hr:task-reports:*',
+    EMPLOYEE: 'task-reports:employee:*'
   },
   DASHBOARD: {
     ALL: 'dashboard:*',
@@ -91,8 +97,26 @@ export const invalidateAttendanceCache = (employeeId = null) => {
   
   if (employeeId) {
     invalidatePattern(`attendance:employee:${employeeId}:*`);
+    invalidatePattern(`hr:attendance:employee:${employeeId}:*`);
   } else {
     invalidatePattern(CACHE_PATTERNS.ATTENDANCE.ALL);
+    invalidatePattern(CACHE_PATTERNS.ATTENDANCE.HR);
+  }
+};
+
+/**
+ * Invalidate task reports-related cache
+ * Call this when task report data changes
+ */
+export const invalidateTaskReportsCache = (employeeId = null) => {
+  console.log('🧹 Invalidating task reports cache...');
+  
+  if (employeeId) {
+    invalidatePattern(`task-reports:employee:${employeeId}:*`);
+    invalidatePattern(`hr:task-reports:employee:${employeeId}:*`);
+  } else {
+    invalidatePattern(CACHE_PATTERNS.TASK_REPORTS.ALL);
+    invalidatePattern(CACHE_PATTERNS.TASK_REPORTS.HR);
   }
 };
 
@@ -129,6 +153,11 @@ export const autoInvalidateMiddleware = (req, res, next) => {
         if (path.includes('/attendance')) {
           invalidateAttendanceCache();
           invalidateDashboardCache(); // Dashboard depends on attendance
+        }
+        
+        if (path.includes('/task-reports')) {
+          invalidateTaskReportsCache();
+          invalidateDashboardCache(); // Dashboard depends on task reports
         }
         
         if (path.includes('/leaves') || path.includes('/regularizations')) {

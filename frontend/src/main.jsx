@@ -36,6 +36,7 @@ const MyRequests = lazy(() => import('./components/employee/MyRequests.jsx'));
 const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage.jsx'));
 const PoliciesPage = lazy(() => import('./components/hr/PoliciesPage.jsx'));
 const ChatBot = lazy(() => import('./components/chatbot/chatbot.jsx'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.jsx'));
 
 // 🚀 PHASE 2 OPTIMIZATION: Enhanced loading component with skeleton
 const PageLoader = () => (
@@ -159,7 +160,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
                 <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
-
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
