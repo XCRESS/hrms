@@ -1,5 +1,6 @@
 import Leave from "../models/Leave.model.js";
 import User from "../models/User.model.js";
+import Employee from "../models/Employee.model.js";
 
 export const requestLeave = async (req, res) => {
   try {
@@ -69,9 +70,20 @@ export const getAllLeaves = async (req, res) => {
     
     const leaves = await Leave.find(filter).sort({ createdAt: -1 });
     
+    // Populate employee names for each leave
+    const leavesWithEmployeeNames = await Promise.all(
+      leaves.map(async (leave) => {
+        const employee = await Employee.findOne({ employeeId: leave.employeeId });
+        return {
+          ...leave.toObject(),
+          employeeName: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee'
+        };
+      })
+    );
+    
     res.json({ 
       success: true, 
-      leaves 
+      leaves: leavesWithEmployeeNames 
     });
   } catch (err) {
     res.status(500).json({ 
