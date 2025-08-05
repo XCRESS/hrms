@@ -4,7 +4,7 @@ import apiClient from '../../service/apiClient';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 
 const TaskReportsPage = () => {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ const TaskReportsPage = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <div className="h-6 w-6 bg-blue-600 dark:bg-blue-400 rounded"></div>
+              <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Employee Task Reports</h1>
