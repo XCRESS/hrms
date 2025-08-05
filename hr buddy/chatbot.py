@@ -476,7 +476,7 @@ async def test_openai_direct():
         logger.info("Testing OpenAI API directly...")
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1",
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": "You are a helpful assistant. Always respond in JSON format."},
