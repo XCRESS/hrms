@@ -1,7 +1,7 @@
 import React from "react";
 import { Users, UserCheck, UserX, FileText, Calendar } from "lucide-react";
 
-const AdminStats = ({ summaryData, isLoading }) => {
+const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidaysClick }) => {
   const stats = [
     { 
       title: "Present Today", 
@@ -19,13 +19,17 @@ const AdminStats = ({ summaryData, isLoading }) => {
       title: "Pending Requests", 
       value: summaryData?.totalPendingRequests ?? "...", 
       icon: FileText, 
-      color: "amber" 
+      color: "amber",
+      clickable: true,
+      onClick: onPendingRequestsClick
     },
     { 
       title: "Upcoming Holidays", 
       value: summaryData?.upcomingHolidays ?? "...", 
       icon: Calendar, 
-      color: "purple" 
+      color: "purple",
+      clickable: true,
+      onClick: onHolidaysClick
     },
   ];
 
@@ -64,7 +68,13 @@ const AdminStats = ({ summaryData, isLoading }) => {
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
-          <div key={stat.title} className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+          <div 
+            key={stat.title} 
+            className={`bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+              stat.clickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700' : ''
+            }`}
+            onClick={stat.clickable ? stat.onClick : undefined}
+          >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400 leading-tight">{stat.title}</p>
               <div className={`p-1.5 sm:p-2 rounded-full ${colorClasses[stat.color]}`}>
