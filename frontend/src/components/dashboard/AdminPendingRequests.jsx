@@ -33,7 +33,7 @@ const AdminPendingRequests = ({ onRefresh }) => {
           icon: <Calendar className="w-5 h-5 text-blue-500" />,
           title: `${leave.leaveType} Leave Request`,
           description: leave.leaveReason,
-          employee: leave.employeeId,
+          employee: leave.employeeName || leave.employeeId || 'Unknown Employee',
           date: leave.leaveDate
         })));
       }
