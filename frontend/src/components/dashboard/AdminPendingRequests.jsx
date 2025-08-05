@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { FileText, HelpCircle, Calendar, RefreshCw } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { useNavigate } from 'react-router-dom';
+import RequestDetailModal from './RequestDetailModal';
 
 
 const AdminPendingRequests = ({ onRefresh }) => {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,6 +75,20 @@ const AdminPendingRequests = ({ onRefresh }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRequestClick = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  const handleRequestUpdate = () => {
+    fetchPendingRequests(); // Refresh the requests list
   };
 
   // Register refresh function globally for header refresh button
@@ -140,7 +157,11 @@ const AdminPendingRequests = ({ onRefresh }) => {
       
       <div className="space-y-3 max-h-80 overflow-y-auto pr-1 sm:pr-2">
         {requests.length > 0 ? requests.map((request, index) => (
-          <div key={index} className="group border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 sm:p-4 hover:bg-gradient-to-r hover:from-neutral-50 hover:to-neutral-100 dark:hover:from-neutral-700/30 dark:hover:to-neutral-800/30 hover:border-cyan-300 dark:hover:border-cyan-600 transition-all duration-200 hover:shadow-md">
+          <div 
+            key={index} 
+            onClick={() => handleRequestClick(request)}
+            className="group border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 sm:p-4 hover:bg-gradient-to-r hover:from-neutral-50 hover:to-neutral-100 dark:hover:from-neutral-700/30 dark:hover:to-neutral-800/30 hover:border-cyan-300 dark:hover:border-cyan-600 transition-all duration-200 hover:shadow-md cursor-pointer"
+          >
             <div className="flex items-start gap-3 mb-3">
               <div className="flex-shrink-0 p-1.5 sm:p-2 bg-neutral-50 dark:bg-neutral-700 rounded-lg group-hover:bg-white dark:group-hover:bg-neutral-600 transition-colors">
                 {React.cloneElement(request.icon, { className: "w-4 h-4 sm:w-5 sm:h-5" })}
@@ -186,6 +207,14 @@ const AdminPendingRequests = ({ onRefresh }) => {
           </div>
         </div>
       )}
+
+      {/* Request Detail Modal */}
+      <RequestDetailModal
+        request={selectedRequest}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onUpdate={handleRequestUpdate}
+      />
     </div>
   );
 };

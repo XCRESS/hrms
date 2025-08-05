@@ -462,6 +462,13 @@ const AdminRequestsPage = () => {
                             <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
                               {request.description}
                             </p>
+                            {request.type === 'help' && request.category && (
+                              <div className="mb-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {request.category.charAt(0).toUpperCase() + request.category.slice(1)}
+                                </Badge>
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
@@ -483,8 +490,17 @@ const AdminRequestsPage = () => {
                         
                         <div className="flex flex-col sm:items-end gap-2">
                           <Badge className={getStatusColor(request.status)}>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            {request.status === 'in-progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </Badge>
+                          {request.type === 'help' && request.priority && (
+                            <Badge variant="outline" className={
+                              request.priority === 'high' ? 'border-red-300 text-red-700 dark:border-red-700 dark:text-red-400' :
+                              request.priority === 'medium' ? 'border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400' :
+                              'border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-400'
+                            }>
+                              {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)} Priority
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -547,7 +563,7 @@ const AdminRequestsPage = () => {
                                 
                                 {(request.type === 'help' || request.type === 'regularization') && (
                                   <Input
-                                    placeholder="Response/Comment"
+                                    placeholder={request.type === 'help' ? "Response message..." : "Review comment..."}
                                     value={editing[request._id]?.response || ""}
                                     onChange={(e) => handleEdit(request._id, "response", e.target.value)}
                                   />
@@ -573,14 +589,14 @@ const AdminRequestsPage = () => {
                               </div>
                             </div>
                           ) : (
-                            request.status === 'pending' && (
+                            (request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
                               <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                                 <Button
                                   onClick={() => handleStartEdit(request)}
                                   className="bg-slate-600 hover:bg-slate-700 text-white"
                                   size="sm"
                                 >
-                                  Review Request
+                                  {request.status === 'in-progress' ? 'Update Request' : 'Review Request'}
                                 </Button>
                               </div>
                             )
