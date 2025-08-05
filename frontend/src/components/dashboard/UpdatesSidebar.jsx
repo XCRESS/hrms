@@ -6,9 +6,11 @@ import PolicyModal from "../ui/PolicyModal";
 const UpdatesSidebar = ({ 
   announcements, 
   holidays, 
-  username
+  username,
+  initialActiveTab = "policies",
+  onTabChange
 }) => {
-  const [activeTab, setActiveTab] = useState("policies");
+  const [activeTab, setActiveTab] = useState(initialActiveTab);
   const [policies, setPolicies] = useState([]);
   const [policiesLoading, setPoliciesLoading] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
@@ -18,6 +20,11 @@ const UpdatesSidebar = ({
   useEffect(() => {
     loadActivePolicies();
   }, []);
+
+  // Update activeTab when initialActiveTab prop changes
+  useEffect(() => {
+    setActiveTab(initialActiveTab);
+  }, [initialActiveTab]);
 
   const loadActivePolicies = async () => {
     setPoliciesLoading(true);
@@ -71,7 +78,10 @@ const UpdatesSidebar = ({
                   ? 'bg-white dark:bg-neutral-600 text-cyan-600 dark:text-cyan-400 shadow-sm' 
                   : 'text-gray-600 dark:text-neutral-300 hover:text-gray-800 dark:hover:text-neutral-100 hover:bg-white/50 dark:hover:bg-neutral-600/50'
               }`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                onTabChange?.(tab.id);
+              }}
             >
               {tab.label}
             </button>

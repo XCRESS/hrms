@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo, useReducer, useMemo } from "react";
+import { useState, useEffect, useCallback, memo, useReducer, useMemo, useRef } from "react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
 import { useDataCache, CACHE_KEYS } from '../contexts/DataCacheContext';
@@ -132,6 +132,12 @@ export default function HRMSDashboard() {
   // 🚀 CACHE OPTIMIZATION: Use data cache for persistent data across routes
   const { getCachedData, setCachedData, invalidateCachePattern, clearCache, invalidateCache } = useDataCache();
   
+  // Ref for scrolling to pending requests section
+  const pendingRequestsRef = useRef(null);
+  
+  // State for controlling updates sidebar tab
+  const [updatesActiveTab, setUpdatesActiveTab] = useState("policies");
+  
   // Extract state for easier access (memoized to prevent unnecessary recalculation)
   const { modals, loading, data, app } = dashboardState;
   
@@ -174,6 +180,26 @@ export default function HRMSDashboard() {
   
   const setAppState = useCallback((field, value) => 
     dispatch({ type: 'SET_APP_STATE', field, value }), []);
+  
+  // Scroll to pending requests section
+  const scrollToPendingRequests = useCallback(() => {
+    if (pendingRequestsRef.current) {
+      pendingRequestsRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, []);
+
+  // Switch updates tab to holidays
+  const switchToHolidaysTab = useCallback(() => {
+    setUpdatesActiveTab("holidays");
+  }, []);
+
+  // Handle updates tab change
+  const handleUpdatesTabChange = useCallback((tabId) => {
+    setUpdatesActiveTab(tabId);
+  }, []);
 
   const user = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -808,7 +834,12 @@ export default function HRMSDashboard() {
               {isAdmin ? (
                 <>
                   <Suspense fallback={<ComponentSkeleton />}>
-                    <AdminStats summaryData={adminSummary} isLoading={loadingAdminData} />
+                    <AdminStats 
+                      summaryData={adminSummary} 
+                      isLoading={loadingAdminData}
+                      onPendingRequestsClick={scrollToPendingRequests}
+                      onHolidaysClick={switchToHolidaysTab}
+                    />
                   </Suspense>
                   
                   {/* Changed: Stack components vertically instead of side-by-side */}
@@ -817,7 +848,9 @@ export default function HRMSDashboard() {
                       <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
                     </Suspense>
                     <Suspense fallback={<ComponentSkeleton />}>
-                      <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                      <div ref={pendingRequestsRef}>
+                        <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                      </div>
                     </Suspense>
                   </div>
                 </>
@@ -867,6 +900,8 @@ export default function HRMSDashboard() {
                   holidays={data.holidaysData || []}
                   username={username}
                   activityData={data.activityData || []}
+                  initialActiveTab={updatesActiveTab}
+                  onTabChange={handleUpdatesTabChange}
                 />
               </Suspense>
             </div>
