@@ -40,12 +40,15 @@ const TaskReportGenerator = () => {
     }
   };
 
-  // Filter employees based on search term
-  const filteredEmployees = employees.filter(emp =>
-    emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter employees based on search term and exclude inactive employees
+  const filteredEmployees = employees
+    .filter(emp => emp.isActive !== false)
+    .filter(emp =>
+      emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   // Handle employee selection
   const handleEmployeeSelection = (employee) => {
