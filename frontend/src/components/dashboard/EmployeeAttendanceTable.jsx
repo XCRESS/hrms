@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
-import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Calendar, Edit3 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Heart, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import useAuth from '@/hooks/authjwt';
 
@@ -82,30 +82,30 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
           };
         });
 
-        // Helper function to check if date is a working day
-        const isWorkingDayForCompany = (date) => {
-          const dayOfWeek = date.getDay();
-          
-          // Sunday is always a non-working day
-          if (dayOfWeek === 0) {
-            return false;
-          }
-          
-          // Saturday logic: exclude 2nd Saturday of the month
-          if (dayOfWeek === 6) {
-            const dateNum = date.getDate();
-            const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-            const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-            const secondSaturday = firstSaturday + 7;
-            
-            // If this Saturday is the 2nd Saturday, it's a non-working day
-            if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-              return false;
-            }
-          }
-          
-          return true;
-        };
+        // Helper function to check if date is a working day (commented out as it's not used currently)
+        // const isWorkingDayForCompany = (date) => {
+        //   const dayOfWeek = date.getDay();
+        //   
+        //   // Sunday is always a non-working day
+        //   if (dayOfWeek === 0) {
+        //     return false;
+        //   }
+        //   
+        //   // Saturday logic: exclude 2nd Saturday of the month
+        //   if (dayOfWeek === 6) {
+        //     const dateNum = date.getDate();
+        //     const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        //     const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+        //     const secondSaturday = firstSaturday + 7;
+        //     
+        //     // If this Saturday is the 2nd Saturday, it's a non-working day
+        //     if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+        //       return false;
+        //     }
+        //   }
+        //   
+        //   return true;
+        // };
 
         // Generate all calendar days for the month - trust API data completely
         const allDays = [];
@@ -298,7 +298,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   };
 
   const getAttendanceBadgeClass = (attendance) => {
-    const baseClasses = "px-3 py-2 rounded-lg text-sm font-medium flex flex-col items-center gap-1 min-h-[60px] justify-center cursor-pointer hover:opacity-80 transition-opacity";
+    const baseClasses = "w-full max-w-[85px] sm:max-w-[95px] px-2 sm:px-3 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[75px] sm:min-h-[85px] cursor-pointer hover:opacity-80 transition-opacity";
     
     if (attendance.status === 'weekend') {
       return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
@@ -324,7 +324,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const formatTime = (time) => {
     if (!time) return '—';
     return new Date(time).toLocaleTimeString('en-US', {
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
@@ -456,74 +456,50 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
 
   return (
     <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-1">
-            My Attendance Overview
-          </h3>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Click on any day to regularize attendance</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
-          <div className="flex items-center gap-1 bg-neutral-50 dark:bg-neutral-700/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-neutral-500" />
-            <span className="text-neutral-500 dark:text-neutral-400 font-medium text-xs sm:text-sm">{stats.total} days</span>
-          </div>
-          <div className="flex items-center gap-1 bg-green-50 dark:bg-green-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-            <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
-            <span className="text-green-600 dark:text-green-400 font-medium text-xs sm:text-sm">{stats.present} present</span>
-          </div>
-          <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-            <UserX className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-            <span className="text-red-600 dark:text-red-400 font-medium text-xs sm:text-sm">{stats.absent} absent</span>
-          </div>
-          {stats.leave > 0 && (
-            <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-              <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-              <span className="text-purple-600 dark:text-purple-400 font-medium text-xs sm:text-sm">{stats.leave} leave</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={() => navigateWindow(1)}
-              className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Previous 4 days"
-              disabled={currentWindowIndex >= Math.max(0, allWorkingDays.length - 4)}
-            >
-              <ChevronLeft className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
-            </button>
-            <select 
-              value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
-              onChange={handleMonthChange}
-              className="text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
-            >
-              {(() => {
-                const options = [];
-                const today = new Date();
-                const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                for (let i = 0; i < 12; i++) {
-                  const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                  const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                  const monthShort = monthShortNames[date.getMonth()];
-                  const yearShort = String(date.getFullYear()).slice(-2);
-                  const label = `${monthShort} ${yearShort}`;
-                  options.push(
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  );
-                }
-                return options;
-              })()}
-            </select>
-            <button
-              onClick={() => navigateWindow(-1)}
-              className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Next 4 days"
-              disabled={currentWindowIndex <= 0}
-            >
-              <ChevronRight className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
-            </button>
-          </div>
+      {/* Navigation Controls */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Attendance</h3>
+        <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigateWindow(1)}
+          className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          title="Previous 4 days"
+          disabled={currentWindowIndex >= Math.max(0, allWorkingDays.length - 4)}
+        >
+          <ChevronLeft className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+        </button>
+        <select 
+          value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
+          onChange={handleMonthChange}
+          className="text-sm bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium shadow-sm min-w-[90px]"
+        >
+          {(() => {
+            const options = [];
+            const today = new Date();
+            const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            for (let i = 0; i < 12; i++) {
+              const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+              const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              const monthShort = monthShortNames[date.getMonth()];
+              const yearShort = String(date.getFullYear()).slice(-2);
+              const label = `${monthShort} ${yearShort}`;
+              options.push(
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              );
+            }
+            return options;
+          })()}
+        </select>
+        <button
+          onClick={() => navigateWindow(-1)}
+          className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          title="Next 4 days"
+          disabled={currentWindowIndex <= 0}
+        >
+          <ChevronRight className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+        </button>
         </div>
       </div>
       
@@ -532,11 +508,11 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
-              <th className="text-left py-4 px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-sm">Date</th>
+              <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-xs sm:text-sm">Date</th>
               {workingDays.map((day, index) => {
                 const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                 return (
-                  <th key={index} className={`text-center py-4 px-2 font-semibold text-sm min-w-[80px] ${
+                  <th key={index} className={`text-center py-2 sm:py-4 px-1 sm:px-2 font-semibold text-xs sm:text-sm min-w-[75px] sm:min-w-[95px] ${
                     isWeekend 
                       ? 'text-neutral-500 dark:text-neutral-400' 
                       : 'text-neutral-700 dark:text-neutral-300'
@@ -556,34 +532,29 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
             <tr className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800">
-              <td className="py-4 px-4">
-                <div>
-                  <div className="font-medium text-neutral-800 dark:text-neutral-100">
-                    {record.employeeName || 'My Attendance'}
-                  </div>
-                  <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Click any day to regularize
-                  </div>
+              <td className="py-2 sm:py-4 px-2 sm:px-4">
+                <div className="font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100">
+                  {record.employeeName ? record.employeeName.split(' ')[0] : 'Attendance'}
                 </div>
               </td>
               {workingDays.map((day, dayIndex) => {
                 const dayAttendance = getAttendanceForDay(record, day);
                 return (
-                  <td key={dayIndex} className="py-4 px-2">
+                  <td key={dayIndex} className="py-2 sm:py-4 px-1 sm:px-2">
                     <div 
-                      className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-2"
+                      className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-1 sm:p-2"
                       onClick={() => handleAttendanceClick(record, day)}
                     >
                       <div className={getAttendanceBadgeClass(dayAttendance)}>
                         {getAttendanceIcon(dayAttendance)}
                         {getAttendanceStatusText(dayAttendance) && (
-                          <span className="text-xs font-medium">{getAttendanceStatusText(dayAttendance)}</span>
+                          <span className="text-xs sm:text-xs font-medium text-center leading-tight">{getAttendanceStatusText(dayAttendance)}</span>
                         )}
                         {dayAttendance.checkIn && (
-                          <div className="text-xs font-mono opacity-80">
-                            {formatTime(dayAttendance.checkIn)}
+                          <div className="text-xs sm:text-xs font-mono opacity-80 text-center leading-tight">
+                            <div className="truncate">{formatTime(dayAttendance.checkIn)}</div>
                             {dayAttendance.checkOut && (
-                              <div>{formatTime(dayAttendance.checkOut)}</div>
+                              <div className="truncate">{formatTime(dayAttendance.checkOut)}</div>
                             )}
                           </div>
                         )}

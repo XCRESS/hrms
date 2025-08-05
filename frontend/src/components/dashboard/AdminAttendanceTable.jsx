@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 
 // 🚀 OPTIMIZED: Custom Time Input Component with AM/PM support (memoized)
-const TimeInput = memo(({ value, onChange, className, placeholder }) => {
+const TimeInput = memo(({ value, onChange, className }) => {
   const [timeState, setTimeState] = useState({
     hour: '',
     minute: '',
@@ -643,7 +643,7 @@ const AdminAttendanceTable = () => {
   };
 
   const getAttendanceBadgeClass = (attendance) => {
-    const baseClasses = "px-3 py-2 rounded-lg text-sm font-medium flex flex-col items-center gap-1 min-h-[60px] justify-center";
+    const baseClasses = "w-full max-w-[85px] sm:max-w-[95px] px-2 sm:px-3 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[75px] sm:min-h-[85px] cursor-pointer hover:opacity-80 transition-opacity";
     
     if (attendance.status === 'weekend') {
       return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
@@ -669,7 +669,7 @@ const AdminAttendanceTable = () => {
   const formatTime = (time) => {
     if (!time) return '—';
     return new Date(time).toLocaleTimeString('en-US', {
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
@@ -829,11 +829,11 @@ const AdminAttendanceTable = () => {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
-                <th className="text-left py-4 px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-sm">Employee</th>
+                <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-xs sm:text-sm">Employee</th>
                 {workingDays.map((day, index) => {
                   const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                   return (
-                    <th key={index} className={`text-center py-4 px-2 font-semibold text-sm min-w-[80px] ${
+                    <th key={index} className={`text-center py-2 sm:py-4 px-1 sm:px-2 font-semibold text-xs sm:text-sm min-w-[75px] sm:min-w-[95px] ${
                       isWeekend 
                         ? 'text-neutral-500 dark:text-neutral-400' 
                         : 'text-neutral-700 dark:text-neutral-300'
@@ -857,13 +857,13 @@ const AdminAttendanceTable = () => {
                   key={record.employee._id || index} 
                   className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800"
                 >
-                  <td className="py-4 px-4">
+                  <td className="py-2 sm:py-4 px-2 sm:px-4">
                     <div>
-                      <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                      <div className="font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 leading-tight">
                         {record.employeeName || 'Unknown Employee'}
                       </div>
                       {record.employee?.employeeId && (
-                        <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                        <div className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 leading-tight mt-0.5">
                           ID: {record.employee.employeeId}
                         </div>
                       )}
@@ -872,21 +872,21 @@ const AdminAttendanceTable = () => {
                   {workingDays.map((day, dayIndex) => {
                     const dayAttendance = getAttendanceForDay(record, day);
                     return (
-                      <td key={dayIndex} className="py-4 px-2">
+                      <td key={dayIndex} className="py-2 sm:py-4 px-1 sm:px-2">
                         <div 
-                          className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-2"
+                          className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-1 sm:p-2"
                           onClick={() => handleEditClick(record, day)}
                         >
                           <div className={getAttendanceBadgeClass(dayAttendance)}>
                             {getAttendanceIcon(dayAttendance)}
                             {getAttendanceStatusText(dayAttendance) && (
-                              <span className="text-xs font-medium">{getAttendanceStatusText(dayAttendance)}</span>
+                              <span className="text-xs sm:text-xs font-medium text-center leading-tight">{getAttendanceStatusText(dayAttendance)}</span>
                             )}
                             {dayAttendance.checkIn && (
-                              <div className="text-xs font-mono opacity-80">
-                                {formatTime(dayAttendance.checkIn)}
+                              <div className="text-xs sm:text-xs font-mono opacity-80 text-center leading-tight">
+                                <div className="truncate">{formatTime(dayAttendance.checkIn)}</div>
                                 {dayAttendance.checkOut && (
-                                  <div>{formatTime(dayAttendance.checkOut)}</div>
+                                  <div className="truncate">{formatTime(dayAttendance.checkOut)}</div>
                                 )}
                               </div>
                             )}
