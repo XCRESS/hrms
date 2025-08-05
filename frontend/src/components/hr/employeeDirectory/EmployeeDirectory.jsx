@@ -282,7 +282,7 @@ export default function EmployeeDirectory() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       {/* Tab Navigation */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 relative lg:sticky lg:top-0 lg:z-20">
         <div className="px-4 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Main Navigation Tabs */}
@@ -342,7 +342,7 @@ export default function EmployeeDirectory() {
       ) : (
         <div className="flex flex-col lg:flex-row">
           {/* Sidebar: Employee List */}
-          <div className="w-full lg:w-80 lg:h-[calc(100vh-80px)] lg:sticky lg:top-20 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
+          <div className="w-full lg:w-80 lg:h-screen lg:sticky lg:top-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10">
               <input
                 type="text"
@@ -391,7 +391,7 @@ export default function EmployeeDirectory() {
       </div>
 
       {/* Main Panel: Employee Details */}
-      <div className="flex-1 lg:overflow-y-auto p-6 lg:p-8">
+      <div className="flex-1 lg:overflow-y-auto p-4 lg:p-8">
         {!selectedEmployeeId ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-slate-500 dark:text-slate-400">
