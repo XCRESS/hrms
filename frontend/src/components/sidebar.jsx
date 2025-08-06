@@ -41,6 +41,11 @@ export default function SidebarDemo() {
   // If token exists but user is not yet resolved, or token was invalid and cleared by useAuth
   // wait for user object to be populated or for token to be removed triggering above redirect.
   if (!userObject) {
+    // Re-check token after useAuth has processed it (in case it was removed due to expiration)
+    const currentToken = localStorage.getItem("authToken");
+    if (!currentToken) {
+      return <Navigate to="/auth/login" state={{ from: location }} replace />;
+    }
     return null; // Or a loading spinner, e.g., <p>Loading user...</p>
   }
   const user = userObject;
