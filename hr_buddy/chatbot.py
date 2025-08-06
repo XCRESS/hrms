@@ -765,6 +765,7 @@ async def process_query(messages: List[Dict]) -> str:
                         # Handle tool function parameters
                         tool_input = parsed_response.get("input")
                         logger.info(f"Executing tool {tool_name} with input: {tool_input}")
+                        logger.info(f"Available tools: {list(available_tools.keys())}")
                         
                         # Get the function from available_tools
                         tool_func = available_tools[tool_name]["function"]
