@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
+import { formatTime, formatDate, toDateTimeLocal, getISTDateString, parseISTDateString, createDateTimeLocal, getMonthOptions, getAllDaysInMonth, BUSINESS_HOURS } from '@/utils/istUtils';
 
 // 🚀 OPTIMIZED: Custom Time Input Component with AM/PM support (memoized)
 const TimeInput = memo(({ value, onChange, className }) => {
@@ -10,7 +11,7 @@ const TimeInput = memo(({ value, onChange, className }) => {
     period: 'AM'
   });
 
-  // Convert datetime-local value to 12-hour format
+  // Convert datetime-local value to 12-hour format (IST)
   useEffect(() => {
     if (value) {
       const date = new Date(value);
@@ -48,7 +49,7 @@ const TimeInput = memo(({ value, onChange, className }) => {
       } else {
         // If no existing value, we should not default to today's date - this should come from the record date
         console.warn('No base date available for time input');
-        baseDate = new Date().toISOString().split('T')[0];
+        baseDate = getISTDateString();
       }
       
       const datetimeValue = `${baseDate}T${hour24.toString().padStart(2, '0')}:${newTimeState.minute}:00`;
@@ -125,30 +126,20 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       const formatTimeForInput = (date, defaultTime) => {
         if (!date && !defaultTime) return '';
         
-        // Use the record date to ensure we're working with the correct date
-        const recordDate = new Date(record.date);
-        // Format as YYYY-MM-DD using local time components to avoid timezone issues
-        const year = recordDate.getFullYear();
-        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
-        const day = String(recordDate.getDate()).padStart(2, '0');
-        const baseDate = `${year}-${month}-${day}`;
-        
         if (date) {
-          // Convert existing date to local time for display
-          const existingDate = new Date(date);
-          const hours = existingDate.getHours().toString().padStart(2, '0');
-          const minutes = existingDate.getMinutes().toString().padStart(2, '0');
-          return `${baseDate}T${hours}:${minutes}`;
+          // Convert existing IST date to datetime-local format
+          return toDateTimeLocal(date);
         } else if (defaultTime) {
-          return `${baseDate}T${defaultTime}`;
+          // Create datetime-local with default time
+          return createDateTimeLocal(record.date, defaultTime);
         }
         return '';
       };
 
       setFormData({
         status: record.status || 'present',
-        checkIn: formatTimeForInput(record.checkIn, '09:30'),
-        checkOut: formatTimeForInput(record.checkOut, '17:30')
+        checkIn: formatTimeForInput(record.checkIn, BUSINESS_HOURS.WORK_START),
+        checkOut: formatTimeForInput(record.checkOut, BUSINESS_HOURS.WORK_END)
       });
       setError('');
     }
@@ -265,7 +256,7 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Date: {record ? new Date(record.date).toLocaleDateString() : ''}
+              Date: {record ? formatDate(record.date, true) : ''}
             </label>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               Employee: {employeeProfile?.firstName} {employeeProfile?.lastName}
@@ -383,9 +374,9 @@ const AdminAttendanceTable = () => {
       const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
       
-      // Use local time formatting instead of UTC to avoid timezone issues
-      const startDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-      const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      // Use IST date formatting
+      const startDate = getISTDateString(firstDay);
+      const endDate = getISTDateString(lastDay);
       
       let response;
       
@@ -398,15 +389,8 @@ const AdminAttendanceTable = () => {
         setMonthlyAttendanceData(response.data.records || []);
         setAttendanceData(response.data.records || []);
         
-        // Generate all calendar days for the month - same logic as EmployeeAttendanceTable
-        const allDays = [];
-        const currentDate = new Date(firstDay);
-        
-        while (currentDate <= lastDay) {
-          allDays.push(new Date(currentDate));
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-        
+        // Generate all calendar days for the month using IST utilities
+        const allDays = getAllDaysInMonth(firstDay);
         setAllWorkingDays(allDays);
         
         // Always prioritize showing today if it's in the current month
@@ -661,14 +645,7 @@ const AdminAttendanceTable = () => {
     return `${baseClasses} bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300`;
   };
 
-  const formatTime = (time) => {
-    if (!time) return '—';
-    return new Date(time).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  // formatTime function is now imported from istUtils
 
   const formatDayDate = (date) => {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -786,25 +763,11 @@ const AdminAttendanceTable = () => {
               onChange={handleMonthChange}
               className="text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
             >
-              {(() => {
-                const options = [];
-                const today = new Date();
-                const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                // Show last 12 months
-                for (let i = 0; i < 12; i++) {
-                  const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                  const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                  const monthShort = monthShortNames[date.getMonth()];
-                  const yearShort = String(date.getFullYear()).slice(-2);
-                  const label = `${monthShort} ${yearShort}`;
-                  options.push(
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  );
-                }
-                return options;
-              })()} 
+              {getMonthOptions(12).map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.display}
+                </option>
+              ))} 
             </select>
             <button
               onClick={() => navigateWindow(-1)}

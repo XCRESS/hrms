@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Heart, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import useAuth from '@/hooks/authjwt';
+import { formatTime, formatDate, getISTDateString, getMonthOptions, getAllDaysInMonth } from '@/utils/istUtils';
 
 // 🚀 OPTIMIZED: Employee Attendance Table with memoization
 const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
@@ -38,9 +39,9 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
       
-      // Use local time formatting to avoid timezone issues
-      const startDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-      const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      // Use IST date formatting
+      const startDate = getISTDateString(firstDay);
+      const endDate = getISTDateString(lastDay);
       
       // Use the existing API that shows employee's attendance with absents
       const response = await apiClient.getEmployeeAttendanceWithAbsents({
@@ -321,14 +322,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
     return `${baseClasses} bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300`;
   };
 
-  const formatTime = (time) => {
-    if (!time) return '—';
-    return new Date(time).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  // formatTime function is now imported from istUtils
 
   const formatDayDate = (date) => {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
