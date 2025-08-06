@@ -304,7 +304,7 @@ def format_attendance_response(api_response):
                     if check_in and check_in != "N/A":
                         try:
                             # Format check-in time from ISO string
-                                    check_in_obj = datetime.fromisoformat(check_in.replace('Z', '+00:00'))
+                            check_in_obj = datetime.fromisoformat(check_in.replace('Z', '+00:00'))
                             check_in_time = check_in_obj.strftime('%H:%M')
                             response_text += f" (Check-in: {check_in_time})"
                         except:
