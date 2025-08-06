@@ -10,6 +10,7 @@ import { useToast } from "./ui/toast.jsx";
 import RegularizationModal from "./dashboard/RegularizationModal.jsx";
 import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
+import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 
 // Lazy load dashboard components for better performance
@@ -51,6 +52,7 @@ const dashboardInitialState = {
     showRegularizationModal: false,
     showTaskReportModal: false,
     showAbsentEmployeesModal: false,
+    showPresentEmployeesModal: false,
   },
   // Loading states
   loading: {
@@ -149,7 +151,8 @@ export default function HRMSDashboard() {
     showHelpModal, 
     showRegularizationModal,
     showTaskReportModal,
-    showAbsentEmployeesModal
+    showAbsentEmployeesModal,
+    showPresentEmployeesModal
   } = modals;
   
   const {
@@ -202,6 +205,11 @@ export default function HRMSDashboard() {
   // Handle absent employees modal
   const handleAbsentEmployeesClick = useCallback(() => {
     setModal('showAbsentEmployeesModal', true);
+  }, [setModal]);
+
+  // Handle present employees modal
+  const handlePresentEmployeesClick = useCallback(() => {
+    setModal('showPresentEmployeesModal', true);
   }, [setModal]);
 
   // Handle updates tab change
@@ -848,6 +856,7 @@ export default function HRMSDashboard() {
                       onPendingRequestsClick={scrollToPendingRequests}
                       onHolidaysClick={switchToHolidaysTab}
                       onAbsentEmployeesClick={handleAbsentEmployeesClick}
+                      onPresentEmployeesClick={handlePresentEmployeesClick}
                     />
                   </Suspense>
                   
@@ -964,6 +973,12 @@ export default function HRMSDashboard() {
         isOpen={showAbsentEmployeesModal}
         onClose={() => setModal('showAbsentEmployeesModal', false)}
         absentEmployees={adminSummary?.absentEmployees || []}
+      />
+
+      <PresentEmployeesModal
+        isOpen={showPresentEmployeesModal}
+        onClose={() => setModal('showPresentEmployeesModal', false)}
+        presentEmployees={adminSummary?.presentEmployees || []}
       />
     </div>
   );
