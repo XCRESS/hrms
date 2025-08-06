@@ -65,8 +65,9 @@ export const getAdminDashboardSummary = async (req, res) => {
     // Check if today is holiday
     const isHoliday = holidays.length > 0;
 
-    // Calculate stats and build absent employees list
+    // Calculate stats and build present/absent employees lists
     let presentToday = 0;
+    const presentEmployees = [];
     const absentEmployees = [];
 
     allEmployees.forEach(employee => {
@@ -77,6 +78,10 @@ export const getAdminDashboardSummary = async (req, res) => {
       // Present if status=present OR has checkIn
       if (attendanceRecord && (attendanceRecord.status === 'present' || attendanceRecord.checkIn)) {
         presentToday++;
+        presentEmployees.push({
+          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+          employeeId: employee.employeeId || 'N/A'
+        });
       } else if (isOnLeave) {
         // On leave - don't count as absent
       } else if (isHoliday) {
@@ -105,7 +110,8 @@ export const getAdminDashboardSummary = async (req, res) => {
         absentToday: absentEmployees.length,
         totalPendingRequests,
         upcomingHolidays,
-        absentEmployees
+        absentEmployees,
+        presentEmployees
       }
     });
 
