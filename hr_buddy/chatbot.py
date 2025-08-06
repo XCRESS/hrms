@@ -200,6 +200,24 @@ def format_profile_response(api_response):
         logger.error(f"Error formatting profile response: {e}")
         return api_response
 
+def debug_employees_function(api_response):
+    """Debug function to track what get_all_employees returns"""
+    logger.error(f"DEBUG: Raw API response received: {api_response}")
+    logger.error(f"DEBUG: API response type: {type(api_response)}")
+    if isinstance(api_response, dict):
+        logger.error(f"DEBUG: API response keys: {list(api_response.keys())}")
+        logger.error(f"DEBUG: Success value: {api_response.get('success')}")
+        data = api_response.get('data', {})
+        logger.error(f"DEBUG: Data type: {type(data)}")
+        if isinstance(data, dict):
+            logger.error(f"DEBUG: Data keys: {list(data.keys())}")
+            employees = data.get('employees', [])
+            logger.error(f"DEBUG: Employees count: {len(employees) if employees else 'None/Empty'}")
+            logger.error(f"DEBUG: Employees type: {type(employees)}")
+    
+    # Now call the normal formatting function
+    return format_employees_response(api_response)
+
 def format_attendance_response(api_response):
     """Format attendance API response for proper display"""
     try:
@@ -509,7 +527,7 @@ available_tools = {
     },
     
     "get_all_employees": {
-        "function": lambda: format_employees_response(hr_client.get_all_employees()),
+        "function": lambda: debug_employees_function(hr_client.get_all_employees()),
         "description": "Get all employees from employee.controllers.js getEmployees function",
         "inputs": "No parameters required",
         "returns": "List of all employees"
