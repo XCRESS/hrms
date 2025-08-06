@@ -88,52 +88,6 @@ const isWorkingDayForCompany = (date, holidayMap = null) => {
   return false;
 };
 
-/**
- * LEGACY: Keep async version for backward compatibility where holidayMap isn't available
- * Now uses IST date boundaries for consistent holiday checking
- */
-const isWorkingDayForCompanyLegacy = async (date) => {
-  const dayOfWeek = date.getDay();
-  
-  // Sunday is always a non-working day
-  if (dayOfWeek === 0) {
-    return false;
-  }
-  
-  // Check if it's a holiday using IST boundaries
-  const { startOfDay, endOfDay } = getISTDayBoundaries(date);
-  
-  const holiday = await Holiday.findOne({
-    date: { $gte: startOfDay, $lte: endOfDay }
-  });
-  
-  if (holiday) {
-    return false; // It's a holiday, so not a working day
-  }
-  
-  // Monday to Friday are working days (if not a holiday)
-  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-    return true;
-  }
-  
-  // Saturday logic: exclude 2nd Saturday of the month
-  if (dayOfWeek === 6) {
-    const dateNum = date.getDate();
-    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-    const firstSaturday = 7 - firstDayOfMonth.getDay() || 7; // Get first Saturday of month
-    const secondSaturday = firstSaturday + 7; // Second Saturday is 7 days later
-    
-    // If this Saturday is the 2nd Saturday, it's a non-working day
-    if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-      return false;
-    }
-    
-    // All other Saturdays are working days (if not a holiday)
-    return true;
-  }
-  
-  return false;
-};
 
 // Standard response formatter for consistency
 const formatResponse = (success, message, data = null, errors = null) => {
@@ -155,6 +109,354 @@ const getEmployeeObjectId = async (user) => {
     return employee ? employee._id : null;
   }
   return null;
+};
+
+/**
+ * Authorization Helper: Validate admin/HR access
+ */
+const validateAdminAccess = (req, res) => {
+  if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
+    res.status(403).json(formatResponse(false, "Access denied. Admin/HR role required."));
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Authorization Helper: Validate employee access (employees can only access their own data)
+ */
+const validateEmployeeAccess = async (req, employeeId) => {
+  // Admin/HR can access any employee data
+  if (req.user.role === 'admin' || req.user.role === 'hr') {
+    return { authorized: true };
+  }
+
+  // Regular employees can only access their own data
+  const userEmployeeObjId = await getEmployeeObjectId(req.user);
+  const requestedEmployee = await Employee.findOne({ employeeId });
+  
+  if (!userEmployeeObjId || !requestedEmployee || 
+      userEmployeeObjId.toString() !== requestedEmployee._id.toString()) {
+    return { 
+      authorized: false, 
+      error: formatResponse(false, "Access denied. You can only view your own attendance.")
+    };
+  }
+  
+  return { authorized: true, employeeObjectId: userEmployeeObjId };
+};
+
+/**
+ * Data Fetching Helper: Get cached active employees
+ */
+const getCachedActiveEmployees = async () => {
+  return await cache.getOrSet('employees:active:basic', async () => {
+    return await Employee.find({ isActive: true })
+      .select('_id firstName lastName employeeId department position')
+      .sort({ firstName: 1, lastName: 1 })
+      .lean(); // Use .lean() for better performance
+  }, TTL.EMPLOYEES);
+};
+
+/**
+ * Data Fetching Helper: Build attendance and leave maps for quick lookup
+ */
+const buildAttendanceMaps = (attendanceRecords, approvedLeaves) => {
+  // Create attendance map grouped by employee and date
+  const attendanceMap = new Map();
+  attendanceRecords.forEach(record => {
+    if (record.employee && record.employee._id) {
+      const empId = record.employee._id.toString();
+      const dateKey = getISTDateString(record.date);
+      
+      if (!attendanceMap.has(empId)) {
+        attendanceMap.set(empId, new Map());
+      }
+      attendanceMap.get(empId).set(dateKey, record);
+    }
+  });
+
+  // Create leave map grouped by employee and date
+  const leaveMap = new Map();
+  approvedLeaves.forEach(leave => {
+    const empId = leave.employeeId;
+    const dateKey = getISTDateString(leave.leaveDate);
+    
+    if (!leaveMap.has(empId)) {
+      leaveMap.set(empId, new Set());
+    }
+    leaveMap.get(empId).add(dateKey);
+  });
+
+  return { attendanceMap, leaveMap };
+};
+
+/**
+ * Data Fetching Helper: Create simple attendance lookup map (single level)
+ */
+const buildSimpleAttendanceMap = (attendanceRecords) => {
+  const attendanceMap = new Map();
+  attendanceRecords.forEach(record => {
+    const dateKey = getISTDateString(record.date);
+    attendanceMap.set(dateKey, record);
+  });
+  return attendanceMap;
+};
+
+/**
+ * Data Fetching Helper: Create simple leave lookup map
+ */
+const buildSimpleLeaveMap = (approvedLeaves) => {
+  const leaveMap = new Map();
+  approvedLeaves.forEach(leave => {
+    const dateKey = getISTDateString(leave.leaveDate);
+    leaveMap.set(dateKey, leave);
+  });
+  return leaveMap;
+};
+
+/**
+ * Response Building Helper: Build standard employee object
+ */
+const buildEmployeeObject = (employee) => {
+  return {
+    _id: employee._id,
+    employeeId: employee.employeeId,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    department: employee.department
+  };
+};
+
+/**
+ * Response Building Helper: Build standard attendance record
+ */
+const buildAttendanceRecord = (record, employee, workHours = null, additionalFields = {}) => {
+  const baseRecord = {
+    _id: record?._id || null,
+    employee: buildEmployeeObject(employee),
+    employeeName: `${employee.firstName} ${employee.lastName}`,
+    date: record?.date || null,
+    checkIn: record?.checkIn || null,
+    checkOut: record?.checkOut || null,
+    status: record?.status || 'absent',
+    workHours: workHours,
+    comments: record?.comments || null,
+    reason: record?.reason || null
+  };
+  
+  // Merge any additional fields
+  return { ...baseRecord, ...additionalFields };
+};
+
+/**
+ * Response Building Helper: Build attendance record for specific status types
+ */
+const buildStatusSpecificRecord = (date, employee, status, additionalData = {}) => {
+  const baseRecord = {
+    _id: null,
+    employee: buildEmployeeObject(employee),
+    employeeName: `${employee.firstName} ${employee.lastName}`,
+    date: date,
+    checkIn: null,
+    checkOut: null,
+    status: status,
+    workHours: null,
+    comments: null,
+    reason: null
+  };
+  
+  // Add status-specific data
+  switch (status) {
+    case 'absent':
+      baseRecord.reason = 'No check-in recorded';
+      break;
+    case 'holiday':
+      baseRecord.reason = null;
+      if (additionalData.holidayTitle) {
+        baseRecord.holidayTitle = additionalData.holidayTitle;
+      }
+      break;
+    case 'leave':
+      if (additionalData.leaveType) {
+        baseRecord.comments = `Leave: ${additionalData.leaveType}`;
+      }
+      if (additionalData.leaveReason) {
+        baseRecord.reason = additionalData.leaveReason;
+      }
+      break;
+  }
+  
+  return { ...baseRecord, ...additionalData };
+};
+
+/**
+ * Helper for getAdminAttendanceRange: Generate date range array
+ */
+const generateDateRange = (startDateObj, endDateObj, holidayMap) => {
+  const allDays = [];
+  const currentDate = new Date(startDateObj);
+  
+  while (currentDate <= endDateObj) {
+    allDays.push({
+      date: new Date(currentDate),
+      isWorkingDay: isWorkingDayForCompany(currentDate, holidayMap)
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return allDays;
+};
+
+/**
+ * Helper for getAdminAttendanceRange: Build employee week data
+ */
+const buildEmployeeWeekData = (employee, allDays, attendanceMap, leaveMap, holidayMap) => {
+  const empId = employee._id.toString();
+  const employeeAttendance = attendanceMap.get(empId) || new Map();
+  const employeeLeaves = leaveMap.get(employee.employeeId) || new Set();
+  
+  const weekData = {};
+  
+  allDays.forEach(dayObj => {
+    const day = dayObj.date;
+    const dateKey = getISTDateString(day);
+    const attendanceRecord = employeeAttendance.get(dateKey);
+    
+    if (attendanceRecord) {
+      // Has attendance record
+      weekData[dateKey] = {
+        _id: attendanceRecord._id,
+        checkIn: attendanceRecord.checkIn,
+        checkOut: attendanceRecord.checkOut,
+        status: attendanceRecord.status || 'present',
+        isWorkingDay: dayObj.isWorkingDay
+      };
+    } else if (employeeLeaves.has(dateKey)) {
+      // On approved leave
+      weekData[dateKey] = {
+        checkIn: null,
+        checkOut: null,
+        status: 'leave',
+        isWorkingDay: dayObj.isWorkingDay
+      };
+    } else {
+      // Check if it's a holiday
+      const isHoliday = holidayMap.has(dateKey);
+      let status;
+      if (isHoliday) {
+        status = 'holiday';
+      } else if (!dayObj.isWorkingDay) {
+        status = 'weekend';
+      } else {
+        status = 'absent';
+      }
+      
+      weekData[dateKey] = {
+        checkIn: null,
+        checkOut: null,
+        status: status,
+        isWorkingDay: dayObj.isWorkingDay && !isHoliday,
+        holidayTitle: isHoliday ? holidayMap.get(dateKey).title : undefined
+      };
+    }
+  });
+
+  return {
+    employee: buildEmployeeObject(employee),
+    employeeName: `${employee.firstName} ${employee.lastName}`,
+    weekData: weekData
+  };
+};
+
+/**
+ * Helper for getAdminAttendanceRange: Calculate today's statistics
+ */
+const calculateTodayStats = (employeeAttendanceData, allDays) => {
+  const todayForStats = getISTNow();
+  const todayStatsKey = getISTDateString(todayForStats);
+  let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 };
+  
+  if (allDays.some(dayObj => getISTDateString(dayObj.date) === todayStatsKey)) {
+    employeeAttendanceData.forEach(record => {
+      const todayData = record.weekData[todayStatsKey];
+      if (todayData) {
+        todayStats.total++;
+        if (todayData.status === 'present' || todayData.checkIn) {
+          todayStats.present++;
+        } else if (todayData.status === 'leave') {
+          todayStats.leave++;
+        } else if (todayData.status === 'weekend') {
+          todayStats.weekend++;
+        } else if (todayData.status === 'holiday') {
+          todayStats.holiday++;
+        } else {
+          todayStats.absent++;
+        }
+      }
+    });
+  }
+  
+  return todayStats;
+};
+
+/**
+ * Helper for getEmployeeAttendanceWithAbsents: Process single day attendance
+ */
+const processEmployeeAttendanceDay = (currentDate, employee, attendanceMap, leaveMap, holidayMap) => {
+  const dateKey = getISTDateString(currentDate);
+  const attendanceRecord = attendanceMap.get(dateKey);
+  const approvedLeave = leaveMap.get(dateKey);
+  const holiday = holidayMap.get(dateKey);
+  
+  if (holiday) {
+    // It's a holiday
+    return buildStatusSpecificRecord(
+      new Date(currentDate), 
+      employee, 
+      'holiday',
+      { holidayTitle: holiday.title || holiday.holidayName || 'Holiday' }
+    );
+  } else if (!isWorkingDayForCompany(currentDate, holidayMap)) {
+    // It's a weekend (Sunday or 2nd Saturday)
+    return buildStatusSpecificRecord(new Date(currentDate), employee, 'weekend');
+  } else if (approvedLeave) {
+    // Employee has an approved leave for this day
+    return buildStatusSpecificRecord(
+      new Date(currentDate), 
+      employee, 
+      'leave',
+      {
+        leaveType: approvedLeave.leaveType,
+        leaveReason: approvedLeave.leaveReason || 'Approved leave'
+      }
+    );
+  } else if (attendanceRecord) {
+    // Employee has a record for this day
+    const workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
+    return buildAttendanceRecord(attendanceRecord, employee, workHours, {
+      location: attendanceRecord.location // Include location data
+    });
+  } else {
+    // Employee was absent this working day
+    return buildStatusSpecificRecord(new Date(currentDate), employee, 'absent');
+  }
+};
+
+/**
+ * Helper for getEmployeeAttendanceWithAbsents: Generate employee attendance range
+ */
+const generateEmployeeAttendanceRange = (effectiveStartDate, endBoundary, employee, attendanceMap, leaveMap, holidayMap) => {
+  const workingDays = [];
+  const currentDate = new Date(effectiveStartDate);
+  
+  while (currentDate <= endBoundary) {
+    const dayRecord = processEmployeeAttendanceDay(currentDate, employee, attendanceMap, leaveMap, holidayMap);
+    workingDays.push(dayRecord);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return workingDays;
 };
 
 /**
@@ -419,7 +721,7 @@ export const getMissingCheckouts = async (req, res) => {
     const lookbackDate = new Date(today);
     lookbackDate.setDate(lookbackDate.getDate() - lookbackDays);
 
-    console.log("📅 Date range:", { startDate, today, lookbackDays });
+    console.log("📅 Date range:", { lookbackDate, today, lookbackDays });
 
     // Find attendance records where checkIn exists but checkOut is null/missing
     // and the date is before today (using IST boundaries)
@@ -624,13 +926,8 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
     const now = getISTNow();
     const { startOfDay: startOfTodayIST, endOfDay: endOfTodayIST } = getISTDayBoundaries(now);
 
-    // 🚀 Get all active employees with caching
-    const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
-      return await Employee.find({ isActive: true })
-        .select('_id firstName lastName employeeId department position')
-        .sort({ firstName: 1, lastName: 1 })
-        .lean(); // Use .lean() for better performance
-    }, TTL.EMPLOYEES);
+    // Get all active employees using helper function
+    const allEmployees = await getCachedActiveEmployees();
 
     // Get today's attendance records using IST boundaries
     const todayAttendance = await Attendance.find({
@@ -717,10 +1014,8 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
  */
 export const getAdminAttendanceRange = async (req, res) => {
   try {
-    // Only allow admin/hr to access this endpoint
-    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
-      return res.status(403).json(formatResponse(false, "Access denied. Admin/HR role required."));
-    }
+    // Validate admin/HR access
+    if (!validateAdminAccess(req, res)) return;
 
     const { startDate, endDate } = req.query;
     
@@ -736,13 +1031,8 @@ export const getAdminAttendanceRange = async (req, res) => {
     const { startOfDay: startBoundary } = getISTDayBoundaries(startDateObj);
     const { endOfDay: endBoundary } = getISTDayBoundaries(endDateObj);
 
-    // 🚀 Get all active employees with reasonable caching
-    const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
-      return await Employee.find({ isActive: true })
-        .select('_id firstName lastName employeeId department position')
-        .sort({ firstName: 1, lastName: 1 })
-        .lean(); // Use .lean() for better performance
-    }, TTL.EMPLOYEES);
+    // Get all data using helper functions
+    const allEmployees = await getCachedActiveEmployees();
 
     // Get all attendance records for the date range using IST boundaries
     const attendanceRecords = await Attendance.find({
@@ -755,156 +1045,22 @@ export const getAdminAttendanceRange = async (req, res) => {
       leaveDate: { $gte: startBoundary, $lte: endBoundary }
     });
 
-    // Create maps for quick lookup
-    const attendanceMap = new Map();
-    const leaveMap = new Map();
+    // Build maps using helper function
+    const { attendanceMap, leaveMap } = buildAttendanceMaps(attendanceRecords, approvedLeaves);
 
-    // Group attendance by employee and date using IST formatting
-    attendanceRecords.forEach(record => {
-      if (record.employee && record.employee._id) {
-        const empId = record.employee._id.toString();
-        const dateKey = getISTDateString(record.date);
-        
-        if (!attendanceMap.has(empId)) {
-          attendanceMap.set(empId, new Map());
-        }
-        attendanceMap.get(empId).set(dateKey, record);
-        
-      }
-    });
-
-    // Group leaves by employee and date using IST formatting
-    approvedLeaves.forEach(leave => {
-      const empId = leave.employeeId;
-      const dateKey = getISTDateString(leave.leaveDate);
-      
-      if (!leaveMap.has(empId)) {
-        leaveMap.set(empId, new Set());
-      }
-      leaveMap.get(empId).add(dateKey);
-    });
-
-    // Get all holidays in the date range using IST boundaries
-    const holidays = await Holiday.find({
-      date: { $gte: startBoundary, $lte: endBoundary }
-    });
-    
-    // Create a map of holidays by date for quick lookup using IST formatting
-    const holidayMap = new Map();
-    holidays.forEach(holiday => {
-      const dateKey = getISTDateString(holiday.date);
-      holidayMap.set(dateKey, holiday);
-    });
-
-    // Helper function to check if date is working day (using IST date key)
-    const isWorkingDay = (date) => {
-      const dateKey = getISTDateString(date);
-      return isWorkingDayForCompany(date, holidayMap);
-    };
+    // Get holidays in the range with optimized caching
+    const holidayMap = await getHolidaysInRange(startBoundary, endBoundary);
 
     // Generate all calendar days in the range (including weekends)
-    const allDays = [];
-    const currentDate = new Date(startDateObj);
-    
-    while (currentDate <= endDateObj) {
-      allDays.push({
-        date: new Date(currentDate),
-        isWorkingDay: isWorkingDay(currentDate)
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    const allDays = generateDateRange(startDateObj, endDateObj, holidayMap);
 
-    // Build the complete attendance data
-    const employeeAttendanceData = allEmployees.map(employee => {
-      const empId = employee._id.toString();
-      const employeeAttendance = attendanceMap.get(empId) || new Map();
-      const employeeLeaves = leaveMap.get(employee.employeeId) || new Set();
-      
-      const weekData = {};
-      
-      allDays.forEach(dayObj => {
-        const day = dayObj.date;
-        const dateKey = getISTDateString(day);
-        const attendanceRecord = employeeAttendance.get(dateKey);
-        
-        if (attendanceRecord) {
-          // Has attendance record
-          weekData[dateKey] = {
-            _id: attendanceRecord._id,
-            checkIn: attendanceRecord.checkIn,
-            checkOut: attendanceRecord.checkOut,
-            status: attendanceRecord.status || 'present',
-            isWorkingDay: dayObj.isWorkingDay
-          };
-          
-        } else if (employeeLeaves.has(dateKey)) {
-          // On approved leave
-          weekData[dateKey] = {
-            checkIn: null,
-            checkOut: null,
-            status: 'leave',
-            isWorkingDay: dayObj.isWorkingDay
-          };
-        } else {
-          // Check if it's a holiday
-          const isHoliday = holidayMap.has(dateKey);
-          let status;
-          if (isHoliday) {
-            status = 'holiday';
-          } else if (!dayObj.isWorkingDay) {
-            status = 'weekend';
-          } else {
-            status = 'absent';
-          }
-          
-          weekData[dateKey] = {
-            checkIn: null,
-            checkOut: null,
-            status: status,
-            isWorkingDay: dayObj.isWorkingDay && !isHoliday,
-            holidayTitle: isHoliday ? holidayMap.get(dateKey).title : undefined
-          };
-          
-        }
-      });
+    // Build the complete attendance data using helper function
+    const employeeAttendanceData = allEmployees.map(employee => 
+      buildEmployeeWeekData(employee, allDays, attendanceMap, leaveMap, holidayMap)
+    );
 
-      return {
-        employee: {
-          _id: employee._id,
-          employeeId: employee.employeeId,
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          department: employee.department
-        },
-        employeeName: `${employee.firstName} ${employee.lastName}`,
-        weekData: weekData
-      };
-    });
-
-    // Calculate summary stats for today if it's in the range (using IST)
-    const todayForStats = getISTNow();
-    const todayStatsKey = getISTDateString(todayForStats);
-    let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 };
-    
-    if (allDays.some(dayObj => getISTDateString(dayObj.date) === todayStatsKey)) {
-      employeeAttendanceData.forEach(record => {
-        const todayData = record.weekData[todayStatsKey];
-        if (todayData) {
-          todayStats.total++;
-          if (todayData.status === 'present' || todayData.checkIn) {
-            todayStats.present++;
-          } else if (todayData.status === 'leave') {
-            todayStats.leave++;
-          } else if (todayData.status === 'weekend') {
-            todayStats.weekend++;
-          } else if (todayData.status === 'holiday') {
-            todayStats.holiday++;
-          } else {
-            todayStats.absent++;
-          }
-        }
-      });
-    }
+    // Calculate summary stats for today if it's in the range
+    const todayStats = calculateTodayStats(employeeAttendanceData, allDays);
 
     res.json(formatResponse(true, "Admin attendance range retrieved successfully", {
       records: employeeAttendanceData,
@@ -940,15 +1096,10 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       return res.status(400).json(formatResponse(false, "Employee ID, start date, and end date are required"));
     }
 
-    // Check authorization - employees can only view their own, admin/hr can view any
-    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
-      const userEmployeeObjId = await getEmployeeObjectId(req.user);
-      const requestedEmployee = await Employee.findOne({ employeeId });
-      
-      if (!userEmployeeObjId || !requestedEmployee || 
-          userEmployeeObjId.toString() !== requestedEmployee._id.toString()) {
-        return res.status(403).json(formatResponse(false, "Access denied. You can only view your own attendance."));
-      }
+    // Check authorization using helper function
+    const authResult = await validateEmployeeAccess(req, employeeId);
+    if (!authResult.authorized) {
+      return res.status(403).json(authResult.error);
     }
 
     // Find the employee
@@ -983,113 +1134,15 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       leaveDate: { $gte: effectiveStartDate, $lte: endBoundary }
     });
 
-    // Create a map for quick lookup using IST date keys
-    const attendanceMap = new Map();
-    attendanceRecords.forEach(record => {
-      const dateKey = getISTDateString(record.date);
-      attendanceMap.set(dateKey, record);
-    });
+    // Create maps for quick lookup using helper functions
+    const attendanceMap = buildSimpleAttendanceMap(attendanceRecords);
+    const leaveMap = buildSimpleLeaveMap(approvedLeaves);
 
-    // Create a map for approved leaves using IST date keys
-    const leaveMap = new Map();
-    approvedLeaves.forEach(leave => {
-      const dateKey = getISTDateString(leave.leaveDate);
-      leaveMap.set(dateKey, leave);
-    });
-
-    // 🚀 OPTIMIZED: Bulk fetch holidays for the entire date range (eliminates N+1 queries)
+    // Get holidays in the range with optimized caching
     const holidayMap = await getHolidaysInRange(effectiveStartDate, endBoundary);
     
-    // Generate all days in the range (including weekends and holidays for proper display)
-    const workingDays = [];
-    const currentDate = new Date(effectiveStartDate);
-    
-    while (currentDate <= endBoundary) {
-      const dateKey = getISTDateString(currentDate);
-      
-      // 🚀 Use optimized working day check with pre-fetched holiday map
-      const isWorkingDay = isWorkingDayForCompany(currentDate, holidayMap);
-      
-      // Include all days - working days, weekends, and holidays
-      const attendanceRecord = attendanceMap.get(dateKey);
-      const approvedLeave = leaveMap.get(dateKey);
-      
-      // 🚀 O(1) holiday lookup using pre-fetched map
-      const holiday = holidayMap.get(dateKey);
-      
-      if (holiday) {
-        // It's a holiday
-        workingDays.push({
-          _id: attendanceRecord?._id || null,
-          date: new Date(currentDate),
-          checkIn: attendanceRecord?.checkIn || null,
-          checkOut: attendanceRecord?.checkOut || null,
-          status: 'holiday',
-          workHours: null,
-          comments: null,
-          reason: null,
-          employeeName: `${employee.firstName} ${employee.lastName}`,
-          holidayTitle: holiday.title || holiday.holidayName || 'Holiday'
-        });
-      } else if (!isWorkingDay) {
-        // It's a weekend (Sunday or 2nd Saturday)
-        workingDays.push({
-          _id: attendanceRecord?._id || null,
-          date: new Date(currentDate),
-          checkIn: attendanceRecord?.checkIn || null,
-          checkOut: attendanceRecord?.checkOut || null,
-          status: 'weekend',
-          workHours: null,
-          comments: null,
-          reason: null,
-          employeeName: `${employee.firstName} ${employee.lastName}`
-        });
-      } else if (approvedLeave) {
-        // Employee has an approved leave for this day
-        workingDays.push({
-          _id: attendanceRecord?._id || null,
-          date: new Date(currentDate),
-          checkIn: null,
-          checkOut: null,
-          status: 'leave',
-          workHours: null,
-          comments: `Leave: ${approvedLeave.leaveType}`,
-          reason: approvedLeave.leaveReason || 'Approved leave',
-          employeeName: `${employee.firstName} ${employee.lastName}`
-        });
-      } else if (attendanceRecord) {
-        // Employee has a record for this day
-        const workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
-
-        workingDays.push({
-          _id: attendanceRecord._id,
-          date: attendanceRecord.date,
-          checkIn: attendanceRecord.checkIn,
-          checkOut: attendanceRecord.checkOut,
-          status: attendanceRecord.status,
-          workHours: workHours,
-          comments: attendanceRecord.comments,
-          reason: attendanceRecord.reason,
-          employeeName: `${employee.firstName} ${employee.lastName}`,
-          location: attendanceRecord.location // Include location data
-        });
-      } else {
-        // Employee was absent this working day
-        workingDays.push({
-          _id: null,
-          date: new Date(currentDate),
-          checkIn: null,
-          checkOut: null,
-          status: 'absent',
-          workHours: null,
-          comments: null,
-          reason: 'No check-in recorded',
-          employeeName: `${employee.firstName} ${employee.lastName}`
-        });
-      }
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    // Generate all days in the range using helper function
+    const workingDays = generateEmployeeAttendanceRange(effectiveStartDate, endBoundary, employee, attendanceMap, leaveMap, holidayMap);
 
     // Calculate statistics
     const totalWorkingDays = workingDays.length;
@@ -1100,11 +1153,7 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
     res.json(formatResponse(true, "Employee attendance with absents retrieved successfully", {
       records: workingDays,
       employee: {
-        _id: employee._id,
-        employeeId: employee.employeeId,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        department: employee.department,
+        ...buildEmployeeObject(employee),
         joiningDate: employee.joiningDate
       },
       statistics: {
@@ -1134,10 +1183,8 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
  */
 export const updateAttendanceRecord = async (req, res) => {
   try {
-    // Check authorization - only admin/hr can update attendance
-    if (!req.user.role || (req.user.role !== 'admin' && req.user.role !== 'hr')) {
-      return res.status(403).json(formatResponse(false, "Access denied. Only HR and Admin can update attendance records."));
-    }
+    // Check authorization using helper function
+    if (!validateAdminAccess(req, res)) return;
 
     const { recordId } = req.params;
     const { status, checkIn, checkOut } = req.body;
