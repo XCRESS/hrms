@@ -3,6 +3,7 @@ import User from "../models/User.model.js";
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import moment from "moment-timezone";
+import { getISTNow, getISTDayBoundaries, calculateWorkHours, determineAttendanceStatus } from "../utils/istUtils.js";
 
 // Employee: Submit a regularization request
 export const requestRegularization = async (req, res) => {
@@ -25,7 +26,7 @@ export const requestRegularization = async (req, res) => {
       existing.requestedCheckIn = requestedCheckInIST;
       existing.requestedCheckOut = requestedCheckOutIST;
       existing.reason = reason;
-      existing.updatedAt = new Date();
+      existing.updatedAt = getISTNow();
       await existing.save();
       return res.status(200).json({ success: true, message: "Regularization request updated.", reg: existing });
     }
@@ -102,7 +103,7 @@ export const reviewRegularization = async (req, res) => {
     reg.status = status;
     reg.reviewedBy = req.user._id;
     reg.reviewComment = reviewComment || "";
-    reg.updatedAt = new Date();
+    reg.updatedAt = getISTNow();
     await reg.save();
     // If approved, update attendance
     if (status === "approved") {

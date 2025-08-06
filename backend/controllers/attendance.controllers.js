@@ -5,22 +5,34 @@ import Leave from "../models/Leave.model.js";
 import Holiday from "../models/Holiday.model.js";
 import cache, { TTL } from "../utils/cache.js";
 import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
+import {
+  getISTNow,
+  getISTDayBoundaries,
+  getISTRangeBoundaries,
+  getBusinessHours,
+  getISTDateString,
+  parseISTDateString,
+  calculateWorkHours,
+  determineAttendanceStatus,
+  isSameDayIST
+} from "../utils/istUtils.js";
 
 /**
  * OPTIMIZED: Bulk fetch holidays for date range with caching to avoid N+1 queries
+ * Now uses IST date boundaries for consistent holiday matching
  */
 const getHolidaysInRange = async (startDate, endDate) => {
-  const cacheKey = `holidays:${startDate.toISOString().split('T')[0]}:${endDate.toISOString().split('T')[0]}`;
+  const cacheKey = `holidays:${getISTDateString(startDate)}:${getISTDateString(endDate)}`;
   
   return await cache.getOrSet(cacheKey, async () => {
     const holidays = await Holiday.find({
       date: { $gte: startDate, $lte: endDate }
     }).lean(); // Use .lean() for better performance
     
-    // Create a Map for O(1) lookup by date key
+    // Create a Map for O(1) lookup by date key (IST dates)
     const holidayMap = new Map();
     holidays.forEach(holiday => {
-      const dateKey = holiday.date.toISOString().split('T')[0];
+      const dateKey = getISTDateString(holiday.date);
       holidayMap.set(dateKey, holiday);
     });
     
@@ -29,11 +41,11 @@ const getHolidaysInRange = async (startDate, endDate) => {
 };
 
 /**
- * Helper: Determine if a date is a working day (OPTIMIZED VERSION)
+ * Helper: Determine if a date is a working day (IST VERSION)
  * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday and holidays)
  * Non-working days: Sunday + 2nd Saturday of each month + holidays
  * 
- * @param {Date} date - The date to check
+ * @param {Date} date - The IST date to check
  * @param {Map} holidayMap - Pre-fetched holiday map for O(1) lookup
  */
 const isWorkingDayForCompany = (date, holidayMap = null) => {
@@ -46,7 +58,7 @@ const isWorkingDayForCompany = (date, holidayMap = null) => {
   
   // Check if it's a holiday using pre-fetched map (O(1) lookup)
   if (holidayMap) {
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = getISTDateString(date);
     if (holidayMap.has(dateKey)) {
       return false; // It's a holiday, so not a working day
     }
@@ -78,7 +90,7 @@ const isWorkingDayForCompany = (date, holidayMap = null) => {
 
 /**
  * LEGACY: Keep async version for backward compatibility where holidayMap isn't available
- * This should be gradually phased out in favor of the optimized version
+ * Now uses IST date boundaries for consistent holiday checking
  */
 const isWorkingDayForCompanyLegacy = async (date) => {
   const dayOfWeek = date.getDay();
@@ -88,11 +100,8 @@ const isWorkingDayForCompanyLegacy = async (date) => {
     return false;
   }
   
-  // Check if it's a holiday (most important check)
-  const startOfDay = new Date(date);
-  startOfDay.setUTCHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
-  endOfDay.setUTCHours(23, 59, 59, 999);
+  // Check if it's a holiday using IST boundaries
+  const { startOfDay, endOfDay } = getISTDayBoundaries(date);
   
   const holiday = await Holiday.findOne({
     date: { $gte: startOfDay, $lte: endOfDay }
@@ -164,33 +173,28 @@ export const checkIn = async (req, res) => {
     // Extract location data from request body
     const { latitude, longitude } = req.body;
 
-    // Determine start and end of the current day in UTC
-    const now = new Date();
-    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    // Get current IST time and today's boundaries
+    const now = getISTNow();
+    const { startOfDay, endOfDay } = getISTDayBoundaries(now);
 
     let attendance = await Attendance.findOne({
       employee: employeeObjId,
-      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
+      date: { $gte: startOfDay, $lte: endOfDay }
     });
 
     if (attendance) {
       return res.status(400).json(formatResponse(false, "Already checked in for today"));
     }
     
-    // Create new attendance record
-    // Ensure the 'date' field also aligns with this UTC day concept if necessary,
-    // though storing the exact timestamp of check-in is common.
-    // For this fix, we're primarily concerned with the query for existing records.
-    // The `new Date()` for `date` and `checkIn` fields will store the exact current UTC timestamp.
+    // Create new attendance record with IST timestamps
     const employeeDoc = await Employee.findById(employeeObjId);
     
     const attendanceData = {
       employee: employeeObjId,
       employeeName: employeeDoc ? `${employeeDoc.firstName} ${employeeDoc.lastName}` : "",
-      date: new Date(), // Exact timestamp of check-in
-      checkIn: new Date(), // Exact timestamp of check-in
-      status: "present"
+      date: now, // Current IST timestamp
+      checkIn: now, // Current IST timestamp
+      status: determineAttendanceStatus(now) // Auto-determine status based on check-in time
     };
 
     // Add location data if provided
@@ -244,14 +248,13 @@ export const checkOut = async (req, res) => {
       return res.status(400).json(formatResponse(false, "No linked employee profile found for user"));
     }
 
-    // Use UTC to define the current day, consistent with check-in
-    const now = new Date();
-    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    // Use IST to define the current day, consistent with check-in
+    const now = getISTNow();
+    const { startOfDay, endOfDay } = getISTDayBoundaries(now);
 
     const attendance = await Attendance.findOne({
       employee: employeeObjId,
-      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
+      date: { $gte: startOfDay, $lte: endOfDay }
     });
 
     if (!attendance) {
@@ -275,8 +278,13 @@ export const checkOut = async (req, res) => {
       tasks: tasks.filter(t => typeof t === 'string' && t.trim() !== ''), // Sanitize tasks
     });
 
-    // 3. Update attendance with checkout time
-    attendance.checkOut = new Date();
+    // 3. Update attendance with checkout time (IST)
+    attendance.checkOut = now;
+    
+    // Recalculate status based on actual work hours
+    const finalStatus = determineAttendanceStatus(attendance.checkIn, now);
+    attendance.status = finalStatus;
+    
     await attendance.save();
 
     // Invalidate relevant caches after check-out
@@ -338,15 +346,13 @@ export const getAttendance = async (req, res) => {
       }
       filter.employee = employeeObjId;
     }
-    // Date range filter
+    // Date range filter using IST boundaries
     if (startDate) {
-      const startOfDay = new Date(startDate);
-      startOfDay.setUTCHours(0, 0, 0, 0); // Set to start of day UTC
+      const { startOfDay } = getISTDayBoundaries(parseISTDateString(startDate));
       filter.date = { ...filter.date, $gte: startOfDay };
     }
     if (endDate) {
-      const endOfDay = new Date(endDate);
-      endOfDay.setUTCHours(23, 59, 59, 999); // Set to end of day UTC
+      const { endOfDay } = getISTDayBoundaries(parseISTDateString(endDate));
       filter.date = { ...filter.date, $lte: endOfDay };
     }
     // Status filter
@@ -404,23 +410,23 @@ export const getMissingCheckouts = async (req, res) => {
 
     console.log("✅ Employee ObjectId found:", employeeObjId);
 
-    // Get current date and set boundaries
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    // Get current IST date and set boundaries
+    const now = getISTNow();
+    const { startOfDay: today } = getISTDayBoundaries(now);
     
     // Look back 7 days for missing checkouts (configurable)
     const lookbackDays = 7;
-    const startDate = new Date(today);
-    startDate.setUTCDate(startDate.getUTCDate() - lookbackDays);
+    const lookbackDate = new Date(today);
+    lookbackDate.setDate(lookbackDate.getDate() - lookbackDays);
 
     console.log("📅 Date range:", { startDate, today, lookbackDays });
 
     // Find attendance records where checkIn exists but checkOut is null/missing
-    // and the date is before today
+    // and the date is before today (using IST boundaries)
     const missingCheckouts = await Attendance.find({
       employee: employeeObjId,
       date: { 
-        $gte: startDate, 
+        $gte: lookbackDate, 
         $lt: today 
       },
       checkIn: { $exists: true },
@@ -447,12 +453,9 @@ export const getMissingCheckouts = async (req, res) => {
     const attendanceDates = missingCheckouts.map(att => att.date);
     console.log("📅 Checking regularizations for dates:", attendanceDates.map(d => d.toISOString().split('T')[0]));
     
-    // Create date range for each attendance date to handle timezone issues
+    // Create IST date ranges for each attendance date
     const dateRanges = attendanceDates.map(date => {
-      const startOfDay = new Date(date);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setUTCHours(23, 59, 59, 999);
+      const { startOfDay, endOfDay } = getISTDayBoundaries(date);
       return { startOfDay, endOfDay };
     });
     
@@ -473,17 +476,17 @@ export const getMissingCheckouts = async (req, res) => {
       })));
     }
 
-    // Create a more precise date comparison using date ranges
+    // Create a more precise date comparison using IST date strings
     const reminderNeeded = missingCheckouts.filter(attendance => {
       const attendanceDate = new Date(attendance.date);
-      const attendanceDateKey = attendanceDate.toISOString().split('T')[0];
+      const attendanceDateKey = getISTDateString(attendanceDate);
       
       // Check if any regularization exists for this attendance date
       const hasRegularization = existingRegularizations.some(reg => {
         const regDate = new Date(reg.date);
-        const regDateKey = regDate.toISOString().split('T')[0];
+        const regDateKey = getISTDateString(regDate);
         
-        // Compare normalized date strings for exact match
+        // Compare IST date strings for exact match
         const dateMatch = attendanceDateKey === regDateKey;
         
         if (dateMatch) {
@@ -500,7 +503,7 @@ export const getMissingCheckouts = async (req, res) => {
     console.log("🎯 Final reminder needed:", reminderNeeded.length, "records");
     if (reminderNeeded.length > 0) {
       console.log("🎯 Reminder dates:", reminderNeeded.map(att => 
-        new Date(att.date).toISOString().split('T')[0]
+        getISTDateString(att.date)
       ));
     }
 
@@ -539,14 +542,12 @@ export const getMyAttendance = async (req, res) => {
     const { startDate, endDate, page = 1, limit = 10 } = req.query;
     const filter = { employee: employeeObjId };
 
-    // Ensure attendance records are not shown before joining date
-    const joiningDate = new Date(employee.joiningDate);
-    joiningDate.setUTCHours(0, 0, 0, 0);
+    // Ensure attendance records are not shown before joining date (IST)
+    const { startOfDay: joiningDate } = getISTDayBoundaries(employee.joiningDate);
 
     // Date range filtering with joining date constraint
     if (startDate) {
-      const startOfDay = new Date(startDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
+      const { startOfDay } = getISTDayBoundaries(parseISTDateString(startDate));
       // Use the later of startDate or joining date
       filter.date = { ...filter.date, $gte: startOfDay >= joiningDate ? startOfDay : joiningDate };
     } else {
@@ -555,8 +556,7 @@ export const getMyAttendance = async (req, res) => {
     }
     
     if (endDate) {
-      const endOfDay = new Date(endDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
+      const { endOfDay } = getISTDayBoundaries(parseISTDateString(endDate));
       filter.date = { ...filter.date, $lte: endOfDay };
     }
 
@@ -574,14 +574,9 @@ export const getMyAttendance = async (req, res) => {
       Attendance.countDocuments(filter)
     ]);
 
-    // Calculate work hours and enhance records
+    // Calculate work hours and enhance records using IST utilities
     const enhancedRecords = records.map(record => {
-      let workHours = null;
-      if (record.checkIn && record.checkOut) {
-        const checkInTime = new Date(record.checkIn);
-        const checkOutTime = new Date(record.checkOut);
-        workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)); // Convert to hours
-      }
+      const workHours = calculateWorkHours(record.checkIn, record.checkOut);
 
       return {
         _id: record._id,
@@ -625,10 +620,9 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
       return res.status(403).json(formatResponse(false, "Access denied. Admin/HR role required."));
     }
 
-    // Get today's date boundaries in UTC
-    const now = new Date();
-    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-    const endOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    // Get today's date boundaries in IST
+    const now = getISTNow();
+    const { startOfDay: startOfTodayIST, endOfDay: endOfTodayIST } = getISTDayBoundaries(now);
 
     // 🚀 Get all active employees with caching
     const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
@@ -638,9 +632,9 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
         .lean(); // Use .lean() for better performance
     }, TTL.EMPLOYEES);
 
-    // Get today's attendance records
+    // Get today's attendance records using IST boundaries
     const todayAttendance = await Attendance.find({
-      date: { $gte: startOfTodayUTC, $lte: endOfTodayUTC }
+      date: { $gte: startOfTodayIST, $lte: endOfTodayIST }
     }).populate('employee', 'firstName lastName employeeId department');
 
     // Create a map of employee attendance for quick lookup
@@ -659,9 +653,7 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
         // Employee has checked in
         let workHours = null;
         if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
-          const checkInTime = new Date(attendanceRecord.checkIn);
-          const checkOutTime = new Date(attendanceRecord.checkOut);
-          workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)); // Convert to hours
+          workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
         }
 
         return {
@@ -694,7 +686,7 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
             department: employee.department
           },
           employeeName: `${employee.firstName} ${employee.lastName}`,
-          date: startOfTodayUTC,
+          date: startOfTodayIST,
           checkIn: null,
           checkOut: null,
           status: 'absent',
@@ -710,7 +702,7 @@ export const getTodayAttendanceWithAbsents = async (req, res) => {
       total: completeAttendanceList.length,
       present: completeAttendanceList.filter(r => r.status === 'present').length,
       absent: completeAttendanceList.filter(r => r.status === 'absent').length,
-      date: startOfTodayUTC.toISOString().split('T')[0]
+      date: getISTDateString(startOfTodayIST)
     }));
 
   } catch (err) {
@@ -737,12 +729,12 @@ export const getAdminAttendanceRange = async (req, res) => {
       return res.status(400).json(formatResponse(false, "Start date and end date are required"));
     }
 
-    // Parse date range using local time - handle as local dates
-    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+    // Parse date range using IST boundaries
+    const startDateObj = parseISTDateString(startDate);
+    const endDateObj = parseISTDateString(endDate);
     
-    const startDateObj = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-    const endDateObj = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+    const { startOfDay: startBoundary } = getISTDayBoundaries(startDateObj);
+    const { endOfDay: endBoundary } = getISTDayBoundaries(endDateObj);
 
     // 🚀 Get all active employees with reasonable caching
     const allEmployees = await cache.getOrSet('employees:active:basic', async () => {
@@ -752,30 +744,26 @@ export const getAdminAttendanceRange = async (req, res) => {
         .lean(); // Use .lean() for better performance
     }, TTL.EMPLOYEES);
 
-    // Get all attendance records for the date range
+    // Get all attendance records for the date range using IST boundaries
     const attendanceRecords = await Attendance.find({
-      date: { $gte: startDateObj, $lte: endDateObj }
+      date: { $gte: startBoundary, $lte: endBoundary }
     }).populate('employee', 'firstName lastName employeeId department');
 
-    // Get approved leaves for the date range
+    // Get approved leaves for the date range using IST boundaries
     const approvedLeaves = await Leave.find({
       status: 'approved',
-      leaveDate: { $gte: startDateObj, $lte: endDateObj }
+      leaveDate: { $gte: startBoundary, $lte: endBoundary }
     });
 
     // Create maps for quick lookup
     const attendanceMap = new Map();
     const leaveMap = new Map();
 
-    // Group attendance by employee and date
+    // Group attendance by employee and date using IST formatting
     attendanceRecords.forEach(record => {
       if (record.employee && record.employee._id) {
         const empId = record.employee._id.toString();
-        // Format date as YYYY-MM-DD using local time
-        const year = record.date.getFullYear();
-        const month = String(record.date.getMonth() + 1).padStart(2, '0');
-        const day = String(record.date.getDate()).padStart(2, '0');
-        const dateKey = `${year}-${month}-${day}`;
+        const dateKey = getISTDateString(record.date);
         
         if (!attendanceMap.has(empId)) {
           attendanceMap.set(empId, new Map());
@@ -785,14 +773,10 @@ export const getAdminAttendanceRange = async (req, res) => {
       }
     });
 
-    // Group leaves by employee and date
+    // Group leaves by employee and date using IST formatting
     approvedLeaves.forEach(leave => {
       const empId = leave.employeeId;
-      // Format date as YYYY-MM-DD using local time
-      const year = leave.leaveDate.getFullYear();
-      const month = String(leave.leaveDate.getMonth() + 1).padStart(2, '0');
-      const day = String(leave.leaveDate.getDate()).padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
+      const dateKey = getISTDateString(leave.leaveDate);
       
       if (!leaveMap.has(empId)) {
         leaveMap.set(empId, new Set());
@@ -800,58 +784,29 @@ export const getAdminAttendanceRange = async (req, res) => {
       leaveMap.get(empId).add(dateKey);
     });
 
-    // Get all holidays in the date range
+    // Get all holidays in the date range using IST boundaries
     const holidays = await Holiday.find({
-      date: { $gte: startDateObj, $lte: endDateObj }
+      date: { $gte: startBoundary, $lte: endBoundary }
     });
     
-    // Create a map of holidays by date for quick lookup
+    // Create a map of holidays by date for quick lookup using IST formatting
     const holidayMap = new Map();
     holidays.forEach(holiday => {
-      const year = holiday.date.getFullYear();
-      const month = String(holiday.date.getMonth() + 1).padStart(2, '0');
-      const day = String(holiday.date.getDate()).padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
+      const dateKey = getISTDateString(holiday.date);
       holidayMap.set(dateKey, holiday);
     });
 
-    // Helper function to check if date is working day (for styling/metadata purposes)
+    // Helper function to check if date is working day (using IST date key)
     const isWorkingDay = (date) => {
-      const dayOfWeek = date.getDay();
-      
-      // Skip Sundays
-      if (dayOfWeek === 0) return false;
-      
-      // Check if it's a holiday
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
-      if (holidayMap.has(dateKey)) return false;
-      
-      // Check if it's 2nd Saturday of the month
-      if (dayOfWeek === 6) {
-        const dateNum = date.getDate();
-        const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const firstSaturday = 7 - firstOfMonth.getDay();
-        const secondSaturday = firstSaturday + 7;
-        
-        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-          return false; // 2nd Saturday is not a working day
-        }
-      }
-      
-      return true;
+      const dateKey = getISTDateString(date);
+      return isWorkingDayForCompany(date, holidayMap);
     };
 
     // Generate all calendar days in the range (including weekends)
     const allDays = [];
     const currentDate = new Date(startDateObj);
     
-    // Create end boundary using same approach as employee side - only compare dates, not times
-    const endBoundary = new Date(endYear, endMonth - 1, endDay);
-    
-    while (currentDate <= endBoundary) {
+    while (currentDate <= endDateObj) {
       allDays.push({
         date: new Date(currentDate),
         isWorkingDay: isWorkingDay(currentDate)
@@ -869,11 +824,7 @@ export const getAdminAttendanceRange = async (req, res) => {
       
       allDays.forEach(dayObj => {
         const day = dayObj.date;
-        // Format date as YYYY-MM-DD using local time
-        const year = day.getFullYear();
-        const month = String(day.getMonth() + 1).padStart(2, '0');
-        const dayNum = String(day.getDate()).padStart(2, '0');
-        const dateKey = `${year}-${month}-${dayNum}`;
+        const dateKey = getISTDateString(day);
         const attendanceRecord = employeeAttendance.get(dateKey);
         
         if (attendanceRecord) {
@@ -930,21 +881,12 @@ export const getAdminAttendanceRange = async (req, res) => {
       };
     });
 
-    // Calculate summary stats for today if it's in the range
-    const todayForStats = new Date();
-    const todayYear = todayForStats.getFullYear();
-    const todayMonth = String(todayForStats.getMonth() + 1).padStart(2, '0');
-    const todayDay = String(todayForStats.getDate()).padStart(2, '0');
-    const todayStatsKey = `${todayYear}-${todayMonth}-${todayDay}`;
+    // Calculate summary stats for today if it's in the range (using IST)
+    const todayForStats = getISTNow();
+    const todayStatsKey = getISTDateString(todayForStats);
     let todayStats = { total: 0, present: 0, absent: 0, leave: 0, weekend: 0, holiday: 0 };
     
-    if (allDays.some(dayObj => {
-      const day = dayObj.date;
-      const year = day.getFullYear();
-      const month = String(day.getMonth() + 1).padStart(2, '0');
-      const dayNum = String(day.getDate()).padStart(2, '0');
-      return `${year}-${month}-${dayNum}` === todayStatsKey;
-    })) {
+    if (allDays.some(dayObj => getISTDateString(dayObj.date) === todayStatsKey)) {
       employeeAttendanceData.forEach(record => {
         const todayData = record.weekData[todayStatsKey];
         if (todayData) {
@@ -966,38 +908,16 @@ export const getAdminAttendanceRange = async (req, res) => {
 
     res.json(formatResponse(true, "Admin attendance range retrieved successfully", {
       records: employeeAttendanceData,
-      allDays: allDays.map(dayObj => {
-        const day = dayObj.date;
-        const year = day.getFullYear();
-        const month = String(day.getMonth() + 1).padStart(2, '0');
-        const dayNum = String(day.getDate()).padStart(2, '0');
-        return {
-          date: `${year}-${month}-${dayNum}`,
-          isWorkingDay: dayObj.isWorkingDay
-        };
-      }),
+      allDays: allDays.map(dayObj => ({
+        date: getISTDateString(dayObj.date),
+        isWorkingDay: dayObj.isWorkingDay
+      })),
       // Keep workingDays for backward compatibility
-      workingDays: allDays.map(dayObj => {
-        const day = dayObj.date;
-        const year = day.getFullYear();
-        const month = String(day.getMonth() + 1).padStart(2, '0');
-        const dayNum = String(day.getDate()).padStart(2, '0');
-        return `${year}-${month}-${dayNum}`;
-      }),
+      workingDays: allDays.map(dayObj => getISTDateString(dayObj.date)),
       stats: todayStats,
       dateRange: {
-        startDate: (() => {
-          const year = startDateObj.getFullYear();
-          const month = String(startDateObj.getMonth() + 1).padStart(2, '0');
-          const day = String(startDateObj.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        })(),
-        endDate: (() => {
-          const year = endDateObj.getFullYear();
-          const month = String(endDateObj.getMonth() + 1).padStart(2, '0');
-          const day = String(endDateObj.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        })()
+        startDate: getISTDateString(startDateObj),
+        endDate: getISTDateString(endDateObj)
       }
     }));
 
@@ -1037,56 +957,55 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
 
-    // Parse date range
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
-    startDateObj.setUTCHours(0, 0, 0, 0);
-    endDateObj.setUTCHours(23, 59, 59, 999);
+    // Parse date range using IST boundaries
+    const startDateObj = parseISTDateString(startDate);
+    const endDateObj = parseISTDateString(endDate);
+    
+    const { startOfDay: startBoundary } = getISTDayBoundaries(startDateObj);
+    const { endOfDay: endBoundary } = getISTDayBoundaries(endDateObj);
 
-    // Ensure we don't show attendance before joining date
-    const joiningDate = new Date(employee.joiningDate);
-    joiningDate.setUTCHours(0, 0, 0, 0);
+    // Ensure we don't show attendance before joining date (IST)
+    const { startOfDay: joiningDate } = getISTDayBoundaries(employee.joiningDate);
     
     // Adjust start date to be no earlier than joining date
-    const effectiveStartDate = startDateObj >= joiningDate ? startDateObj : joiningDate;
+    const effectiveStartDate = startBoundary >= joiningDate ? startBoundary : joiningDate;
 
-    // Get all attendance records for the employee in this range
+    // Get all attendance records for the employee in this range using IST boundaries
     const attendanceRecords = await Attendance.find({
       employee: employee._id,
-      date: { $gte: effectiveStartDate, $lte: endDateObj }
+      date: { $gte: effectiveStartDate, $lte: endBoundary }
     }).sort({ date: -1 });
 
-    // Get approved leaves for the employee in this range
+    // Get approved leaves for the employee in this range using IST boundaries
     const approvedLeaves = await Leave.find({
       employeeId: employee.employeeId,
       status: 'approved',
-      leaveDate: { $gte: effectiveStartDate, $lte: endDateObj }
+      leaveDate: { $gte: effectiveStartDate, $lte: endBoundary }
     });
 
-    // Create a map for quick lookup
+    // Create a map for quick lookup using IST date keys
     const attendanceMap = new Map();
     attendanceRecords.forEach(record => {
-      const dateKey = record.date.toISOString().split('T')[0];
+      const dateKey = getISTDateString(record.date);
       attendanceMap.set(dateKey, record);
     });
 
-    // Create a map for approved leaves
+    // Create a map for approved leaves using IST date keys
     const leaveMap = new Map();
     approvedLeaves.forEach(leave => {
-      const dateKey = new Date(leave.leaveDate).toISOString().split('T')[0];
+      const dateKey = getISTDateString(leave.leaveDate);
       leaveMap.set(dateKey, leave);
     });
 
     // 🚀 OPTIMIZED: Bulk fetch holidays for the entire date range (eliminates N+1 queries)
-    const holidayMap = await getHolidaysInRange(effectiveStartDate, endDateObj);
+    const holidayMap = await getHolidaysInRange(effectiveStartDate, endBoundary);
     
     // Generate all days in the range (including weekends and holidays for proper display)
     const workingDays = [];
     const currentDate = new Date(effectiveStartDate);
     
-    while (currentDate <= endDateObj) {
-      const dayOfWeek = currentDate.getDay();
-      const dateKey = currentDate.toISOString().split('T')[0];
+    while (currentDate <= endBoundary) {
+      const dateKey = getISTDateString(currentDate);
       
       // 🚀 Use optimized working day check with pre-fetched holiday map
       const isWorkingDay = isWorkingDayForCompany(currentDate, holidayMap);
@@ -1140,12 +1059,7 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
         });
       } else if (attendanceRecord) {
         // Employee has a record for this day
-        let workHours = null;
-        if (attendanceRecord.checkIn && attendanceRecord.checkOut) {
-          const checkInTime = new Date(attendanceRecord.checkIn);
-          const checkOutTime = new Date(attendanceRecord.checkOut);
-          workHours = ((checkOutTime - checkInTime) / (1000 * 60 * 60));
-        }
+        const workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
 
         workingDays.push({
           _id: attendanceRecord._id,
@@ -1202,9 +1116,9 @@ export const getEmployeeAttendanceWithAbsents = async (req, res) => {
       dateRange: {
         requestedStartDate: startDate,
         requestedEndDate: endDate,
-        effectiveStartDate: effectiveStartDate.toISOString().split('T')[0],
+        effectiveStartDate: getISTDateString(effectiveStartDate),
         endDate: endDate,
-        joiningDate: joiningDate.toISOString().split('T')[0]
+        joiningDate: getISTDateString(joiningDate)
       }
     }));
 
@@ -1249,14 +1163,14 @@ export const updateAttendanceRecord = async (req, res) => {
         return res.status(404).json(formatResponse(false, "Employee not found"));
       }
 
-      // Create new attendance record
-      const recordDate = new Date(date);
-      recordDate.setUTCHours(0, 0, 0, 0);
+      // Create new attendance record with IST date
+      const recordDate = parseISTDateString(date);
+      const { startOfDay } = getISTDayBoundaries(recordDate);
 
       attendanceRecord = new Attendance({
         employee: employee._id,
         employeeName: `${employee.firstName} ${employee.lastName}`,
-        date: recordDate,
+        date: startOfDay,
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
         status: status || 'present'
@@ -1279,51 +1193,46 @@ export const updateAttendanceRecord = async (req, res) => {
       }
     }
 
-    // Auto-fill check-in and check-out based on status
+    // Auto-fill check-in and check-out based on status using IST business hours
     if (status) {
       const recordDate = new Date(attendanceRecord.date);
+      const businessHours = getBusinessHours(recordDate);
       
       switch (status) {
         case 'present':
           // Only set defaults if not explicitly provided in request
           if (checkIn === undefined && !attendanceRecord.checkIn) {
-            attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
+            attendanceRecord.checkIn = businessHours.workStart;
           }
           if (checkOut === undefined && !attendanceRecord.checkOut) {
-            attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
+            attendanceRecord.checkOut = businessHours.workEnd;
           }
           break;
         case 'half-day':
           // Only set default check-in if not explicitly provided in request
           if (checkIn === undefined && !attendanceRecord.checkIn) {
-            attendanceRecord.checkIn = setDefaultCheckIn(recordDate);
+            attendanceRecord.checkIn = businessHours.workStart;
           }
-          // Set half-day checkout (1:30 PM) unless explicitly provided
+          // Set half-day checkout unless explicitly provided
           if (checkOut === undefined) {
-            // Half day - checkout at 1:30 PM
-            const halfDayCheckout = new Date(recordDate);
-            halfDayCheckout.setUTCHours(8, 0, 0, 0); // 1:30 PM IST (UTC+5:30)
-            attendanceRecord.checkOut = halfDayCheckout;
+            attendanceRecord.checkOut = businessHours.halfDayEnd;
           }
           break;
-                 case 'absent':
-           attendanceRecord.checkIn = null;
-           attendanceRecord.checkOut = null;
-           attendanceRecord.workHours = 0;
-           break;
-         case 'late':
-           // Set late check-in (10:00 AM) unless explicitly provided
-           if (checkIn === undefined) {
-             // Late arrival - 10:00 AM
-             const lateCheckIn = new Date(recordDate);
-             lateCheckIn.setUTCHours(4, 30, 0, 0); // 10:00 AM IST (UTC+5:30)
-             attendanceRecord.checkIn = lateCheckIn;
-           }
-           // Only set default checkout if not explicitly provided in request
-           if (checkOut === undefined && !attendanceRecord.checkOut) {
-             attendanceRecord.checkOut = setDefaultCheckOut(recordDate);
-           }
-           break;
+        case 'absent':
+          attendanceRecord.checkIn = null;
+          attendanceRecord.checkOut = null;
+          attendanceRecord.workHours = 0;
+          break;
+        case 'late':
+          // Set late check-in unless explicitly provided
+          if (checkIn === undefined) {
+            attendanceRecord.checkIn = businessHours.lateArrival;
+          }
+          // Only set default checkout if not explicitly provided in request
+          if (checkOut === undefined && !attendanceRecord.checkOut) {
+            attendanceRecord.checkOut = businessHours.workEnd;
+          }
+          break;
       }
     }
 
@@ -1358,16 +1267,6 @@ export const updateAttendanceRecord = async (req, res) => {
   }
 };
 
-// Helper functions for default times
-const setDefaultCheckIn = (date) => {
-  const checkIn = new Date(date);
-  checkIn.setUTCHours(4, 0, 0, 0); // 9:30 AM IST (UTC+5:30)
-  return checkIn;
-};
-
-const setDefaultCheckOut = (date) => {
-  const checkOut = new Date(date);
-  checkOut.setUTCHours(12, 0, 0, 0); // 5:30 PM IST (UTC+5:30)
-  return checkOut;
-};
+// Note: Default time functions have been replaced with IST utility functions
+// Business hours are now handled by getBusinessHours() from istUtils.js
 

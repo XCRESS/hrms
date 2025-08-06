@@ -1,5 +1,6 @@
 import Holiday from "../models/Holiday.model.js";
 import notificationService from "../utils/notificationService.js";
+import { getISTDayBoundaries, parseISTDateString } from "../utils/istUtils.js";
 
 export const createHoliday = async (req, res) => {
   try {
@@ -7,9 +8,8 @@ export const createHoliday = async (req, res) => {
     if (!title || !date) {
       return res.status(400).json({ success: false, message: "Title and date are required for a holiday." });
     }
-    // Ensure date is stored correctly, e.g., at the beginning of the day UTC
-    const holidayDate = new Date(date);
-    holidayDate.setUTCHours(0, 0, 0, 0);
+    // Store holiday date as IST start of day
+    const { startOfDay: holidayDate } = getISTDayBoundaries(parseISTDateString(date));
 
     const holiday = await Holiday.create({ title, date: holidayDate, isOptional, description });
     
@@ -61,8 +61,8 @@ export const updateHoliday = async (req, res) => {
 
     let newDateObj;
     if (date) {
-        newDateObj = new Date(date);
-        newDateObj.setUTCHours(0,0,0,0);
+        const { startOfDay } = getISTDayBoundaries(parseISTDateString(date));
+        newDateObj = startOfDay;
         // Check for duplicate date only if the date is actually changing to a new value
         if (holidayToUpdate.date.getTime() !== newDateObj.getTime()) {
             const existingHoliday = await Holiday.findOne({ date: newDateObj, _id: { $ne: holidayId } });
