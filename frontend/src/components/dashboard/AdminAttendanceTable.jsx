@@ -541,11 +541,6 @@ const AdminAttendanceTable = () => {
       _id: attendanceForDay._id || null
     };
     
-    console.log('Editing attendance for:', {
-      date: day.toISOString().split('T')[0],
-      employee: record.employee?.firstName + ' ' + record.employee?.lastName,
-      existingRecord: attendanceForDay
-    });
     
     setSelectedRecord(modalRecord);
     setSelectedEmployee(record.employee);

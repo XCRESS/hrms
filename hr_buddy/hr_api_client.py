@@ -1,6 +1,6 @@
 """
-Unified HR API Client for HRMS Buddy
-Integrates with the new unified HR APIs for attendance and task reports
+Simplified HR API Client for HRMS Buddy
+Integrates with the new simplified HR APIs for attendance and task reports
 """
 
 import requests
@@ -33,8 +33,8 @@ def retry_on_failure(max_retries: int = 2, delay: float = 0.3):
         return wrapper
     return decorator
 
-class UnifiedHRClient:
-    """Unified HR API Client for attendance and task reports"""
+class SimplifiedHRClient:
+    """Simplified HR API Client for attendance and task reports"""
     
     def __init__(self, base_url: str = "https://hrms-backend.up.railway.app"):
         self.base_url = base_url.rstrip('/')
@@ -46,7 +46,7 @@ class UnifiedHRClient:
         # Set default headers
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'HRMS-Buddy/2.0.0'
+            'User-Agent': 'HRMS-Buddy/2.1.0'
         })
         
     def set_token(self, token: str):
@@ -172,28 +172,20 @@ class UnifiedHRClient:
         return cleaned
 
     # =============================================================================
-    # UNIFIED HR ATTENDANCE API METHODS
+    # HR ATTENDANCE API METHODS (Simplified)
     # =============================================================================
     
-    def get_attendance_overview(self, date: str = None, period: str = 'today') -> dict:
-        """Get attendance overview from unified HR API"""
-        params = {}
+    def get_attendance_overview(self, date: str = None) -> dict:
+        """Get attendance overview from simplified HR API"""
+        params = {'operation': 'overview'}
         if date:
             params['date'] = date
-        if period:
-            params['period'] = period
             
-        return self._make_request("GET", "/hr/attendance", params={
-            'operation': 'overview',
-            **params
-        })
+        return self._make_request("GET", "/hr/attendance", params=params)
     
     def get_attendance_records(self, start_date: str, end_date: str, 
-                             employee_ids: List[str] = None, 
-                             departments: List[str] = None,
-                             status: str = None,
                              page: int = 1, limit: int = 50) -> dict:
-        """Get filtered attendance records from unified HR API"""
+        """Get filtered attendance records from simplified HR API"""
         params = {
             'operation': 'records',
             'startDate': start_date,
@@ -201,144 +193,59 @@ class UnifiedHRClient:
             'page': page,
             'limit': limit
         }
-        
-        if employee_ids:
-            params['employeeIds'] = employee_ids
-        if departments:
-            params['departments'] = departments
-        if status:
-            params['status'] = status
             
         return self._make_request("GET", "/hr/attendance", params=params)
     
-    def get_employee_attendance(self, employee_id: str, start_date: str, end_date: str,
-                               include_analytics: bool = True) -> dict:
+    def get_employee_attendance(self, employee_id: str, start_date: str, end_date: str) -> dict:
         """Get individual employee attendance analysis"""
         params = {
             'operation': 'employee',
             'employeeId': employee_id,
             'startDate': start_date,
-            'endDate': end_date,
-            'includeAnalytics': include_analytics
+            'endDate': end_date
         }
         
         return self._make_request("GET", "/hr/attendance", params=params)
     
-    def get_attendance_analytics(self, period: str = 'month', 
-                               metric_types: List[str] = None,
-                               group_by: str = 'department') -> dict:
-        """Get advanced attendance analytics"""
-        params = {
-            'operation': 'analytics',
-            'period': period,
-            'groupBy': group_by
-        }
-        
-        if metric_types:
-            params['metricTypes'] = metric_types
-            
-        return self._make_request("GET", "/hr/attendance", params=params)
-    
     # =============================================================================
-    # UNIFIED HR TASK REPORTS API METHODS  
+    # HR TASK REPORTS API METHODS (Simplified)
     # =============================================================================
     
-    def get_task_reports_overview(self, date: str = None, period: str = 'month') -> dict:
-        """Get task reports overview from unified HR API"""
+    def get_task_reports_overview(self, period: str = 'month') -> dict:
+        """Get task reports overview from simplified HR API"""
         params = {
-            'operation': 'overview'
+            'operation': 'overview',
+            'period': period
         }
-        if date:
-            params['date'] = date
-        if period:
-            params['period'] = period
             
         return self._make_request("GET", "/hr/task-reports", params=params)
     
     def get_task_reports(self, start_date: str, end_date: str,
-                        employee_ids: List[str] = None,
-                        departments: List[str] = None,
-                        productivity_level: str = 'all',
                         page: int = 1, limit: int = 50) -> dict:
-        """Get filtered task reports from unified HR API"""
+        """Get filtered task reports from simplified HR API"""
         params = {
             'operation': 'reports',
             'startDate': start_date,
             'endDate': end_date,
-            'productivityLevel': productivity_level,
             'page': page,
             'limit': limit
         }
-        
-        if employee_ids:
-            params['employeeIds'] = employee_ids
-        if departments:
-            params['departments'] = departments
             
         return self._make_request("GET", "/hr/task-reports", params=params)
     
-    def get_employee_task_reports(self, employee_id: str, start_date: str, end_date: str,
-                                 include_analytics: bool = True) -> dict:
+    def get_employee_task_reports(self, employee_id: str, start_date: str, end_date: str) -> dict:
         """Get individual employee task reports analysis"""
         params = {
             'operation': 'employee',
             'employeeId': employee_id,
             'startDate': start_date,
-            'endDate': end_date,
-            'includeAnalytics': include_analytics
-        }
-        
-        return self._make_request("GET", "/hr/task-reports", params=params)
-    
-    def get_task_analytics(self, period: str = 'month',
-                          metric_types: List[str] = None,
-                          group_by: str = 'department') -> dict:
-        """Get advanced task analytics"""
-        params = {
-            'operation': 'analytics',
-            'period': period,
-            'groupBy': group_by
-        }
-        
-        if metric_types:
-            params['metricTypes'] = metric_types
-            
-        return self._make_request("GET", "/hr/task-reports", params=params)
-    
-    def get_productivity_metrics(self, start_date: str, end_date: str,
-                               departments: List[str] = None,
-                               benchmark_type: str = 'department') -> dict:
-        """Get productivity metrics and benchmarking"""
-        params = {
-            'operation': 'productivity',
-            'startDate': start_date,
-            'endDate': end_date,
-            'benchmarkType': benchmark_type
-        }
-        
-        if departments:
-            params['departments'] = departments
-            
-        return self._make_request("GET", "/hr/task-reports", params=params)
-    
-    def get_task_insights(self, start_date: str, end_date: str,
-                         analysis_type: str = 'comprehensive',
-                         focus_areas: List[str] = None) -> dict:
-        """Get AI-powered task insights"""
-        params = {
-            'operation': 'insights',
-            'analysisType': analysis_type,
-            'startDate': start_date,
             'endDate': end_date
         }
         
-        if focus_areas:
-            params['focusAreas'] = focus_areas
-            
         return self._make_request("GET", "/hr/task-reports", params=params)
     
     # =============================================================================
-    # LEGACY COMPATIBILITY METHODS (for backward compatibility)
+    # EXISTING EMPLOYEE API METHODS (Compatibility)
     # =============================================================================
     
     def get_user_profile(self) -> dict:

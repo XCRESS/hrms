@@ -1,48 +1,22 @@
-import { HRAttendanceService } from '../services/hr-attendance.service.js';
-import { APIResponse } from '../utils/response.js';
-import { APIError } from '../utils/errors.js';
-import { hrAttendanceValidator } from '../validators/hr-attendance.validator.js';
-import cache, { TTL } from '../utils/cache.js';
-import { invalidateAttendanceCache } from '../utils/cacheInvalidation.js';
+import Attendance from '../models/Attendance.model.js';
+import Employee from '../models/Employee.model.js';
+import { formatResponse } from '../utils/response.js';
 
 /**
- * Unified HR/Admin Attendance Controller
- * Industry-standard REST API for HR operations
- * 
- * Features:
- * - Single endpoint with query-based operations
- * - Role-based access control (HR/Admin only)
- * - Comprehensive validation and error handling
- * - Performance optimized with caching
- * - Standardized response format
- * - Full audit logging
+ * Simplified HR Attendance Controller
+ * Working with existing HRMS infrastructure
  */
 
 class HRAttendanceController {
-  constructor() {
-    this.service = new HRAttendanceService();
-  }
-
+  
   /**
    * Main HR Attendance API Handler
    * GET/POST/PUT /api/hr/attendance
-   * 
-   * Supports multiple operations through query parameters:
-   * - overview: Dashboard statistics and insights
-   * - records: Detailed attendance records with filtering
-   * - employee: Individual employee attendance analysis
-   * - bulk: Bulk operations (update/export)
-   * - analytics: Advanced reporting and trends
    */
   async handleAttendanceRequest(req, res, next) {
     try {
       const { method } = req;
-      const operation = req.query.operation || 'records';
-
-      // Validate HR/Admin access
-      if (!req.user?.role || !['admin', 'hr'].includes(req.user.role)) {
-        throw new APIError('Access denied. HR/Admin role required.', 403, 'INSUFFICIENT_PRIVILEGES');
-      }
+      const operation = req.query.operation || 'overview';
 
       // Route to appropriate handler based on operation and method
       switch (`${method}:${operation}`) {
@@ -55,24 +29,13 @@ class HRAttendanceController {
         case 'GET:employee':
           return await this.getEmployeeAttendance(req, res);
         
-        case 'GET:analytics':
-          return await this.getAttendanceAnalytics(req, res);
-        
-        case 'POST:bulk':
-          return await this.handleBulkOperations(req, res);
-        
-        case 'PUT:update':
-          return await this.updateAttendanceRecord(req, res);
-        
-        case 'GET:export':
-          return await this.exportAttendanceData(req, res);
-
         default:
-          throw new APIError(`Unsupported operation: ${method}:${operation}`, 400, 'INVALID_OPERATION');
+          return res.status(400).json(formatResponse(false, `Unsupported operation: ${method}:${operation}`));
       }
 
     } catch (error) {
-      next(error);
+      console.error('HR Attendance API Error:', error);
+      return res.status(500).json(formatResponse(false, 'Internal server error'));
     }
   }
 
@@ -81,94 +44,114 @@ class HRAttendanceController {
    * Real-time attendance dashboard for HR
    */
   async getAttendanceOverview(req, res) {
-    const { date = new Date().toISOString().split('T')[0] } = req.query;
-    
-    // Validate input
-    const validation = hrAttendanceValidator.validateOverviewQuery(req.query);
-    if (!validation.isValid) {
-      throw new APIError('Invalid query parameters', 400, 'VALIDATION_ERROR', validation.errors);
+    try {
+      const { date = new Date().toISOString().split('T')[0] } = req.query;
+      
+      // Get today's attendance overview
+      const totalEmployees = await Employee.countDocuments({ status: 'active' });
+      
+      const todayAttendance = await Attendance.find({
+        date: { $gte: new Date(date), $lt: new Date(Date.parse(date) + 86400000) }
+      }).populate('employeeId', 'firstName lastName employeeId');
+      
+      const presentCount = todayAttendance.filter(att => ['present', 'late'].includes(att.status)).length;
+      const lateCount = todayAttendance.filter(att => att.status === 'late').length;
+      const absentCount = totalEmployees - presentCount;
+      
+      const overview = {
+        statistics: {
+          totalEmployees,
+          presentToday: presentCount,
+          absentToday: absentCount,
+          lateToday: lateCount,
+          attendanceRate: totalEmployees > 0 ? ((presentCount / totalEmployees) * 100).toFixed(1) : 0,
+          punctualityRate: presentCount > 0 ? (((presentCount - lateCount) / presentCount) * 100).toFixed(1) : 0
+        },
+        insights: [
+          presentCount > totalEmployees * 0.9 ? "Excellent attendance today!" : "Attendance could be improved",
+          lateCount > presentCount * 0.1 ? "High number of late arrivals today" : "Good punctuality today"
+        ]
+      };
+
+      return res.status(200).json(formatResponse(true, 'Attendance overview retrieved successfully', {
+        overview,
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          requestedBy: req.user?.role || 'unknown',
+          date
+        }
+      }));
+      
+    } catch (error) {
+      console.error('Get attendance overview error:', error);
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve attendance overview', null, { error: error.message }));
     }
-
-    const cacheKey = `hr:attendance:overview:${date}`;
-    
-    const overview = await cache.getOrSet(cacheKey, async () => {
-      return await this.service.getAttendanceOverview({
-        date,
-        userRole: req.user.role,
-        requestedBy: req.user._id
-      });
-    }, TTL.DASHBOARD);
-
-    return APIResponse.success(res, 'Attendance overview retrieved successfully', {
-      overview,
-      metadata: {
-        generatedAt: new Date().toISOString(),
-        requestedBy: req.user.role,
-        cacheStatus: 'hit'
-      }
-    });
   }
 
   /**
    * GET /api/hr/attendance?operation=records
-   * Comprehensive attendance records with advanced filtering
+   * Comprehensive attendance records with filtering
    */
   async getAttendanceRecords(req, res) {
-    // Validate and sanitize query parameters
-    const validation = hrAttendanceValidator.validateRecordsQuery(req.query);
-    if (!validation.isValid) {
-      throw new APIError('Invalid query parameters', 400, 'VALIDATION_ERROR', validation.errors);
-    }
-
-    const {
-      startDate,
-      endDate,
-      employeeIds,
-      departments,
-      status,
-      includeAbsents = true,
-      includeWeekends = false,
-      includeHolidays = false,
-      page = 1,
-      limit = 50,
-      sortBy = 'date',
-      sortOrder = 'desc',
-      format = 'detailed'
-    } = validation.data;
-
-    // Build cache key for complex queries
-    const cacheKey = `hr:attendance:records:${this._generateCacheKey(validation.data)}`;
-    
-    const result = await cache.getOrSet(cacheKey, async () => {
-      return await this.service.getAttendanceRecords({
+    try {
+      const {
         startDate,
         endDate,
-        employeeIds,
-        departments,
-        status,
-        includeAbsents,
-        includeWeekends,
-        includeHolidays,
-        page: parseInt(page),
-        limit: Math.min(parseInt(limit), 200), // Max 200 records per request
-        sortBy,
-        sortOrder,
-        format,
-        requestedBy: req.user._id
-      });
-    }, TTL.ATTENDANCE);
+        page = 1,
+        limit = 50
+      } = req.query;
 
-    return APIResponse.success(res, 'Attendance records retrieved successfully', {
-      ...result,
-      metadata: {
-        query: validation.data,
-        performance: {
-          totalRecords: result.pagination.total,
-          processingTime: `${Date.now() - req.startTime}ms`,
-          cacheStatus: 'computed'
-        }
+      if (!startDate || !endDate) {
+        return res.status(400).json(formatResponse(false, 'Start date and end date are required'));
       }
-    });
+
+      const query = {
+        date: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      };
+
+      const totalRecords = await Attendance.countDocuments(query);
+      
+      const records = await Attendance.find(query)
+        .populate('employeeId', 'firstName lastName employeeId department')
+        .sort({ date: -1 })
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+      const formattedRecords = records.map(record => ({
+        date: record.date.toISOString().split('T')[0],
+        employeeName: record.employeeId ? `${record.employeeId.firstName} ${record.employeeId.lastName}` : 'Unknown',
+        employeeId: record.employeeId?.employeeId || 'N/A',
+        department: record.employeeId?.department || 'N/A',
+        status: record.status,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        workingHours: record.workingHours || 0
+      }));
+
+      return res.status(200).json(formatResponse(true, 'Attendance records retrieved successfully', {
+        records: formattedRecords,
+        pagination: {
+          total: totalRecords,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(totalRecords / parseInt(limit))
+        },
+        metadata: {
+          query: { startDate, endDate },
+          performance: {
+            totalRecords,
+            processingTime: `${Date.now() - (req.startTime || Date.now())}ms`
+          }
+        }
+      }));
+      
+    } catch (error) {
+      console.error('Get attendance records error:', error);
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve attendance records', null, { error: error.message }));
+    }
   }
 
   /**
@@ -176,247 +159,69 @@ class HRAttendanceController {
    * Individual employee attendance analysis
    */
   async getEmployeeAttendance(req, res) {
-    const validation = hrAttendanceValidator.validateEmployeeQuery(req.query);
-    if (!validation.isValid) {
-      throw new APIError('Invalid query parameters', 400, 'VALIDATION_ERROR', validation.errors);
-    }
-
-    const {
-      employeeId,
-      startDate,
-      endDate,
-      includeAnalytics = true,
-      includeRegularizations = true,
-      includeTaskReports = false
-    } = validation.data;
-
-    const cacheKey = `hr:attendance:employee:${employeeId}:${startDate}:${endDate}`;
-    
-    const result = await cache.getOrSet(cacheKey, async () => {
-      return await this.service.getEmployeeAttendanceDetails({
+    try {
+      const {
         employeeId,
         startDate,
-        endDate,
-        includeAnalytics,
-        includeRegularizations,
-        includeTaskReports,
-        requestedBy: req.user._id
-      });
-    }, TTL.ATTENDANCE);
+        endDate
+      } = req.query;
 
-    return APIResponse.success(res, 'Employee attendance retrieved successfully', {
-      ...result,
-      metadata: {
-        employeeId,
-        dateRange: { startDate, endDate },
-        generatedAt: new Date().toISOString()
+      if (!employeeId || !startDate || !endDate) {
+        return res.status(400).json(formatResponse(false, 'Employee ID, start date, and end date are required'));
       }
-    });
-  }
 
-  /**
-   * GET /api/hr/attendance?operation=analytics
-   * Advanced attendance analytics and reporting
-   */
-  async getAttendanceAnalytics(req, res) {
-    const validation = hrAttendanceValidator.validateAnalyticsQuery(req.query);
-    if (!validation.isValid) {
-      throw new APIError('Invalid query parameters', 400, 'VALIDATION_ERROR', validation.errors);
-    }
-
-    const {
-      period = 'month',
-      startDate,
-      endDate,
-      departments,
-      metricTypes = ['attendance_rate', 'punctuality', 'trends'],
-      groupBy = 'department'
-    } = validation.data;
-
-    const cacheKey = `hr:attendance:analytics:${this._generateCacheKey(validation.data)}`;
-    
-    const analytics = await cache.getOrSet(cacheKey, async () => {
-      return await this.service.getAttendanceAnalytics({
-        period,
-        startDate,
-        endDate,
-        departments,
-        metricTypes,
-        groupBy,
-        requestedBy: req.user._id
-      });
-    }, TTL.ANALYTICS);
-
-    return APIResponse.success(res, 'Attendance analytics retrieved successfully', {
-      analytics,
-      metadata: {
-        period,
-        dateRange: { startDate, endDate },
-        computedMetrics: metricTypes,
-        generatedAt: new Date().toISOString()
+      const employee = await Employee.findOne({ employeeId });
+      if (!employee) {
+        return res.status(404).json(formatResponse(false, 'Employee not found'));
       }
-    });
-  }
 
-  /**
-   * POST /api/hr/attendance?operation=bulk
-   * Bulk operations: update, import, process
-   */
-  async handleBulkOperations(req, res) {
-    const validation = hrAttendanceValidator.validateBulkOperation(req.body);
-    if (!validation.isValid) {
-      throw new APIError('Invalid bulk operation data', 400, 'VALIDATION_ERROR', validation.errors);
-    }
+      const attendance = await Attendance.find({
+        employeeId: employee._id,
+        date: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      }).sort({ date: -1 });
 
-    const { operation, data, options = {} } = validation.data;
-
-    // Audit log for bulk operations
-    const auditEntry = {
-      userId: req.user._id,
-      userRole: req.user.role,
-      operation: `bulk_${operation}`,
-      affectedRecords: Array.isArray(data) ? data.length : 1,
-      timestamp: new Date(),
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    };
-
-    let result;
-    
-    switch (operation) {
-      case 'update':
-        result = await this.service.bulkUpdateAttendance(data, {
-          ...options,
-          auditEntry,
-          requestedBy: req.user._id
-        });
-        break;
+      const totalDays = attendance.length;
+      const presentDays = attendance.filter(att => ['present', 'late'].includes(att.status)).length;
+      const lateDays = attendance.filter(att => att.status === 'late').length;
       
-      case 'import':
-        result = await this.service.bulkImportAttendance(data, {
-          ...options,
-          auditEntry,
-          requestedBy: req.user._id
-        });
-        break;
+      const analysis = {
+        attendanceRate: totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0,
+        punctualityScore: presentDays > 0 ? (((presentDays - lateDays) / presentDays) * 100).toFixed(1) : 0,
+        totalDays,
+        presentDays,
+        absentDays: totalDays - presentDays,
+        lateDays
+      };
+
+      return res.status(200).json(formatResponse(true, 'Employee attendance retrieved successfully', {
+        employee: {
+          name: `${employee.firstName} ${employee.lastName}`,
+          employeeId: employee.employeeId,
+          department: employee.department,
+          position: employee.position
+        },
+        analysis,
+        records: attendance.map(att => ({
+          date: att.date.toISOString().split('T')[0],
+          status: att.status,
+          checkIn: att.checkIn,
+          checkOut: att.checkOut,
+          workingHours: att.workingHours || 0
+        })),
+        metadata: {
+          employeeId,
+          dateRange: { startDate, endDate },
+          generatedAt: new Date().toISOString()
+        }
+      }));
       
-      case 'regularize':
-        result = await this.service.bulkRegularizeAttendance(data, {
-          ...options,
-          auditEntry,
-          requestedBy: req.user._id
-        });
-        break;
-
-      default:
-        throw new APIError(`Unsupported bulk operation: ${operation}`, 400, 'INVALID_BULK_OPERATION');
+    } catch (error) {
+      console.error('Get employee attendance error:', error);
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve employee attendance', null, { error: error.message }));
     }
-
-    // Invalidate relevant caches
-    invalidateAttendanceCache();
-
-    return APIResponse.success(res, `Bulk ${operation} completed successfully`, {
-      result,
-      audit: auditEntry,
-      metadata: {
-        processedAt: new Date().toISOString(),
-        processingTime: `${Date.now() - req.startTime}ms`
-      }
-    });
-  }
-
-  /**
-   * PUT /api/hr/attendance?operation=update&recordId=123
-   * Update individual attendance record
-   */
-  async updateAttendanceRecord(req, res) {
-    const { recordId } = req.query;
-    
-    const validation = hrAttendanceValidator.validateUpdateRequest({
-      recordId,
-      ...req.body
-    });
-    
-    if (!validation.isValid) {
-      throw new APIError('Invalid update data', 400, 'VALIDATION_ERROR', validation.errors);
-    }
-
-    const auditEntry = {
-      userId: req.user._id,
-      userRole: req.user.role,
-      operation: 'update_attendance',
-      recordId,
-      changes: req.body,
-      timestamp: new Date(),
-      ipAddress: req.ip
-    };
-
-    const result = await this.service.updateAttendanceRecord(recordId, req.body, {
-      auditEntry,
-      requestedBy: req.user._id
-    });
-
-    // Invalidate specific caches
-    invalidateAttendanceCache();
-
-    return APIResponse.success(res, 'Attendance record updated successfully', {
-      record: result,
-      audit: auditEntry
-    });
-  }
-
-  /**
-   * GET /api/hr/attendance?operation=export
-   * Export attendance data in various formats
-   */
-  async exportAttendanceData(req, res) {
-    const validation = hrAttendanceValidator.validateExportQuery(req.query);
-    if (!validation.isValid) {
-      throw new APIError('Invalid export parameters', 400, 'VALIDATION_ERROR', validation.errors);
-    }
-
-    const {
-      format = 'csv',
-      startDate,
-      endDate,
-      employeeIds,
-      departments,
-      includeAnalytics = false
-    } = validation.data;
-
-    const exportData = await this.service.exportAttendanceData({
-      format,
-      startDate,
-      endDate,
-      employeeIds,
-      departments,
-      includeAnalytics,
-      requestedBy: req.user._id
-    });
-
-    // Set appropriate headers for file download
-    res.setHeader('Content-Type', this._getContentType(format));
-    res.setHeader('Content-Disposition', `attachment; filename=attendance_export_${startDate}_${endDate}.${format}`);
-    
-    return res.send(exportData);
-  }
-
-  // Helper methods
-  _generateCacheKey(data) {
-    return Object.keys(data)
-      .sort()
-      .map(key => `${key}:${data[key]}`)
-      .join('|');
-  }
-
-  _getContentType(format) {
-    const contentTypes = {
-      csv: 'text/csv',
-      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      json: 'application/json',
-      pdf: 'application/pdf'
-    };
-    return contentTypes[format] || 'application/octet-stream';
   }
 }
 

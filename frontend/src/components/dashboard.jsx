@@ -9,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast.jsx";
 import RegularizationModal from "./dashboard/RegularizationModal.jsx";
 import TaskReportModal from "./dashboard/TaskReportModal.jsx";
+import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 
 // Lazy load dashboard components for better performance
@@ -49,6 +50,7 @@ const dashboardInitialState = {
     showHelpModal: false,
     showRegularizationModal: false,
     showTaskReportModal: false,
+    showAbsentEmployeesModal: false,
   },
   // Loading states
   loading: {
@@ -146,7 +148,8 @@ export default function HRMSDashboard() {
     showLeaveModal,
     showHelpModal, 
     showRegularizationModal,
-    showTaskReportModal
+    showTaskReportModal,
+    showAbsentEmployeesModal
   } = modals;
   
   const {
@@ -195,6 +198,11 @@ export default function HRMSDashboard() {
   const switchToHolidaysTab = useCallback(() => {
     setUpdatesActiveTab("holidays");
   }, []);
+
+  // Handle absent employees modal
+  const handleAbsentEmployeesClick = useCallback(() => {
+    setModal('showAbsentEmployeesModal', true);
+  }, [setModal]);
 
   // Handle updates tab change
   const handleUpdatesTabChange = useCallback((tabId) => {
@@ -839,6 +847,7 @@ export default function HRMSDashboard() {
                       isLoading={loadingAdminData}
                       onPendingRequestsClick={scrollToPendingRequests}
                       onHolidaysClick={switchToHolidaysTab}
+                      onAbsentEmployeesClick={handleAbsentEmployeesClick}
                     />
                   </Suspense>
                   
@@ -949,6 +958,12 @@ export default function HRMSDashboard() {
         onClose={() => setModal('showTaskReportModal', false)}
         onSubmit={handleTaskReportSubmit}
         isLoading={checkOutLoading}
+      />
+
+      <AbsentEmployeesModal
+        isOpen={showAbsentEmployeesModal}
+        onClose={() => setModal('showAbsentEmployeesModal', false)}
+        absentEmployees={adminSummary?.absentEmployees || []}
       />
     </div>
   );
