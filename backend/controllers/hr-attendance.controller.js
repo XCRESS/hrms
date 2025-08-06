@@ -3,8 +3,9 @@ import Employee from '../models/Employee.model.js';
 import { formatResponse } from '../utils/response.js';
 
 /**
- * Simplified HR Attendance Controller
- * Working with existing HRMS infrastructure
+ * HR Attendance Controller
+ * Standalone read-only API for attendance data retrieval
+ * Supports: employee names, date ranges, attendance statistics
  */
 
 class HRAttendanceController {
@@ -45,31 +46,49 @@ class HRAttendanceController {
    */
   async getAttendanceOverview(req, res) {
     try {
-      const { date = new Date().toISOString().split('T')[0] } = req.query;
+      const { date } = req.query;
       
-      // Get today's attendance overview
-      const totalEmployees = await Employee.countDocuments({ status: 'active' });
+      // Default to today if no date specified
+      let targetDate = date ? new Date(date) : new Date();
       
-      const todayAttendance = await Attendance.find({
-        date: { $gte: new Date(date), $lt: new Date(Date.parse(date) + 86400000) }
-      }).populate('employeeId', 'firstName lastName employeeId');
+      // Set date boundaries for the target date
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+      // Get all active employees (fix: use isActive instead of status)
+      const totalEmployees = await Employee.countDocuments({ isActive: true });
       
-      const presentCount = todayAttendance.filter(att => ['present', 'late'].includes(att.status)).length;
-      const lateCount = todayAttendance.filter(att => att.status === 'late').length;
+      // Get attendance records for the target date (fix: use employee instead of employeeId)
+      const attendanceRecords = await Attendance.find({
+        date: { $gte: startOfDay, $lte: endOfDay }
+      }).populate('employee', 'firstName lastName employeeId department');
+      
+      // Calculate statistics (include half-day)
+      const presentCount = attendanceRecords.filter(att => 
+        ['present', 'late', 'half-day'].includes(att.status)
+      ).length;
+      
+      const lateCount = attendanceRecords.filter(att => att.status === 'late').length;
+      const halfDayCount = attendanceRecords.filter(att => att.status === 'half-day').length;
       const absentCount = totalEmployees - presentCount;
       
+      const attendanceRate = totalEmployees > 0 ? ((presentCount / totalEmployees) * 100).toFixed(1) : 0;
+      const punctualityRate = presentCount > 0 ? (((presentCount - lateCount) / presentCount) * 100).toFixed(1) : 0;
+
       const overview = {
         statistics: {
           totalEmployees,
           presentToday: presentCount,
           absentToday: absentCount,
           lateToday: lateCount,
-          attendanceRate: totalEmployees > 0 ? ((presentCount / totalEmployees) * 100).toFixed(1) : 0,
-          punctualityRate: presentCount > 0 ? (((presentCount - lateCount) / presentCount) * 100).toFixed(1) : 0
+          halfDayToday: halfDayCount,
+          attendanceRate: parseFloat(attendanceRate),
+          punctualityRate: parseFloat(punctualityRate)
         },
         insights: [
-          presentCount > totalEmployees * 0.9 ? "Excellent attendance today!" : "Attendance could be improved",
-          lateCount > presentCount * 0.1 ? "High number of late arrivals today" : "Good punctuality today"
+          parseFloat(attendanceRate) > 90 ? "Excellent attendance today!" : "Attendance could be improved",
+          lateCount > presentCount * 0.1 ? "High number of late arrivals today" : "Good punctuality today",
+          halfDayCount > 0 ? `${halfDayCount} employees marked as half-day` : "No half-day records today"
         ]
       };
 
@@ -78,7 +97,7 @@ class HRAttendanceController {
         metadata: {
           generatedAt: new Date().toISOString(),
           requestedBy: req.user?.role || 'unknown',
-          date
+          date: targetDate.toISOString().split('T')[0]
         }
       }));
       
@@ -97,6 +116,8 @@ class HRAttendanceController {
       const {
         startDate,
         endDate,
+        employeeId,
+        employeeName,
         page = 1,
         limit = 50
       } = req.query;
@@ -105,29 +126,58 @@ class HRAttendanceController {
         return res.status(400).json(formatResponse(false, 'Start date and end date are required'));
       }
 
+      // Build query with date range
       const query = {
         date: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
+          $gte: new Date(startDate + 'T00:00:00.000Z'),
+          $lte: new Date(endDate + 'T23:59:59.999Z')
         }
       };
+
+      // Filter by specific employee if provided
+      if (employeeId) {
+        const employee = await Employee.findOne({ employeeId, isActive: true });
+        if (employee) {
+          query.employee = employee._id;
+        } else {
+          return res.status(404).json(formatResponse(false, 'Employee not found'));
+        }
+      }
+
+      // Filter by employee name if provided (supports partial matching)
+      if (employeeName && !employeeId) {
+        const employees = await Employee.find({
+          isActive: true,
+          $or: [
+            { firstName: { $regex: employeeName, $options: 'i' } },
+            { lastName: { $regex: employeeName, $options: 'i' } },
+            { $expr: { $regexMatch: { input: { $concat: ['$firstName', ' ', '$lastName'] }, regex: employeeName, options: 'i' } } }
+          ]
+        }).select('_id');
+        
+        if (employees.length > 0) {
+          query.employee = { $in: employees.map(emp => emp._id) };
+        } else {
+          return res.status(404).json(formatResponse(false, 'No employees found with that name'));
+        }
+      }
 
       const totalRecords = await Attendance.countDocuments(query);
       
       const records = await Attendance.find(query)
-        .populate('employeeId', 'firstName lastName employeeId department')
-        .sort({ date: -1 })
+        .populate('employee', 'firstName lastName employeeId department')
+        .sort({ date: -1, 'employee.firstName': 1 })
         .limit(parseInt(limit))
         .skip((parseInt(page) - 1) * parseInt(limit));
 
       const formattedRecords = records.map(record => ({
         date: record.date.toISOString().split('T')[0],
-        employeeName: record.employeeId ? `${record.employeeId.firstName} ${record.employeeId.lastName}` : 'Unknown',
-        employeeId: record.employeeId?.employeeId || 'N/A',
-        department: record.employeeId?.department || 'N/A',
+        employeeName: record.employee ? `${record.employee.firstName} ${record.employee.lastName}` : 'Unknown',
+        employeeId: record.employee?.employeeId || 'N/A',
+        department: record.employee?.department || 'N/A',
         status: record.status,
-        checkIn: record.checkIn,
-        checkOut: record.checkOut,
+        checkIn: record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : null,
+        checkOut: record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : null,
         workingHours: record.workingHours || 0
       }));
 
@@ -162,30 +212,46 @@ class HRAttendanceController {
     try {
       const {
         employeeId,
+        employeeName,
         startDate,
         endDate
       } = req.query;
 
-      if (!employeeId || !startDate || !endDate) {
-        return res.status(400).json(formatResponse(false, 'Employee ID, start date, and end date are required'));
+      if ((!employeeId && !employeeName) || !startDate || !endDate) {
+        return res.status(400).json(formatResponse(false, 'Employee ID or name, start date, and end date are required'));
       }
 
-      const employee = await Employee.findOne({ employeeId });
+      // Find employee by ID or name
+      let employee;
+      if (employeeId) {
+        employee = await Employee.findOne({ employeeId, isActive: true });
+      } else if (employeeName) {
+        employee = await Employee.findOne({
+          isActive: true,
+          $or: [
+            { $expr: { $regexMatch: { input: { $concat: ['$firstName', ' ', '$lastName'] }, regex: employeeName, options: 'i' } } },
+            { firstName: { $regex: employeeName, $options: 'i' } },
+            { lastName: { $regex: employeeName, $options: 'i' } }
+          ]
+        });
+      }
+
       if (!employee) {
         return res.status(404).json(formatResponse(false, 'Employee not found'));
       }
 
       const attendance = await Attendance.find({
-        employeeId: employee._id,
+        employee: employee._id,  // Fix: use employee instead of employeeId
         date: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
+          $gte: new Date(startDate + 'T00:00:00.000Z'),
+          $lte: new Date(endDate + 'T23:59:59.999Z')
         }
       }).sort({ date: -1 });
 
       const totalDays = attendance.length;
-      const presentDays = attendance.filter(att => ['present', 'late'].includes(att.status)).length;
+      const presentDays = attendance.filter(att => ['present', 'late', 'half-day'].includes(att.status)).length;
       const lateDays = attendance.filter(att => att.status === 'late').length;
+      const halfDays = attendance.filter(att => att.status === 'half-day').length;
       
       const analysis = {
         attendanceRate: totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0,
@@ -193,7 +259,8 @@ class HRAttendanceController {
         totalDays,
         presentDays,
         absentDays: totalDays - presentDays,
-        lateDays
+        lateDays,
+        halfDays
       };
 
       return res.status(200).json(formatResponse(true, 'Employee attendance retrieved successfully', {

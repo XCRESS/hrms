@@ -10,22 +10,11 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
-# Import simplified HR functions
+# Import core HR functions for required operations only
 from hr_api_client import SimplifiedHRClient
 from hr_functions import (
-    get_attendance_overview,
-    get_team_attendance_today,
-    get_employee_attendance_analysis,
-    get_attendance_records,
-    get_task_reports_overview,
-    get_employee_task_analysis,
-    get_task_reports,
-    search_employee_by_name,
-    get_all_employees,
-    get_user_profile,
     get_today_date,
-    get_yesterday_date,
-    get_date_range
+    get_yesterday_date
 )
 
 load_dotenv()
@@ -66,6 +55,381 @@ app.add_middleware(
 hr_client = SimplifiedHRClient()
 logger.info("HR client initialized successfully")
 
+def format_employees_response(api_response):
+    """Format employees API response for proper display"""
+    try:
+        if not api_response.get("success"):
+            return api_response
+        
+        # The employees API returns data directly without formatResponse wrapper
+        # Structure: { "success": True, "data": { "employees": [...] } }
+        data = api_response.get("data", {})
+        employees = data.get("employees", [])
+        
+        # Debug logging
+        logger.info(f"Employees API response structure: success={api_response.get('success')}, data_keys={list(data.keys()) if data else 'None'}, employees_count={len(employees) if employees else 0}")
+        
+        if not employees:
+            return {
+                "success": True,
+                "data": [],
+                "formatted_response": "No employees found in the system."
+            }
+        
+        # Format the response - show ALL employee information for HR access
+        response_text = f"📋 **Complete Employee Directory** ({len(employees)} employees)\n\n"
+        
+        for emp in employees:  # Show all employees with complete information
+            name = emp.get("fullName", f"{emp.get('firstName', '')} {emp.get('lastName', '')}").strip()
+            emp_id = emp.get("employeeId", "N/A")
+            first_name = emp.get("firstName", "N/A")
+            last_name = emp.get("lastName", "N/A")
+            department = emp.get("department", "N/A")
+            position = emp.get("position", "N/A")
+            status = "Active" if emp.get("isActive", True) else "Inactive"
+            email = emp.get("email", "N/A")
+            phone = emp.get("phone", "N/A")
+            company = emp.get("companyName", "N/A")
+            joining_date = emp.get("joiningDate", "N/A")
+            bank_name = emp.get("bankName", "N/A")
+            bank_account = emp.get("bankAccountNumber", "N/A")
+            pan_number = emp.get("panNumber", "N/A")
+            
+            # Format joining date
+            if joining_date != "N/A":
+                try:
+                    date_obj = datetime.fromisoformat(joining_date.replace('Z', '+00:00'))
+                    joining_date = date_obj.strftime('%d %B %Y')
+                except:
+                    pass  # Keep original if parsing fails
+            
+            response_text += f"**{name}** ({emp_id})\n"
+            response_text += f"  👤 Name: {first_name} {last_name}\n"
+            response_text += f"  📧 Email: {email}\n"
+            response_text += f"  📱 Phone: {phone}\n"
+            response_text += f"  🏢 Department: {department}\n"
+            response_text += f"  💼 Position: {position}\n"
+            response_text += f"  🏛️  Company: {company}\n"
+            response_text += f"  📅 Joined: {joining_date}\n"
+            response_text += f"  🏦 Bank: {bank_name}\n"
+            response_text += f"  💳 Account: {bank_account}\n"
+            response_text += f"  🆔 PAN: {pan_number}\n"
+            response_text += f"  🟢 Status: {status}\n\n"
+        
+        return {
+            "success": True,
+            "data": employees,
+            "formatted_response": response_text
+        }
+        
+    except Exception as e:
+        logger.error(f"Error formatting employees response: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "formatted_response": "Error formatting employee data."
+        }
+
+def format_profile_response(api_response):
+    """Format user profile API response for proper display"""
+    try:
+        if not api_response.get("success"):
+            return api_response
+        
+        # The profile API returns employee data spread directly in response
+        # API Client wraps: {success: true, data: {success: true, ...employee_fields}}
+        backend_response = api_response.get("data", {})
+        
+        # Check if it's a partial profile (from User collection)
+        if backend_response.get("isPartialProfile"):
+            response_text = f"👤 **Profile** (Basic Information)\n\n"
+            response_text += f"• **Name:** {backend_response.get('firstName', '')} {backend_response.get('lastName', '')}\n"
+            response_text += f"• **Email:** {backend_response.get('email', 'N/A')}\n"
+            response_text += f"• **Employee ID:** {backend_response.get('employeeId', 'N/A')}\n"
+            response_text += f"• **Department:** {backend_response.get('department', 'N/A')}\n"
+            response_text += f"• **Position:** {backend_response.get('position', 'N/A')}\n\n"
+            response_text += f"⚠️ **Note:** Complete profile not found in employee records.\n"
+        else:
+            # Full employee profile
+            name = f"{backend_response.get('firstName', '')} {backend_response.get('lastName', '')}".strip()
+            response_text = f"👤 **{name}** - Complete Profile\n\n"
+            
+            # Personal Information
+            response_text += f"**📋 Personal Information:**\n"
+            response_text += f"• **Employee ID:** {backend_response.get('employeeId', 'N/A')}\n"
+            response_text += f"• **Email:** {backend_response.get('email', 'N/A')}\n"
+            response_text += f"• **Phone:** {backend_response.get('phone', 'N/A')}\n"
+            response_text += f"• **Gender:** {backend_response.get('gender', 'N/A').title()}\n"
+            response_text += f"• **Date of Birth:** {backend_response.get('dateOfBirth', 'N/A')}\n"
+            response_text += f"• **Marital Status:** {backend_response.get('maritalStatus', 'N/A').title()}\n\n"
+            
+            # Work Information
+            response_text += f"**🏢 Work Information:**\n"
+            response_text += f"• **Company:** {backend_response.get('companyName', 'N/A')}\n"
+            response_text += f"• **Department:** {backend_response.get('department', 'N/A')}\n"
+            response_text += f"• **Position:** {backend_response.get('position', 'N/A')}\n"
+            response_text += f"• **Employment Type:** {backend_response.get('employmentType', 'N/A').title()}\n"
+            response_text += f"• **Office Address:** {backend_response.get('officeAddress', 'N/A')}\n"
+            
+            # Format joining date
+            joining_date = backend_response.get('joiningDate', 'N/A')
+            if joining_date != 'N/A':
+                try:
+                    date_obj = datetime.fromisoformat(joining_date.replace('Z', '+00:00'))
+                    joining_date = date_obj.strftime('%d %B %Y')
+                except:
+                    pass
+            response_text += f"• **Joining Date:** {joining_date}\n"
+            response_text += f"• **Reporting Supervisor:** {backend_response.get('reportingSupervisor', 'N/A')}\n"
+            
+            status = "Active" if backend_response.get("isActive", True) else "Inactive"
+            response_text += f"• **Status:** {status}\n"
+        
+        return {
+            "success": True,
+            "data": backend_response,
+            "formatted_response": response_text
+        }
+        
+    except Exception as e:
+        logger.error(f"Error formatting profile response: {e}")
+        return api_response
+
+def format_attendance_response(api_response):
+    """Format attendance API response for proper display"""
+    try:
+        if not api_response.get("success"):
+            return api_response
+            
+        # Extract data from nested response structure
+        # API Client wraps backend response: {success, data: {success, data: {...}}}
+        backend_response = api_response.get("data", {})
+        data = backend_response.get("data", {})
+        
+        if "overview" in data:
+            # Attendance overview response
+            overview = data["overview"]
+            stats = overview.get("statistics", {})
+            
+            response_text = f"📊 **Attendance Overview**\n\n"
+            response_text += f"• **Total Employees:** {stats.get('totalEmployees', 'N/A')}\n"
+            response_text += f"• **Present Today:** {stats.get('presentToday', 'N/A')} ({stats.get('attendanceRate', 'N/A')}%)\n"
+            response_text += f"• **Absent Today:** {stats.get('absentToday', 'N/A')}\n"
+            response_text += f"• **Late Arrivals:** {stats.get('lateToday', 'N/A')}\n"
+            response_text += f"• **Half Day Today:** {stats.get('halfDayToday', 'N/A')}\n"
+            response_text += f"• **Punctuality Rate:** {stats.get('punctualityRate', 'N/A')}%\n"
+            
+            # Add insights if available
+            insights = overview.get("insights", [])
+            if insights:
+                response_text += f"\n💡 **Key Insights:**\n"
+                for insight in insights[:3]:  # Show top 3 insights
+                    response_text += f"• {insight}\n"
+            
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        elif "records" in data:
+            # Attendance records list from get_attendance_records
+            records = data["records"]
+            pagination = data.get("pagination", {})
+            
+            if not records:
+                return {
+                    "success": True,
+                    "data": data,
+                    "formatted_response": "No attendance records found for the specified criteria."
+                }
+            
+            response_text = f"📋 **Attendance Records** ({len(records)} records, Page {pagination.get('page', 1)} of {pagination.get('pages', 1)})\n\n"
+            
+            for record in records:
+                emp_name = record.get("employeeName", "Unknown")
+                emp_id = record.get("employeeId", "N/A")
+                date_str = record.get("date", "N/A")
+                status = record.get("status", "N/A").title()
+                check_in = record.get("checkIn", "N/A")
+                check_out = record.get("checkOut", "N/A")
+                working_hours = record.get("workingHours", 0)
+                department = record.get("department", "N/A")
+                
+                response_text += f"**{emp_name}** ({emp_id}) - {department}\n"
+                response_text += f"  📅 Date: {date_str}\n"
+                response_text += f"  🟢 Status: {status}\n"
+                if check_in != "N/A":
+                    response_text += f"  ⏰ Check-in: {check_in}\n"
+                if check_out != "N/A":
+                    response_text += f"  ⏰ Check-out: {check_out}\n"
+                response_text += f"  ⏱️ Working Hours: {working_hours}\n\n"
+            
+            if pagination.get("total", 0) > len(records):
+                response_text += f"📊 Showing {len(records)} of {pagination.get('total', 0)} total records\n"
+            
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        elif "employee" in data:
+            # Individual employee attendance analysis from get_employee_attendance
+            employee = data.get("employee", {})
+            analysis = data.get("analysis", {})
+            records = data.get("records", [])
+            
+            emp_name = employee.get("name", "Unknown Employee")
+            emp_id = employee.get("employeeId", "N/A")
+            department = employee.get("department", "N/A")
+            
+            response_text = f"👤 **{emp_name}** ({emp_id}) - Attendance Analysis\n\n"
+            response_text += f"• **Department:** {department}\n"
+            response_text += f"• **Total Days:** {analysis.get('totalDays', 'N/A')}\n"
+            response_text += f"• **Present Days:** {analysis.get('presentDays', 'N/A')}\n"
+            response_text += f"• **Absent Days:** {analysis.get('absentDays', 'N/A')}\n"
+            response_text += f"• **Late Days:** {analysis.get('lateDays', 'N/A')}\n"
+            response_text += f"• **Half Days:** {analysis.get('halfDays', 'N/A')}\n"
+            response_text += f"• **Attendance Rate:** {analysis.get('attendanceRate', 'N/A')}%\n"
+            response_text += f"• **Punctuality Score:** {analysis.get('punctualityScore', 'N/A')}%\n\n"
+            
+            if records:
+                response_text += f"📋 **Recent Attendance Records:**\n\n"
+                for record in records[:10]:  # Show last 10 records
+                    date_str = record.get("date", "N/A")
+                    status = record.get("status", "N/A").title()
+                    check_in = record.get("checkIn", "N/A")
+                    working_hours = record.get("workingHours", 0)
+                    
+                    response_text += f"• **{date_str}**: {status}"
+                    if check_in and check_in != "N/A":
+                        try:
+                            # Format check-in time from ISO string
+                                    check_in_obj = datetime.fromisoformat(check_in.replace('Z', '+00:00'))
+                            check_in_time = check_in_obj.strftime('%H:%M')
+                            response_text += f" (Check-in: {check_in_time})"
+                        except:
+                            response_text += f" (Check-in: {check_in})"
+                    if working_hours > 0:
+                        response_text += f" - {working_hours}h"
+                    response_text += "\n"
+            
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        else:
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": "Attendance data retrieved successfully."
+            }
+            
+    except Exception as e:
+        logger.error(f"Error formatting attendance response: {e}")
+        return api_response
+
+def format_task_response(api_response):
+    """Format task reports API response for proper display"""
+    try:
+        if not api_response.get("success"):
+            return api_response
+            
+        # Extract data from nested response structure
+        # API Client wraps backend response: {success, data: {success, data: {...}}}
+        backend_response = api_response.get("data", {})
+        data = backend_response.get("data", {})
+        
+        if "overview" in data:
+            # Task reports overview - simple stats based on actual model
+            overview = data["overview"]
+            stats = overview.get("statistics", {})
+            
+            response_text = f"📈 **Task Reports Overview**\n\n"
+            response_text += f"• **Total Employees:** {stats.get('totalEmployees', 'N/A')}\n"
+            response_text += f"• **Employees with Task Reports:** {stats.get('employeesWithTasks', 'N/A')}\n"
+            response_text += f"• **Task Reporting Rate:** {stats.get('taskReportingRate', 'N/A')}%\n"
+            response_text += f"• **Total Reports:** {stats.get('totalReports', 'N/A')}\n"
+            response_text += f"• **Total Tasks Reported:** {stats.get('totalTasks', 'N/A')}\n"
+            response_text += f"• **Average Tasks per Report:** {stats.get('avgTasksPerReport', 'N/A')}\n"
+            
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        elif "reports" in data:
+            # Task reports list - show complete task lists
+            reports = data["reports"]
+            if not reports:
+                return {
+                    "success": True,
+                    "data": data,
+                    "formatted_response": "No task reports found for the specified criteria."
+                }
+                
+            response_text = f"📝 **Task Reports** ({len(reports)} reports)\n\n"
+            
+            for report in reports:  # Show all reports in date range
+                emp_name = report.get("employee", {}).get("firstName", "") + " " + report.get("employee", {}).get("lastName", "")
+                emp_name = emp_name.strip() or "Unknown"
+                date_str = report.get("date", "N/A")
+                tasks = report.get("tasks", [])
+                
+                response_text += f"**{emp_name}** - {date_str}\n"
+                response_text += f"Tasks ({len(tasks)}):\n"
+                
+                # Show all tasks for this report
+                for i, task in enumerate(tasks, 1):
+                    response_text += f"  {i}. {task}\n"
+                response_text += "\n"
+                
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        elif "employee" in data:
+            # Individual employee task analysis with complete task history
+            employee = data.get("employee", {})
+            analysis = data.get("analysis", {})
+            reports = data.get("reports", [])
+            
+            response_text = f"👤 **{employee.get('name', 'Employee')} - Task Reports**\n\n"
+            response_text += f"• **Department:** {employee.get('department', 'N/A')}\n"
+            response_text += f"• **Position:** {employee.get('position', 'N/A')}\n"
+            response_text += f"• **Total Reports:** {analysis.get('totalReports', 'N/A')}\n"
+            response_text += f"• **Total Tasks:** {analysis.get('totalTasks', 'N/A')}\n"
+            response_text += f"• **Average Tasks per Report:** {analysis.get('avgTasksPerReport', 'N/A')}\n\n"
+            
+            # Show complete task reports for the employee
+            if reports:
+                response_text += f"**📋 Complete Task History:**\n\n"
+                for report in reports:
+                    date_str = report.get("date", "N/A")
+                    tasks = report.get("tasks", [])
+                    
+                    response_text += f"**{date_str}** - {len(tasks)} tasks:\n"
+                    for i, task in enumerate(tasks, 1):
+                        response_text += f"  {i}. {task}\n"
+                    response_text += "\n"
+            
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": response_text
+            }
+        else:
+            return {
+                "success": True,
+                "data": data,
+                "formatted_response": "Task reports data retrieved successfully."
+            }
+            
+    except Exception as e:
+        logger.error(f"Error formatting task response: {e}")
+        return api_response
+
 def get_bearer_token(email: str, password: str):
     """Get authentication token for HRMS backend"""
     url = "https://hrms-backend.up.railway.app/api/auth/login"
@@ -95,190 +459,103 @@ def extract_token_from_header(authorization: str = None) -> str:
 # =============================================================================
 
 available_tools = {
-    # Employee Management Functions
+    # Core API Functions for HR Controllers
+    "get_attendance_overview": {
+        "function": lambda date=None: format_attendance_response(hr_client.get_attendance_overview(date)),
+        "description": "Get attendance overview from hr-attendance.controller.js",
+        "inputs": "date (string, optional): Date in YYYY-MM-DD format",
+        "returns": "Attendance statistics and insights"
+    },
+    
+    "get_attendance_records": {
+        "function": lambda **kwargs: format_attendance_response(hr_client.get_attendance_records(**kwargs)),
+        "description": "Get attendance records from hr-attendance.controller.js",
+        "inputs": "start_date (string): Start date in YYYY-MM-DD format, end_date (string): End date in YYYY-MM-DD format, employee_name (string, optional): Employee name for filtering",
+        "returns": "Filtered attendance records with pagination"
+    },
+    
+    "get_employee_attendance": {
+        "function": lambda **kwargs: format_attendance_response(hr_client.get_employee_attendance(**kwargs)),
+        "description": "Get individual employee attendance from hr-attendance.controller.js",
+        "inputs": "employee_id (string, optional): Employee ID (e.g., 'EMP001'), employee_name (string, optional): Employee name, start_date (string): Start date, end_date (string): End date",
+        "returns": "Employee attendance analysis"
+    },
+    
+    "get_task_reports_overview": {
+        "function": lambda period='month': format_task_response(hr_client.get_task_reports_overview(period)),
+        "description": "Get task reports overview from hr-task-reports.controller.js",
+        "inputs": "period (string, optional): 'today', 'week', 'month' (default)",
+        "returns": "Task reporting statistics and metrics"
+    },
+    
+    "get_task_reports": {
+        "function": lambda **kwargs: format_task_response(hr_client.get_task_reports(**kwargs)),
+        "description": "Get task reports from hr-task-reports.controller.js",
+        "inputs": "start_date (string): Start date in YYYY-MM-DD format, end_date (string): End date in YYYY-MM-DD format, page (int, optional): Page number, limit (int, optional): Records per page",
+        "returns": "Filtered task reports with complete task lists"
+    },
+    
+    "get_employee_task_reports": {
+        "function": lambda employee_id, start_date, end_date: format_task_response(hr_client.get_employee_task_reports(employee_id, start_date, end_date)),
+        "description": "Get individual employee task reports from hr-task-reports.controller.js",
+        "inputs": "employee_id (string): Employee ID, start_date (string): Start date, end_date (string): End date",
+        "returns": "Employee task performance analysis"
+    },
+    
     "get_all_employees": {
-        "function": lambda: get_all_employees(hr_client),
-        "description": "Get list of all employees in the system",
+        "function": lambda: format_employees_response(hr_client.get_all_employees()),
+        "description": "Get all employees from employee.controllers.js getEmployees function",
         "inputs": "No parameters required",
-        "returns": "List of all employees with their basic information"
+        "returns": "List of all employees"
     },
     
     "get_user_profile": {
-        "function": lambda: get_user_profile(hr_client),
-        "description": "Get current user's profile information",
+        "function": lambda: format_profile_response(hr_client.get_user_profile()),
+        "description": "Get current user profile from employee.controllers.js getProfile function",
         "inputs": "No parameters required",
         "returns": "Current user's profile details"
     },
     
-    "search_employee_by_name": {
-        "function": lambda employee_name: search_employee_by_name(hr_client, employee_name),
-        "description": "Search for employee by name (supports partial matching)",
-        "inputs": "employee_name (string): Name or partial name of employee",
-        "returns": "Employee details including employeeId, name, department, position"
-    },
-    
-    # Attendance Functions
-    "get_attendance_overview": {
-        "function": lambda period='today': get_attendance_overview(hr_client, period),
-        "description": "Get attendance overview with statistics and insights",
-        "inputs": "period (string, optional): 'today' (default), 'yesterday', 'week', 'month'",
-        "returns": "Attendance statistics, rates, insights with formatted response"
-    },
-    
-    "get_team_attendance_today": {
-        "function": lambda: get_team_attendance_today(hr_client),
-        "description": "Get today's team attendance overview",
-        "inputs": "No parameters required",
-        "returns": "Today's attendance statistics and insights"
-    },
-    
-    "get_employee_attendance_analysis": {
-        "function": lambda employee_id, period='month': get_employee_attendance_analysis(hr_client, employee_id, period),
-        "description": "Get detailed attendance analysis for specific employee",
-        "inputs": "employee_id (string): Employee ID (e.g., 'EMP001'), period (string, optional): 'week', 'month' (default), 'quarter'",
-        "returns": "Employee attendance analysis with rates, punctuality, and detailed records"
-    },
-    
-    "get_attendance_records": {
-        "function": lambda start_date, end_date: get_attendance_records(hr_client, start_date, end_date),
-        "description": "Get attendance records for a date range",
-        "inputs": "start_date (string): Start date in YYYY-MM-DD format, end_date (string): End date in YYYY-MM-DD format",
-        "returns": "Filtered attendance records with pagination"
-    },
-    
-    # Task Reports Functions
-    "get_task_reports_overview": {
-        "function": lambda period='month': get_task_reports_overview(hr_client, period),
-        "description": "Get task reports overview with productivity metrics",
-        "inputs": "period (string, optional): 'today', 'week', 'month' (default)",
-        "returns": "Task reporting statistics, productivity scores, top performers"
-    },
-    
-    "get_employee_task_analysis": {
-        "function": lambda employee_id, period='month': get_employee_task_analysis(hr_client, employee_id, period),
-        "description": "Get detailed task performance analysis for specific employee",
-        "inputs": "employee_id (string): Employee ID (e.g., 'EMP001'), period (string, optional): 'week', 'month' (default), 'quarter'",
-        "returns": "Employee task performance analysis with productivity/quality scores and recommendations"
-    },
-    
-    "get_task_reports": {
-        "function": lambda start_date, end_date: get_task_reports(hr_client, start_date, end_date),
-        "description": "Get task reports for a date range",
-        "inputs": "start_date (string): Start date in YYYY-MM-DD format, end_date (string): End date in YYYY-MM-DD format",
-        "returns": "Filtered task reports with productivity and quality scores"
-    },
-    
-    # Combined Analysis Functions  
-    "get_employee_performance_overview": {
-        "function": lambda employee_name, period='month': get_employee_performance_overview(employee_name, period),
-        "description": "Get comprehensive employee performance (attendance + task analysis)",
-        "inputs": "employee_name (string): Employee name or partial name, period (string, optional): 'week', 'month' (default), 'quarter'",
-        "returns": "Combined attendance and task performance analysis"
-    },
-    
     # Date Helper Functions
     "get_today_date": {
-        "function": lambda: {"success": True, "data": get_today_date(), "formatted_response": f"Today's date: {get_today_date()}"},
+        "function": lambda: (lambda today: {"success": True, "data": today, "formatted_response": f"Today's date: {today}"})(get_today_date()),
         "description": "Get today's date in YYYY-MM-DD format",
         "inputs": "No parameters required",
         "returns": "Today's date string"
     },
     
     "get_yesterday_date": {
-        "function": lambda: {"success": True, "data": get_yesterday_date(), "formatted_response": f"Yesterday's date: {get_yesterday_date()}"},
+        "function": lambda: (lambda yesterday: {"success": True, "data": yesterday, "formatted_response": f"Yesterday's date: {yesterday}"})(get_yesterday_date()),
         "description": "Get yesterday's date in YYYY-MM-DD format", 
         "inputs": "No parameters required",
         "returns": "Yesterday's date string"
     }
 }
 
-def get_employee_performance_overview(employee_name: str, period: str = 'month') -> dict:
-    """Get comprehensive employee performance overview (attendance + tasks)"""
-    try:
-        # First, find the employee
-        employee_search = search_employee_by_name(hr_client, employee_name)
-        if not employee_search.get("success"):
-            return employee_search
-        
-        employee_id = employee_search["data"]["employeeId"]
-        employee_full_name = employee_search["data"]["name"]
-        
-        # Get both attendance and task analysis
-        attendance_result = get_employee_attendance_analysis(hr_client, employee_id, period)
-        task_result = get_employee_task_analysis(hr_client, employee_id, period)
-        
-        # Combine the results
-        combined_response = f"📊 **Performance Overview for {employee_full_name}**\n\n"
-        
-        # Add attendance information
-        if attendance_result.get("success") and attendance_result.get("formatted_response"):
-            combined_response += "## Attendance Performance\n"
-            combined_response += attendance_result["formatted_response"] + "\n\n"
-        
-        # Add task performance information  
-        if task_result.get("success") and task_result.get("formatted_response"):
-            combined_response += "## Task Performance\n"
-            combined_response += task_result["formatted_response"] + "\n\n"
-        
-        # Add overall assessment
-        combined_response += "## Overall Assessment\n"
-        if attendance_result.get("success") and task_result.get("success"):
-            combined_response += "✅ Complete performance data available for comprehensive analysis."
-        else:
-            combined_response += "⚠️ Some performance data may be incomplete."
-        
-        return {
-            "success": True,
-            "formatted_response": combined_response,
-            "data": {
-                "employee": employee_search["data"],
-                "attendance": attendance_result.get("data"),
-                "tasks": task_result.get("data")
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"get_employee_performance_overview error: {e}")
-        return {"success": False, "error": str(e), "user_message": f"Unable to retrieve performance overview for {employee_name}."}
 
-# Updated system prompt for simplified APIs
-sys_prompt = '''You are HR Buddy, an advanced AI assistant for HR management with simplified, intelligent APIs.
+# Updated system prompt for core API functions
+sys_prompt = '''You are HR Buddy, an AI assistant for HR management using core HRMS APIs.
 
 CRITICAL: You MUST always respond in valid JSON format with one of these structures:
 - Planning: {"step": "plan", "thinking": "your planning thoughts"}
 - Taking action: {"step": "action", "function": "function_name", "input": "parameter_value_or_json"}
 - Final response: {"step": "output", "content": "your final response to the user"}
 
-AVAILABLE FUNCTIONS AND THEIR INPUTS:
+AVAILABLE FUNCTIONS (Direct API Calls):
 
-📋 **Employee Management:**
-• get_all_employees() → Get list of all employees
-• get_user_profile() → Get current user's profile
-• search_employee_by_name(employee_name) → Find employee by name
+📊 **Attendance APIs (hr-attendance.controller.js):**
+• get_attendance_overview(date=None) → Get attendance overview with statistics
+• get_attendance_records(start_date, end_date, employee_name=None, page=1, limit=50) → Get filtered attendance records (supports name search & pagination)
+• get_employee_attendance(employee_id=None, employee_name=None, start_date, end_date) → Individual employee attendance (supports name or ID)
 
-📊 **Attendance Functions:**
-• get_attendance_overview(period='today') → Attendance overview with stats
-  - period: 'today', 'yesterday', 'week', 'month'
-• get_team_attendance_today() → Today's team attendance
-• get_employee_attendance_analysis(employee_id, period='month') → Individual attendance analysis
-  - employee_id: Employee ID (e.g., 'EMP001')
-  - period: 'week', 'month', 'quarter'
-• get_attendance_records(start_date, end_date) → Attendance records for date range
-  - start_date, end_date: YYYY-MM-DD format
-
-📈 **Task Reports Functions:**
+📈 **Task Reports APIs (hr-task-reports.controller.js):**
 • get_task_reports_overview(period='month') → Task reports overview with metrics
-  - period: 'today', 'week', 'month'
-• get_employee_task_analysis(employee_id, period='month') → Individual task analysis
-  - employee_id: Employee ID (e.g., 'EMP001')
-  - period: 'week', 'month', 'quarter'
-• get_task_reports(start_date, end_date) → Task reports for date range
-  - start_date, end_date: YYYY-MM-DD format
+• get_task_reports(start_date, end_date, page=1, limit=50) → Get filtered task reports (supports pagination)
+• get_employee_task_reports(employee_id, start_date, end_date) → Individual employee task reports
 
-🔄 **Combined Analysis:**
-• get_employee_performance_overview(employee_name, period='month') → Complete performance analysis
-  - employee_name: Employee name or partial name
-  - period: 'week', 'month', 'quarter'
+👥 **Employee APIs (employee.controllers.js):**
+• get_all_employees() → Get all employees (getEmployees function)
+• get_user_profile() → Get current user profile (getProfile function)
 
 📅 **Date Helpers:**
 • get_today_date() → Today's date in YYYY-MM-DD
@@ -286,29 +563,40 @@ AVAILABLE FUNCTIONS AND THEIR INPUTS:
 
 WORKFLOW EXAMPLES:
 
-User: "Show me John's performance this month"
-1. {"step": "action", "function": "get_employee_performance_overview", "input": "John"}
-
 User: "What's today's attendance?"
-1. {"step": "action", "function": "get_attendance_overview", "input": "today"}
+1. {"step": "action", "function": "get_attendance_overview", "input": null}
 
-User: "Get task reports for last week"
-1. {"step": "plan", "thinking": "Need to calculate date range for last week and get task reports"}
-2. {"step": "action", "function": "get_task_reports", "input": {"start_date": "2024-01-15", "end_date": "2024-01-21"}}
+User: "Get attendance for EMP001 this month"
+1. {"step": "plan", "thinking": "Need to get start and end dates for this month"}
+2. {"step": "action", "function": "get_employee_attendance", "input": {"employee_id": "EMP001", "start_date": "2025-01-01", "end_date": "2025-01-31"}}
+
+User: "Show attendance for John Doe last week"
+1. {"step": "plan", "thinking": "Need to get start and end dates for last week, search by employee name"}
+2. {"step": "action", "function": "get_employee_attendance", "input": {"employee_name": "John Doe", "start_date": "2024-12-23", "end_date": "2024-12-29"}}
+
+User: "Get attendance records for marketing team this week"
+1. {"step": "plan", "thinking": "Need attendance records filtered by employee name containing marketing employees"}
+2. {"step": "action", "function": "get_attendance_records", "input": {"start_date": "2024-12-30", "end_date": "2025-01-05", "employee_name": "marketing"}}
+
+User: "Show task reports overview"
+1. {"step": "action", "function": "get_task_reports_overview", "input": "month"}
+
+User: "List all employees"
+1. {"step": "action", "function": "get_all_employees", "input": null}
+
+PARAMETER HANDLING RULES:
+- Always use JSON objects for functions with multiple parameters
+- For optional parameters, omit them from JSON if not needed
+- Employee search supports both employee_id (exact match) and employee_name (partial match)
+- Date parameters must be in YYYY-MM-DD format
+- Use get_today_date() and get_yesterday_date() helpers for current dates
 
 IMPORTANT RULES:
-- For employee-specific queries, search by name first if you only have the name
-- All date inputs must be in YYYY-MM-DD format
-- Period parameters: 'today', 'yesterday', 'week', 'month', 'quarter'
-- Always provide formatted, user-friendly responses
-- Handle errors gracefully with specific error messages
-- For multiple parameters, use JSON object format: {"param1": "value1", "param2": "value2"}
-
-ERROR HANDLING:
-- Check for "user_message" in error responses and use it directly
-- Provide specific guidance for authentication/permission errors
-- Suggest using full names for employee searches
-- Handle date formatting automatically'''
+- All API functions directly call backend controllers
+- Handle API responses and format them appropriately
+- Provide clear error messages from API responses
+- Support both employee ID and employee name searches for attendance functions
+- When user mentions employee names, use employee_name parameter for flexible matching'''
 
 # Pydantic models
 class ChatMessage(BaseModel):

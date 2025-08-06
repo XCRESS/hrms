@@ -3,8 +3,8 @@ import Employee from '../models/Employee.model.js';
 import { formatResponse } from '../utils/response.js';
 
 /**
- * Simplified HR Task Reports Controller
- * Working with existing HRMS infrastructure
+ * HR Task Reports Controller
+ * Simple API for task report data - matches existing TaskReport structure
  */
 
 class HRTaskReportsController {
@@ -67,63 +67,28 @@ class HRTaskReportsController {
       }
       
       // Get task reports overview
-      const totalEmployees = await Employee.countDocuments({ status: 'active' });
+      const totalEmployees = await Employee.countDocuments({ isActive: true });
       
       const taskReports = await TaskReport.find({
         date: { $gte: startDate, $lte: endDate }
-      }).populate('employeeId', 'firstName lastName employeeId department');
+      }).populate('employee', 'firstName lastName employeeId department');
       
-      const employeesWithTasks = new Set(taskReports.map(report => report.employeeId?._id?.toString())).size;
+      const employeesWithTasks = new Set(taskReports.map(report => report.employee?._id?.toString())).size;
       const taskReportingRate = totalEmployees > 0 ? ((employeesWithTasks / totalEmployees) * 100).toFixed(1) : 0;
       
-      // Calculate average scores
-      const avgProductivityScore = taskReports.length > 0 
-        ? (taskReports.reduce((sum, report) => sum + (report.productivityScore || 0), 0) / taskReports.length).toFixed(1)
-        : 0;
-      
-      const avgQualityScore = taskReports.length > 0
-        ? (taskReports.reduce((sum, report) => sum + (report.qualityScore || 0), 0) / taskReports.length).toFixed(1)
-        : 0;
-      
-      // Get top performers
-      const employeeScores = {};
-      taskReports.forEach(report => {
-        const empId = report.employeeId?._id?.toString();
-        if (empId && report.employeeId) {
-          if (!employeeScores[empId]) {
-            employeeScores[empId] = {
-              name: `${report.employeeId.firstName} ${report.employeeId.lastName}`,
-              department: report.employeeId.department,
-              scores: [],
-              totalReports: 0
-            };
-          }
-          employeeScores[empId].scores.push(report.qualityScore || 0);
-          employeeScores[empId].totalReports++;
-        }
-      });
-      
-      const topPerformers = Object.values(employeeScores)
-        .map(emp => ({
-          ...emp,
-          avgQualityScore: emp.scores.length > 0 
-            ? (emp.scores.reduce((a, b) => a + b, 0) / emp.scores.length).toFixed(1)
-            : 0
-        }))
-        .sort((a, b) => parseFloat(b.avgQualityScore) - parseFloat(a.avgQualityScore))
-        .slice(0, 5);
+      // Calculate total tasks reported
+      const totalTasks = taskReports.reduce((sum, report) => sum + (report.tasks?.length || 0), 0);
+      const avgTasksPerReport = taskReports.length > 0 ? (totalTasks / taskReports.length).toFixed(1) : 0;
 
       const overview = {
         statistics: {
           totalEmployees,
           employeesWithTasks,
           taskReportingRate: parseFloat(taskReportingRate),
-          avgProductivityScore: parseFloat(avgProductivityScore),
-          avgQualityScore: parseFloat(avgQualityScore),
           totalReports: taskReports.length,
-          completionRate: taskReports.length > 0 ? 100 : 0 // Simplified
+          totalTasks,
+          avgTasksPerReport: parseFloat(avgTasksPerReport)
         },
-        topPerformers: topPerformers.slice(0, 3),
         period: period
       };
 
@@ -144,62 +109,55 @@ class HRTaskReportsController {
 
   /**
    * GET /api/hr/task-reports?operation=reports
-   * Comprehensive task reports with filtering
+   * Get task reports with filtering - matches existing getTaskReports API
    */
   async getTaskReports(req, res) {
     try {
-      const {
-        startDate,
-        endDate,
-        page = 1,
-        limit = 50
-      } = req.query;
+      const { employeeId, startDate, endDate, page = 1, limit = 50 } = req.query;
+      const filter = {};
 
-      if (!startDate || !endDate) {
-        return res.status(400).json(formatResponse(false, 'Start date and end date are required'));
+      // Filter by employee if employeeId is provided
+      if (employeeId) {
+        const employee = await Employee.findOne({ employeeId });
+        if (employee) {
+          filter.employee = employee._id;
+        } else {
+          return res.json(formatResponse(true, "No reports found for this employee ID.", { reports: [] }));
+        }
       }
 
-      const query = {
-        date: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
-      };
+      // Filter by date range
+      if (startDate) {
+        const startOfDay = new Date(startDate);
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        filter.date = { ...filter.date, $gte: startOfDay };
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        filter.date = { ...filter.date, $lte: endOfDay };
+      }
 
-      const totalRecords = await TaskReport.countDocuments(query);
-      
-      const reports = await TaskReport.find(query)
-        .populate('employeeId', 'firstName lastName employeeId department')
-        .sort({ date: -1 })
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit));
+      const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const formattedReports = reports.map(report => ({
-        date: report.date.toISOString().split('T')[0],
-        employeeName: report.employeeId ? `${report.employeeId.firstName} ${report.employeeId.lastName}` : 'Unknown',
-        employeeId: report.employeeId?.employeeId || 'N/A',
-        department: report.employeeId?.department || 'N/A',
-        tasks: report.tasks || [],
-        taskCount: (report.tasks || []).length,
-        productivityScore: report.productivityScore || 0,
-        qualityScore: report.qualityScore || 0,
-        category: report.category || 'general'
-      }));
+      const [reports, total] = await Promise.all([
+        TaskReport.find(filter)
+          .sort({ date: -1, createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .populate('employee', 'firstName lastName employeeId department'),
+        TaskReport.countDocuments(filter)
+      ]);
+
+      const totalPages = Math.ceil(total / parseInt(limit));
 
       return res.status(200).json(formatResponse(true, 'Task reports retrieved successfully', {
-        reports: formattedReports,
+        reports,
         pagination: {
-          total: totalRecords,
+          total,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(totalRecords / parseInt(limit))
-        },
-        metadata: {
-          query: { startDate, endDate },
-          performance: {
-            totalRecords,
-            processingTime: `${Date.now() - (req.startTime || Date.now())}ms`
-          }
+          totalPages
         }
       }));
       
@@ -211,18 +169,14 @@ class HRTaskReportsController {
 
   /**
    * GET /api/hr/task-reports?operation=employee&employeeId=EMP001
-   * Individual employee task reports analysis
+   * Individual employee task reports - simple analysis based on actual data
    */
   async getEmployeeTaskReports(req, res) {
     try {
-      const {
-        employeeId,
-        startDate,
-        endDate
-      } = req.query;
+      const { employeeId, startDate, endDate } = req.query;
 
-      if (!employeeId || !startDate || !endDate) {
-        return res.status(400).json(formatResponse(false, 'Employee ID, start date, and end date are required'));
+      if (!employeeId) {
+        return res.status(400).json(formatResponse(false, 'Employee ID is required'));
       }
 
       const employee = await Employee.findOne({ employeeId });
@@ -230,47 +184,33 @@ class HRTaskReportsController {
         return res.status(404).json(formatResponse(false, 'Employee not found'));
       }
 
-      const taskReports = await TaskReport.find({
-        employeeId: employee._id,
-        date: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
-      }).sort({ date: -1 });
+      const filter = { employee: employee._id };
+      
+      // Filter by date range if provided
+      if (startDate) {
+        const startOfDay = new Date(startDate);
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        filter.date = { ...filter.date, $gte: startOfDay };
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        filter.date = { ...filter.date, $lte: endOfDay };
+      }
+
+      const taskReports = await TaskReport.find(filter)
+        .sort({ date: -1, createdAt: -1 })
+        .populate('employee', 'firstName lastName employeeId department');
 
       const totalReports = taskReports.length;
-      const avgProductivityScore = totalReports > 0 
-        ? (taskReports.reduce((sum, report) => sum + (report.productivityScore || 0), 0) / totalReports).toFixed(1)
-        : 0;
-      const avgQualityScore = totalReports > 0
-        ? (taskReports.reduce((sum, report) => sum + (report.qualityScore || 0), 0) / totalReports).toFixed(1)
-        : 0;
-      
-      // Get task categories
-      const taskCategories = {};
-      taskReports.forEach(report => {
-        const category = report.category || 'general';
-        taskCategories[category] = (taskCategories[category] || 0) + 1;
-      });
+      const totalTasks = taskReports.reduce((sum, report) => sum + (report.tasks?.length || 0), 0);
+      const avgTasksPerReport = totalReports > 0 ? (totalTasks / totalReports).toFixed(1) : 0;
       
       const analysis = {
-        productivityScore: parseFloat(avgProductivityScore),
-        qualityScore: parseFloat(avgQualityScore),
         totalReports,
-        taskCategories
+        totalTasks,
+        avgTasksPerReport: parseFloat(avgTasksPerReport)
       };
-
-      // Generate simple recommendations
-      const recommendations = [];
-      if (parseFloat(avgProductivityScore) < 70) {
-        recommendations.push('Focus on improving productivity scores');
-      }
-      if (parseFloat(avgQualityScore) < 70) {
-        recommendations.push('Work on enhancing task quality');
-      }
-      if (totalReports === 0) {
-        recommendations.push('Start submitting regular task reports');
-      }
 
       return res.status(200).json(formatResponse(true, 'Employee task reports retrieved successfully', {
         employee: {
@@ -280,15 +220,11 @@ class HRTaskReportsController {
           position: employee.position
         },
         analysis,
-        records: taskReports.map(report => ({
+        reports: taskReports.map(report => ({
           date: report.date.toISOString().split('T')[0],
           tasks: report.tasks || [],
-          taskCount: (report.tasks || []).length,
-          productivityScore: report.productivityScore || 0,
-          qualityScore: report.qualityScore || 0,
-          category: report.category || 'general'
+          taskCount: (report.tasks || []).length
         })),
-        recommendations,
         metadata: {
           employeeId,
           dateRange: { startDate, endDate },

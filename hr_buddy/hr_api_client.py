@@ -1,6 +1,6 @@
 """
 Simplified HR API Client for HRMS Buddy
-Integrates with the new simplified HR APIs for attendance and task reports
+Core API calls for attendance, task reports, and employee data
 """
 
 import requests
@@ -34,7 +34,7 @@ def retry_on_failure(max_retries: int = 2, delay: float = 0.3):
     return decorator
 
 class SimplifiedHRClient:
-    """Simplified HR API Client for attendance and task reports"""
+    """Simplified HR API Client for core HRMS operations"""
     
     def __init__(self, base_url: str = "https://hrms-backend.up.railway.app"):
         self.base_url = base_url.rstrip('/')
@@ -56,16 +56,10 @@ class SimplifiedHRClient:
         
     @retry_on_failure(max_retries=2, delay=0.5)
     def _make_request(self, method: str, endpoint: str, data: dict = None, params: dict = None) -> dict:
-        """Make HTTP request with comprehensive error handling"""
+        """Make HTTP request with error handling"""
         url = f"{self.api_base}/{endpoint.lstrip('/')}"
         
-        logger.info(f"Making {method} request to {url} with params: {params}")
-        
         try:
-            # Clean parameters
-            if params:
-                params = self._clean_params(params)
-            
             response = self.session.request(
                 method, 
                 url, 
@@ -116,13 +110,10 @@ class SimplifiedHRClient:
             
             response.raise_for_status()
             
-            # Parse JSON response
             try:
                 result = response.json()
-                logger.info(f"Successful response from {url}")
                 return {"success": True, "data": result, "status_code": response.status_code}
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error for {url}: {e}")
+            except json.JSONDecodeError:
                 return {
                     "success": False, 
                     "message": "Invalid JSON response from server",
@@ -130,62 +121,35 @@ class SimplifiedHRClient:
                 }
                 
         except requests.exceptions.Timeout:
-            logger.error(f"Request timeout for {url}")
             return {
                 "success": False, 
                 "message": "Request timed out. The server might be busy, please try again.",
                 "error_type": "timeout_error"
             }
         except requests.exceptions.ConnectionError:
-            logger.error(f"Connection error for {url}")
             return {
                 "success": False, 
                 "message": "Unable to connect to the server. Please check your internet connection.",
                 "error_type": "connection_error"
             }
         except Exception as e:
-            logger.error(f"Unexpected error for {url}: {e}")
             return {
                 "success": False, 
                 "message": f"Unexpected error: {str(e)}",
                 "error_type": "unexpected_error"
             }
     
-    def _clean_params(self, params: dict) -> dict:
-        """Clean and validate parameters"""
-        cleaned = {}
-        for key, value in params.items():
-            if value is not None and value != '':
-                if 'date' in key.lower() and isinstance(value, str):
-                    try:
-                        # Ensure date is in YYYY-MM-DD format
-                        if len(value) == 10 and value.count('-') == 2:
-                            cleaned[key] = value
-                        else:
-                            # Try to parse and format
-                            dt = datetime.strptime(value, '%Y-%m-%d')
-                            cleaned[key] = dt.strftime('%Y-%m-%d')
-                    except:
-                        cleaned[key] = value
-                else:
-                    cleaned[key] = value
-        return cleaned
-
-    # =============================================================================
-    # HR ATTENDANCE API METHODS (Simplified)
-    # =============================================================================
-    
+    # HR Attendance API calls for hr-attendance.controller.js
     def get_attendance_overview(self, date: str = None) -> dict:
-        """Get attendance overview from simplified HR API"""
+        """Get attendance overview from HR API"""
         params = {'operation': 'overview'}
         if date:
             params['date'] = date
-            
         return self._make_request("GET", "/hr/attendance", params=params)
     
     def get_attendance_records(self, start_date: str, end_date: str, 
-                             page: int = 1, limit: int = 50) -> dict:
-        """Get filtered attendance records from simplified HR API"""
+                             employee_name: str = None, page: int = 1, limit: int = 50) -> dict:
+        """Get filtered attendance records from HR API"""
         params = {
             'operation': 'records',
             'startDate': start_date,
@@ -193,36 +157,42 @@ class SimplifiedHRClient:
             'page': page,
             'limit': limit
         }
-            
+        if employee_name:
+            params['employeeName'] = employee_name
         return self._make_request("GET", "/hr/attendance", params=params)
     
-    def get_employee_attendance(self, employee_id: str, start_date: str, end_date: str) -> dict:
+    def get_employee_attendance(self, employee_id: str = None, employee_name: str = None, 
+                              start_date: str = None, end_date: str = None) -> dict:
         """Get individual employee attendance analysis"""
         params = {
             'operation': 'employee',
-            'employeeId': employee_id,
             'startDate': start_date,
             'endDate': end_date
         }
-        
+        if employee_id:
+            params['employeeId'] = employee_id
+        elif employee_name:
+            params['employeeName'] = employee_name
+        else:
+            return {"success": False, "message": "Either employee_id or employee_name is required"}
+            
+        if not start_date or not end_date:
+            return {"success": False, "message": "Both start_date and end_date are required"}
+            
         return self._make_request("GET", "/hr/attendance", params=params)
     
-    # =============================================================================
-    # HR TASK REPORTS API METHODS (Simplified)
-    # =============================================================================
-    
+    # HR Task Reports API calls for hr-task-reports.controller.js
     def get_task_reports_overview(self, period: str = 'month') -> dict:
-        """Get task reports overview from simplified HR API"""
+        """Get task reports overview from HR API"""
         params = {
             'operation': 'overview',
             'period': period
         }
-            
         return self._make_request("GET", "/hr/task-reports", params=params)
     
     def get_task_reports(self, start_date: str, end_date: str,
                         page: int = 1, limit: int = 50) -> dict:
-        """Get filtered task reports from simplified HR API"""
+        """Get filtered task reports from HR API"""
         params = {
             'operation': 'reports',
             'startDate': start_date,
@@ -230,7 +200,6 @@ class SimplifiedHRClient:
             'page': page,
             'limit': limit
         }
-            
         return self._make_request("GET", "/hr/task-reports", params=params)
     
     def get_employee_task_reports(self, employee_id: str, start_date: str, end_date: str) -> dict:
@@ -241,17 +210,13 @@ class SimplifiedHRClient:
             'startDate': start_date,
             'endDate': end_date
         }
-        
         return self._make_request("GET", "/hr/task-reports", params=params)
     
-    # =============================================================================
-    # EXISTING EMPLOYEE API METHODS (Compatibility)
-    # =============================================================================
-    
+    # Employee API calls from employee.controllers.js
     def get_user_profile(self) -> dict:
         """Get current user profile"""
         return self._make_request("GET", "/employees/profile")
     
     def get_all_employees(self) -> dict:
-        """Get all employees"""
+        """Get all employees from getEmployees function"""
         return self._make_request("GET", "/employees")
