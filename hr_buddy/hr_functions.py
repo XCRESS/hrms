@@ -1,6 +1,6 @@
 """
-Unified HR Functions for HRMS Buddy
-All HR operations using the new unified APIs
+Simplified HR Functions for HRMS Buddy
+All HR operations using the new simplified APIs
 """
 
 import logging
@@ -74,7 +74,10 @@ def format_attendance_response(data: dict) -> str:
             if insights:
                 response += f"\n💡 **Key Insights:**\n"
                 for insight in insights[:3]:  # Show top 3 insights
-                    response += f"• {insight.get('message', 'No message')}\n"
+                    if isinstance(insight, str):
+                        response += f"• {insight}\n"
+                    else:
+                        response += f"• {insight.get('message', 'No message')}\n"
             
             return response
             
@@ -117,6 +120,9 @@ def format_attendance_response(data: dict) -> str:
             if analysis:
                 response += f"• **Attendance Rate:** {analysis.get('attendanceRate', 'N/A')}%\n"
                 response += f"• **Punctuality Score:** {analysis.get('punctualityScore', 'N/A')}%\n"
+                response += f"• **Total Days:** {analysis.get('totalDays', 'N/A')}\n"
+                response += f"• **Present Days:** {analysis.get('presentDays', 'N/A')}\n"
+                response += f"• **Late Days:** {analysis.get('lateDays', 'N/A')}\n"
                 response += f"• **Department:** {employee.get('department', 'N/A')}\n"
                 response += f"• **Position:** {employee.get('position', 'N/A')}\n"
             
@@ -143,7 +149,7 @@ def format_task_response(data: dict) -> str:
             response += f"• **Task Reporting Rate:** {stats.get('taskReportingRate', 'N/A')}%\n"
             response += f"• **Average Productivity Score:** {stats.get('avgProductivityScore', 'N/A')}/100\n"
             response += f"• **Average Quality Score:** {stats.get('avgQualityScore', 'N/A')}/100\n"
-            response += f"• **Completion Rate:** {stats.get('completionRate', 'N/A')}%\n"
+            response += f"• **Total Reports:** {stats.get('totalReports', 'N/A')}\n"
             
             # Add top performers
             top_performers = overview.get("topPerformers", [])
@@ -165,7 +171,7 @@ def format_task_response(data: dict) -> str:
             for report in reports[:5]:  # Show first 5 reports
                 emp_name = report.get("employeeName", "Unknown")
                 date_str = format_date_display(report.get("date"))
-                task_count = len(report.get("tasks", []))
+                task_count = report.get("taskCount", 0)
                 
                 response += f"**{emp_name}** - {date_str}\n"
                 response += f"  Tasks: {task_count}"
@@ -192,7 +198,12 @@ def format_task_response(data: dict) -> str:
             if analysis:
                 response += f"• **Productivity Score:** {analysis.get('productivityScore', 'N/A')}/100\n"
                 response += f"• **Quality Score:** {analysis.get('qualityScore', 'N/A')}/100\n"
-                response += f"• **Task Categories:** {', '.join(analysis.get('taskCategories', {}).keys()) if analysis.get('taskCategories') else 'N/A'}\n"
+                response += f"• **Total Reports:** {analysis.get('totalReports', 'N/A')}\n"
+                
+                # Task categories
+                categories = analysis.get('taskCategories', {})
+                if categories:
+                    response += f"• **Task Categories:** {', '.join(categories.keys())}\n"
             
             # Add recommendations if available
             recommendations = data.get("recommendations", [])
@@ -200,36 +211,6 @@ def format_task_response(data: dict) -> str:
                 response += f"\n💡 **Recommendations:**\n"
                 for rec in recommendations[:3]:
                     response += f"• {rec}\n"
-            
-            return response
-            
-        elif "insights" in data:
-            # AI-powered insights
-            insights = data["insights"]
-            response = f"🤖 **AI Task Insights**\n\n"
-            
-            # Show productivity insights
-            if "productivity" in insights:
-                prod_insights = insights["productivity"]
-                response += f"**Productivity Analysis:**\n"
-                for insight in prod_insights[:3]:
-                    response += f"• {insight.get('message', 'No message')}\n"
-                response += "\n"
-            
-            # Show quality insights
-            if "quality" in insights:
-                quality_insights = insights["quality"]
-                response += f"**Quality Analysis:**\n"
-                for insight in quality_insights[:3]:
-                    response += f"• {insight.get('message', 'No message')}\n"
-                response += "\n"
-            
-            # Add recommendations
-            recommendations = data.get("recommendations", [])
-            if recommendations:
-                response += f"**Recommendations:**\n"
-                for rec in recommendations[:3]:
-                    response += f"• {rec.get('title', rec) if isinstance(rec, dict) else rec}\n"
             
             return response
             
@@ -318,13 +299,14 @@ def get_date_range(period: str) -> tuple:
         return today.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
 
 # =============================================================================
-# UNIFIED HR FUNCTIONS
+# SIMPLIFIED HR FUNCTIONS
 # =============================================================================
 
 def get_attendance_overview(hr_client, period: str = 'today') -> dict:
-    """Get attendance overview using unified HR API"""
+    """Get attendance overview using simplified HR API"""
     try:
-        response = hr_client.get_attendance_overview(period=period)
+        date = get_today_date() if period == 'today' else None
+        response = hr_client.get_attendance_overview(date=date)
         return handle_api_response(response, "attendance_overview")
     except Exception as e:
         logger.error(f"get_attendance_overview error: {e}")
@@ -333,7 +315,7 @@ def get_attendance_overview(hr_client, period: str = 'today') -> dict:
 def get_team_attendance_today(hr_client) -> dict:
     """Get today's team attendance"""
     try:
-        response = hr_client.get_attendance_overview(period='today')
+        response = hr_client.get_attendance_overview(date=get_today_date())
         return handle_api_response(response, "attendance_team_today")
     except Exception as e:
         logger.error(f"get_team_attendance_today error: {e}")
@@ -349,17 +331,17 @@ def get_employee_attendance_analysis(hr_client, employee_id: str, period: str = 
         logger.error(f"get_employee_attendance_analysis error: {e}")
         return {"success": False, "error": str(e), "user_message": f"Unable to retrieve attendance analysis for employee {employee_id}."}
 
-def get_attendance_analytics(hr_client, period: str = 'month', group_by: str = 'department') -> dict:
-    """Get attendance analytics and trends"""
+def get_attendance_records(hr_client, start_date: str, end_date: str) -> dict:
+    """Get attendance records with filtering"""
     try:
-        response = hr_client.get_attendance_analytics(period=period, group_by=group_by)
-        return handle_api_response(response, "attendance_analytics")
+        response = hr_client.get_attendance_records(start_date, end_date)
+        return handle_api_response(response, "attendance_records")
     except Exception as e:
-        logger.error(f"get_attendance_analytics error: {e}")
-        return {"success": False, "error": str(e), "user_message": "Unable to retrieve attendance analytics."}
+        logger.error(f"get_attendance_records error: {e}")
+        return {"success": False, "error": str(e), "user_message": "Unable to retrieve attendance records."}
 
 def get_task_reports_overview(hr_client, period: str = 'month') -> dict:
-    """Get task reports overview using unified HR API"""
+    """Get task reports overview using simplified HR API"""
     try:
         response = hr_client.get_task_reports_overview(period=period)
         return handle_api_response(response, "task_overview")
@@ -409,28 +391,14 @@ def get_employee_task_analysis(hr_client, employee_id: str, period: str = 'month
             "user_message": f"Unable to retrieve task analysis for employee {employee_id} due to an unexpected error: {str(e)}"
         }
 
-def get_productivity_insights(hr_client, period: str = 'month') -> dict:
-    """Get AI-powered productivity insights"""
+def get_task_reports(hr_client, start_date: str, end_date: str) -> dict:
+    """Get task reports with filtering"""
     try:
-        start_date, end_date = get_date_range(period)
-        response = hr_client.get_task_insights(
-            start_date, end_date, 
-            focus_areas=['productivity', 'quality', 'patterns']
-        )
-        return handle_api_response(response, "task_insights")
+        response = hr_client.get_task_reports(start_date, end_date)
+        return handle_api_response(response, "task_reports")
     except Exception as e:
-        logger.error(f"get_productivity_insights error: {e}")
-        return {"success": False, "error": str(e), "user_message": "Unable to retrieve productivity insights."}
-
-def get_team_productivity_metrics(hr_client, period: str = 'month') -> dict:
-    """Get team productivity metrics and benchmarking"""
-    try:
-        start_date, end_date = get_date_range(period)
-        response = hr_client.get_productivity_metrics(start_date, end_date)
-        return handle_api_response(response, "task_productivity_metrics")
-    except Exception as e:
-        logger.error(f"get_team_productivity_metrics error: {e}")
-        return {"success": False, "error": str(e), "user_message": "Unable to retrieve team productivity metrics."}
+        logger.error(f"get_task_reports error: {e}")
+        return {"success": False, "error": str(e), "user_message": "Unable to retrieve task reports."}
 
 def search_employee_by_name(hr_client, employee_name: str) -> dict:
     """Search for employee by name and return employee ID"""
@@ -482,7 +450,7 @@ def search_employee_by_name(hr_client, employee_name: str) -> dict:
         
         if not matching_employees:
             # Provide suggestions of similar names
-            all_names = [f"{emp.get('firstName', '')} {emp.get('lastName', '')}".strip() for emp in employees[:10]]  # Show first 10 names as suggestions
+            all_names = [f"{emp.get('firstName', '')} {emp.get('lastName', '')}".strip() for emp in employees[:10]]
             suggestions = ", ".join(all_names)
             
             return {

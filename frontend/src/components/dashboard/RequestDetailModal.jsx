@@ -105,20 +105,20 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
     switch (request.type) {
       case 'leave':
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Leave Type</label>
-                <p className="text-neutral-900 dark:text-neutral-100 capitalize">{request.leaveType}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Leave Type</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 capitalize mt-1">{request.leaveType}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Leave Date</label>
-                <p className="text-neutral-900 dark:text-neutral-100">{formatDate(request.leaveDate)}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Leave Date</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1">{formatDate(request.leaveDate)}</p>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Reason</label>
-              <p className="text-neutral-900 dark:text-neutral-100 mt-1">{request.leaveReason}</p>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reason</label>
+              <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 leading-relaxed">{request.leaveReason}</p>
             </div>
           </div>
         );
@@ -139,30 +139,30 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
         };
 
         return (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Subject</label>
-              <p className="text-neutral-900 dark:text-neutral-100">{request.subject}</p>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Subject</label>
+              <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-medium">{request.subject}</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Category</label>
-                <p className="text-neutral-900 dark:text-neutral-100 capitalize">{request.category || 'General'}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Category</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 capitalize mt-1">{request.category || 'General'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Priority</label>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Priority</label>
                 <div className="mt-1">{getPriorityBadge(request.priority)}</div>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Description</label>
-              <p className="text-neutral-900 dark:text-neutral-100 mt-1 whitespace-pre-wrap">{request.description}</p>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Description</label>
+              <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 whitespace-pre-wrap leading-relaxed">{request.description}</p>
             </div>
             {request.response && (
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Previous Response</label>
-                <div className="mt-1 p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
-                  <p className="text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap">{request.response}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Previous Response</label>
+                <div className="mt-1 p-2 sm:p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+                  <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap leading-relaxed">{request.response}</p>
                 </div>
               </div>
             )}
@@ -171,20 +171,40 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
       
       case 'regularization':
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Date</label>
-                <p className="text-neutral-900 dark:text-neutral-100">{formatDate(request.date)}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Date</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-medium">{formatDate(request.date)}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Type</label>
-                <p className="text-neutral-900 dark:text-neutral-100 capitalize">{request.type || 'Missing Checkout'}</p>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Type</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 capitalize mt-1">Attendance Regularization</p>
+              </div>
+            </div>
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-4">
+              <div className="bg-neutral-50 dark:bg-neutral-700/30 p-3 rounded-lg">
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Requested Check-in
+                </label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-mono">
+                  {request.requestedCheckIn ? formatDateTime(request.requestedCheckIn) : 'Not specified'}
+                </p>
+              </div>
+              <div className="bg-neutral-50 dark:bg-neutral-700/30 p-3 rounded-lg">
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Requested Check-out
+                </label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-mono">
+                  {request.requestedCheckOut ? formatDateTime(request.requestedCheckOut) : 'Not specified'}
+                </p>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Reason</label>
-              <p className="text-neutral-900 dark:text-neutral-100 mt-1">{request.reason}</p>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reason</label>
+              <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 leading-relaxed">{request.reason}</p>
             </div>
           </div>
         );
@@ -195,46 +215,46 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden mx-2 sm:mx-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
-              {React.cloneElement(request.icon, { className: "w-5 h-5" })}
+            <div className="p-2 bg-neutral-50 dark:bg-neutral-700 rounded-lg flex-shrink-0">
+              {React.cloneElement(request.icon, { className: "w-4 h-4 sm:w-5 sm:h-5" })}
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-neutral-100 truncate">
                 {request.title}
               </h2>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
                 Request Details & Review
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            className="p-2 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 rounded-lg bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-700 dark:hover:bg-neutral-600 border border-neutral-200 dark:border-neutral-600 shadow-sm hover:shadow transition-all duration-200 flex-shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)]">
           {/* Employee Info */}
-          <div className="mb-6 p-4 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-neutral-500" />
-                <div>
-                  <p className="font-medium text-neutral-900 dark:text-neutral-100">{request.employee}</p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Employee</p>
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <User className="w-4 h-4 sm:w-5 sm:h-5 text-neutral-500 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-neutral-900 dark:text-neutral-100 text-sm sm:text-base truncate">{request.employee}</p>
+                  <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">Employee</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">Submitted</p>
-                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">Submitted</p>
+                <p className="text-xs sm:text-sm font-medium text-neutral-900 dark:text-neutral-100">
                   {formatDateTime(request.date || request.createdAt)}
                 </p>
               </div>
@@ -242,29 +262,29 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
           </div>
 
           {/* Status */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="w-4 h-4 text-neutral-500" />
-              <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Status</span>
+              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-neutral-500" />
+              <span className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Status</span>
             </div>
             {getStatusBadge(request.status)}
           </div>
 
           {/* Request Details */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FileText className="w-4 h-4 text-neutral-500" />
-              <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Request Details</span>
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-neutral-500" />
+              <span className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Request Details</span>
             </div>
             {renderRequestDetails()}
           </div>
 
           {/* Response/Comment Field */}
           {(request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               {request.type === 'help' ? (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
                     Response Message {request.type === 'help' && '(Required for resolution)'}
                   </label>
                   <textarea
@@ -277,7 +297,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
                     Review Comment (Optional)
                   </label>
                   <textarea
@@ -295,11 +315,11 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
 
         {/* Footer */}
         {(request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/50">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/50">
             <button
               onClick={onClose}
               disabled={isProcessing}
-              className="px-4 py-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 font-medium transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 font-medium transition-colors disabled:opacity-50 text-sm sm:text-base order-2 sm:order-1"
             >
               Cancel
             </button>
@@ -311,19 +331,19 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                   <button
                     onClick={() => handleStatusUpdate('in-progress')}
                     disabled={isProcessing}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
                   >
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3 h-3 sm:w-4 sm:h-4" />
                     {isProcessing ? 'Processing...' : 'Start Working'}
                   </button>
                 )}
                 <button
                   onClick={() => handleStatusUpdate('resolved')}
                   disabled={isProcessing || !helpResponse.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
                   title={!helpResponse.trim() ? 'Response message is required' : ''}
                 >
-                  <CheckCheck className="w-4 h-4" />
+                  <CheckCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   {isProcessing ? 'Processing...' : 'Resolve'}
                 </button>
               </>
@@ -333,17 +353,17 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                 <button
                   onClick={() => handleStatusUpdate('rejected')}
                   disabled={isProcessing}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
                 >
-                  <XCircle className="w-4 h-4" />
+                  <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {isProcessing ? 'Processing...' : 'Reject'}
                 </button>
                 <button
                   onClick={() => handleStatusUpdate('approved')}
                   disabled={isProcessing}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {isProcessing ? 'Processing...' : 'Approve'}
                 </button>
               </>

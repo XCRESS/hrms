@@ -15,7 +15,8 @@
       "Bash(pnpm run lint:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm build:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

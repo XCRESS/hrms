@@ -1,7 +1,7 @@
 import React from "react";
 import { Users, UserCheck, UserX, FileText, Calendar } from "lucide-react";
 
-const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidaysClick }) => {
+const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidaysClick, onAbsentEmployeesClick }) => {
   const stats = [
     { 
       title: "Present Today", 
@@ -13,7 +13,9 @@ const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidays
       title: "Absent Today", 
       value: summaryData?.absentToday ?? "...", 
       icon: UserX, 
-      color: "red" 
+      color: "red",
+      clickable: true,
+      onClick: onAbsentEmployeesClick
     },
     { 
       title: "Pending Requests", 
