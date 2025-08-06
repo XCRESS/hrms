@@ -66,8 +66,13 @@ def format_employees_response(api_response):
         data = api_response.get("data", {})
         employees = data.get("employees", [])
         
-        # Debug logging
+        # Debug logging  
         logger.info(f"Employees API response structure: success={api_response.get('success')}, data_keys={list(data.keys()) if data else 'None'}, employees_count={len(employees) if employees else 0}")
+        if employees:
+            logger.info(f"First employee sample: {employees[0]}")
+            logger.info(f"Employee names: {[(emp.get('firstName', '') + ' ' + emp.get('lastName', '')).strip() for emp in employees[:3]]}")
+        else:
+            logger.info("No employees found in response")
         
         if not employees:
             return {
@@ -199,6 +204,7 @@ def format_attendance_response(api_response):
     """Format attendance API response for proper display"""
     try:
         if not api_response.get("success"):
+            logger.error(f"Attendance API error response: {api_response}")
             return api_response
             
         # Extract data from nested response structure
@@ -578,11 +584,18 @@ User: "Get attendance records for marketing team this week"
 1. {"step": "plan", "thinking": "Need attendance records filtered by employee name containing marketing employees"}
 2. {"step": "action", "function": "get_attendance_records", "input": {"start_date": "2024-12-30", "end_date": "2025-01-05", "employee_name": "marketing"}}
 
+User: "Show attendance of Sonali for July 2024"
+1. {"step": "action", "function": "get_employee_attendance", "input": {"employee_name": "Sonali", "start_date": "2024-07-01", "end_date": "2024-07-31"}}
+
 User: "Show task reports overview"
 1. {"step": "action", "function": "get_task_reports_overview", "input": "month"}
 
 User: "List all employees"
 1. {"step": "action", "function": "get_all_employees", "input": null}
+2. {"step": "output", "content": "[Show the complete formatted employee directory with all employee details - names, IDs, departments, contact info, etc.]"}
+
+User: "Show me employee list" 
+Response: Display the COMPLETE formatted response including all employee information, never just "X employees retrieved"
 
 PARAMETER HANDLING RULES:
 - Always use JSON objects for functions with multiple parameters
@@ -593,10 +606,12 @@ PARAMETER HANDLING RULES:
 
 IMPORTANT RULES:
 - All API functions directly call backend controllers
-- Handle API responses and format them appropriately
+- ALWAYS display the complete formatted response content to the user - never summarize or truncate
+- When functions return formatted_response, show the ENTIRE content including all employee details, attendance records, task lists, etc.
 - Provide clear error messages from API responses
 - Support both employee ID and employee name searches for attendance functions
-- When user mentions employee names, use employee_name parameter for flexible matching'''
+- When user mentions employee names, use employee_name parameter for flexible matching
+- For employee listings, always show all employee information including names, IDs, departments, and contact details'''
 
 # Pydantic models
 class ChatMessage(BaseModel):
@@ -717,7 +732,7 @@ async def process_query(messages: List[Dict]) -> str:
         
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",
                 response_format={"type": "json_object"},
                 messages=messages,
                 timeout=30
@@ -797,6 +812,7 @@ async def process_query(messages: List[Dict]) -> str:
                         else:
                             # Use formatted response if available, otherwise raw data
                             response_content = output.get("formatted_response") if isinstance(output, dict) and "formatted_response" in output else output
+                            logger.info(f"Tool {tool_name} successful - sending to AI: {str(response_content)[:200]}...")
                             messages.append({"role": "user", "content": json.dumps({"step": "observe", "output": response_content, "tool_name": tool_name})})
                         continue
                         
