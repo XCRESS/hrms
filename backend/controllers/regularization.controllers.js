@@ -4,6 +4,7 @@ import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import moment from "moment-timezone";
 import { getISTNow, getISTDayBoundaries, calculateWorkHours, determineAttendanceStatus } from "../utils/istUtils.js";
+import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 
 // Employee: Submit a regularization request
 export const requestRegularization = async (req, res) => {
@@ -131,24 +132,25 @@ export const reviewRegularization = async (req, res) => {
       });
       
       // Find or create attendance record
-      // Use date matching with proper timezone handling
+      // Use IST-aware date matching to avoid timezone issues
       const regDate = new Date(reg.date);
-      regDate.setUTCHours(0, 0, 0, 0); // Normalize to start of day
       
-      const nextDay = new Date(regDate);
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      // Create IST day boundaries using local date methods (not UTC)
+      const startOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 23, 59, 59, 999);
       
       let att = await Attendance.findOne({ 
         employee: employeeDoc._id, 
         date: {
-          $gte: regDate,
-          $lt: nextDay
+          $gte: startOfDay,
+          $lte: endOfDay
         }
       });
       
       console.log("Date matching:", { 
         regularizationDate: reg.date,
-        normalizedDate: regDate,
+        startOfDay: startOfDay,
+        endOfDay: endOfDay,
         foundAttendance: !!att,
         attendanceDate: att?.date 
       });
@@ -160,7 +162,7 @@ export const reviewRegularization = async (req, res) => {
         const attendanceData = {
           employee: employeeDoc._id,
           employeeName: `${employeeDoc.firstName} ${employeeDoc.lastName}`,
-          date: regDate, // Use normalized date
+          date: startOfDay, // Use IST start of day
           checkIn: checkInTime,
           checkOut: checkOutTime,
           status: "present", // Will be recalculated below
@@ -230,6 +232,11 @@ export const reviewRegularization = async (req, res) => {
         await att.save();
         console.log("Attendance updated with check-in only, status:", att.status);
       }
+      
+      // Invalidate attendance cache for this employee and overall dashboard
+      console.log("Invalidating cache for employee:", reg.employeeId);
+      invalidateAttendanceCache(reg.employeeId);
+      invalidateDashboardCache();
     }
     res.json({ success: true, message: `Request ${status}`, reg });
   } catch (err) {
