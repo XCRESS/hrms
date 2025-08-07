@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../../../service/apiClient';
 import { CheckCircle, AlertCircle, XCircle, BarChart3, Clock, ChevronLeft, ChevronRight, Calendar, Edit3, X, Save, MapPin, Eye } from 'lucide-react';
 import LocationMapModal from '../../ui/LocationMapModal';
+import { formatTime, formatDate } from '../../../utils/istUtils';
 
 // Custom Time Input Component with AM/PM support
 const TimeInput = ({ value, onChange, className }) => {
@@ -718,18 +719,16 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
     }
   }, [statusFilter, sortOrder, allAttendanceData]);
 
-  const formatTime = (date) => {
+  // Use IST utils for consistent timezone display
+  const formatTimeLocal = (date) => {
     if (!date) return "—";
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    return formatTime(new Date(date));
   };
 
-  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
-  }).format(date);
+  const formatDateLocal = (date) => {
+    if (!date) return "—";
+    return formatDate(new Date(date), true); // dd-mm-yy format
+  };
 
   const getStatusIcon = (status, checkIn, checkOut) => {
     if (status === "present") {
@@ -1082,7 +1081,7 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
                     <td className="p-3">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(record.status, record.checkIn, record.checkOut)}
-                        <span className="font-medium">{formatDate(record.date)}</span>
+                        <span className="font-medium">{formatDateLocal(record.date)}</span>
                       </div>
                     </td>
                     <td className="p-3">
@@ -1091,13 +1090,13 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
                     <td className="p-3">
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono">{formatTime(record.checkIn)}</span>
+                        <span className="font-mono">{formatTimeLocal(record.checkIn)}</span>
                       </div>
                     </td>
                     <td className="p-3">
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono">{formatTime(record.checkOut)}</span>
+                        <span className="font-mono">{formatTimeLocal(record.checkOut)}</span>
                       </div>
                     </td>
                     <td className="p-3">
@@ -1153,7 +1152,7 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(record.status, record.checkIn, record.checkOut)}
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date)}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDateLocal(record.date)}</span>
                   </div>
                   {getStatusBadge(record.status, record.checkIn, record.checkOut)}
                 </div>
@@ -1161,11 +1160,11 @@ const AttendanceTable = ({ employeeId, employeeProfile: passedEmployeeProfile, d
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600 dark:text-gray-400 font-medium">Check In:</span>
-                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTime(record.checkIn)}</p>
+                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTimeLocal(record.checkIn)}</p>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400 font-medium">Check Out:</span>
-                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTime(record.checkOut)}</p>
+                    <p className="font-mono text-gray-900 dark:text-gray-100">{formatTimeLocal(record.checkOut)}</p>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400 font-medium">Location:</span>

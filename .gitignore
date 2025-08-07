@@ -1,0 +1,29 @@
+/backup-*
+# Ignore backup files
+*.bak
+# Ignore temporary files
+*.tmp
+# Ignore log files
+*.log
+# Ignore compiled Python files
+*.pyc
+# Ignore virtual environment directories
+venv/
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore Python bytecode files
+__pycache__/
+# Ignore environment variable files
+.env
+# Ignore IDE specific files
+.idea/
+# Ignore system files
+.DS_Store
+# Ignore coverage reports
+coverage.xml
+# Ignore test output files
+test_output.txt
+# Ignore documentation build directories
+docs/_build/
+# Ignore configuration files
+config.yaml

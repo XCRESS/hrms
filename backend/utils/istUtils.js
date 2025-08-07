@@ -14,20 +14,19 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in millisecond
 
 /**
  * Get current IST date and time
- * @returns {Date} Current date in IST
+ * @returns {Date} Current date (stored as UTC, displays as IST)
  */
 export const getISTNow = () => {
-  return new Date(Date.now() + IST_OFFSET_MS);
+  return new Date(); // Let JS handle timezone naturally
 };
 
 /**
- * Convert any date to IST
- * @param {Date|string} date - Date to convert (if already IST, returns as-is)
- * @returns {Date} Date in IST
+ * Convert any date to IST (no conversion needed - dates are stored as UTC)
+ * @param {Date|string} date - Date to work with
+ * @returns {Date} Date object (browser handles IST display)
  */
 export const toIST = (date = new Date()) => {
-  const inputDate = new Date(date);
-  return new Date(inputDate.getTime() + IST_OFFSET_MS);
+  return new Date(date); // No conversion needed
 };
 
 /**

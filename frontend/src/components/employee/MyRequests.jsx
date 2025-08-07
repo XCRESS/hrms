@@ -24,6 +24,7 @@ import BackButton from "../ui/BackButton";
 import LeaveRequestModal from "../LeaveRequestModal";
 import HelpDeskModal from "../HelpDeskModal";
 import RegularizationModal from "../dashboard/RegularizationModal";
+import { formatTime, formatDate } from '../../utils/istUtils';
 
 const MyRequests = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -105,10 +106,10 @@ const MyRequests = () => {
           const formattedReg = regRequests.map(reg => {
             let timeInfo = '';
             if (reg.requestedCheckIn) {
-              timeInfo += `Check-in: ${new Date(reg.requestedCheckIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+              timeInfo += `Check-in: ${formatTime(new Date(reg.requestedCheckIn))}`;
             }
             if (reg.requestedCheckOut) {
-              timeInfo += timeInfo ? ` | Check-out: ${new Date(reg.requestedCheckOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : `Check-out: ${new Date(reg.requestedCheckOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+              timeInfo += timeInfo ? ` | Check-out: ${formatTime(new Date(reg.requestedCheckOut))}` : `Check-out: ${formatTime(new Date(reg.requestedCheckOut))}`;
             }
             if (!timeInfo && reg.reason) {
               timeInfo = reg.reason;
@@ -176,20 +177,9 @@ const MyRequests = () => {
     }
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Use IST utils for consistent timezone display  
+  const formatDateLocal = (date) => formatDate(new Date(date), true); // dd-mm-yy format
+  const formatTimeLocal = (date) => formatTime(new Date(date));
 
   const handleNewRequest = (type) => {
     switch (type) {
@@ -390,11 +380,11 @@ const MyRequests = () => {
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {formatDate(request.date)}
+                              {formatDateLocal(request.date)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock4 className="h-3 w-3" />
-                              {formatTime(request.createdAt)}
+                              {formatTimeLocal(request.createdAt)}
                             </span>
                           </div>
                           {isAdminOrHR && request.user && (

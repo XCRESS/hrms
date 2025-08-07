@@ -14,7 +14,6 @@ import { DataCacheProvider } from './contexts/DataCacheContext.jsx';
 import { Toaster } from './components/ui/toast.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import DebugPanel from './components/DebugPanel.jsx';
-import './utils/debugUtils.js'; // Initialize debug utilities
 
 // Lazy load heavy components
 const HRMSDashboard = lazy(() => import('./components/dashboard.jsx'));

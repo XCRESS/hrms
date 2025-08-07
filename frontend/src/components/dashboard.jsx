@@ -12,6 +12,7 @@ import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
 import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
+import { formatDate } from '../utils/istUtils';
 
 // Lazy load dashboard components for better performance
 import { lazy, Suspense } from 'react';
@@ -436,9 +437,7 @@ export default function HRMSDashboard() {
         const mapped = response.holidays.map(h => ({
           id: h._id,
           name: h.title || h.holidayName || 'Holiday',
-          date: h.date ? new Date(h.date).toLocaleDateString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric' 
-          }) : '',
+          date: h.date ? formatDate(new Date(h.date), false, 'MMM DD, YYYY') : '',
           isOptional: h.isOptional,
           description: h.description,
         }));
