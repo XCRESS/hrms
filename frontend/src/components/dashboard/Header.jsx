@@ -1,5 +1,6 @@
 import React, { useState, useEffect, memo } from "react";
 import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin, Edit3 } from "lucide-react";
+import { formatTime, formatDate } from "../../utils/istUtils";
 
 // Separate memoized component for time display to prevent unnecessary re-renders
 const TimeDisplay = memo(() => {
@@ -10,13 +11,7 @@ const TimeDisplay = memo(() => {
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
-    hour: '2-digit', minute: '2-digit', hour12: true 
-  }).format(date) : "—";
-
-  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }).format(date);
+  // Using standardized IST utils functions
 
   return (
     <div className="hidden sm:flex items-center gap-3 bg-white dark:bg-neutral-800 px-4 py-3 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
@@ -25,7 +20,7 @@ const TimeDisplay = memo(() => {
       </div>
       <div>
         <p className="text-base font-medium text-neutral-700 dark:text-neutral-200 tabular-nums">{formatTime(currentTime)}</p>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(currentTime)}</p>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(currentTime, false, 'DD MMMM YYYY')}</p>
       </div>
     </div>
   );

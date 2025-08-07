@@ -3,6 +3,7 @@ import { FileText, HelpCircle, Calendar, RefreshCw } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { useNavigate } from 'react-router-dom';
 import RequestDetailModal from './RequestDetailModal';
+import { formatDate } from '@/utils/istUtils';
 
 
 const AdminPendingRequests = ({ onRefresh }) => {
@@ -101,18 +102,6 @@ const AdminPendingRequests = ({ onRefresh }) => {
     };
   }, []);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } catch {
-      return '';
-    }
-  };
 
   if (isLoading) {
     return (
@@ -172,7 +161,7 @@ const AdminPendingRequests = ({ onRefresh }) => {
                     {request.title}
                   </h4>
                   <span className="flex-shrink-0 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">
-                    {formatDate(request.date)}
+                    {formatDate(request.date, false, 'DD MMM YYYY')}
                   </span>
                 </div>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 font-medium">
