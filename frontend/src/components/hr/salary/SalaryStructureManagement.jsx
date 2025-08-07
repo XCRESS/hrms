@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableEmployeeSelect from "../../ui/SearchableEmployeeSelect";
 import { 
   Plus, 
   Search, 
@@ -292,33 +293,15 @@ const SalaryStructureManagement = ({ onBack }) => {
                 {/* Employee Selection */}
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300">Select Employee</Label>
-                  <Select
+                  <SearchableEmployeeSelect
+                    employees={editingStructure ? employees : employeesWithoutStructure}
                     value={selectedEmployeeId}
                     onValueChange={setSelectedEmployeeId}
                     disabled={editingStructure}
-                  >
-                    <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                      <SelectValue placeholder="Choose an employee" />
-                    </SelectTrigger>
-                    <SelectContent className="dark:bg-slate-800 dark:border-slate-600 max-h-60">
-                      {(editingStructure ? employees : employeesWithoutStructure).map(emp => (
-                        <SelectItem 
-                          key={emp.employeeId} 
-                          value={emp.employeeId}
-                          className="dark:text-slate-100 dark:focus:bg-slate-700"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.employeeId}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {emp.employeeId} • {emp.department || 'N/A'}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Choose an employee"
+                    showEmployeeDetails={true}
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Employee Details */}

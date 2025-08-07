@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SearchableEmployeeSelect from "../../ui/SearchableEmployeeSelect";
 import { 
   ArrowLeft, 
   Download, 
@@ -485,35 +486,15 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-slate-700 dark:text-slate-300">Select Employee</Label>
-                    <Select
+                    <SearchableEmployeeSelect
+                      employees={employees}
                       value={selectedEmployee}
                       onValueChange={setSelectedEmployee}
                       disabled={employeesLoading || isEditing}
-                    >
-                      <SelectTrigger className="w-full dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                        <SelectValue placeholder={employeesLoading ? "Loading employees..." : "Choose an employee"} />
-                      </SelectTrigger>
-                      <SelectContent className="dark:bg-slate-800 dark:border-slate-600 max-h-60 min-w-[300px]">
-                        {employees.map(emp => (
-                          <SelectItem 
-                            key={emp.employeeId} 
-                            value={emp.employeeId}
-                            className="dark:text-slate-100 dark:focus:bg-slate-700 py-3"
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <span className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate">
-                                  {emp.fullName || (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.employeeId)}
-                                </span>
-                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                  ID: {emp.employeeId} • {emp.department || 'No Department'}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder={employeesLoading ? "Loading employees..." : "Choose an employee"}
+                      showEmployeeDetails={true}
+                      className="w-full"
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
