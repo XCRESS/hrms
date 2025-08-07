@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, BarChart3, TrendingUp } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import useAuth from "../../hooks/authjwt";
+import { formatDate } from "../../utils/istUtils";
 
 // Enhanced Attendance Analytics Component (consistent with dashboard)
 const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
@@ -293,13 +294,11 @@ export default function MyAttendance() {
     fetchAllAttendanceData();
   }, [dateRange, user?.employeeId]);
 
-  const formatTime = (date) => date ? new Intl.DateTimeFormat('en-US', { 
+  const formatTime = (date) => date ? new Date(date).toLocaleTimeString('en-IN', { 
     hour: '2-digit', minute: '2-digit', hour12: true 
-  }).format(date) : "—";
+  }) : "—";
 
-  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
-  }).format(date);
+  // Using standardized IST utils formatDate function
 
   const getStatusIcon = (status, checkIn, checkOut) => {
     if (status === "present") {
@@ -477,7 +476,7 @@ export default function MyAttendance() {
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(record.status, record.checkIn, record.checkOut)}
-                        <span className="font-medium">{formatDate(record.date)}</span>
+                        <span className="font-medium">{formatDate(record.date, false, 'DD MMM YYYY')}</span>
                       </div>
                     </td>
                     <td className="p-4">
@@ -529,7 +528,7 @@ export default function MyAttendance() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(record.status, record.checkIn, record.checkOut)}
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date)}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date, false, 'DD MMM YYYY')}</span>
                   </div>
                   {getStatusBadge(record.status, record.checkIn, record.checkOut)}
                 </div>

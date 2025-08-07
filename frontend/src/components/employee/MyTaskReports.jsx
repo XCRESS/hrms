@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FileText, Calendar, Eye, X, Plus, Send, Edit, Save, Trash2, PlusCircle } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import { useToast } from "../ui/toast.jsx";
+import { formatDate } from "../../utils/istUtils";
 
 export default function MyTaskReports() {
   const [taskReports, setTaskReports] = useState([]);
@@ -65,9 +66,7 @@ export default function MyTaskReports() {
     fetchTaskReports(currentPage);
   }, [currentPage, dateRange]);
 
-  const formatDate = (date) => new Intl.DateTimeFormat('en-US', { 
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
-  }).format(date);
+  // Using standardized IST utils formatDate function
 
   const formatDateForInput = (date) => {
     return new Date(date).toISOString().slice(0, 10);
@@ -302,7 +301,7 @@ export default function MyTaskReports() {
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-purple-400" />
-                        <span className="font-medium">{formatDate(report.submissionDate)}</span>
+                        <span className="font-medium">{formatDate(report.submissionDate, false, 'DD MMM YYYY')}</span>
                       </div>
                     </td>
                     <td className="p-4">
@@ -409,7 +408,7 @@ export default function MyTaskReports() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-purple-400" />
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(report.submissionDate)}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(report.submissionDate, false, 'DD MMM YYYY')}</span>
                   </div>
                 </div>
                 
@@ -637,7 +636,7 @@ export default function MyTaskReports() {
             <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Tasks for {formatDate(selectedReport.submissionDate)}
+                  Tasks for {formatDate(selectedReport.submissionDate, false, 'DD MMMM YYYY')}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {selectedReport.tasks?.length || 0} tasks completed

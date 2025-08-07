@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck } from 'lucide-react';
 import apiClient from '@/service/apiClient';
+import { formatDate } from '@/utils/istUtils';
 
 const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -9,27 +10,15 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
 
   if (!isOpen || !request) return null;
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Invalid Date';
-    }
-  };
+  // Using standardized IST utils formatDate function
 
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
+      return new Date(dateString).toLocaleString('en-IN', {
         day: 'numeric',
+        month: 'short',
+        year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       });
@@ -113,7 +102,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Leave Date</label>
-                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1">{formatDate(request.leaveDate)}</p>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1">{formatDate(request.leaveDate, false, 'DD MMMM YYYY')}</p>
               </div>
             </div>
             <div>
@@ -175,7 +164,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Date</label>
-                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-medium">{formatDate(request.date)}</p>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-medium">{formatDate(request.date, false, 'DD MMMM YYYY')}</p>
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Type</label>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserX, Calendar, Mail, Phone, Building, User, RotateCcw, AlertTriangle, Eye, X } from 'lucide-react';
 import apiClient from '../../../service/apiClient';
 import { useToast } from '../../ui/toast';
+import { formatDate } from '../../../utils/istUtils';
 
 const InactiveEmployees = () => {
   const [inactiveEmployees, setInactiveEmployees] = useState([]);
@@ -97,13 +98,6 @@ const InactiveEmployees = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   if (loading) {
     return (
@@ -213,7 +207,7 @@ const InactiveEmployees = () => {
                       
                       <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
                         <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span>Joined {formatDate(employee.joiningDate)}</span>
+                        <span>Joined {formatDate(employee.joiningDate, false, 'DD MMM YYYY')}</span>
                       </div>
                     </div>
 
@@ -334,7 +328,7 @@ const InactiveEmployees = () => {
                         Personal Information
                       </h4>
                       <div className="space-y-2 text-sm">
-                        <div><span className="font-medium">Date of Birth:</span> {formatDate(employeeDetails.dateOfBirth)}</div>
+                        <div><span className="font-medium">Date of Birth:</span> {formatDate(employeeDetails.dateOfBirth, false, 'DD MMM YYYY')}</div>
                         <div><span className="font-medium">Gender:</span> {employeeDetails.gender}</div>
                         <div><span className="font-medium">Marital Status:</span> {employeeDetails.maritalStatus}</div>
                         <div><span className="font-medium">Father's Name:</span> {employeeDetails.fatherName || 'N/A'}</div>
@@ -350,7 +344,7 @@ const InactiveEmployees = () => {
                       <div className="space-y-2 text-sm">
                         <div><span className="font-medium">Company:</span> {employeeDetails.companyName || 'N/A'}</div>
                         <div><span className="font-medium">Employment Type:</span> {employeeDetails.employmentType}</div>
-                        <div><span className="font-medium">Joining Date:</span> {formatDate(employeeDetails.joiningDate)}</div>
+                        <div><span className="font-medium">Joining Date:</span> {formatDate(employeeDetails.joiningDate, false, 'DD MMM YYYY')}</div>
                         <div><span className="font-medium">Office:</span> {employeeDetails.officeAddress}</div>
                         <div><span className="font-medium">Supervisor:</span> {employeeDetails.reportingSupervisor}</div>
                       </div>

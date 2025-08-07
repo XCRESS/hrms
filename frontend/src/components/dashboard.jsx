@@ -437,11 +437,7 @@ export default function HRMSDashboard() {
         const mapped = response.holidays.map(h => ({
           id: h._id,
           name: h.title || h.holidayName || 'Holiday',
-          date: h.date ? new Date(h.date).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-          }) : '',
+          date: h.date ? formatDate(new Date(h.date), false, 'MMM DD, YYYY') : '',
           isOptional: h.isOptional,
           description: h.description,
         }));

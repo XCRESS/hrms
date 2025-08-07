@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { FileSpreadsheet, FileText } from 'lucide-react';
+import { formatDate } from '../../utils/istUtils';
 
 const TaskReportsPage = () => {
   const navigate = useNavigate();
@@ -80,7 +81,6 @@ const TaskReportsPage = () => {
     }
   };
 
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
@@ -158,7 +158,7 @@ const TaskReportsPage = () => {
                           <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{report.employee.firstName} {report.employee.lastName}</div>
                           <div className="text-sm text-slate-500 dark:text-slate-400">{report.employee.employeeId}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{formatDate(report.date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{formatDate(report.date, false, 'DD MMMM YYYY')}</td>
                       <td className="px-6 py-4">
                         <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
                           {report.tasks.map((task, index) => <li key={index}>{task}</li>)}

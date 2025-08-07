@@ -101,12 +101,51 @@ export const formatTime = (time) => {
  * Format date for display (date only)
  * @param {Date|string} date - Date to format
  * @param {boolean} shortYear - Use 2-digit year (dd-mm-yy)
+ * @param {string} format - Optional format pattern ('MMM DD, YYYY', 'DD-MM-YYYY', etc.)
  * @returns {string} Formatted date string
  */
-export const formatDate = (date, shortYear = false) => {
+export const formatDate = (date, shortYear = false, format = null) => {
   if (!date) return '';
   
   const istDate = date instanceof Date ? date : new Date(date);
+  
+  // Handle specific format patterns
+  if (format) {
+    switch (format) {
+      case 'MMM DD, YYYY':
+      case 'DD MMM YYYY':
+        // Indian format: "9 Aug 2025" (not American "Aug 9, 2025")
+        return istDate.toLocaleDateString('en-IN', { 
+          day: 'numeric',
+          month: 'short', 
+          year: 'numeric' 
+        });
+      case 'MMMM DD, YYYY':
+      case 'DD MMMM YYYY':
+        // Indian format: "9 August 2025" (not American "August 9, 2025")
+        return istDate.toLocaleDateString('en-IN', { 
+          day: 'numeric',
+          month: 'long', 
+          year: 'numeric' 
+        });
+      case 'DD/MM/YYYY':
+        const day1 = String(istDate.getDate()).padStart(2, '0');
+        const month1 = String(istDate.getMonth() + 1).padStart(2, '0');
+        const year1 = istDate.getFullYear();
+        return `${day1}/${month1}/${year1}`;
+      case 'MM/DD/YYYY':
+        // Convert to Indian DD/MM/YYYY format instead of American MM/DD/YYYY
+        const day2 = String(istDate.getDate()).padStart(2, '0');
+        const month2 = String(istDate.getMonth() + 1).padStart(2, '0');
+        const year2 = istDate.getFullYear();
+        return `${day2}/${month2}/${year2}`;
+      default:
+        // Fall back to default behavior for unknown formats
+        break;
+    }
+  }
+  
+  // Default IST formatting: dd-mm-yyyy or dd-mm-yy
   const day = String(istDate.getDate()).padStart(2, '0');
   const month = String(istDate.getMonth() + 1).padStart(2, '0');
   const year = shortYear ? String(istDate.getFullYear()).slice(-2) : istDate.getFullYear();
