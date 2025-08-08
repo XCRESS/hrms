@@ -46,7 +46,15 @@ export default function SidebarDemo() {
     if (!currentToken) {
       return <Navigate to="/auth/login" state={{ from: location }} replace />;
     }
-    return null; // Or a loading spinner, e.g., <p>Loading user...</p>
+    // Show loading spinner while token is being validated
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto"></div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Authenticating...</div>
+        </div>
+      </div>
+    );
   }
   const user = userObject;
 
