@@ -319,8 +319,7 @@ export default function HRMSDashboard() {
     
     const today = new Date().toISOString().slice(0, 10);
     try {
-      const response = await apiClient.getAttendanceRecords({
-        employeeId: user.employeeId,
+      const response = await apiClient.getMyAttendanceRecords({
         startDate: today,
         endDate: today,
         limit: 1,
@@ -581,27 +580,54 @@ export default function HRMSDashboard() {
         await loadAttendanceData(true); // Force refresh after check-in
       }
     } catch (error) {
-      // console.error("Check-in error:", error);
+      console.error("Check-in error:", error);
       
       let title = "Check-in Issue";
       let description = "An unexpected error occurred.";
       let variant = "warning";
       
-      // Handle specific error types
-      if (error.message === "No linked employee profile found for user") {
-        description = "Your user account is not linked to an employee profile. Please contact HR.";
-      } else if (error.message === "Already checked in for today") {
-        description = "You have already checked in for today.";
-      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      // Handle network errors first
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
         title = "Network Error";
         description = "Unable to connect to server. Please check your internet connection and try again.";
         variant = "destructive";
-      } else if (error.status >= 500) {
-        title = "Server Error";
-        description = "Server error occurred. Please try again in a few moments.";
-        variant = "destructive";
-      } else {
+      } 
+      // Handle structured API errors from new backend
+      else if (error.data && error.data.message) {
+        description = error.data.message;
+        
+        // Handle specific business logic errors
+        if (description.includes("Already checked in")) {
+          variant = "warning";
+        } else if (description.includes("No linked employee")) {
+          description = "Your user account is not linked to an employee profile. Please contact HR.";
+          variant = "warning";
+        } else if (error.status >= 400 && error.status < 500) {
+          variant = "warning"; // Client errors
+        } else if (error.status >= 500) {
+          variant = "destructive"; // Server errors
+        }
+        
+        // Include additional details if available
+        if (error.data.details && error.data.details.validation) {
+          const validationErrors = Object.values(error.data.details.validation).join(", ");
+          description += `. Details: ${validationErrors}`;
+        }
+      } 
+      // Fallback to legacy error handling
+      else {
         description = error.message || "Please try again.";
+        
+        // Legacy specific error messages
+        if (error.message === "No linked employee profile found for user") {
+          description = "Your user account is not linked to an employee profile. Please contact HR.";
+        } else if (error.message === "Already checked in for today") {
+          description = "You have already checked in for today.";
+        } else if (error.status >= 500) {
+          title = "Server Error";
+          description = "Server error occurred. Please try again in a few moments.";
+          variant = "destructive";
+        }
       }
       
       toast({
@@ -642,10 +668,45 @@ export default function HRMSDashboard() {
         await loadAttendanceData(true); // Force refresh after check-out
       }
     } catch (error) {
+      console.error("Check-out error:", error);
+      
+      let title = "Check-out Failed";
+      let description = "An unexpected error occurred during check-out.";
+      let variant = "destructive";
+      
+      // Handle network errors
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        title = "Network Error";
+        description = "Unable to connect to server. Please check your internet connection and try again.";
+      }
+      // Handle structured API errors from new backend
+      else if (error.data && error.data.message) {
+        description = error.data.message;
+        
+        // Handle specific business logic errors
+        if (description.includes("No check-in record")) {
+          variant = "warning";
+        } else if (description.includes("Already checked out")) {
+          variant = "warning";
+        } else if (error.status >= 400 && error.status < 500) {
+          variant = "warning"; // Client errors
+        }
+        
+        // Include additional details if available
+        if (error.data.details && error.data.details.validation) {
+          const validationErrors = Object.values(error.data.details.validation).join(", ");
+          description += `. Details: ${validationErrors}`;
+        }
+      }
+      // Fallback to legacy error handling
+      else {
+        description = error.message || description;
+      }
+      
       toast({
-        variant: "destructive",
-        title: "Check-out Failed",
-        description: error.message || "An unexpected error occurred during check-out."
+        variant,
+        title,
+        description
       });
     } finally {
       setLoading('checkOutLoading', false);
@@ -665,10 +726,30 @@ export default function HRMSDashboard() {
       invalidateCachePattern('DASHBOARD_LEAVE');
       await loadLeaveRequests();
     } catch (error) {
+      console.error("Leave request error:", error);
+      
+      let title = "Leave Request Failed";
+      let description = "Failed to submit leave request.";
+      
+      // Handle structured API errors from new backend
+      if (error.data && error.data.message) {
+        description = error.data.message;
+        
+        // Include additional details if available
+        if (error.data.details && error.data.details.validation) {
+          const validationErrors = Object.values(error.data.details.validation).join(", ");
+          description += `. Details: ${validationErrors}`;
+        }
+      }
+      // Fallback to legacy error handling
+      else {
+        description = error.message || description;
+      }
+      
       toast({
         variant: "error",
-        title: "Leave Request Failed",
-        description: error.message || "Failed to submit leave request."
+        title,
+        description
       });
     }
   };
@@ -694,10 +775,30 @@ export default function HRMSDashboard() {
       invalidateCachePattern('DASHBOARD_HELP');
       await loadHelpInquiries();
     } catch (error) {
+      console.error("Help inquiry error:", error);
+      
+      let title = "Submission Failed";
+      let description = "Failed to submit help inquiry.";
+      
+      // Handle structured API errors from new backend
+      if (error.data && error.data.message) {
+        description = error.data.message;
+        
+        // Include additional details if available
+        if (error.data.details && error.data.details.validation) {
+          const validationErrors = Object.values(error.data.details.validation).join(", ");
+          description += `. Details: ${validationErrors}`;
+        }
+      }
+      // Fallback to legacy error handling
+      else {
+        description = error.message || description;
+      }
+      
       toast({
         variant: "error",
-        title: "Submission Failed",
-        description: error.message || "Failed to submit help inquiry."
+        title,
+        description
       });
     }
   };
@@ -727,10 +828,24 @@ export default function HRMSDashboard() {
         });
       }
     } catch (error) {
+      console.error("Connection retry error:", error);
+      
+      let title = "Connection Error";
+      let description = "Failed to connect to server.";
+      
+      // Handle structured API errors from new backend
+      if (error.data && error.data.message) {
+        description = error.data.message;
+      }
+      // Fallback to legacy error handling
+      else {
+        description = error.message || description;
+      }
+      
       toast({
         variant: "error",
-        title: "Connection Error",
-        description: error.message || "Failed to connect to server."
+        title,
+        description
       });
     } finally {
       setLoading('isLoading', false);

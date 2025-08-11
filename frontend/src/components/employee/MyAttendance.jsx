@@ -4,192 +4,258 @@ import apiClient from "../../service/apiClient";
 import useAuth from "../../hooks/authjwt";
 import { formatDate } from "../../utils/istUtils";
 
-// Enhanced Attendance Analytics Component (consistent with dashboard)
-const AttendanceAnalytics = ({ attendance, dateRange, holidays = [] }) => {
-  // Helper function to check if date is a working day (same as dashboard)
-  const isWorkingDayForCompany = (date) => {
-    const dayOfWeek = date.getDay();
-    
-    // Sunday is always a non-working day
-    if (dayOfWeek === 0) {
-      return false;
-    }
-    
-    // Saturday logic: exclude 2nd Saturday of the month
-    if (dayOfWeek === 6) {
-      const dateNum = date.getDate();
-      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-      const secondSaturday = firstSaturday + 7;
-      
-      // If this Saturday is the 2nd Saturday, it's a non-working day
-      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-        return false;
-      }
-    }
-    
-    return true;
-  };
-
-  // Calculate actual working days in the date range (excluding holidays)
-  const calculateWorkingDaysInRange = () => {
-    if (!dateRange?.startDate || !dateRange?.endDate) return 0;
-    
-    let workingDays = 0;
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    const currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      if (isWorkingDayForCompany(currentDate)) {
-        // Check if this date is not a holiday
-        const isHoliday = holidays.some(holiday => {
-          if (holiday.date) {
-            const holidayDate = new Date(holiday.date);
-            return holidayDate.toDateString() === currentDate.toDateString();
-          }
-          return false;
-        });
-        
-        if (!isHoliday) {
-          workingDays++;
-        }
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return workingDays;
-  };
-
-  const calculateAttendanceStats = () => {
+// Enhanced Personal Attendance Analytics with Premium UX
+const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
+  // Use API statistics when available, calculate from data otherwise
+  const calculateStatsFromData = () => {
     if (!attendance || attendance.length === 0) return null;
 
-    const totalWorkingDays = calculateWorkingDaysInRange();
-    
-    // Count different types of days - using same logic as dashboard
     let presentDays = 0;
     let absentDays = 0;
     let halfDays = 0;
-    let invalidDays = 0;
+    let weekendDays = 0;
+    let holidayDays = 0;
+    let leaveDays = 0;
     let lateDays = 0;
-    
-    attendance.forEach(rec => {
-      const dayDate = new Date(rec.date);
-      const isWorkingDay = isWorkingDayForCompany(dayDate);
-      
-      if (rec.status === "present") {
-        presentDays++;
-        // Check if it's a late arrival
-        if (rec.checkIn) {
-          const checkInTime = new Date(rec.checkIn);
-          const checkInHour = checkInTime.getHours();
-          const checkInMinutes = checkInTime.getMinutes();
-          const checkInDecimal = checkInHour + (checkInMinutes / 60);
-          if (checkInDecimal > 9.9167) { // Late after 9:55 AM
-            lateDays++;
-          }
+    let totalWorkingHours = 0;
+    let incompleteCheckouts = 0;
+
+    attendance.forEach(record => {
+      // Handle flags-based status detection first - prioritize holiday > weekend
+      if (record.flags?.isHoliday) {
+        holidayDays++;
+      } else if (record.flags?.isWeekend) {
+        weekendDays++;
+      } else {
+        // Handle actual attendance status
+        switch (record.status) {
+          case 'present':
+            presentDays++;
+            if (record.flags?.isLate) lateDays++;
+            if (record.checkIn && !record.checkOut) incompleteCheckouts++;
+            break;
+          case 'absent':
+            absentDays++;
+            break;
+          case 'half-day':
+            halfDays++;
+            break;
+          case 'weekend':
+            weekendDays++;
+            break;
+          case 'holiday':
+            holidayDays++;
+            break;
+          case 'leave':
+            leaveDays++;
+            break;
         }
-      } else if (rec.status === "half-day") {
-        halfDays++;
-        presentDays++; // Half days are also counted as present (same as dashboard)
-      } else if (rec.status === "absent" && isWorkingDay) {
-        absentDays++;
-      } else if (rec.checkIn && !rec.checkOut && rec.status !== "half-day") {
-        invalidDays++;
-        presentDays++; // Missing checkouts are counted as present (same as dashboard)
+      }
+
+      if (record.workHours) {
+        totalWorkingHours += record.workHours;
       }
     });
 
-    const totalWorkingHours = attendance.reduce((total, rec) => {
-      if (rec.checkIn && rec.checkOut) {
-        const checkIn = new Date(rec.checkIn);
-        const checkOut = new Date(rec.checkOut);
-        const hours = (checkOut - checkIn) / (1000 * 60 * 60);
-        return total + hours;
-      }
-      return total;
-    }, 0);
-
-    const avgHoursPerDay = presentDays > 0 ? totalWorkingHours / presentDays : 0; // Average per working day
-    const effectivePresentDays = presentDays - halfDays + (halfDays * 0.5); // Half days count as 0.5
-    const attendancePercentage = totalWorkingDays > 0 ? Math.min((effectivePresentDays / totalWorkingDays) * 100, 100) : 0;
+    const totalRecords = attendance.length;
+    const workingDays = totalRecords - weekendDays - holidayDays;
+    const attendanceRate = workingDays > 0 ? ((presentDays + halfDays * 0.5) / workingDays) * 100 : 0;
+    const avgHoursPerDay = presentDays > 0 ? totalWorkingHours / presentDays : 0;
 
     return {
-      presentDays,
-      absentDays,
-      halfDays,
-      invalidDays,
-      lateDays,
-      totalWorkingHours: totalWorkingHours.toFixed(1),
+      total: totalRecords,
+      present: presentDays,
+      absent: absentDays,
+      halfDay: halfDays,
+      weekend: weekendDays,
+      holiday: holidayDays,
+      leave: leaveDays,
+      late: lateDays,
+      totalWorkHours: totalWorkingHours,
+      attendancePercentage: attendanceRate.toFixed(1),
+      workingDays,
       avgHoursPerDay: avgHoursPerDay.toFixed(1),
-      totalWorkingDays,
-      attendancePercentage: attendancePercentage.toFixed(1)
+      incompleteCheckouts
     };
   };
 
-  const stats = calculateAttendanceStats();
+  const stats = statistics || calculateStatsFromData();
 
   if (!stats) {
-    return <div className="text-slate-500 dark:text-slate-400">No attendance data available for analysis.</div>;
+    return (
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-700">
+        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-cyan-200 dark:from-cyan-900/50 dark:to-cyan-800/50 rounded-2xl mb-6">
+          <TrendingUp className="w-10 h-10 text-cyan-500" />
+        </div>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Welcome to Your Analytics</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-lg">Select a date range to view your attendance insights</p>
+      </div>
+    );
   }
 
+  const mainCards = [
+    {
+      title: 'Working Days',
+      value: stats.workingDays || stats.total - (stats.weekend || 0) - (stats.holiday || 0),
+      icon: Calendar,
+      gradient: 'from-blue-400 via-blue-500 to-blue-600',
+      bgGradient: 'from-blue-50 via-blue-100 to-blue-200 dark:from-blue-900/20 dark:via-blue-800/30 dark:to-blue-700/40',
+      iconBg: 'bg-blue-500',
+      progress: 100,
+      description: 'Total business days',
+      tooltip: `Excludes ${stats.weekend || 0} weekends and ${stats.holiday || 0} holidays from total ${stats.total} days`
+    },
+    {
+      title: 'Present Days',
+      value: stats.present || 0,
+      icon: CheckCircle,
+      gradient: 'from-emerald-400 via-emerald-500 to-emerald-600',
+      bgGradient: 'from-emerald-50 via-emerald-100 to-emerald-200 dark:from-emerald-900/20 dark:via-emerald-800/30 dark:to-emerald-700/40',
+      iconBg: 'bg-emerald-500',
+      progress: parseFloat(stats.attendancePercentage || 0),
+      subtitle: `${stats.attendancePercentage || 0}% attendance rate`,
+      description: 'Days you were present'
+    },
+    {
+      title: 'Work Hours',
+      value: `${(stats.totalWorkHours || 0).toFixed(1)}h`,
+      icon: Clock,
+      gradient: 'from-purple-400 via-purple-500 to-purple-600',
+      bgGradient: 'from-purple-50 via-purple-100 to-purple-200 dark:from-purple-900/20 dark:via-purple-800/30 dark:to-purple-700/40',
+      iconBg: 'bg-purple-500',
+      progress: Math.min((stats.totalWorkHours || 0) / ((stats.present || 1) * 8) * 100, 100),
+      subtitle: `${stats.avgHoursPerDay || 0}h average per day`,
+      description: 'Total hours worked'
+    },
+    {
+      title: 'Attendance Score',
+      value: `${stats.attendancePercentage || 0}%`,
+      icon: TrendingUp,
+      gradient: stats.attendancePercentage >= 90 ? 'from-green-400 via-green-500 to-green-600' : 
+               stats.attendancePercentage >= 75 ? 'from-yellow-400 via-yellow-500 to-yellow-600' : 
+               'from-red-400 via-red-500 to-red-600',
+      bgGradient: stats.attendancePercentage >= 90 ? 'from-green-50 via-green-100 to-green-200 dark:from-green-900/20 dark:via-green-800/30 dark:to-green-700/40' :
+                  stats.attendancePercentage >= 75 ? 'from-yellow-50 via-yellow-100 to-yellow-200 dark:from-yellow-900/20 dark:via-yellow-800/30 dark:to-yellow-700/40' :
+                  'from-red-50 via-red-100 to-red-200 dark:from-red-900/20 dark:via-red-800/30 dark:to-red-700/40',
+      iconBg: stats.attendancePercentage >= 90 ? 'bg-green-500' : stats.attendancePercentage >= 75 ? 'bg-yellow-500' : 'bg-red-500',
+      progress: parseFloat(stats.attendancePercentage || 0),
+      subtitle: stats.attendancePercentage >= 90 ? 'Excellent!' : stats.attendancePercentage >= 75 ? 'Good' : 'Needs improvement',
+      description: 'Overall performance'
+    }
+  ];
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-6">
-      <div className="bg-cyan-50 dark:bg-cyan-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-cyan-200 dark:border-cyan-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Working Days</p>
-          <Calendar className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
-        </div>
-        <p className="text-xl sm:text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.totalWorkingDays}</p>
-        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-          <div className="h-2 bg-cyan-500 dark:bg-cyan-500 rounded-full transition-all duration-500" style={{ width: '100%' }}></div>
-        </div>
+    <div className="space-y-8">
+      {/* Main Analytics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {mainCards.map((card, index) => {
+          const IconComponent = card.icon;
+          return (
+            <div
+              key={index}
+              className={`relative bg-gradient-to-br ${card.bgGradient} rounded-3xl p-5 sm:p-6 shadow-xl border border-white/50 dark:border-gray-700/50 transition-all duration-500 hover:shadow-2xl hover:scale-105 group overflow-hidden`}
+            >
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 dark:bg-black/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-110 transition-transform duration-500"></div>
+              
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider opacity-80">
+                      {card.title}
+                    </p>
+                    <h3 className="text-3xl lg:text-4xl font-black text-gray-800 dark:text-white">
+                      {card.value}
+                    </h3>
+                    {card.subtitle && (
+                      <p className="text-sm text-gray-600 dark:text-gray-300 font-semibold">
+                        {card.subtitle}
+                      </p>
+                    )}
+                  </div>
+                  <div className={`${card.iconBg} p-4 rounded-2xl text-white shadow-lg group-hover:rotate-12 transition-transform duration-300`} title={card.tooltip}>
+                    <IconComponent className="w-7 h-7" />
+                  </div>
+                </div>
+                
+                {/* Enhanced Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{card.description}</span>
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{Math.round(card.progress)}%</span>
+                  </div>
+                  <div className="w-full bg-white/30 dark:bg-black/20 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div 
+                      className={`h-full bg-gradient-to-r ${card.gradient} rounded-full shadow-sm transition-all duration-1000 ease-out relative`}
+                      style={{ width: `${Math.min(card.progress, 100)}%` }}
+                    >
+                      <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      
-      <div className="bg-green-50 dark:bg-green-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-green-200 dark:border-green-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Present Days</p>
-          <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />
+
+      {/* Secondary Stats */}
+      {((stats.absent > 0) || (stats.halfDay > 0) || (stats.late > 0) || (stats.weekend > 0) || (stats.holiday > 0) || (stats.leave > 0) || (stats.incompleteCheckouts > 0)) && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
+          <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Additional Insights</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {stats.absent > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800">
+                <XCircle className="w-6 h-6 text-red-500 mb-2" />
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-300">Absent Days</p>
+              </div>
+            )}
+            {stats.halfDay > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="w-6 h-6 text-amber-500 mb-2" />
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.halfDay}</p>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Half Days</p>
+              </div>
+            )}
+            {stats.late > 0 && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                <Clock className="w-6 h-6 text-yellow-500 mb-2" />
+                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</p>
+                <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Late Days</p>
+              </div>
+            )}
+            {stats.weekend > 0 && (
+              <div className="bg-slate-50 dark:bg-slate-700 p-4 rounded-xl border border-slate-200 dark:border-slate-600">
+                <Calendar className="w-6 h-6 text-slate-500 mb-2" />
+                <p className="text-2xl font-bold text-slate-600 dark:text-slate-300">{stats.weekend}</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-400">Weekends</p>
+              </div>
+            )}
+            {stats.holiday > 0 && (
+              <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+                <Calendar className="w-6 h-6 text-orange-500 mb-2" />
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.holiday}</p>
+                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Holidays</p>
+              </div>
+            )}
+            {stats.leave > 0 && (
+              <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
+                <Calendar className="w-6 h-6 text-purple-500 mb-2" />
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.leave}</p>
+                <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Leave Days</p>
+              </div>
+            )}
+            {stats.incompleteCheckouts > 0 && (
+              <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+                <AlertCircle className="w-6 h-6 text-orange-500 mb-2" />
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.incompleteCheckouts}</p>
+                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Invalid Days</p>
+              </div>
+            )}
+          </div>
         </div>
-        <p className="text-xl sm:text-3xl font-bold text-green-600 dark:text-green-400">{stats.presentDays}</p>
-        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-          <div className="h-2 bg-green-500 dark:bg-green-500 rounded-full transition-all duration-500" style={{ width: `${stats.attendancePercentage}%` }}></div>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">{stats.attendancePercentage}% att.</p>
-      </div>
-      
-      <div className="bg-red-50 dark:bg-red-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-red-200 dark:border-red-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Absent Days</p>
-          <XCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
-        </div>
-        <p className="text-xl sm:text-3xl font-bold text-red-600 dark:text-red-400">{stats.absentDays}</p>
-        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-          <div className="h-2 bg-red-500 dark:bg-red-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.absentDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
-        </div>
-      </div>
-      
-      <div className="bg-amber-50 dark:bg-amber-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-amber-200 dark:border-amber-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Half Days</p>
-          <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-        </div>
-        <p className="text-xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.halfDays}</p>
-        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-          <div className="h-2 bg-amber-500 dark:bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.halfDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
-        </div>
-      </div>
-      
-      <div className="bg-orange-50 dark:bg-orange-900/20 p-3 sm:p-5 rounded-xl shadow-xl border border-orange-200 dark:border-orange-800 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">Invalid Days</p>
-          <Clock className="w-5 h-5 text-orange-500 dark:text-orange-400" />
-        </div>
-        <p className="text-xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.invalidDays}</p>
-        <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-          <div className="h-2 bg-orange-500 dark:bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${stats.totalWorkingDays > 0 ? (stats.invalidDays / stats.totalWorkingDays) * 100 : 0}%` }}></div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -250,13 +316,28 @@ export default function MyAttendance() {
           setEffectiveDateRange(response.data.dateRange);
         }
         
-        // Process and store all data
-        const processedRecords = allRecords.map(record => ({
-          ...record,
-          date: new Date(record.date),
-          checkIn: record.checkIn ? new Date(record.checkIn) : null,
-          checkOut: record.checkOut ? new Date(record.checkOut) : null
-        }));
+        // Process and store all data with proper status prioritization
+        const processedRecords = allRecords.map(record => {
+          // Determine the proper status based on flags - prioritize holiday > weekend > leave over absent
+          let finalStatus = record.status || 'absent';
+          if (record.flags?.isHoliday) {
+            finalStatus = 'holiday';
+          } else if (record.flags?.isWeekend) {
+            finalStatus = 'weekend';
+          } else if (record.flags?.isLeave || record.status === 'leave') {
+            finalStatus = 'leave';
+          }
+          
+          return {
+            ...record,
+            status: finalStatus,
+            date: new Date(record.date),
+            checkIn: record.checkIn ? new Date(record.checkIn) : null,
+            checkOut: record.checkOut ? new Date(record.checkOut) : null,
+            flags: record.flags || {},
+            holidayTitle: record.holidayTitle || (record.flags?.isHoliday ? 'Holiday' : undefined)
+          };
+        });
         
         // Sort records by date in descending order (today first, then yesterday, etc.)
         const sortedRecords = processedRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -298,35 +379,120 @@ export default function MyAttendance() {
     hour: '2-digit', minute: '2-digit', hour12: true 
   }) : "—";
 
-  // Using standardized IST utils formatDate function
-
-  const getStatusIcon = (status, checkIn, checkOut) => {
-    if (status === "present") {
-      if (checkIn && checkOut) {
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      } else if (checkIn && !checkOut) {
-        return <AlertCircle className="w-4 h-4 text-amber-600" />;
-      }
-    }
-    if (status === "absent") return <XCircle className="w-4 h-4 text-red-600" />;
-    return <AlertCircle className="w-4 h-4 text-gray-600" />;
+  const formatDayOfWeek = (date) => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return days[new Date(date).getDay()];
   };
 
-  const getStatusBadge = (status, checkIn, checkOut) => {
-    const baseClasses = "px-3 py-1 rounded-full text-xs font-semibold";
+  // Using standardized IST utils formatDate function
+
+  const getStatusIcon = (record) => {
+    const { status, checkIn, checkOut, flags } = record;
+    
+    if (status === "weekend") return <Calendar className="w-5 h-5 text-slate-400" />;
+    if (status === "holiday") return <Calendar className="w-5 h-5 text-orange-500" />;
+    if (status === "leave") return <Calendar className="w-5 h-5 text-purple-500" />;
     
     if (status === "present") {
+      if (flags?.isLate) {
+        return <Clock className="w-5 h-5 text-amber-500" />;
+      }
       if (checkIn && checkOut) {
-        return <span className={`${baseClasses} bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300`}>Complete</span>;
-      } else if (checkIn && !checkOut) {
-        return <span className={`${baseClasses} bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300`}>Incomplete</span>;
+        return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+      }
+      if (checkIn && !checkOut) {
+        return <AlertCircle className="w-5 h-5 text-amber-500" />;
       }
     }
-    if (status === "absent") return <span className={`${baseClasses} bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300`}>Absent</span>;
-    if (status === "half-day") return <span className={`${baseClasses} bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300`}>Half Day</span>;
-    if (status === "late") return <span className={`${baseClasses} bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300`}>Late</span>;
-    if (status === "leave") return <span className={`${baseClasses} bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300`}>Leave</span>;
-    return <span className={`${baseClasses} bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300`}>{status}</span>;
+    
+    if (status === "half-day") return <AlertCircle className="w-5 h-5 text-blue-500" />;
+    if (status === "absent") return <XCircle className="w-5 h-5 text-red-500" />;
+    
+    return <AlertCircle className="w-5 h-5 text-slate-400" />;
+  };
+
+  const getStatusBadge = (record) => {
+    const { status, checkIn, checkOut, flags, holidayTitle } = record;
+    const baseClasses = "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold shadow-sm border transition-all duration-200 hover:shadow-md min-w-[100px] justify-center";
+    
+    if (status === "weekend") {
+      return (
+        <span className={`${baseClasses} bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600`}>
+          <Calendar className="w-3 h-3" />
+          Weekend
+        </span>
+      );
+    }
+    
+    if (status === "holiday") {
+      return (
+        <span className={`${baseClasses} bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700`} title={holidayTitle}>
+          <Calendar className="w-3 h-3" />
+          {holidayTitle || 'Holiday'}
+        </span>
+      );
+    }
+    
+    if (status === "leave") {
+      return (
+        <span className={`${baseClasses} bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700`}>
+          <Calendar className="w-3 h-3" />
+          Leave
+        </span>
+      );
+    }
+    
+    if (status === "present") {
+      if (flags?.isLate) {
+        return (
+          <span className={`${baseClasses} bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700`}>
+            <Clock className="w-3 h-3" />
+            Late Arrival
+          </span>
+        );
+      }
+      if (checkIn && checkOut) {
+        return (
+          <span className={`${baseClasses} bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700`}>
+            <CheckCircle className="w-3 h-3" />
+            Complete
+          </span>
+        );
+      }
+      if (checkIn && !checkOut) {
+        return (
+          <span className={`${baseClasses} bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700`}>
+            <AlertCircle className="w-3 h-3" />
+            Incomplete
+          </span>
+        );
+      }
+    }
+    
+    if (status === "half-day") {
+      return (
+        <span className={`${baseClasses} bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700`}>
+          <AlertCircle className="w-3 h-3" />
+          Half Day
+        </span>
+      );
+    }
+    
+    if (status === "absent") {
+      return (
+        <span className={`${baseClasses} bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700`}>
+          <XCircle className="w-3 h-3" />
+          Absent
+        </span>
+      );
+    }
+    
+    return (
+      <span className={`${baseClasses} bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600`}>
+        <AlertCircle className="w-3 h-3" />
+        Unknown
+      </span>
+    );
   };
 
   // Navigate pages without API calls (sliding window)
@@ -450,6 +616,7 @@ export default function MyAttendance() {
               <thead>
                 <tr className="bg-cyan-50 dark:bg-slate-700 text-cyan-700 dark:text-cyan-300">
                   <th className="p-4 text-left font-semibold">Date</th>
+                  <th className="p-4 text-left font-semibold">Day</th>
                   <th className="p-4 text-left font-semibold">Status</th>
                   <th className="p-4 text-left font-semibold">Check In</th>
                   <th className="p-4 text-left font-semibold">Check Out</th>
@@ -460,7 +627,7 @@ export default function MyAttendance() {
               <tbody>
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
                       <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                       <p className="text-lg font-medium">No attendance records found</p>
                       <p className="text-sm">Try adjusting your date range</p>
@@ -475,12 +642,15 @@ export default function MyAttendance() {
                   >
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
-                        {getStatusIcon(record.status, record.checkIn, record.checkOut)}
+                        {getStatusIcon(record)}
                         <span className="font-medium">{formatDate(record.date, false, 'DD MMM YYYY')}</span>
                       </div>
                     </td>
                     <td className="p-4">
-                      {getStatusBadge(record.status, record.checkIn, record.checkOut)}
+                      <span className="font-medium text-slate-600 dark:text-slate-400">{formatDayOfWeek(record.date)}</span>
+                    </td>
+                    <td className="p-4">
+                      {getStatusBadge(record)}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
@@ -527,10 +697,13 @@ export default function MyAttendance() {
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-3">
-                    {getStatusIcon(record.status, record.checkIn, record.checkOut)}
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date, false, 'DD MMM YYYY')}</span>
+                    {getStatusIcon(record)}
+                    <div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(record.date, false, 'DD MMM YYYY')}</span>
+                      <div className="text-sm font-medium text-slate-600 dark:text-slate-400">{formatDayOfWeek(record.date)}</div>
+                    </div>
                   </div>
-                  {getStatusBadge(record.status, record.checkIn, record.checkOut)}
+                  {getStatusBadge(record)}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">

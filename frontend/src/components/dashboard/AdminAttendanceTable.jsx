@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
-import { formatTime, formatDate, toDateTimeLocal, getISTDateString, parseISTDateString, createDateTimeLocal, getMonthOptions, getAllDaysInMonth, BUSINESS_HOURS } from '@/utils/istUtils';
+import { formatTime, formatDate, toDateTimeLocal, getISTDateString, createDateTimeLocal, getMonthOptions, getAllDaysInMonth, BUSINESS_HOURS } from '@/utils/istUtils';
 
 // 🚀 OPTIMIZED: Custom Time Input Component with AM/PM support (memoized)
 const TimeInput = memo(({ value, onChange, className }) => {
@@ -167,11 +167,6 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
           // Always set checkout for half-day
           newData.checkOut = `${baseDate}T13:30`;
           break;
-        case 'late':
-          // Always set checkin for late
-          newData.checkIn = `${baseDate}T10:00`;
-          if (!newData.checkOut) newData.checkOut = `${baseDate}T17:30`;
-          break;
         case 'absent':
           newData.checkIn = '';
           newData.checkOut = '';
@@ -276,7 +271,6 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
               <option value="present">Present</option>
               <option value="absent">Absent</option>
               <option value="half-day">Half Day</option>
-              <option value="late">Late</option>
             </select>
           </div>
 
@@ -351,6 +345,61 @@ const AdminAttendanceTable = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
+  // Transform backend employeeReports to frontend format
+  const transformBackendData = useCallback((employeeReports) => {
+    if (!Array.isArray(employeeReports)) return [];
+    
+    return employeeReports.map(report => {
+      // Transform records array to weekData object
+      const weekData = {};
+      
+      if (report.records && Array.isArray(report.records)) {
+        report.records.forEach(record => {
+          if (record.date) {
+            // Create date key in YYYY-MM-DD format
+            const date = new Date(record.date);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
+            
+            // Determine the proper status based on flags - prioritize holiday > weekend > leave over absent
+            let finalStatus = record.status || 'absent';
+            if (record.flags?.isHoliday) {
+              finalStatus = 'holiday';
+            } else if (record.flags?.isWeekend) {
+              finalStatus = 'weekend';
+            } else if (record.flags?.isLeave || record.status === 'leave') {
+              finalStatus = 'leave';
+            }
+            
+            // Transform to expected format
+            weekData[dateKey] = {
+              _id: record._id,
+              checkIn: record.checkIn,
+              checkOut: record.checkOut,
+              status: finalStatus,
+              isWorkingDay: !record.flags?.isWeekend && !record.flags?.isHoliday,
+              holidayTitle: record.flags?.isHoliday ? (record.holidayTitle || 'Holiday') : undefined
+            };
+          }
+        });
+      }
+      
+      return {
+        employee: {
+          _id: report.employee._id,
+          employeeId: report.employee.employeeId,
+          firstName: report.employee.firstName,
+          lastName: report.employee.lastName,
+          department: report.employee.department
+        },
+        employeeName: `${report.employee.firstName} ${report.employee.lastName}`,
+        weekData: weekData
+      };
+    });
+  }, []);
+
 
   // Get the current 4-day window from all working days
   const getCurrentWindow = () => {
@@ -381,13 +430,14 @@ const AdminAttendanceTable = () => {
       let response;
       
       // For monthly view, always use the range API 
-      const timestamp = Date.now();
-      response = await apiClient.getAdminAttendanceRange(startDate, endDate, { _t: timestamp });
+      response = await apiClient.getAdminAttendanceRange(startDate, endDate);
       
       if (response.success) {
+        // Transform backend employeeReports to frontend format
+        const transformedData = transformBackendData(response.data.employeeReports || []);
         
-        setMonthlyAttendanceData(response.data.records || []);
-        setAttendanceData(response.data.records || []);
+        setMonthlyAttendanceData(transformedData);
+        setAttendanceData(transformedData);
         
         // Generate all calendar days for the month using IST utilities
         const allDays = getAllDaysInMonth(firstDay);
@@ -434,7 +484,7 @@ const AdminAttendanceTable = () => {
         setWorkingDays(initialWindow);
         
         // Calculate stats for the current window
-        updateStatsForWindow(response.data.records || [], initialWindow);
+        updateStatsForWindow(transformedData, initialWindow);
       } else {
         setError(response.message || 'Failed to fetch attendance data');
       }
@@ -444,7 +494,7 @@ const AdminAttendanceTable = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, transformBackendData]);
 
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
@@ -670,7 +720,36 @@ const AdminAttendanceTable = () => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateKey = `${year}-${month}-${day}`;
-    return record.weekData?.[dateKey] || { checkIn: null, checkOut: null, status: 'absent' };
+    
+    // Check if we have attendance data for this day
+    const existingData = record.weekData?.[dateKey];
+    if (existingData) {
+      return existingData;
+    }
+    
+    // If no attendance record exists, check if it's a weekend or holiday
+    const dayOfWeek = date.getDay();
+    
+    // Sunday is always a weekend
+    if (dayOfWeek === 0) {
+      return { checkIn: null, checkOut: null, status: 'weekend' };
+    }
+    
+    // Saturday logic - check if it's 2nd Saturday (company holiday)
+    if (dayOfWeek === 6) {
+      const dateNum = date.getDate();
+      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+      const secondSaturday = firstSaturday + 7;
+      
+      // If this Saturday is the 2nd Saturday, it's a weekend
+      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+        return { checkIn: null, checkOut: null, status: 'weekend' };
+      }
+    }
+    
+    // Default to absent for working days with no record
+    return { checkIn: null, checkOut: null, status: 'absent' };
   };
 
   const getAttendanceStatusText = (attendance) => {

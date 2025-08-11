@@ -86,8 +86,6 @@ import salarySlipRoutes from "./routes/salarySlip.routes.js";
 import salaryStructureRoutes from "./routes/salaryStructure.routes.js";
 import policyRoutes from "./routes/policy.routes.js";
 import healthRoutes from "./routes/health.js";
-import hrAttendanceRoutes from "./routes/hr-attendance.js";
-import hrTaskReportsRoutes from "./routes/hr-task-reports.js";
 
 // API health check endpoint
 app.get('/api', (req, res) => {
@@ -139,8 +137,6 @@ app.use("/api/salary-slips", salarySlipRoutes);
 app.use("/api/salary-structures", salaryStructureRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/health", healthRoutes);
-app.use("/api/hr", hrAttendanceRoutes);
-app.use("/api/hr", hrTaskReportsRoutes);
 
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')

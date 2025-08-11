@@ -73,13 +73,23 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
           const day = String(new Date(record.date).getDate()).padStart(2, '0');
           const dateKey = `${year}-${month}-${day}`;
           
+          // Determine the proper status based on flags - prioritize holiday > weekend > leave over absent
+          let finalStatus = record.status || 'absent';
+          if (record.flags?.isHoliday) {
+            finalStatus = 'holiday';
+          } else if (record.flags?.isWeekend) {
+            finalStatus = 'weekend';
+          } else if (record.flags?.isLeave || record.status === 'leave') {
+            finalStatus = 'leave';
+          }
+          
           employeeRecord.weekData[dateKey] = {
             _id: record._id,
             checkIn: record.checkIn,
             checkOut: record.checkOut,
-            status: record.status || 'absent',
-            isWorkingDay: record.status !== 'weekend' && record.status !== 'holiday',
-            holidayTitle: record.holidayTitle
+            status: finalStatus,
+            isWorkingDay: !record.flags?.isWeekend && !record.flags?.isHoliday,
+            holidayTitle: record.flags?.isHoliday ? (record.holidayTitle || 'Holiday') : undefined
           };
         });
 
