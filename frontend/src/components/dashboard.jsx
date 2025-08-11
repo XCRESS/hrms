@@ -30,15 +30,15 @@ const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert
 
 // Component loading skeleton
 const ComponentSkeleton = () => (
-  <div className="animate-pulse bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700">
+  <div className="animate-pulse bg-white dark:bg-neutral-900 rounded-xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm">
     <div className="flex items-center justify-between mb-4">
-      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+      <div className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded w-1/3"></div>
+      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-16"></div>
     </div>
     <div className="space-y-3">
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-full"></div>
+      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
+      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2"></div>
     </div>
   </div>
 );
@@ -937,7 +937,7 @@ export default function HRMSDashboard() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 text-neutral-900 dark:text-neutral-50 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 min-h-screen">
       <div className="flex flex-col h-full">
         <Header 
           username={username}
@@ -974,16 +974,26 @@ export default function HRMSDashboard() {
                     />
                   </Suspense>
                   
-                  {/* Changed: Stack components vertically instead of side-by-side */}
-                  <div className="space-y-6">
-                    <Suspense fallback={<ComponentSkeleton />}>
-                      <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
-                    </Suspense>
-                    <Suspense fallback={<ComponentSkeleton />}>
-                      <div ref={pendingRequestsRef}>
-                        <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                  {/* Changed: Prioritize Work Queue visually above Attendance */}
+                  <div className="space-y-8">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Work Queue</h2>
                       </div>
-                    </Suspense>
+                      <Suspense fallback={<ComponentSkeleton />}>
+                        <div ref={pendingRequestsRef}>
+                          <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                        </div>
+                      </Suspense>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Team Attendance</h2>
+                      </div>
+                      <Suspense fallback={<ComponentSkeleton />}>
+                        <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
+                      </Suspense>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -993,39 +1003,59 @@ export default function HRMSDashboard() {
                       onRegularizationRequest={handleRegularizationFromReminder}
                     />
                   </Suspense>
-                  <Suspense fallback={<ComponentSkeleton />}>
-                    <AttendanceStats 
-                      attendanceData={data.attendanceData || []}
-                      holidays={data.holidaysData || []}
-                      calculateAttendancePercentage={calculateAttendancePercentage}
-                      isLoading={isLoading}
-                    />
-                  </Suspense>
-                  <Suspense fallback={<ComponentSkeleton />}>
-                    <EmployeeAttendanceTable 
-                      onRegularizationRequest={handleRegularizationFromReminder}
-                    />
-                  </Suspense>
-                  <Suspense fallback={<ComponentSkeleton />}>
-                    <LeaveRequestsTable 
-                      leaveRequests={allRequests}
-                      helpInquiries={[]}
-                      loadingLeaveRequests={loadingRequests}
-                      onNewRequest={() => setModal('showLeaveModal', true)}
-                      onNewHelpRequest={() => setModal('showHelpModal', true)}
-                      formatLeaveType={formatLeaveType}
-                    />
-                  </Suspense>
-                  <Suspense fallback={<ComponentSkeleton />}>
-                    <WeeklySummary 
-                      attendanceData={data.attendanceData || []}
-                    />
-                  </Suspense>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Overview</h2>
+                    </div>
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <AttendanceStats 
+                        attendanceData={data.attendanceData || []}
+                        holidays={data.holidaysData || []}
+                        calculateAttendancePercentage={calculateAttendancePercentage}
+                        isLoading={isLoading}
+                      />
+                    </Suspense>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">My Attendance</h2>
+                    </div>
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <EmployeeAttendanceTable 
+                        onRegularizationRequest={handleRegularizationFromReminder}
+                      />
+                    </Suspense>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Requests</h2>
+                    </div>
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <LeaveRequestsTable 
+                        leaveRequests={allRequests}
+                        helpInquiries={[]}
+                        loadingLeaveRequests={loadingRequests}
+                        onNewRequest={() => setModal('showLeaveModal', true)}
+                        onNewHelpRequest={() => setModal('showHelpModal', true)}
+                        formatLeaveType={formatLeaveType}
+                      />
+                    </Suspense>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">This Week</h2>
+                    </div>
+                    <Suspense fallback={<ComponentSkeleton />}>
+                      <WeeklySummary 
+                        attendanceData={data.attendanceData || []}
+                      />
+                    </Suspense>
+                  </div>
                 </>
               )}
             </div>
             
-            <div className="w-full lg:w-1/4">
+            <div className="w-full lg:w-1/4 lg:pl-2">
               <Suspense fallback={<ComponentSkeleton />}>
                 <UpdatesSidebar 
                   announcements={data.announcements || []}

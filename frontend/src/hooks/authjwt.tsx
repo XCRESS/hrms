@@ -1,6 +1,7 @@
 // hooks/useAuth.ts
 import { useEffect, useState } from "react";
 import {jwtDecode} from "jwt-decode";
+import { useNavigate } from "react-router-dom";
 
 interface JwtPayload {
   id?: string;
@@ -15,6 +16,7 @@ interface JwtPayload {
 
 export default function useAuth() {
   const [user, setUser] = useState<JwtPayload | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkAndSetUser = () => {
@@ -25,9 +27,10 @@ export default function useAuth() {
           
           // Check if token has expired
           if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-            console.warn("Token has expired, logging out");
+            console.warn("Token has expired, redirecting to login");
             localStorage.removeItem("authToken");
             setUser(null);
+            navigate("/auth/login", { replace: true });
             return;
           }
           
@@ -39,9 +42,10 @@ export default function useAuth() {
             return prev;
           });
         } catch (error) {
-          console.error("Invalid token", error);
+          console.error("Invalid token, redirecting to login", error);
           localStorage.removeItem("authToken");
           setUser(null);
+          navigate("/auth/login", { replace: true });
         }
       } else {
         setUser(null);
@@ -55,7 +59,7 @@ export default function useAuth() {
     const interval = setInterval(checkAndSetUser, 300000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   return user;
 }
