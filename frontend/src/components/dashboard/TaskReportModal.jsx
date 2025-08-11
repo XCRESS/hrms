@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { PlusCircle, XCircle, FileText, Clock, CheckCircle, AlertCircle, Save, ArrowRight, Coffee, Sunset } from 'lucide-react';
@@ -9,8 +9,37 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   const [postLunchTasks, setPostLunchTasks] = useState(['']);
   const [error, setError] = useState('');
   const [savedPreLunch, setSavedPreLunch] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const modalRef = useRef(null);
+  const backdropRef = useRef(null);
 
   const STORAGE_KEY = 'taskReport_preLunch';
+
+  // Detect mobile device and keyboard state
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
+
+  // Handle keyboard open/close on mobile
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleResize = () => {
+      const heightDiff = window.screen.height - window.innerHeight;
+      setIsKeyboardOpen(heightDiff > 150); // Threshold for keyboard detection
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,8 +62,20 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
       setPostLunchTasks(['']);
       setCurrentStep(1);
       setError('');
+      
+      // Prevent body scroll on mobile
+      if (isMobile) {
+        document.body.style.overflow = 'hidden';
+      }
+    } else {
+      // Restore body scroll
+      document.body.style.overflow = '';
     }
-  }, [isOpen]);
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, isMobile]);
 
   const getCurrentTasks = () => currentStep === 1 ? preLunchTasks : postLunchTasks;
   const setCurrentTasks = currentStep === 1 ? setPreLunchTasks : setPostLunchTasks;
@@ -44,6 +85,16 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     newTasks[index] = value;
     setCurrentTasks(newTasks);
   };
+
+  // Handle backdrop click - only close if not on mobile or if specifically clicking backdrop
+  const handleBackdropClick = useCallback((e) => {
+    if (e.target === backdropRef.current) {
+      // On mobile, require a deliberate backdrop click (not just any outside click)
+      if (!isMobile || !isKeyboardOpen) {
+        onClose();
+      }
+    }
+  }, [isMobile, isKeyboardOpen, onClose]);
 
   const handleAddTask = () => {
     setCurrentTasks([...getCurrentTasks(), '']);
@@ -125,8 +176,25 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all duration-300 animate-in slide-in-from-bottom-4">
+    <div 
+      ref={backdropRef}
+      className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center p-4 ${
+        isMobile && isKeyboardOpen ? 'items-start pt-4' : 'items-center'
+      }`}
+      onClick={handleBackdropClick}
+      style={{
+        paddingTop: isMobile && isKeyboardOpen ? '1rem' : undefined
+      }}
+    >
+      <div 
+        ref={modalRef}
+        className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full mx-auto transform transition-all duration-300 ${
+          isMobile 
+            ? `max-w-full ${isKeyboardOpen ? 'max-h-[90vh] overflow-y-auto' : 'max-w-lg animate-in slide-in-from-bottom-4'}` 
+            : 'max-w-lg animate-in slide-in-from-bottom-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3 mb-4">
@@ -203,7 +271,11 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                 )}
               </div>
               
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+              <div className={`space-y-3 pr-2 ${
+                isMobile && isKeyboardOpen 
+                  ? 'max-h-40 overflow-y-auto' 
+                  : 'max-h-64 overflow-y-auto'
+              }`}>
                 {getCurrentTasks().map((task, index) => (
                   <div key={index} className="group">
                     <div className="flex items-start gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-slate-300 dark:hover:border-slate-500 transition-colors focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20">
@@ -215,14 +287,21 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                         value={task}
                         onChange={(e) => handleTaskChange(index, e.target.value)}
                         className="flex-1 bg-transparent border-0 outline-none resize-none min-h-[20px] placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
-                        rows="1"
+                        rows={isMobile ? "2" : "1"}
                         style={{ 
-                          height: 'auto',
-                          minHeight: '20px'
+                          height: isMobile ? 'auto' : 'auto',
+                          minHeight: isMobile ? '40px' : '20px',
+                          maxHeight: isMobile && isKeyboardOpen ? '80px' : 'auto'
                         }}
                         onInput={(e) => {
-                          e.target.style.height = 'auto';
-                          e.target.style.height = e.target.scrollHeight + 'px';
+                          if (!isMobile || !isKeyboardOpen) {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          // Prevent accidental backdrop clicks while typing on mobile
+                          e.stopPropagation();
                         }}
                         required
                       />
@@ -275,7 +354,9 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
             )}
 
             {/* Footer */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <div className={`flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700 ${
+              isMobile ? 'flex-col' : 'flex-col sm:flex-row'
+            }`}>
               {currentStep === 2 && (
                 <Button 
                   type="button" 

@@ -3,8 +3,9 @@ import User from "../models/User.model.js";
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import moment from "moment-timezone";
-import { getISTNow, getISTDayBoundaries, calculateWorkHours, determineAttendanceStatus } from "../utils/istUtils.js";
+import { getISTNow, getISTDayBoundaries, calculateWorkHours } from "../utils/istUtils.js";
 import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
+import { AttendanceBusinessService } from "../services/attendance/AttendanceBusinessService.js";
 
 // Employee: Submit a regularization request
 export const requestRegularization = async (req, res) => {
@@ -200,37 +201,22 @@ export const reviewRegularization = async (req, res) => {
         console.log("Updated attendance record saved");
       }
       
-      // Calculate work hours and determine final status
+      // Calculate work hours and determine final status using business service
       if (att.checkIn && att.checkOut) {
-        const workHours = (new Date(att.checkOut) - new Date(att.checkIn)) / (1000 * 60 * 60);
-        att.workHours = parseFloat(workHours.toFixed(2));
+        const statusResult = AttendanceBusinessService.calculateFinalStatus(att.checkIn, att.checkOut);
         
-        // Update status based on work hours and check-in time
-        if (workHours < 4) {
-          att.status = 'half-day';
-        } else {
-          // Check if late based on check-in time (convert to IST for comparison)
-          const checkInDate = new Date(att.checkIn);
-          // Add 5.5 hours to convert UTC to IST for status calculation
-          const checkInIST = new Date(checkInDate.getTime() + (5.5 * 60 * 60 * 1000));
-          const checkInHour = checkInIST.getHours();
-          const checkInMinutes = checkInIST.getMinutes();
-          const checkInDecimal = checkInHour + (checkInMinutes / 60);
-          
-          if (checkInDecimal > 9.75) { // After 9:45 AM IST
-            att.status = 'late';
-          } else {
-            att.status = 'present';
-          }
-        }
+        att.status = statusResult.status;
+        att.workHours = statusResult.workHours;
         
         await att.save();
-        console.log("Final attendance status:", att.status, "Work hours:", att.workHours);
+        console.log("Final attendance status:", att.status, "Work hours:", att.workHours, "Flags:", statusResult.flags);
       } else if (att.checkIn && !att.checkOut) {
-        // Only check-in time provided, set as present for now
-        att.status = 'present';
+        // Only check-in time provided, use business service to determine status
+        const statusResult = AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null);
+        att.status = statusResult.status;
+        
         await att.save();
-        console.log("Attendance updated with check-in only, status:", att.status);
+        console.log("Attendance updated with check-in only, status:", att.status, "Flags:", statusResult.flags);
       }
       
       // Invalidate attendance cache for this employee and overall dashboard

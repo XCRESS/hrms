@@ -28,10 +28,15 @@ export const API_ENDPOINTS = {
     BASE: "/attendance",
     CHECK_IN: "/attendance/checkin",
     CHECK_OUT: "/attendance/checkout",
-    RECORDS: "/attendance/records",
-    GET_RECORDS: "/attendance/records",
-    MY_RECORDS: "/attendance",
-    GET_MISSING_CHECKOUTS: "/attendance/missing-checkouts"
+    RECORDS: "/attendance/records", 
+    GET_RECORDS: "/attendance",
+    MY_RECORDS: "/attendance/my",
+    MY_ATTENDANCE: "/attendance/my",
+    GET_MISSING_CHECKOUTS: "/attendance/missing-checkouts",
+    TODAY_WITH_ABSENTS: "/attendance/today-with-absents",
+    ADMIN_RANGE: "/attendance/admin-range", 
+    EMPLOYEE_WITH_ABSENTS: "/attendance/employee-with-absents",
+    UPDATE_RECORD: (recordId) => `/attendance/update/${recordId}`
   },
   
   // Leave Management

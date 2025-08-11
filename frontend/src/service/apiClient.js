@@ -371,52 +371,24 @@ class ApiClient {
     }
   
     async passwordChange(name, email, newPassword) {
-      return this.customFetch("/password-reset/request", {
-        method: "POST",
-        body: JSON.stringify({ name, email, newPassword }),
-      });
+      return this.post(API_ENDPOINTS.PASSWORD_RESET.REQUEST, { name, email, newPassword });
     }
    
     async createEmployee(employeeData) {
-      const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch("/employees/create", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(employeeData),
-      });
+      return this.post(API_ENDPOINTS.EMPLOYEES.CREATE, employeeData);
     }
 
     async getEmployees(params = {}) {
-      const token = localStorage.getItem("authToken"); // get token
-      const queryString = params.status ? `?status=${params.status}` : '';
-      return this.customFetch(`/employees${queryString}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EMPLOYEES.GET_ALL, params);
+      return this.get(endpoint);
     }
 
     async deleteEmployee(employeeId) {
-      const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch(`/employees/delete/${employeeId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.delete(API_ENDPOINTS.EMPLOYEES.DELETE(employeeId));
     }
 
     async toggleEmployeeStatus(employeeId) {
-      const token = localStorage.getItem("authToken"); // get token
-      return this.customFetch(`/employees/toggle-status/${employeeId}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.put(`/employees/toggle-status/${employeeId}`);
     }
 
     // Check-in and Check-out
@@ -446,28 +418,29 @@ class ApiClient {
 
     // Get today's attendance for all employees including absent ones (Admin/HR only)
     async getTodayAttendanceWithAbsents() {
-      return this.get("/attendance/today-with-absents");
+      return this.get(API_ENDPOINTS.ATTENDANCE.TODAY_WITH_ABSENTS);
     }
 
     // Get admin attendance data for a date range - optimized for AdminAttendanceTable
-    async getAdminAttendanceRange(startDate, endDate) {
-      const queryParams = new URLSearchParams({
-        startDate: startDate,
-        endDate: endDate
-      });
-      return this.get(`/attendance/admin-range?${queryParams.toString()}`);
+    async getAdminAttendanceRange(startDate, endDate, options = {}) {
+      const params = {
+        startDate,
+        endDate,
+        ...options
+      };
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.ADMIN_RANGE, params);
+      return this.get(endpoint);
     }
 
     // Get employee attendance with absent days included
     async getEmployeeAttendanceWithAbsents(params = {}) {
-      const queryString = new URLSearchParams(params).toString();
-      const endpoint = queryString ? `/attendance/employee-with-absents?${queryString}` : '/attendance/employee-with-absents';
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.EMPLOYEE_WITH_ABSENTS, params);
       return this.get(endpoint);
     }
 
     // Update attendance record (HR/Admin only)
     async updateAttendanceRecord(recordId, updateData) {
-      return this.put(`/attendance/update/${recordId}`, updateData);
+      return this.put(API_ENDPOINTS.ATTENDANCE.UPDATE_RECORD(recordId), updateData);
     }
 
     // Leave management
@@ -508,55 +481,41 @@ class ApiClient {
 
     // Holidays
     async getHolidays() {
-      return this.get("/holidays");
+      return this.get(API_ENDPOINTS.HOLIDAYS.BASE);
     }
 
     async createHoliday(holidayData) {
-      const token = localStorage.getItem("authToken");
-      return this.post("/holidays", holidayData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.post(API_ENDPOINTS.HOLIDAYS.CREATE, holidayData);
     }
 
     async updateHoliday(holidayId, holidayData) {
-      const token = localStorage.getItem("authToken");
-      return this.put(`/holidays/${holidayId}`, holidayData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.put(API_ENDPOINTS.HOLIDAYS.UPDATE(holidayId), holidayData);
     }
 
     async deleteHoliday(holidayId) {
-      const token = localStorage.getItem("authToken");
-      return this.delete(`/holidays/${holidayId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.delete(API_ENDPOINTS.HOLIDAYS.DELETE(holidayId));
     }
 
     // Announcements
     async getAnnouncements(params = {}) {
-      return this.get(`/announcements${Object.keys(params).length ? '?' + new URLSearchParams(params) : ''}`);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ANNOUNCEMENTS.BASE, params);
+      return this.get(endpoint);
     }
 
     async getAnnouncementById(id) {
-      return this.get(`/announcements/${id}`);
+      return this.get(API_ENDPOINTS.ANNOUNCEMENTS.GET_BY_ID(id));
     }
 
     async createAnnouncement(announcementData) {
-      return this.post("/announcements", announcementData);
+      return this.post(API_ENDPOINTS.ANNOUNCEMENTS.CREATE, announcementData);
     }
 
     async updateAnnouncement(id, announcementData) {
-      return this.put(`/announcements/${id}`, announcementData);
+      return this.put(API_ENDPOINTS.ANNOUNCEMENTS.UPDATE(id), announcementData);
     }
 
     async deleteAnnouncement(id) {
-      return this.delete(`/announcements/${id}`);
+      return this.delete(API_ENDPOINTS.ANNOUNCEMENTS.DELETE(id));
     }
 
     // Activity feed
@@ -576,61 +535,32 @@ class ApiClient {
 
     // Help/Support
     async submitHelpInquiry(inquiryData) {
-      return this.post("/help", inquiryData);
+      return this.post(API_ENDPOINTS.HELP.SUBMIT, inquiryData);
     }
     
     async getMyInquiries() {
-      return this.get(`/help/my`);
+      return this.get(API_ENDPOINTS.HELP.MY_INQUIRIES);
     }
 
     async getAllInquiries(filters = {}) {
-      // Convert filters to query string
-      const queryParams = new URLSearchParams();
-      if (filters.status) {
-        queryParams.append('status', filters.status);
-      }
-      if (filters.priority) {
-        queryParams.append('priority', filters.priority);
-      }
-      const queryString = queryParams.toString();
-      const endpoint = `/help/all${queryString ? `?${queryString}` : ''}`;
-      
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.HELP.ALL_INQUIRIES, filters);
       return this.get(endpoint);
     }
 
     async updateHelpInquiry(inquiryId, updateData) {
-      return this.patch(`/help/${inquiryId}`, updateData);
+      return this.patch(API_ENDPOINTS.HELP.UPDATE(inquiryId), updateData);
     }
 
-    async linkEmployeeToUser(userId, employeeId, endpoint = "/users/profile/link") {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ userId, employeeId }),
-      });
+    async linkEmployeeToUser(userId, employeeId) {
+      return this.post(API_ENDPOINTS.USERS.LINK_EMPLOYEE, { userId, employeeId });
     }
 
     async getUsersWithMissingEmployeeIds() {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch("/users/missing-employees", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.get(API_ENDPOINTS.USERS.MISSING_EMPLOYEES);
     }
 
     async getAllUsers() {
-      const token = localStorage.getItem("authToken");
-      return this.customFetch("/users", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      return this.get(API_ENDPOINTS.USERS.BASE);
     }
 
     async requestRegularization(data) {
@@ -674,16 +604,17 @@ class ApiClient {
       return this.post(endpoint, payload);
     }
 
-    async getAllPasswordResetRequests(params = {}) { // params for filtering if needed, e.g., { status: 'pending' }
-      return this.get("/password-reset/requests", params);
+    async getAllPasswordResetRequests(params = {}) {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.PASSWORD_RESET.REQUESTS, params);
+      return this.get(endpoint);
     }
 
     async approvePasswordResetRequest(requestId) {
-      return this.put(`/password-reset/request/${requestId}/approve`);
+      return this.put(API_ENDPOINTS.PASSWORD_RESET.APPROVE(requestId));
     }
 
     async rejectPasswordResetRequest(requestId, remarks = "") {
-      return this.put(`/password-reset/request/${requestId}/reject`, { remarks });
+      return this.put(API_ENDPOINTS.PASSWORD_RESET.REJECT(requestId), { remarks });
     }
 
     async getTaskReports(params = {}) {
@@ -692,31 +623,17 @@ class ApiClient {
 
     // Employee-specific methods
     async getMyAttendanceRecords(params = {}) {
-      const queryString = new URLSearchParams();
-      if (params.page) queryString.append('page', params.page);
-      if (params.limit) queryString.append('limit', params.limit);
-      if (params.startDate) queryString.append('startDate', params.startDate);
-      if (params.endDate) queryString.append('endDate', params.endDate);
-      
-      const endpoint = `/attendance/my${queryString.toString() ? `?${queryString.toString()}` : ''}`;
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.MY_RECORDS, params);
       return this.get(endpoint);
     }
 
     async getMyTaskReports(params = {}) {
-      const queryString = new URLSearchParams();
-      if (params.page) queryString.append('page', params.page);
-      if (params.limit) queryString.append('limit', params.limit);
-      if (params.search) queryString.append('search', params.search);
-      if (params.status && params.status !== 'all') queryString.append('status', params.status);
-      if (params.startDate) queryString.append('startDate', params.startDate);
-      if (params.endDate) queryString.append('endDate', params.endDate);
-      
-      const endpoint = `/task-reports/my${queryString.toString() ? `?${queryString.toString()}` : ''}`;
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.MY_REPORTS, params);
       return this.get(endpoint);
     }
 
     async submitTaskReport(data) {
-      return this.post("/task-reports/submit", data);
+      return this.post(API_ENDPOINTS.TASK_REPORTS.BASE, data);
     }
 
     // Salary Slip Management
@@ -748,11 +665,11 @@ class ApiClient {
     }
 
     async updateSalarySlipStatus(employeeId, month, year, status) {
-      return this.put(`/salary-slips/${employeeId}/${month}/${year}/status`, { status });
+      return this.put(`${API_ENDPOINTS.SALARY_SLIPS.BASE}/${employeeId}/${month}/${year}/status`, { status });
     }
 
     async bulkUpdateSalarySlipStatus(salarySlips, status) {
-      return this.put('/salary-slips/bulk/status', { salarySlips, status });
+      return this.put(`${API_ENDPOINTS.SALARY_SLIPS.BASE}/bulk/status`, { salarySlips, status });
     }
 
     // Salary Structure Management

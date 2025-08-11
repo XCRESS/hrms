@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { calculateWorkHours } from "../utils/istUtils.js";
 
 const attendanceSchema = new mongoose.Schema({
   employee: {
@@ -26,7 +27,7 @@ const attendanceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["present", "absent", "half-day", "late", "leave"],
+    enum: ["present", "absent", "half-day"],
     required: true
   },
   workHours: {
@@ -55,37 +56,13 @@ const attendanceSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Calculate work hours and auto-detect status
+// Calculate work hours only - business logic moved to service layer
 attendanceSchema.pre('save', async function(next) {
   try {
-    // Calculate work hours when checking out
+    // Use IST-aware work hours calculation instead of basic math
     if (this.checkIn && this.checkOut) {
-      const checkInTime = new Date(this.checkIn).getTime();
-      const checkOutTime = new Date(this.checkOut).getTime();
-      const milliseconds = checkOutTime - checkInTime;
-      this.workHours = parseFloat((milliseconds / (1000 * 60 * 60)).toFixed(2));
-      
-      // Set status based on work hours if not manually set to specific statuses
-      if (this.workHours < 4 && !['late', 'leave'].includes(this.status)) {
-        this.status = 'half-day';
-      }
+      this.workHours = calculateWorkHours(this.checkIn, this.checkOut);
     }
-    
-    // Auto-detect late status based on check-in time (after 9:45 AM)
-    if (this.checkIn && this.status === 'present') {
-      const checkInDate = new Date(this.checkIn);
-      const checkInHour = checkInDate.getHours();
-      const checkInMinutes = checkInDate.getMinutes();
-      const checkInDecimal = checkInHour + (checkInMinutes / 60);
-      
-      // Mark as late if check-in is after 9:45 AM (9.75 hours)
-      if (checkInDecimal > 9.75) {
-        this.status = 'late';
-      }
-    }
-    
-    // Check for approved leave - this would need to be done at the controller level
-    // since we need access to the Leave model
     
     next();
   } catch (error) {
