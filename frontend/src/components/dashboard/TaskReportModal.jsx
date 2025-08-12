@@ -28,17 +28,40 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // Handle keyboard open/close on mobile
+  // Handle keyboard open/close on mobile with better viewport detection
   useEffect(() => {
     if (!isMobile) return;
 
-    const handleResize = () => {
-      const heightDiff = window.screen.height - window.innerHeight;
-      setIsKeyboardOpen(heightDiff > 150); // Threshold for keyboard detection
+    let initialViewportHeight = window.visualViewport?.height || window.innerHeight;
+    
+    const handleViewportChange = () => {
+      const currentHeight = window.visualViewport?.height || window.innerHeight;
+      const heightDiff = initialViewportHeight - currentHeight;
+      
+      // Use a more reliable threshold and add debouncing
+      const threshold = Math.min(150, initialViewportHeight * 0.25); // 25% of initial height or 150px
+      setIsKeyboardOpen(heightDiff > threshold);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const handleResize = () => {
+      // Fallback for browsers without visualViewport
+      if (!window.visualViewport) {
+        const currentHeight = window.innerHeight;
+        const heightDiff = initialViewportHeight - currentHeight;
+        const threshold = Math.min(150, initialViewportHeight * 0.25);
+        setIsKeyboardOpen(heightDiff > threshold);
+      }
+    };
+
+    // Use visualViewport API when available (more reliable)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      return () => window.visualViewport?.removeEventListener('resize', handleViewportChange);
+    } else {
+      // Fallback for older browsers
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
   }, [isMobile]);
 
   useEffect(() => {
@@ -86,15 +109,11 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     setCurrentTasks(newTasks);
   };
 
-  // Handle backdrop click - only close if not on mobile or if specifically clicking backdrop
+  // Handle backdrop click - disabled to prevent accidental closure
   const handleBackdropClick = useCallback((e) => {
-    if (e.target === backdropRef.current) {
-      // On mobile, require a deliberate backdrop click (not just any outside click)
-      if (!isMobile || !isKeyboardOpen) {
-        onClose();
-      }
-    }
-  }, [isMobile, isKeyboardOpen, onClose]);
+    // Modal no longer closes when clicking outside - only via close button or cancel
+    // This prevents accidental closure when clicking outside the modal
+  }, []);
 
   const handleAddTask = () => {
     setCurrentTasks([...getCurrentTasks(), '']);
@@ -178,22 +197,31 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   return (
     <div 
       ref={backdropRef}
-      className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center p-4 ${
-        isMobile && isKeyboardOpen ? 'items-start pt-4' : 'items-center'
-      }`}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center p-4"
       onClick={handleBackdropClick}
       style={{
-        paddingTop: isMobile && isKeyboardOpen ? '1rem' : undefined
+        alignItems: isMobile && isKeyboardOpen ? 'flex-start' : 'center',
+        paddingTop: isMobile && isKeyboardOpen ? 'max(1rem, env(safe-area-inset-top))' : undefined,
+        height: isMobile && isKeyboardOpen ? '100vh' : undefined,
+        position: 'fixed',
+        overflow: 'hidden'
       }}
     >
       <div 
         ref={modalRef}
-        className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full mx-auto transform transition-all duration-300 ${
+        className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full mx-auto transform transition-all duration-200 ${
           isMobile 
-            ? `max-w-full ${isKeyboardOpen ? 'max-h-[90vh] overflow-y-auto' : 'max-w-lg animate-in slide-in-from-bottom-4'}` 
+            ? `max-w-full ${!isKeyboardOpen ? 'max-w-lg animate-in slide-in-from-bottom-4' : ''}` 
             : 'max-w-lg animate-in slide-in-from-bottom-4'
         }`}
         onClick={(e) => e.stopPropagation()}
+        style={{
+          maxHeight: isMobile && isKeyboardOpen 
+            ? 'calc(100vh - 2rem)' 
+            : isMobile ? '90vh' : undefined,
+          overflowY: isMobile && isKeyboardOpen ? 'auto' : undefined,
+          marginTop: isMobile && isKeyboardOpen ? '0' : undefined
+        }}
       >
         {/* Header */}
         <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-700">
@@ -271,11 +299,14 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                 )}
               </div>
               
-              <div className={`space-y-3 pr-2 ${
-                isMobile && isKeyboardOpen 
-                  ? 'max-h-40 overflow-y-auto' 
-                  : 'max-h-64 overflow-y-auto'
-              }`}>
+              <div 
+                className="space-y-3 pr-2 overflow-y-auto"
+                style={{
+                  maxHeight: isMobile && isKeyboardOpen 
+                    ? '30vh' 
+                    : isMobile ? '50vh' : '16rem'
+                }}
+              >
                 {getCurrentTasks().map((task, index) => (
                   <div key={index} className="group">
                     <div className="flex items-start gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-slate-300 dark:hover:border-slate-500 transition-colors focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20">
@@ -289,15 +320,17 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                         className="flex-1 bg-transparent border-0 outline-none resize-none min-h-[20px] placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
                         rows={isMobile ? "2" : "1"}
                         style={{ 
-                          height: isMobile ? 'auto' : 'auto',
+                          height: 'auto',
                           minHeight: isMobile ? '40px' : '20px',
-                          maxHeight: isMobile && isKeyboardOpen ? '80px' : 'auto'
+                          maxHeight: isMobile && isKeyboardOpen ? '60px' : isMobile ? '120px' : 'auto',
+                          resize: 'none'
                         }}
                         onInput={(e) => {
-                          if (!isMobile || !isKeyboardOpen) {
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }
+                          // Auto-resize with constraints
+                          const maxHeight = isMobile && isKeyboardOpen ? 60 : isMobile ? 120 : 200;
+                          e.target.style.height = 'auto';
+                          const newHeight = Math.min(e.target.scrollHeight, maxHeight);
+                          e.target.style.height = newHeight + 'px';
                         }}
                         onTouchStart={(e) => {
                           // Prevent accidental backdrop clicks while typing on mobile
