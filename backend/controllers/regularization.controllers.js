@@ -212,7 +212,7 @@ export const reviewRegularization = async (req, res) => {
         console.log("Final attendance status:", att.status, "Work hours:", att.workHours, "Flags:", statusResult.flags);
       } else if (att.checkIn && !att.checkOut) {
         // Only check-in time provided, use business service to determine status
-        const statusResult = AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null);
+        const statusResult = await AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null);
         att.status = statusResult.status;
         
         await att.save();

@@ -17,7 +17,8 @@ import {
   Receipt,
   DollarSign,
   MessageCircle,
-  Shield
+  Shield,
+  Settings
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { motion } from "motion/react";
@@ -118,6 +119,11 @@ export default function SidebarDemo() {
               label: "HR Buddy",
               href: "/chatbot",
               icon: <MessageCircle className={accentIconClass('orange')} />,
+            },
+            {
+              label: "Settings",
+              href: "/settings",
+              icon: <Settings className={accentIconClass('gray')} />,
             },
           ];
         } else if (user && user.role === "employee") {

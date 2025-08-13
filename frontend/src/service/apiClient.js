@@ -23,29 +23,24 @@ class ApiClient {
             credentials: "include",
           };
           
-          // Enhanced logging for debugging
-          console.log(`🔍 API Call: ${options.method || 'GET'} ${url} (attempt ${attempt + 1}/${maxRetries + 1})`);
-          if (options.body && typeof options.body === 'string') {
-            try {
-              const bodyData = JSON.parse(options.body);
-              console.log('📦 Request Body:', bodyData);
-            } catch {
-              console.log('📦 Request Body (raw):', options.body);
-            }
+          // Simple API call logging (only for important endpoints)
+          const isImportantEndpoint = endpoint.includes('/auth/') || endpoint.includes('/employees/profile');
+          if (isImportantEndpoint && attempt === 0) {
+            console.log(`🔍 API: ${options.method || 'GET'} ${endpoint}`);
           }
           
           const response = await fetch(url, config);
           const responseTime = Date.now() - startTime;
-          console.log(`⏱️ Response time: ${responseTime}ms`);
         
         // Handle non-JSON responses
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
           
-          // Enhanced response logging
-          console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
-          console.log('📥 Response Data:', data);
+          // Only log important responses
+          if (isImportantEndpoint) {
+            console.log(`✅ ${endpoint}: ${response.status}`);
+          }
           
           // For 401 unauthorized responses, clear token
           if (response.status === 401) {
@@ -85,52 +80,19 @@ class ApiClient {
             
             error.isExpectedValidation = expectedValidationMessages.includes(errorMessage);
             
-            // Enhanced error logging with more context
+            // Only log non-validation errors
             if (!error.isValidationError && !error.isExpectedValidation) {
-              console.error("🚨 API Error Details:", {
-                endpoint,
-                status: response.status,
-                statusText: response.statusText,
-                message: errorMessage,
-                data,
-                timestamp: error.timestamp,
-                responseTime,
-                url,
-                headers: Object.fromEntries(response.headers.entries())
-              });
-              
-              // Store error in global error log for debugging
-              if (!window.apiErrorLog) window.apiErrorLog = [];
-              window.apiErrorLog.push({
-                endpoint,
-                status: response.status,
-                message: errorMessage,
-                data,
-                timestamp: error.timestamp,
-                responseTime,
-                userAgent: navigator.userAgent
-              });
-              
-              // Keep only last 50 errors to prevent memory issues
-              if (window.apiErrorLog.length > 50) {
-                window.apiErrorLog = window.apiErrorLog.slice(-50);
-              }
+              console.error(`🚨 API Error: ${endpoint} - ${errorMessage}`);
             }
             
             throw error;
           }
           
-          // Log successful responses for important endpoints
-          const importantEndpoints = ['/auth/login', '/auth/profile', '/employees/profile'];
-          if (importantEndpoints.some(ep => endpoint.includes(ep))) {
-            console.log(`✅ Important endpoint success: ${endpoint}`);
-          }
+          // Success - no logging needed for regular API calls
           
           return data;
         } else {
-          // Enhanced non-JSON response handling
-          console.log(`📄 Non-JSON Response: ${response.status} ${response.statusText}`);
-          console.log('📄 Content-Type:', contentType);
+          // Non-JSON response
           
           if (!response.ok) {
             const responseText = await response.text();
@@ -141,14 +103,7 @@ class ApiClient {
             error.endpoint = endpoint;
             error.timestamp = new Date().toISOString();
             
-            console.error("🚨 Non-JSON API Error:", {
-              endpoint,
-              status: response.status,
-              statusText: response.statusText,
-              contentType,
-              responseText: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
-              timestamp: error.timestamp
-            });
+            console.error(`🚨 Non-JSON API Error: ${endpoint} - ${response.status}`);
             
             throw error;
           }
@@ -157,19 +112,9 @@ class ApiClient {
         } catch (error) {
           const errorTime = Date.now() - startTime;
           
-          // Enhanced error logging with more context
-          if (!error.isExpectedValidation) {
-            console.error(`🚨 Fetch Error (attempt ${attempt + 1}):`, {
-              endpoint,
-              errorName: error.name,
-              errorMessage: error.message,
-              status: error.status,
-              attempt: attempt + 1,
-              maxRetries: maxRetries + 1,
-              timeElapsed: errorTime,
-              isNetworkError: error.name === 'TypeError' && error.message.includes('Failed to fetch'),
-              stack: error.stack
-            });
+          // Only log unexpected errors
+          if (!error.isExpectedValidation && !error.message.includes('Failed to fetch')) {
+            console.error(`🚨 Fetch Error: ${endpoint} - ${error.message}`);
           }
           
           // If it's already been classified as a validation error, don't retry
@@ -182,36 +127,14 @@ class ApiClient {
             error.isServerUnavailable = true;
             
             if (attempt < maxRetries) {
-              console.warn(`🔄 Network error on attempt ${attempt + 1}, retrying in ${retryDelay}ms...`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue; // Retry the request
             }
             
-            // Final attempt failed - enhanced logging
-            console.error("🚨 API Server Unavailable after all retries:", {
-              endpoint,
-              attempts: maxRetries + 1,
-              totalTimeElapsed: errorTime,
-              lastError: error.message,
-              timestamp: new Date().toISOString()
-            });
-            
-            // Store network error for debugging
-            if (!window.networkErrors) window.networkErrors = [];
-            window.networkErrors.push({
-              endpoint,
-              attempts: maxRetries + 1,
-              timestamp: new Date().toISOString(),
-              error: error.message
-            });
+            // Final attempt failed
+            console.error(`🚨 Server unavailable: ${endpoint}`);
           } else if (!error.isValidationError) {
-            console.error("🚨 Unexpected API Error:", {
-              endpoint,
-              error: error.message,
-              status: error.status,
-              timestamp: new Date().toISOString(),
-              stack: error.stack
-            });
+            console.error(`🚨 Unexpected error: ${endpoint} - ${error.message}`);
           }
           
           throw error;
@@ -733,6 +656,36 @@ class ApiClient {
 
     async getPolicyStatistics() {
       return this.get(API_ENDPOINTS.POLICIES.STATISTICS);
+    }
+
+    // Settings methods
+    async getGlobalSettings() {
+      return this.get(API_ENDPOINTS.SETTINGS.GLOBAL);
+    }
+
+    async updateGlobalSettings(settingsData) {
+      return this.put(API_ENDPOINTS.SETTINGS.GLOBAL, settingsData);
+    }
+
+    async getDepartmentSettings(department) {
+      return this.get(API_ENDPOINTS.SETTINGS.DEPARTMENT(department));
+    }
+
+    async updateDepartmentSettings(department, settingsData) {
+      return this.put(API_ENDPOINTS.SETTINGS.DEPARTMENT(department), settingsData);
+    }
+
+    async deleteDepartmentSettings(department) {
+      return this.delete(API_ENDPOINTS.SETTINGS.DEPARTMENT(department));
+    }
+
+    async getEffectiveSettings(department = null) {
+      const params = department ? { department } : {};
+      return this.get(buildEndpointWithQuery(API_ENDPOINTS.SETTINGS.EFFECTIVE, params));
+    }
+
+    async getDepartments() {
+      return this.get(API_ENDPOINTS.SETTINGS.DEPARTMENTS);
     }
   }
   

@@ -5,19 +5,18 @@
 
 import { 
   ATTENDANCE_STATUS, 
-  BUSINESS_RULES,
   ERROR_MESSAGES,
   SUCCESS_MESSAGES
 } from '../../utils/attendance/attendanceConstants.js';
 import { 
   getISTNow, 
   getISTDayBoundaries,
-  getBusinessHours,
   getISTDateString,
   calculateWorkHours,
   determineAttendanceStatus as originalDetermineStatus
 } from '../../utils/istUtils.js';
 import { computeAttendanceFlags, computeDayFlags } from '../../utils/attendance/attendanceComputedFlags.js';
+import settingsService from '../settings/SettingsService.js';
 
 /**
  * AttendanceBusinessService
@@ -30,9 +29,10 @@ export class AttendanceBusinessService {
    * Uses simplified 3-status system: Present (includes late), Absent, Half-day
    * @param {Date} checkInTime - Check-in timestamp
    * @param {Date} checkOutTime - Check-out timestamp (optional)
-   * @returns {Object} Status and flags object
+   * @param {string} department - Department for settings lookup (optional)
+   * @returns {Promise<Object>} Status and flags object
    */
-  static determineAttendanceStatus(checkInTime, checkOutTime = null) {
+  static async determineAttendanceStatus(checkInTime, checkOutTime = null, department = null) {
     if (!checkInTime) {
       return { 
         status: ATTENDANCE_STATUS.ABSENT, 
@@ -54,9 +54,12 @@ export class AttendanceBusinessService {
 
     let status = ATTENDANCE_STATUS.PRESENT;
     
-    // If checked out, determine final status based on work hours
-    if (checkOutTime && workHours < BUSINESS_RULES.MINIMUM_WORK_HOURS) {
-      status = ATTENDANCE_STATUS.HALF_DAY;
+    // If checked out, determine final status based on work hours using dynamic settings
+    if (checkOutTime) {
+      const thresholds = await settingsService.getWorkHourThresholds(department);
+      if (workHours < thresholds.minimumWorkHours) {
+        status = ATTENDANCE_STATUS.HALF_DAY;
+      }
     }
 
     // Create a mock record for flag computation
@@ -71,21 +74,13 @@ export class AttendanceBusinessService {
   }
 
   /**
-   * Check if a date is a working day for the company
-   * Working days: Monday to Friday + 1st, 3rd, 4th, 5th Saturday (excluding 2nd Saturday)
-   * Non-working days: Sunday + 2nd Saturday of each month + holidays
+   * Check if a date is a working day for the company using dynamic settings
    * @param {Date} date - The IST date to check
    * @param {Map} holidayMap - Pre-fetched holiday map for O(1) lookup (optional)
-   * @returns {boolean} True if it's a working day
+   * @param {string} department - Department for settings lookup (optional)
+   * @returns {Promise<boolean>} True if it's a working day
    */
-  static isWorkingDayForCompany(date, holidayMap = null) {
-    const dayOfWeek = date.getDay();
-    
-    // Sunday is always a non-working day
-    if (dayOfWeek === 0) {
-      return false;
-    }
-    
+  static async isWorkingDayForCompany(date, holidayMap = null, department = null) {
     // Check if it's a holiday using pre-fetched map (O(1) lookup)
     if (holidayMap) {
       const dateKey = getISTDateString(date);
@@ -94,28 +89,8 @@ export class AttendanceBusinessService {
       }
     }
     
-    // Monday to Friday are working days (if not a holiday)
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      return true;
-    }
-    
-    // Saturday logic: exclude 2nd Saturday of the month
-    if (dayOfWeek === 6) {
-      const dateNum = date.getDate();
-      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7; // Get first Saturday of month
-      const secondSaturday = firstSaturday + 7; // Second Saturday is 7 days later
-      
-      // If this Saturday is the 2nd Saturday, it's a non-working day
-      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-        return false;
-      }
-      
-      // All other Saturdays are working days (if not a holiday)
-      return true;
-    }
-    
-    return false;
+    // Use settings service to check if it's a working day
+    return await settingsService.isWorkingDay(date, department);
   }
 
   /**
@@ -231,10 +206,11 @@ export class AttendanceBusinessService {
    * Calculate final attendance status after checkout
    * @param {Date} checkInTime - Check-in time
    * @param {Date} checkOutTime - Check-out time
-   * @returns {Object} Final status and metadata
+   * @param {string} department - Department for settings lookup (optional)
+   * @returns {Promise<Object>} Final status and metadata
    */
-  static calculateFinalStatus(checkInTime, checkOutTime) {
-    const statusResult = this.determineAttendanceStatus(checkInTime, checkOutTime);
+  static async calculateFinalStatus(checkInTime, checkOutTime, department = null) {
+    const statusResult = await this.determineAttendanceStatus(checkInTime, checkOutTime, department);
     const workHours = calculateWorkHours(checkInTime, checkOutTime);
     
     return {
@@ -246,12 +222,13 @@ export class AttendanceBusinessService {
   }
 
   /**
-   * Generate business hours for a specific date
+   * Generate business hours for a specific date using dynamic settings
    * @param {Date} date - Target date
-   * @returns {Object} Business hours object
+   * @param {string} department - Department for settings lookup (optional)
+   * @returns {Promise<Object>} Business hours object
    */
-  static getBusinessHours(date) {
-    return getBusinessHours(date);
+  static async getBusinessHours(date, department = null) {
+    return await settingsService.getBusinessHours(date, department);
   }
 
   /**
@@ -318,9 +295,9 @@ export class AttendanceBusinessService {
    * @param {Object} attendanceRecord - Attendance record (optional)
    * @param {Object} approvedLeave - Approved leave record (optional)
    * @param {Map} holidayMap - Holiday map (optional)
-   * @returns {Object} Processed attendance data
+   * @returns {Promise<Object>} Processed attendance data
    */
-  static processAttendanceForDay(date, employee, attendanceRecord = null, approvedLeave = null, holidayMap = null) {
+  static async processAttendanceForDay(date, employee, attendanceRecord = null, approvedLeave = null, holidayMap = null) {
     const dayType = this.determineDayType(date, holidayMap);
     
     // Base result structure
@@ -369,7 +346,7 @@ export class AttendanceBusinessService {
     // Handle attendance record
     if (attendanceRecord) {
       const workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
-      const statusResult = this.determineAttendanceStatus(attendanceRecord.checkIn, attendanceRecord.checkOut);
+      const statusResult = await this.determineAttendanceStatus(attendanceRecord.checkIn, attendanceRecord.checkOut, employee.department);
       
       result.checkIn = attendanceRecord.checkIn;
       result.checkOut = attendanceRecord.checkOut;

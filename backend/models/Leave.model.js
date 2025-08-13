@@ -9,7 +9,7 @@ const leaveSchema = new mongoose.Schema(
     },
     leaveType: {
       type: String,
-      enum: ["full-day", "half-day", "sick-leave", "vacation", "personal"],
+      enum: ["full-day", "half-day"],
       required: true,
     },
     leaveDate: {

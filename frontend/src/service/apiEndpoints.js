@@ -93,7 +93,7 @@ export const API_ENDPOINTS = {
   // User Management
   USERS: {
     BASE: "/users",
-    LINK_EMPLOYEE: "/users/profile/link",
+    LINK_EMPLOYEE: "/employees/link",
     MISSING_EMPLOYEES: "/users/missing-employees"
   },
   
@@ -149,6 +149,15 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/policies/${id}`,
     DELETE: (id) => `/policies/${id}`,
     STATISTICS: "/policies/statistics"
+  },
+
+  // Settings
+  SETTINGS: {
+    BASE: "/settings",
+    GLOBAL: "/settings/global",
+    DEPARTMENT: (department) => `/settings/department/${encodeURIComponent(department)}`,
+    EFFECTIVE: "/settings/effective",
+    DEPARTMENTS: "/settings/departments/list"
   }
 };
 

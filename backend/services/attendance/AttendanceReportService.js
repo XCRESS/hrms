@@ -60,7 +60,7 @@ export class AttendanceReportService {
     const allDays = generateDateRange(startDate, endDate);
     const processedRecords = [];
 
-    allDays.forEach(dayObj => {
+    for (const dayObj of allDays) {
       const date = dayObj.date;
       const dateKey = getISTDateString(date);
       
@@ -75,12 +75,12 @@ export class AttendanceReportService {
       );
 
       // Process the day using business service
-      const processedRecord = AttendanceBusinessService.processAttendanceForDay(
+      const processedRecord = await AttendanceBusinessService.processAttendanceForDay(
         date, employee, attendanceRecord, approvedLeave, holidayMap
       );
 
       processedRecords.push(processedRecord);
-    });
+    }
 
     // Calculate statistics
     const statistics = calculateAttendanceStats(processedRecords);
@@ -250,22 +250,24 @@ export class AttendanceReportService {
     const todayLeaves = await AttendanceDataService.getApprovedLeavesInRange(date, date);
 
     // Process attendance for all employees
-    const processedRecords = allEmployees.map(employee => {
-      // Find attendance record for this employee
-      const attendanceRecord = todayAttendance.find(record => 
-        record.employee._id.toString() === employee._id.toString()
-      );
+    const processedRecords = await Promise.all(
+      allEmployees.map(async (employee) => {
+        // Find attendance record for this employee
+        const attendanceRecord = todayAttendance.find(record => 
+          record.employee._id.toString() === employee._id.toString()
+        );
 
-      // Find approved leave for this employee
-      const approvedLeave = todayLeaves.find(leave =>
-        leave.employeeId === employee.employeeId
-      );
+        // Find approved leave for this employee
+        const approvedLeave = todayLeaves.find(leave =>
+          leave.employeeId === employee.employeeId
+        );
 
-      // Process using business service
-      return AttendanceBusinessService.processAttendanceForDay(
-        date, employee, attendanceRecord, approvedLeave, holidayMap
-      );
-    });
+        // Process using business service
+        return await AttendanceBusinessService.processAttendanceForDay(
+          date, employee, attendanceRecord, approvedLeave, holidayMap
+        );
+      })
+    );
 
     // Calculate statistics
     const statistics = calculateAttendanceStats(processedRecords);

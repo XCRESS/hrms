@@ -82,8 +82,8 @@ export const checkIn = asyncErrorHandler(async (req, res) => {
     }
   }
 
-  // Determine status and create attendance record
-  const statusResult = Business.determineAttendanceStatus(now);
+  // Determine status and create attendance record using employee's department
+  const statusResult = await Business.determineAttendanceStatus(now, null, employee.department);
 
   const attendanceData = {
     employee: employeeObjId,
@@ -151,8 +151,8 @@ export const checkOut = asyncErrorHandler(async (req, res) => {
     tasks: taskValidation.validTasks
   });
 
-  // Calculate final status and update attendance
-  const finalStatus = Business.calculateFinalStatus(attendance.checkIn, now);
+  // Calculate final status and update attendance using employee's department
+  const finalStatus = await Business.calculateFinalStatus(attendance.checkIn, now, employee.department);
   
   const updatedAttendance = await Data.updateAttendanceRecord(attendance._id, {
     checkOut: now,
@@ -395,8 +395,8 @@ export const updateAttendanceRecord = asyncErrorHandler(async (req, res) => {
       
       updatedRecord = await Data.updateAttendanceRecord(existingRecord._id, updateData);
     } else {
-      // Create new record
-      const businessHours = Business.getBusinessHours(recordDate);
+      // Create new record using employee's department for business hours
+      const businessHours = await Business.getBusinessHours(recordDate, employee.department);
       
       const attendanceData = {
         employee: employee._id,
