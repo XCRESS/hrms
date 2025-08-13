@@ -146,7 +146,8 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
   }, [record, isOpen]);
 
   const handleStatusChange = (status) => {
-    const recordDate = new Date(record?.date || new Date());
+    // Use the date directly without creating a new Date object to avoid timezone issues
+    const recordDate = record?.date || new Date();
     // Format as YYYY-MM-DD using local time components to avoid timezone issues
     const year = recordDate.getFullYear();
     const month = String(recordDate.getMonth() + 1).padStart(2, '0');
@@ -205,7 +206,7 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
         updateData.employeeId = employeeProfile?.employeeId;
-        updateData.date = record.date;
+        updateData.date = record.date instanceof Date ? record.date.toISOString() : record.date;
       }
 
       if (record._id) {
