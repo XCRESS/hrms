@@ -222,10 +222,18 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
     setError('');
 
     try {
+      // Helper function to convert datetime-local to ISO without timezone conversion
+      const datetimeLocalToISO = (datetimeLocal) => {
+        if (!datetimeLocal) return null;
+        // Append seconds and 'Z' to make it a proper UTC ISO string
+        // This preserves the exact date/time from the input without timezone conversion
+        return `${datetimeLocal}:00.000Z`;
+      };
+
       const updateData = {
         status: formData.status,
-        checkIn: formData.checkIn ? new Date(formData.checkIn).toISOString() : null,
-        checkOut: formData.checkOut ? new Date(formData.checkOut).toISOString() : null
+        checkIn: datetimeLocalToISO(formData.checkIn),
+        checkOut: datetimeLocalToISO(formData.checkOut)
       };
 
       // For non-absent status, ensure we have valid times
@@ -237,14 +245,23 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
         }
         // For present status, if no checkout is provided, keep the existing one or set null
         if (formData.status === 'present' && !updateData.checkOut && record?.checkOut) {
-          updateData.checkOut = new Date(record.checkOut).toISOString();
+          updateData.checkOut = record.checkOut instanceof Date ? record.checkOut.toISOString() : record.checkOut;
         }
       }
 
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
         updateData.employeeId = employeeProfile?.employeeId;
-        updateData.date = record.date instanceof Date ? record.date.toISOString() : record.date;
+        // Preserve the date without timezone conversion
+        if (record.date instanceof Date) {
+          // Format as YYYY-MM-DD to preserve the date without timezone shifts
+          const year = record.date.getFullYear();
+          const month = String(record.date.getMonth() + 1).padStart(2, '0');
+          const day = String(record.date.getDate()).padStart(2, '0');
+          updateData.date = `${year}-${month}-${day}`;
+        } else {
+          updateData.date = record.date;
+        }
       }
 
       if (record._id) {
