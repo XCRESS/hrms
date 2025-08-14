@@ -222,18 +222,10 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
     setError('');
 
     try {
-      // Helper function to convert datetime-local to ISO without timezone conversion
-      const datetimeLocalToISO = (datetimeLocal) => {
-        if (!datetimeLocal) return null;
-        // Append seconds and 'Z' to make it a proper UTC ISO string
-        // This preserves the exact date/time from the input without timezone conversion
-        return `${datetimeLocal}:00.000Z`;
-      };
-
       const updateData = {
         status: formData.status,
-        checkIn: datetimeLocalToISO(formData.checkIn),
-        checkOut: datetimeLocalToISO(formData.checkOut)
+        checkIn: formData.checkIn ? new Date(formData.checkIn).toISOString() : null,
+        checkOut: formData.checkOut ? new Date(formData.checkOut).toISOString() : null
       };
 
       // For non-absent status, ensure we have valid times
@@ -252,16 +244,12 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
         updateData.employeeId = employeeProfile?.employeeId;
-        // Send date as ISO string to match backend expectations
-        updateData.date = record.date instanceof Date ? record.date.toISOString() : record.date;
+        updateData.date = record.date;
         
-        // Validate required fields
-        if (!updateData.employeeId) {
-          throw new Error('Employee ID is missing');
-        }
-        if (!updateData.date) {
-          throw new Error('Date is missing');
-        }
+        // Debug what we're sending
+        console.log('API Payload:', JSON.stringify(updateData, null, 2));
+        console.log('Employee Profile:', employeeProfile);
+        console.log('Record:', record);
       }
 
       if (record._id) {
