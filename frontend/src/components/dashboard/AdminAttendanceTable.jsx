@@ -120,30 +120,68 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [businessHours, setBusinessHours] = useState({
+    workStartTime: '09:00',
+    workEndTime: '18:00',
+    halfDayEndTime: '13:00'
+  });
+
+  // Fetch business hours when modal opens
+  useEffect(() => {
+    const fetchBusinessHours = async () => {
+      if (employeeProfile?.department && isOpen) {
+        try {
+          const settingsResponse = await apiClient.getEffectiveSettings(employeeProfile.department);
+          if (settingsResponse.success && settingsResponse.data?.attendance) {
+            setBusinessHours({
+              workStartTime: settingsResponse.data.attendance.workStartTime || '09:00',
+              workEndTime: settingsResponse.data.attendance.workEndTime || '18:00',
+              halfDayEndTime: settingsResponse.data.attendance.halfDayEndTime || '13:00'
+            });
+          }
+        } catch (err) {
+          console.error('Failed to fetch business hours:', err);
+          // Keep default values if fetch fails
+        }
+      }
+    };
+
+    fetchBusinessHours();
+  }, [employeeProfile?.department, isOpen]);
 
   useEffect(() => {
     if (record && isOpen) {
       const formatTimeForInput = (date, defaultTime) => {
         if (!date && !defaultTime) return '';
         
+        // Use the record date to ensure we're working with the correct date
+        const recordDate = new Date(record.date);
+        // Format as YYYY-MM-DD using local time components to avoid timezone issues
+        const year = recordDate.getFullYear();
+        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+        const day = String(recordDate.getDate()).padStart(2, '0');
+        const baseDate = `${year}-${month}-${day}`;
+        
         if (date) {
-          // Convert existing IST date to datetime-local format
-          return toDateTimeLocal(date);
+          // Convert existing date to local time for display
+          const existingDate = new Date(date);
+          const hours = existingDate.getHours().toString().padStart(2, '0');
+          const minutes = existingDate.getMinutes().toString().padStart(2, '0');
+          return `${baseDate}T${hours}:${minutes}`;
         } else if (defaultTime) {
-          // Create datetime-local with default time
-          return createDateTimeLocal(record.date, defaultTime);
+          return `${baseDate}T${defaultTime}`;
         }
         return '';
       };
 
       setFormData({
         status: record.status || 'present',
-        checkIn: formatTimeForInput(record.checkIn, BUSINESS_HOURS.WORK_START),
-        checkOut: formatTimeForInput(record.checkOut, BUSINESS_HOURS.WORK_END)
+        checkIn: formatTimeForInput(record.checkIn, businessHours.workStartTime),
+        checkOut: formatTimeForInput(record.checkOut, businessHours.workEndTime)
       });
       setError('');
     }
-  }, [record, isOpen]);
+  }, [record, isOpen, businessHours]);
 
   const handleStatusChange = (status) => {
     // Use the date directly without creating a new Date object to avoid timezone issues
@@ -160,13 +198,13 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       // Only auto-fill times if they are currently empty or for specific status changes
       switch (status) {
         case 'present':
-          if (!newData.checkIn) newData.checkIn = `${baseDate}T09:30`;
-          if (!newData.checkOut) newData.checkOut = `${baseDate}T17:30`;
+          if (!newData.checkIn) newData.checkIn = `${baseDate}T${businessHours.workStartTime}`;
+          if (!newData.checkOut) newData.checkOut = `${baseDate}T${businessHours.workEndTime}`;
           break;
         case 'half-day':
-          if (!newData.checkIn) newData.checkIn = `${baseDate}T09:30`;
+          if (!newData.checkIn) newData.checkIn = `${baseDate}T${businessHours.workStartTime}`;
           // Always set checkout for half-day
-          newData.checkOut = `${baseDate}T13:30`;
+          newData.checkOut = `${baseDate}T${businessHours.halfDayEndTime}`;
           break;
         case 'absent':
           newData.checkIn = '';
