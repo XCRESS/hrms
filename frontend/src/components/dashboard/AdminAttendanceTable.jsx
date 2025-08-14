@@ -255,15 +255,6 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
         // Send date as ISO string to match backend expectations
         updateData.date = record.date instanceof Date ? record.date.toISOString() : record.date;
         
-        // Debug logging for API payload
-        console.log('Creating new attendance record with data:', {
-          employeeId: updateData.employeeId,
-          date: updateData.date,
-          status: updateData.status,
-          checkIn: updateData.checkIn,
-          checkOut: updateData.checkOut
-        });
-        
         // Validate required fields
         if (!updateData.employeeId) {
           throw new Error('Employee ID is missing');
