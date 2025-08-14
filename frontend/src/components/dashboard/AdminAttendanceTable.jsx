@@ -244,7 +244,16 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
         updateData.employeeId = employeeProfile?.employeeId;
-        updateData.date = record.date;
+        
+        // Fix timezone issue for date field - send date as YYYY-MM-DD string
+        if (record.date instanceof Date) {
+          const year = record.date.getFullYear();
+          const month = String(record.date.getMonth() + 1).padStart(2, '0');
+          const day = String(record.date.getDate()).padStart(2, '0');
+          updateData.date = `${year}-${month}-${day}`;
+        } else {
+          updateData.date = record.date;
+        }
         
         // Debug what we're sending
         console.log('API Payload:', JSON.stringify(updateData, null, 2));
