@@ -687,6 +687,22 @@ class ApiClient {
     async getDepartments() {
       return this.get(API_ENDPOINTS.SETTINGS.DEPARTMENTS);
     }
+
+    async getDepartmentStats() {
+      return this.get(API_ENDPOINTS.SETTINGS.DEPARTMENT_STATS);
+    }
+
+    async addDepartment(departmentData) {
+      return this.post(API_ENDPOINTS.SETTINGS.ADD_DEPARTMENT, departmentData);
+    }
+
+    async renameDepartment(oldName, newName) {
+      return this.put(API_ENDPOINTS.SETTINGS.RENAME_DEPARTMENT(oldName), { newName });
+    }
+
+    async deleteDepartment(name) {
+      return this.delete(API_ENDPOINTS.SETTINGS.DELETE_DEPARTMENT(name));
+    }
   }
   
   // Export the instance

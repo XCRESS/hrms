@@ -57,8 +57,16 @@ export class AttendanceBusinessService {
     // If checked out, determine final status based on work hours using dynamic settings
     if (checkOutTime) {
       const thresholds = await settingsService.getWorkHourThresholds(department);
+      
       if (workHours < thresholds.minimumWorkHours) {
+        // Less than minimum required hours - mark as absent
+        status = ATTENDANCE_STATUS.ABSENT;
+      } else if (workHours < thresholds.fullDayHours) {
+        // Between minimum and full day hours - mark as half day
         status = ATTENDANCE_STATUS.HALF_DAY;
+      } else {
+        // Full day hours or more - mark as present
+        status = ATTENDANCE_STATUS.PRESENT;
       }
     }
 
@@ -235,9 +243,10 @@ export class AttendanceBusinessService {
    * Determine day type (working day, weekend, holiday)
    * @param {Date} date - Date to check
    * @param {Map} holidayMap - Holiday map (optional)
-   * @returns {Object} Day type information
+   * @param {string} department - Department for settings lookup (optional)
+   * @returns {Promise<Object>} Day type information
    */
-  static determineDayType(date, holidayMap = null) {
+  static async determineDayType(date, holidayMap = null, department = null) {
     const dateKey = getISTDateString(date);
     const dayOfWeek = date.getDay();
     
@@ -263,18 +272,15 @@ export class AttendanceBusinessService {
     }
 
     if (dayOfWeek === 6) { // Saturday
-      // Check if it's 2nd Saturday
-      const dateNum = date.getDate();
-      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-      const secondSaturday = firstSaturday + 7;
-      
-      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+      // Check if it's a holiday Saturday using settings
+      const isWorkingDay = await settingsService.isWorkingDay(date, department);
+      if (!isWorkingDay) {
+        const saturdayWeek = this.getSaturdayWeekOfMonth(date);
         return {
           type: 'weekend',
           isWorkingDay: false,
           flags: { isWeekend: true },
-          reason: '2nd Saturday'
+          reason: `${this.getOrdinalNumber(saturdayWeek)} Saturday`
         };
       }
     }
@@ -288,6 +294,39 @@ export class AttendanceBusinessService {
   }
 
   /**
+   * Determine which Saturday of the month a given date is
+   * @param {Date} date - Date to check (should be a Saturday)
+   * @returns {number} 1, 2, 3, or 4 representing 1st, 2nd, 3rd, or 4th Saturday
+   */
+  static getSaturdayWeekOfMonth(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dateNum = date.getDate();
+    
+    // Find the first Saturday of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate first Saturday date (0=Sunday, 6=Saturday)
+    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
+    
+    // Calculate which Saturday this date is
+    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
+    
+    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
+  }
+
+  /**
+   * Get ordinal number string (1st, 2nd, 3rd, 4th)
+   * @param {number} num - Number (1-4)
+   * @returns {string} Ordinal string
+   */
+  static getOrdinalNumber(num) {
+    const ordinals = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
+    return ordinals[num] || `${num}th`;
+  }
+
+  /**
    * Process attendance for a specific day
    * Determines the appropriate status and flags based on attendance record, leaves, and day type
    * @param {Date} date - Target date
@@ -298,7 +337,7 @@ export class AttendanceBusinessService {
    * @returns {Promise<Object>} Processed attendance data
    */
   static async processAttendanceForDay(date, employee, attendanceRecord = null, approvedLeave = null, holidayMap = null) {
-    const dayType = this.determineDayType(date, holidayMap);
+    const dayType = await this.determineDayType(date, holidayMap, employee.department);
     
     // Base result structure
     const result = {

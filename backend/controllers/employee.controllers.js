@@ -1,4 +1,5 @@
 import Employee from "../models/Employee.model.js";
+import Department from "../models/Department.model.js";
 
 export const createEmployee = async (req, res) => {
   try {
@@ -47,6 +48,20 @@ export const createEmployee = async (req, res) => {
       return res.status(400).json({
         message: "Employee already exists with same employee ID, email, Aadhaar number, or PAN number."
       });
+    }
+
+    // Validate department if provided
+    if (department && department.trim()) {
+      const departmentExists = await Department.findOne({ 
+        name: department.trim(), 
+        isActive: true 
+      });
+      
+      if (!departmentExists) {
+        return res.status(400).json({
+          message: `Department '${department}' does not exist. Please select from available departments.`
+        });
+      }
     }
 
     // creating employee
@@ -146,8 +161,36 @@ export const getEmployees = async (req, res) => {
 
 export const updateEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json({ message: "Employee updated", employee });
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Check if employee exists
+    const existingEmployee = await Employee.findById(id);
+    if (!existingEmployee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Validate department if it's being updated
+    if (updateData.department && updateData.department.trim()) {
+      const departmentExists = await Department.findOne({ 
+        name: updateData.department.trim(), 
+        isActive: true 
+      });
+      
+      if (!departmentExists) {
+        return res.status(400).json({
+          message: `Department '${updateData.department}' does not exist. Please select from available departments.`
+        });
+      }
+    }
+
+    // Update employee
+    const employee = await Employee.findByIdAndUpdate(id, updateData, { 
+      new: true,
+      runValidators: true 
+    });
+    
+    res.json({ message: "Employee updated successfully", employee });
   } catch (err) {
     res.status(500).json({ message: "Update failed", error: err.message });
   }

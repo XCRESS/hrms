@@ -157,7 +157,11 @@ export const API_ENDPOINTS = {
     GLOBAL: "/settings/global",
     DEPARTMENT: (department) => `/settings/department/${encodeURIComponent(department)}`,
     EFFECTIVE: "/settings/effective",
-    DEPARTMENTS: "/settings/departments/list"
+    DEPARTMENTS: "/settings/departments/list",
+    DEPARTMENT_STATS: "/settings/departments/stats",
+    ADD_DEPARTMENT: "/settings/departments",
+    RENAME_DEPARTMENT: (oldName) => `/settings/departments/${encodeURIComponent(oldName)}/rename`,
+    DELETE_DEPARTMENT: (name) => `/settings/departments/${encodeURIComponent(name)}`
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 const AddEmployee = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [formData, setFormData] = useState({
     employeeId: "",
     firstName: "",
@@ -68,6 +70,23 @@ const AddEmployee = () => {
   const handleJoiningDateChange = (date) => {
     setFormData({ ...formData, joiningDate: date });
   };
+
+  // Load departments on component mount
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const response = await apiClient.getDepartments();
+        setDepartments(response.departments || []);
+      } catch (error) {
+        console.error('Failed to load departments:', error);
+        setDepartments([]);
+      } finally {
+        setLoadingDepartments(false);
+      }
+    };
+
+    loadDepartments();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -428,13 +447,28 @@ const AddEmployee = () => {
               </LabelInputContainer>
               <LabelInputContainer>
                 <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  name="department"
+                <Select
+                  onValueChange={(value) => handleSelectChange("department", value)}
                   value={formData.department}
-                  onChange={handleChange}
                   required
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingDepartments ? "Loading departments..." : "Select department"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.length > 0 ? (
+                      departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        {loadingDepartments ? "Loading..." : "No departments available"}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </LabelInputContainer>
               <LabelInputContainer>
                 <Label htmlFor="position">Position</Label>

@@ -101,16 +101,14 @@ export class SettingsService {
         workStartTime: "09:00",
         workEndTime: "18:00",
         halfDayEndTime: "13:00",
-        lateArrivalTime: "10:15",
         minimumWorkHours: 4,
         fullDayHours: 8,
-        halfDayHours: 4,
         workingDays: [1, 2, 3, 4, 5, 6],
         nonWorkingDays: [0],
-        saturdayWorkType: "full"
+        saturdayWorkType: "full",
+        saturdayHolidays: []
       },
-      scope: "global",
-      version: "1.0.0"
+      scope: "global"
     };
   }
 
@@ -141,7 +139,6 @@ export class SettingsService {
       workStartDecimal: this.timeToDecimal(attendanceSettings.workStartTime),
       workEndDecimal: this.timeToDecimal(attendanceSettings.workEndTime),
       lateThresholdDecimal: this.timeToDecimal(attendanceSettings.lateThreshold),
-      lateArrivalDecimal: this.timeToDecimal(attendanceSettings.lateArrivalTime),
       halfDayEndDecimal: this.timeToDecimal(attendanceSettings.halfDayEndTime)
     };
   }
@@ -161,11 +158,38 @@ export class SettingsService {
       return false;
     }
     
-    // Special handling for Saturday based on saturdayWorkType
-    // For now, all Saturdays are working days (full or half day)
-    // 2nd Saturday off logic will be handled later
+    // Special handling for Saturday - check if it's a holiday Saturday
+    if (dayOfWeek === 6) { // Saturday
+      const saturdayWeek = this.getSaturdayWeekOfMonth(date);
+      if (attendanceSettings.saturdayHolidays && attendanceSettings.saturdayHolidays.includes(saturdayWeek)) {
+        return false; // This Saturday is configured as a holiday
+      }
+    }
     
     return true;
+  }
+
+  /**
+   * Determine which Saturday of the month a given date is
+   * @param {Date} date - Date to check (should be a Saturday)
+   * @returns {number} 1, 2, 3, or 4 representing 1st, 2nd, 3rd, or 4th Saturday
+   */
+  getSaturdayWeekOfMonth(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dateNum = date.getDate();
+    
+    // Find the first Saturday of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate first Saturday date (0=Sunday, 6=Saturday)
+    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
+    
+    // Calculate which Saturday this date is
+    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
+    
+    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
   }
 
   /**
@@ -178,8 +202,7 @@ export class SettingsService {
     
     return {
       minimumWorkHours: attendanceSettings.minimumWorkHours,
-      fullDayHours: attendanceSettings.fullDayHours,
-      halfDayHours: attendanceSettings.halfDayHours
+      fullDayHours: attendanceSettings.fullDayHours
     };
   }
 }
