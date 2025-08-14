@@ -252,15 +252,24 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
       // For records that don't exist (absent days), include employee and date info
       if (!record._id) {
         updateData.employeeId = employeeProfile?.employeeId;
-        // Preserve the date without timezone conversion
-        if (record.date instanceof Date) {
-          // Format as YYYY-MM-DD to preserve the date without timezone shifts
-          const year = record.date.getFullYear();
-          const month = String(record.date.getMonth() + 1).padStart(2, '0');
-          const day = String(record.date.getDate()).padStart(2, '0');
-          updateData.date = `${year}-${month}-${day}`;
-        } else {
-          updateData.date = record.date;
+        // Send date as ISO string to match backend expectations
+        updateData.date = record.date instanceof Date ? record.date.toISOString() : record.date;
+        
+        // Debug logging for API payload
+        console.log('Creating new attendance record with data:', {
+          employeeId: updateData.employeeId,
+          date: updateData.date,
+          status: updateData.status,
+          checkIn: updateData.checkIn,
+          checkOut: updateData.checkOut
+        });
+        
+        // Validate required fields
+        if (!updateData.employeeId) {
+          throw new Error('Employee ID is missing');
+        }
+        if (!updateData.date) {
+          throw new Error('Date is missing');
         }
       }
 
