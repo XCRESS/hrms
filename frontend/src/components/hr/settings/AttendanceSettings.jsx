@@ -2,7 +2,6 @@ import React from 'react';
 import { Clock, Save, RefreshCw } from 'lucide-react';
 
 const AttendanceSettings = ({ 
-  settings, 
   formData, 
   selectedDepartment, 
   departments, 
@@ -10,6 +9,7 @@ const AttendanceSettings = ({
   saving, 
   onInputChange, 
   onWorkingDayChange, 
+  onSaturdayHolidayChange,
   onSave, 
   onRefresh,
   onDepartmentChange 
@@ -188,6 +188,42 @@ const AttendanceSettings = ({
           })}
         </div>
       </div>
+
+      {/* Saturday Holiday Configuration - Only show when Saturday is a working day */}
+      {formData.attendance.workingDays.includes(6) && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Saturday Holidays</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Select which Saturdays of the month should be holidays. Unselected Saturdays will be working days.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((saturdayNumber) => {
+              const isHoliday = formData.attendance.saturdayHolidays.includes(saturdayNumber);
+              const saturdayLabels = ['1st Saturday', '2nd Saturday', '3rd Saturday', '4th Saturday'];
+              
+              return (
+                <label key={saturdayNumber} className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isHoliday}
+                    onChange={(e) => onSaturdayHolidayChange(saturdayNumber, e.target.checked)}
+                    className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {saturdayLabels[saturdayNumber - 1]}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> If no Saturdays are selected as holidays, all Saturdays will be working days.
+              Selected Saturdays will be treated as holidays and won't require attendance.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

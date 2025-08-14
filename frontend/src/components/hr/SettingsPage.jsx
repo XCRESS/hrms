@@ -163,6 +163,31 @@ const SettingsPage = () => {
     });
   };
 
+  const handleSaturdayHolidayChange = (saturdayNumber, isHoliday) => {
+    setFormData(prev => {
+      const currentSaturdayHolidays = [...prev.attendance.saturdayHolidays];
+      
+      if (isHoliday) {
+        if (!currentSaturdayHolidays.includes(saturdayNumber)) {
+          currentSaturdayHolidays.push(saturdayNumber);
+        }
+      } else {
+        const index = currentSaturdayHolidays.indexOf(saturdayNumber);
+        if (index > -1) {
+          currentSaturdayHolidays.splice(index, 1);
+        }
+      }
+      
+      return {
+        ...prev,
+        attendance: {
+          ...prev.attendance,
+          saturdayHolidays: currentSaturdayHolidays.sort()
+        }
+      };
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     resetMessages();
@@ -307,7 +332,6 @@ const SettingsPage = () => {
       case 'attendance':
         return (
           <AttendanceSettings
-            settings={settings}
             formData={formData}
             selectedDepartment={selectedDepartment}
             departments={departments}
@@ -315,6 +339,7 @@ const SettingsPage = () => {
             saving={saving}
             onInputChange={handleInputChange}
             onWorkingDayChange={handleWorkingDayChange}
+            onSaturdayHolidayChange={handleSaturdayHolidayChange}
             onSave={handleSave}
             onRefresh={handleRefresh}
             onDepartmentChange={handleDepartmentChange}
