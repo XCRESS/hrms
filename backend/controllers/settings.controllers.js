@@ -1,5 +1,6 @@
 import Settings from "../models/Settings.model.js";
 import Employee from "../models/Employee.model.js";
+import Department from "../models/Department.model.js";
 import { formatResponse } from "../utils/response.js";
 
 // Get global settings
@@ -166,15 +167,202 @@ export const getEffectiveSettings = async (req, res) => {
   }
 };
 
-// Get list of departments from employees
+// Get list of departments from Department model
 export const getDepartments = async (req, res) => {
   try {
-    const departments = await Employee.distinct("department", { isActive: true });
+    const departments = await Department.find({ isActive: true })
+      .select('name')
+      .sort({ name: 1 })
+      .lean();
     
-    res.json(formatResponse(true, "Departments retrieved successfully", { departments }));
+    const departmentNames = departments.map(dept => dept.name);
+    
+    res.json(formatResponse(true, "Departments retrieved successfully", { departments: departmentNames }));
   } catch (error) {
     console.error("Error fetching departments:", error);
     res.status(500).json(formatResponse(false, "Server error while fetching departments", error.message));
+  }
+};
+
+// Get departments with statistics and employee lists
+export const getDepartmentStats = async (req, res) => {
+  try {
+    const departments = await Department.find({ isActive: true }).sort({ name: 1 });
+    
+    const departmentStats = await Promise.all(
+      departments.map(async (dept) => {
+        const employees = await Employee.find(
+          { department: dept.name, isActive: true },
+          { firstName: 1, lastName: 1, employeeId: 1, email: 1, joiningDate: 1 }
+        ).sort({ firstName: 1, lastName: 1 });
+        
+        return {
+          _id: dept._id,
+          name: dept.name,
+          isActive: dept.isActive,
+          createdAt: dept.createdAt,
+          updatedAt: dept.updatedAt,
+          employeeCount: employees.length,
+          employees: employees
+        };
+      })
+    );
+    
+    // Sort by employee count (descending) then by name
+    departmentStats.sort((a, b) => {
+      if (b.employeeCount !== a.employeeCount) {
+        return b.employeeCount - a.employeeCount;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    
+    res.json(formatResponse(true, "Department statistics retrieved successfully", { departments: departmentStats }));
+  } catch (error) {
+    console.error("Error fetching department stats:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching department statistics", error.message));
+  }
+};
+
+// Add a new department
+export const addDepartment = async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json(formatResponse(false, "Department name is required"));
+    }
+    
+    const trimmedName = name.trim();
+    
+    // Check if department already exists (case-insensitive)
+    const existingDepartment = await Department.findOne({ 
+      name: { $regex: new RegExp(`^${trimmedName}$`, 'i') },
+      isActive: true 
+    });
+    
+    if (existingDepartment) {
+      return res.status(409).json(formatResponse(false, "Department already exists", { existingName: existingDepartment.name }));
+    }
+    
+    // Create department in Department model
+    const department = await Department.create({ name: trimmedName });
+    
+    res.json(formatResponse(true, "Department created successfully", { 
+      _id: department._id,
+      name: department.name,
+      isActive: department.isActive,
+      createdAt: department.createdAt,
+      employeeCount: 0
+    }));
+  } catch (error) {
+    console.error("Error adding department:", error);
+    
+    // Handle mongoose duplicate key error
+    if (error.code === 11000) {
+      return res.status(409).json(formatResponse(false, "Department already exists"));
+    }
+    
+    res.status(500).json(formatResponse(false, "Server error while adding department", error.message));
+  }
+};
+
+// Rename a department
+export const renameDepartment = async (req, res) => {
+  try {
+    const { oldName } = req.params;
+    const { newName } = req.body;
+    
+    if (!oldName || !newName || !newName.trim()) {
+      return res.status(400).json(formatResponse(false, "Both old and new department names are required"));
+    }
+    
+    const trimmedNewName = newName.trim();
+    
+    // Check if new name already exists (case-insensitive)
+    const conflictingDepartment = await Department.findOne({ 
+      name: { $regex: new RegExp(`^${trimmedNewName}$`, 'i') },
+      isActive: true 
+    });
+    
+    if (conflictingDepartment && conflictingDepartment.name !== oldName) {
+      return res.status(409).json(formatResponse(false, "Department name already exists", { existingName: conflictingDepartment.name }));
+    }
+    
+    // Find department to rename
+    const department = await Department.findOne({ name: oldName, isActive: true });
+    if (!department) {
+      return res.status(404).json(formatResponse(false, "Department not found", { requestedName: oldName }));
+    }
+    
+    // Update department name
+    await Department.findByIdAndUpdate(department._id, { name: trimmedNewName });
+    
+    // Update all employees with the old department name
+    const employeeUpdateResult = await Employee.updateMany(
+      { department: oldName, isActive: true },
+      { $set: { department: trimmedNewName } }
+    );
+    
+    // Update department-specific settings if they exist
+    const settingsUpdateResult = await Settings.updateMany(
+      { scope: "department", department: oldName },
+      { $set: { department: trimmedNewName } }
+    );
+    
+    res.json(formatResponse(true, "Department renamed successfully", {
+      oldName,
+      newName: trimmedNewName,
+      employeesUpdated: employeeUpdateResult.modifiedCount,
+      settingsUpdated: settingsUpdateResult.modifiedCount
+    }));
+  } catch (error) {
+    console.error("Error renaming department:", error);
+    res.status(500).json(formatResponse(false, "Server error while renaming department", error.message));
+  }
+};
+
+// Delete a department  
+export const deleteDepartment = async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    if (!name) {
+      return res.status(400).json(formatResponse(false, "Department name is required"));
+    }
+    
+    // Find department to delete
+    const department = await Department.findOne({ name, isActive: true });
+    if (!department) {
+      return res.status(404).json(formatResponse(false, "Department not found", { requestedName: name }));
+    }
+    
+    // Count employees that will be affected
+    const employeeCount = await Employee.countDocuments({ department: name, isActive: true });
+    
+    // Soft delete department (set isActive to false)
+    await Department.findByIdAndUpdate(department._id, { isActive: false });
+    
+    // Remove department from all employees (set to null)
+    const employeeUpdateResult = await Employee.updateMany(
+      { department: name, isActive: true },
+      { $unset: { department: 1 } }
+    );
+    
+    // Delete department-specific settings
+    const settingsDeleteResult = await Settings.deleteMany({
+      scope: "department",
+      department: name
+    });
+    
+    res.json(formatResponse(true, "Department deleted successfully", {
+      departmentName: name,
+      employeesUpdated: employeeUpdateResult.modifiedCount,
+      settingsDeleted: settingsDeleteResult.deletedCount,
+      affectedEmployees: employeeCount
+    }));
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    res.status(500).json(formatResponse(false, "Server error while deleting department", error.message));
   }
 };
 
@@ -185,5 +373,9 @@ export default {
   updateDepartmentSettings,
   deleteDepartmentSettings,
   getEffectiveSettings,
-  getDepartments
+  getDepartments,
+  getDepartmentStats,
+  addDepartment,
+  renameDepartment,
+  deleteDepartment
 };

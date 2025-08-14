@@ -51,6 +51,8 @@ export default function EmployeeDirectory() {
   const [editedEmployee, setEditedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'inactive'
   const [togglingStatus, setTogglingStatus] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
 
   const fetchEmployeeData = useCallback(async () => {
     if (!selectedEmployeeId) return;
@@ -104,6 +106,17 @@ export default function EmployeeDirectory() {
         } catch (userErr) {
           setUsers([]);
           console.error('Failed to load users.', userErr);
+        }
+        
+        // Load departments for editing
+        try {
+          const deptRes = await apiClient.getDepartments();
+          setDepartments(deptRes.departments || []);
+        } catch (deptErr) {
+          console.error('Failed to load departments:', deptErr);
+          setDepartments([]);
+        } finally {
+          setLoadingDepartments(false);
         }
       } catch (err) {
         setError('Failed to load employees list. ' + (err?.message || ''));
@@ -481,13 +494,14 @@ export default function EmployeeDirectory() {
                 {renderField('Email', 'email', 'email')}
                 {renderField('Phone', 'phone', 'tel')}
                 <p><strong>Employee ID:</strong> {employeeProfile.employeeId}</p>
+                {renderField('Department', 'department', 'select', departments)}
                 {renderField('Company', 'companyName')}
                 <p><strong>Status:</strong>
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${employeeProfile.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
                     {employeeProfile.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </p>
-                {renderField('Employment Type', 'employmentType', 'select', ['Full-time', 'Part-time', 'Contract', 'Intern'])}
+                {renderField('Employment Type', 'employmentType', 'select', ['fulltime', 'intern', 'remote'])}
                 {renderField('Joining Date', 'joiningDate', 'date')}
                 {renderField('Office', 'officeAddress', 'select', ['SanikColony', 'Indore', 'N.F.C.'])}
                 {renderField('Supervisor', 'reportingSupervisor')}

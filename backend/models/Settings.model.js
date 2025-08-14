@@ -28,12 +28,6 @@ const settingsSchema = new mongoose.Schema({
       match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
       description: "End time for half-day work (24-hour format)"
     },
-    lateArrivalTime: {
-      type: String,
-      default: "10:15",
-      match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-      description: "Time after which arrival is considered significantly late (24-hour format)"
-    },
     
     // Work hours thresholds
     minimumWorkHours: {
@@ -49,13 +43,6 @@ const settingsSchema = new mongoose.Schema({
       min: 0,
       max: 24,
       description: "Hours required for full day attendance"
-    },
-    halfDayHours: {
-      type: Number,
-      default: 4,
-      min: 0,
-      max: 24,
-      description: "Hours required for half day attendance"
     },
     
     // Working days configuration
@@ -76,6 +63,19 @@ const settingsSchema = new mongoose.Schema({
       enum: ["full", "half"],
       default: "full",
       description: "Saturday work policy: full-day or half-day"
+    },
+    
+    // Saturday holiday configuration (which Saturdays are holidays)
+    saturdayHolidays: {
+      type: [Number],
+      default: [], // No Saturday holidays by default - all Saturdays are working days
+      validate: {
+        validator: function(arr) {
+          return arr.every(num => num >= 1 && num <= 4);
+        },
+        message: "Saturday holidays must be between 1-4 (1st, 2nd, 3rd, 4th)"
+      },
+      description: "Which Saturdays of the month are holidays (1=1st, 2=2nd, 3=3rd, 4=4th). Empty array means all Saturdays are working days."
     }
   },
 
@@ -98,12 +98,6 @@ const settingsSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: false
-  },
-  
-  version: {
-    type: String,
-    default: "1.0.0",
-    description: "Settings schema version"
   }
 }, {
   timestamps: true,
@@ -192,13 +186,12 @@ settingsSchema.statics.getGlobalSettings = async function() {
         workStartTime: "09:00",
         workEndTime: "18:00",
         halfDayEndTime: "13:00",
-        lateArrivalTime: "10:15",
         minimumWorkHours: 4,
         fullDayHours: 8,
-        halfDayHours: 4,
         workingDays: [1, 2, 3, 4, 5, 6],
         nonWorkingDays: [0],
-        saturdayWorkType: "full"
+        saturdayWorkType: "full",
+        saturdayHolidays: []
       },
       lastUpdatedBy: null
     });
