@@ -57,22 +57,30 @@ export class AttendanceBusinessService {
     // If checked out, determine final status based on work hours using dynamic settings
     if (checkOutTime) {
       const thresholds = await settingsService.getWorkHourThresholds(department);
+      const attendanceSettings = await settingsService.getAttendanceSettings(department);
+      
+      // Check if it's Saturday and has half-day policy
+      const dayOfWeek = checkInDate.getDay();
+      const isSaturday = dayOfWeek === 6;
+      const isSaturdayHalfDay = isSaturday && attendanceSettings.saturdayWorkType === 'half';
       
       if (workHours < thresholds.minimumWorkHours) {
         // Less than minimum required hours - mark as absent
         status = ATTENDANCE_STATUS.ABSENT;
-      } else if (workHours < thresholds.fullDayHours) {
+      } else if (!isSaturdayHalfDay && workHours < thresholds.fullDayHours) {
         // Between minimum and full day hours - mark as half day
+        // Exception: If it's Saturday with half-day policy, don't mark as half day
         status = ATTENDANCE_STATUS.HALF_DAY;
       } else {
         // Full day hours or more - mark as present
+        // Also mark as present if it's Saturday half-day policy and worked >= minimum hours
         status = ATTENDANCE_STATUS.PRESENT;
       }
     }
 
     // Create a mock record for flag computation
     const mockRecord = { checkIn: checkInTime, checkOut: checkOutTime, status };
-    const flags = computeAttendanceFlags(mockRecord);
+    const flags = await computeAttendanceFlags(mockRecord, null, null, department);
 
     return {
       status,
@@ -391,7 +399,7 @@ export class AttendanceBusinessService {
       result.checkOut = attendanceRecord.checkOut;
       result.status = statusResult.status;
       result.workHours = parseFloat(workHours.toFixed(2));
-      result.flags = statusResult.flags;
+      result.flags = await computeAttendanceFlags(attendanceRecord, dayType, approvedLeave, employee.department);
       result.comments = attendanceRecord.comments;
       result.reason = attendanceRecord.reason;
       result.location = attendanceRecord.location;

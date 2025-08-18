@@ -1,7 +1,10 @@
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useState, useEffect } from "react";
 import { Calendar, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
+import apiClient from '@/service/apiClient';
 
-const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
+const AttendanceStats = ({ attendanceData, holidays, isLoading = false, userDepartment = null }) => {
+  const [effectiveSettings, setEffectiveSettings] = useState(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const currentDate = new Date();
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -9,32 +12,88 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
     0
   ).getDate();
 
-  // 🚀 OPTIMIZED: Helper function to check if date is a working day (memoized)
+  // Fetch effective settings on component mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setSettingsLoading(true);
+        const response = await apiClient.getEffectiveSettings(userDepartment);
+        if (response.success) {
+          setEffectiveSettings(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch effective settings:', error);
+        // Use default settings as fallback
+        setEffectiveSettings({
+          attendance: {
+            workingDays: [1, 2, 3, 4, 5, 6], // Monday to Saturday
+            saturdayHolidays: [2] // 2nd Saturday by default
+          }
+        });
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, [userDepartment]);
+
+  // 🚀 OPTIMIZED: Helper function to check if date is a working day using settings (memoized)
   const isWorkingDayForCompany = useMemo(() => {
     return (date) => {
+      if (!effectiveSettings?.attendance) {
+        // Fallback to old logic if settings not loaded
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 0) return false; // Sunday
+        if (dayOfWeek === 6) {
+          // 2nd Saturday logic (fallback)
+          const dateNum = date.getDate();
+          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+          const secondSaturday = firstSaturday + 7;
+          return !(dateNum >= secondSaturday && dateNum < secondSaturday + 7);
+        }
+        return true;
+      }
+
       const dayOfWeek = date.getDay();
+      const { workingDays, saturdayHolidays } = effectiveSettings.attendance;
       
-      // Sunday is always a non-working day
-      if (dayOfWeek === 0) {
+      // Check if this day of week is in working days
+      if (!workingDays.includes(dayOfWeek)) {
         return false;
       }
       
-      // Saturday logic: exclude 2nd Saturday of the month
-      if (dayOfWeek === 6) {
-        const dateNum = date.getDate();
-        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-        const secondSaturday = firstSaturday + 7;
-        
-        // If this Saturday is the 2nd Saturday, it's a non-working day
-        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-          return false;
+      // Special handling for Saturday - check if it's a holiday Saturday
+      if (dayOfWeek === 6 && saturdayHolidays && saturdayHolidays.length > 0) {
+        const saturdayWeek = getSaturdayWeekOfMonth(date);
+        if (saturdayHolidays.includes(saturdayWeek)) {
+          return false; // This Saturday is configured as a holiday
         }
       }
       
       return true;
     };
-  }, []); // No dependencies as logic is pure
+  }, [effectiveSettings]);
+
+  // Helper function to determine which Saturday of the month a given date is
+  const getSaturdayWeekOfMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dateNum = date.getDate();
+    
+    // Find the first Saturday of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate first Saturday date (0=Sunday, 6=Saturday)
+    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
+    
+    // Calculate which Saturday this date is
+    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
+    
+    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
+  };
 
   // 🚀 OPTIMIZED: Calculate actual working days in the month (memoized to prevent recalculation)
   const workingDaysInMonth = useMemo(() => {
@@ -216,7 +275,7 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false }) => {
     { title: "Invalid Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
   ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate, weekendsInMonth, holidaysInMonth]);
 
-  if (isLoading) {
+  if (isLoading || settingsLoading) {
     return (
       <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
         {[...Array(5)].map((_, index) => (

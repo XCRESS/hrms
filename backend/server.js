@@ -27,46 +27,73 @@ app.use(cors({
   credentials: true
 }));
 
-// Optimized MongoDB connection with connection pooling
-console.log('🔄 Connecting to MongoDB...');
-mongoose.connect(process.env.MONGO_URL, {
-  // Connection pool settings for better performance
-  maxPoolSize: 10, // Maximum number of connections in pool
-  serverSelectionTimeoutMS: 10000, // How long to try selecting a server (increased for stability)
-  socketTimeoutMS: 45000, // How long to wait for a response
-  connectTimeoutMS: 10000, // How long to wait for initial connection
-  family: 4, // Use IPv4, skip trying IPv6
+// Enhanced MongoDB connection with retry logic and better error handling
+const connectToMongoDB = async () => {
+  const mongoUrl = process.env.MONGO_URL;
   
-  // Buffer settings for better performance (fixed deprecated options)
-  bufferCommands: false, // Disable mongoose buffering
+  if (!mongoUrl) {
+    console.error('MONGO_URL environment variable is not set');
+    process.exit(1);
+  }
   
-  // Retry settings
-  retryWrites: true,
-  retryReads: true
-})
-.then(() => {
-  console.log("✅ MongoDB connected with optimized connection pool");
-  console.log(`📊 Connection pool size: 10`);
-  console.log('🚀 Database optimization indexes will be created automatically');
-})
-.catch(err => {
-  console.error("❌ MongoDB connection error:", err.message);
-  console.error('❌ Check your MONGO_URL environment variable');
-  console.error('❌ Ensure MongoDB Atlas allows connections from your IP');
-  process.exit(1); // Exit on connection failure
-});
+  // Use the MongoDB URL as-is (Atlas connection strings don't require database name)
+  const dbUrl = mongoUrl;
+  
+  console.log('Connecting to MongoDB...');
+  
+  const connectionOptions = {
+    // Connection pool settings for better performance
+    maxPoolSize: 10, // Maximum number of connections in pool
+    serverSelectionTimeoutMS: 30000, // Increased timeout for better stability
+    socketTimeoutMS: 45000, // How long to wait for a response
+    connectTimeoutMS: 30000, // Increased connection timeout
+    heartbeatFrequencyMS: 10000, // How often to check connection health
+    
+    // Buffer settings for better performance
+    bufferCommands: false, // Disable mongoose buffering
+    
+    // Retry settings
+    retryWrites: true,
+    retryReads: true,
+    
+    // Additional stability options
+    maxIdleTimeMS: 30000,
+    waitQueueTimeoutMS: 5000
+  };
+  
+  try {
+    await mongoose.connect(dbUrl, connectionOptions);
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    console.log('Retrying connection in 5 seconds...');
+    setTimeout(() => {
+      connectToMongoDB();
+    }, 5000);
+  }
+};
 
-// Connection event listeners for monitoring
+// Initial connection attempt
+connectToMongoDB();
+
+// Enhanced connection event listeners for monitoring
 mongoose.connection.on('connected', () => {
-  console.log('📡 Mongoose connected to MongoDB');
+  console.log('MongoDB connected successfully');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('❌ Mongoose connection error:', err);
+  console.error('MongoDB connection error:', err.message);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('📡 Mongoose disconnected from MongoDB');
+  console.log('MongoDB disconnected - attempting to reconnect...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected successfully');
+});
+
+mongoose.connection.on('reconnectFailed', () => {
+  console.error('MongoDB reconnection failed');
 });
 
 import authRoutes from "./routes/auth.js";
@@ -148,37 +175,35 @@ const PORT = process.env.PORT || 4000;
 
 // Add graceful error handling for server startup
 const server = app.listen(PORT, () => {
-  console.log(`🚀 HRMS Server running on port ${PORT}`);
-  console.log(`🌐 API Base URL: http://localhost:${PORT}/api`);
-  console.log(`📊 Performance Stats: http://localhost:${PORT}/api/performance/cache-stats`);
-  console.log('✅ Phase 1 Performance Optimizations Active!');
+  console.log(`HRMS Server running on port ${PORT}`);
+  console.log(`API Base URL: http://localhost:${PORT}/api`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use. Please stop the existing server or use a different port.`);
+    console.error(`Port ${PORT} is already in use. Please stop the existing server or use a different port.`);
   } else {
-    console.error('❌ Server startup error:', err.message);
+    console.error('Server startup error:', err.message);
   }
   process.exit(1);
 });
 
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
-  console.log('📴 Received SIGTERM, shutting down gracefully...');
+  console.log('Received SIGTERM, shutting down gracefully...');
   server.close(() => {
-    console.log('📴 Server closed');
+    console.log('Server closed');
     mongoose.connection.close(false, () => {
-      console.log('📴 MongoDB connection closed');
+      console.log('MongoDB connection closed');
       process.exit(0);
     });
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('⌨️ Received SIGINT, shutting down gracefully...');
+  console.log('Received SIGINT, shutting down gracefully...');
   server.close(() => {
-    console.log('📴 Server closed');
+    console.log('Server closed');
     mongoose.connection.close(false, () => {
-      console.log('📴 MongoDB connection closed');
+      console.log('MongoDB connection closed');
       process.exit(0);
     });
   });

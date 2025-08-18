@@ -16,6 +16,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [workingDays, setWorkingDays] = useState([]);
+  const [effectiveSettings, setEffectiveSettings] = useState(null);
 
   // 🚀 OPTIMIZED: Get the current 4-day window from all working days (memoized)
   const getCurrentWindow = useMemo(() => {
@@ -131,6 +132,9 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
         setMonthlyAttendanceData([employeeRecord]); // Set the processed data
         setAttendanceData([employeeRecord]); // Also set attendanceData for backward compatibility
         
+        // Fetch effective settings for the user's department
+        await fetchEffectiveSettings(response.data.employee?.department);
+        
         // Find initial window that includes today (if current month) or last 4 days
         const today = new Date();
         const isCurrentMonth = monthDate.getFullYear() === today.getFullYear() && 
@@ -173,6 +177,25 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       setIsLoading(false);
     }
   }, [selectedMonth, user?.employeeId]);
+
+  // Fetch effective settings for determining working days
+  const fetchEffectiveSettings = useCallback(async (department = null) => {
+    try {
+      const response = await apiClient.getEffectiveSettings(department);
+      if (response.success) {
+        setEffectiveSettings(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch effective settings:', error);
+      // Use default settings as fallback
+      setEffectiveSettings({
+        attendance: {
+          workingDays: [1, 2, 3, 4, 5, 6], // Monday to Saturday
+          saturdayHolidays: [2] // 2nd Saturday by default
+        }
+      });
+    }
+  }, []);
 
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
@@ -362,26 +385,43 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       return record.weekData[dateKey];
     }
     
-    // If no data exists, determine status based on day type
+    // If no data exists, determine status based on day type using settings
     const dayOfWeek = date.getDay();
     let status = 'absent';
     let isWorkingDay = true;
     
-    // Check if it's Sunday
-    if (dayOfWeek === 0) {
-      status = 'weekend';
-      isWorkingDay = false;
-    }
-    // Check if it's 2nd Saturday
-    else if (dayOfWeek === 6) {
-      const dateNum = date.getDate();
-      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-      const secondSaturday = firstSaturday + 7;
+    if (effectiveSettings?.attendance) {
+      const { workingDays, saturdayHolidays } = effectiveSettings.attendance;
       
-      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+      // Check if this day of week is in working days
+      if (!workingDays.includes(dayOfWeek)) {
         status = 'weekend';
         isWorkingDay = false;
+      }
+      // Special handling for Saturday - check if it's a holiday Saturday
+      else if (dayOfWeek === 6 && saturdayHolidays && saturdayHolidays.length > 0) {
+        const saturdayWeek = getSaturdayWeekOfMonth(date);
+        if (saturdayHolidays.includes(saturdayWeek)) {
+          status = 'weekend';
+          isWorkingDay = false;
+        }
+      }
+    } else {
+      // Fallback to hardcoded logic if settings not loaded
+      if (dayOfWeek === 0) {
+        status = 'weekend';
+        isWorkingDay = false;
+      }
+      else if (dayOfWeek === 6) {
+        const dateNum = date.getDate();
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+        const secondSaturday = firstSaturday + 7;
+        
+        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+          status = 'weekend';
+          isWorkingDay = false;
+        }
       }
     }
     
@@ -392,6 +432,25 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
       isWorkingDay: isWorkingDay,
       holidayTitle: undefined
     };
+  };
+
+  // Helper function to determine which Saturday of the month a given date is
+  const getSaturdayWeekOfMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dateNum = date.getDate();
+    
+    // Find the first Saturday of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate first Saturday date (0=Sunday, 6=Saturday)
+    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
+    
+    // Calculate which Saturday this date is
+    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
+    
+    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
   };
 
   const getAttendanceStatusText = (attendance) => {

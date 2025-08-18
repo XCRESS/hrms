@@ -397,6 +397,7 @@ const AdminAttendanceTable = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [effectiveSettings, setEffectiveSettings] = useState(null);
 
   // Transform backend employeeReports to frontend format
   const transformBackendData = useCallback((employeeReports) => {
@@ -536,6 +537,9 @@ const AdminAttendanceTable = () => {
         setCurrentWindowIndex(initialWindowIndex);
         setWorkingDays(initialWindow);
         
+        // Fetch effective settings for global use (admin can see all departments)
+        await fetchEffectiveSettings();
+        
         // Calculate stats for the current window
         updateStatsForWindow(transformedData, initialWindow);
       } else {
@@ -548,6 +552,25 @@ const AdminAttendanceTable = () => {
       setIsLoading(false);
     }
   }, [selectedMonth, transformBackendData]);
+
+  // Fetch effective settings for determining working days
+  const fetchEffectiveSettings = useCallback(async (department = null) => {
+    try {
+      const response = await apiClient.getEffectiveSettings(department);
+      if (response.success) {
+        setEffectiveSettings(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch effective settings:', error);
+      // Use default settings as fallback
+      setEffectiveSettings({
+        attendance: {
+          workingDays: [1, 2, 3, 4, 5, 6], // Monday to Saturday
+          saturdayHolidays: [2] // 2nd Saturday by default
+        }
+      });
+    }
+  }, []);
 
   // Update stats for current window
   const updateStatsForWindow = (records, windowDays) => {
@@ -780,29 +803,65 @@ const AdminAttendanceTable = () => {
       return existingData;
     }
     
-    // If no attendance record exists, check if it's a weekend or holiday
+    // If no attendance record exists, check if it's a weekend or holiday using settings
     const dayOfWeek = date.getDay();
     
-    // Sunday is always a weekend
-    if (dayOfWeek === 0) {
-      return { checkIn: null, checkOut: null, status: 'weekend' };
-    }
-    
-    // Saturday logic - check if it's 2nd Saturday (company holiday)
-    if (dayOfWeek === 6) {
-      const dateNum = date.getDate();
-      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-      const secondSaturday = firstSaturday + 7;
+    if (effectiveSettings?.attendance) {
+      const { workingDays, saturdayHolidays } = effectiveSettings.attendance;
       
-      // If this Saturday is the 2nd Saturday, it's a weekend
-      if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+      // Check if this day of week is in working days
+      if (!workingDays.includes(dayOfWeek)) {
         return { checkIn: null, checkOut: null, status: 'weekend' };
+      }
+      // Special handling for Saturday - check if it's a holiday Saturday
+      else if (dayOfWeek === 6 && saturdayHolidays && saturdayHolidays.length > 0) {
+        const saturdayWeek = getSaturdayWeekOfMonth(date);
+        if (saturdayHolidays.includes(saturdayWeek)) {
+          return { checkIn: null, checkOut: null, status: 'weekend' };
+        }
+      }
+    } else {
+      // Fallback to hardcoded logic if settings not loaded
+      // Sunday is always a weekend
+      if (dayOfWeek === 0) {
+        return { checkIn: null, checkOut: null, status: 'weekend' };
+      }
+      
+      // Saturday logic - check if it's 2nd Saturday (company holiday)
+      if (dayOfWeek === 6) {
+        const dateNum = date.getDate();
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
+        const secondSaturday = firstSaturday + 7;
+        
+        // If this Saturday is the 2nd Saturday, it's a weekend
+        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
+          return { checkIn: null, checkOut: null, status: 'weekend' };
+        }
       }
     }
     
     // Default to absent for working days with no record
     return { checkIn: null, checkOut: null, status: 'absent' };
+  };
+
+  // Helper function to determine which Saturday of the month a given date is
+  const getSaturdayWeekOfMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dateNum = date.getDate();
+    
+    // Find the first Saturday of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate first Saturday date (0=Sunday, 6=Saturday)
+    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
+    
+    // Calculate which Saturday this date is
+    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
+    
+    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
   };
 
   const getAttendanceStatusText = (attendance) => {
