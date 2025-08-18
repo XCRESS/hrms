@@ -87,7 +87,7 @@ const HolidaysPage = () => {
 
     const payload = {
         ...currentHoliday,
-        date: new Date(currentHoliday.date).toISOString() // Ensure date is in ISO format for backend
+        date: currentHoliday.date // Keep date as YYYY-MM-DD string from date input
     };
 
     try {

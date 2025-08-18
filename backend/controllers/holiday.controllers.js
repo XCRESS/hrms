@@ -8,8 +8,20 @@ export const createHoliday = async (req, res) => {
     if (!title || !date) {
       return res.status(400).json({ success: false, message: "Title and date are required for a holiday." });
     }
-    // Store holiday date as IST start of day
-    const { startOfDay: holidayDate } = getISTDayBoundaries(parseISTDateString(date));
+    
+    // Validate date format and parse
+    let holidayDate;
+    try {
+      const parsedDate = parseISTDateString(date);
+      const { startOfDay } = getISTDayBoundaries(parsedDate);
+      holidayDate = startOfDay;
+    } catch (dateError) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid date format. Please use YYYY-MM-DD format.", 
+        error: dateError.message 
+      });
+    }
 
     const holiday = await Holiday.create({ title, date: holidayDate, isOptional, description });
     
@@ -61,8 +73,17 @@ export const updateHoliday = async (req, res) => {
 
     let newDateObj;
     if (date) {
-        const { startOfDay } = getISTDayBoundaries(parseISTDateString(date));
-        newDateObj = startOfDay;
+        try {
+            const parsedDate = parseISTDateString(date);
+            const { startOfDay } = getISTDayBoundaries(parsedDate);
+            newDateObj = startOfDay;
+        } catch (dateError) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Invalid date format. Please use YYYY-MM-DD format.", 
+                error: dateError.message 
+            });
+        }
         // Check for duplicate date only if the date is actually changing to a new value
         if (holidayToUpdate.date.getTime() !== newDateObj.getTime()) {
             const existingHoliday = await Holiday.findOne({ date: newDateObj, _id: { $ne: holidayId } });
