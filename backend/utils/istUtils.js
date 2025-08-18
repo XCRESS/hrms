@@ -182,8 +182,51 @@ export const getISTDateString = (date = getISTNow()) => {
  * @returns {Date} IST Date object
  */
 export const parseISTDateString = (dateString) => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  if (!dateString || typeof dateString !== 'string') {
+    throw new Error('Date string is required and must be a string');
+  }
+  
+  // Handle ISO date strings (backward compatibility for existing data)
+  if (dateString.includes('T') || dateString.includes('Z')) {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid ISO date string');
+    }
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+  
+  // Handle YYYY-MM-DD format
+  const parts = dateString.split('-');
+  if (parts.length !== 3) {
+    throw new Error('Date must be in YYYY-MM-DD format');
+  }
+  
+  const [year, month, day] = parts.map(Number);
+  
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    throw new Error('Invalid date components');
+  }
+  
+  if (month < 1 || month > 12) {
+    throw new Error('Month must be between 1 and 12');
+  }
+  
+  if (day < 1 || day > 31) {
+    throw new Error('Day must be between 1 and 31');
+  }
+  
+  const date = new Date(year, month - 1, day);
+  
+  if (isNaN(date.getTime())) {
+    throw new Error('Invalid date');
+  }
+  
+  // Verify the date components match what we input (catches invalid dates like Feb 30)
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    throw new Error('Invalid date - day does not exist in the specified month');
+  }
+  
+  return date;
 };
 
 /**
