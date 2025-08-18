@@ -556,7 +556,7 @@ class ApiClient {
     }
 
     async submitTaskReport(data) {
-      return this.post(API_ENDPOINTS.TASK_REPORTS.BASE, data);
+      return this.post(API_ENDPOINTS.TASK_REPORTS.SUBMIT, data);
     }
 
     // Salary Slip Management

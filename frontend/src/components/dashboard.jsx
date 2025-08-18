@@ -1013,6 +1013,7 @@ export default function HRMSDashboard() {
                         holidays={data.holidaysData || []}
                         calculateAttendancePercentage={calculateAttendancePercentage}
                         isLoading={isLoading}
+                        userDepartment={user?.department}
                       />
                     </Suspense>
                   </div>

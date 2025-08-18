@@ -60,6 +60,7 @@ export const API_ENDPOINTS = {
   // Task Reports
   TASK_REPORTS: {
     BASE: "/task-reports",
+    SUBMIT: "/task-reports/submit",
     MY_REPORTS: "/task-reports/my",
     ALL_REPORTS: "/task-reports"
   },
