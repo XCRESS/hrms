@@ -169,7 +169,10 @@ export const API_ENDPOINTS = {
   NOTIFICATIONS: {
     BASE: "/notifications",
     TEST: "/notifications/test",
-    STATUS: "/notifications/status"
+    STATUS: "/notifications/status",
+    SUBSCRIBE: "/notifications/subscribe",
+    UNSUBSCRIBE: "/notifications/unsubscribe",
+    VAPID_KEY: "/notifications/vapid-key"
   }
 };
 

@@ -4,6 +4,7 @@ import Settings from '../models/Settings.model.js';
 class PushService {
   constructor() {
     this.initialized = false;
+    this.subscriptions = new Map(); // Store subscriptions in memory
   }
 
   initialize() {
@@ -68,6 +69,29 @@ class PushService {
     }
   }
 
+  // Add subscription
+  addSubscription(userId, subscription) {
+    this.subscriptions.set(userId, subscription);
+    console.log(`Push subscription added for user ${userId}`);
+  }
+
+  // Remove subscription
+  removeSubscription(userId) {
+    this.subscriptions.delete(userId);
+    console.log(`Push subscription removed for user ${userId}`);
+  }
+
+  // Get all active subscriptions
+  getAllSubscriptions() {
+    return Array.from(this.subscriptions.values());
+  }
+
+  // Get subscriptions for HR users (admin/hr roles)
+  getHRSubscriptions() {
+    // For now return all subscriptions - in real app you'd filter by role
+    return this.getAllSubscriptions();
+  }
+
   getTemplate(type, data) {
     const templates = {
       leave_request: {
@@ -111,6 +135,13 @@ class PushService {
         icon: '/icon-192x192.png',
         badge: '/badge-72x72.png',
         data: { type: 'employee_milestone', url: '/hr/employees' }
+      },
+      test_notification: {
+        title: 'Test Notification',
+        body: `${data.employee || 'System'}: ${data.reason || 'Test notification from HRMS'}`,
+        icon: '/icon-192x192.png',
+        badge: '/badge-72x72.png',
+        data: { type: 'test', url: '/dashboard' }
       }
     };
 

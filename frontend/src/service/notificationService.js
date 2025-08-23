@@ -6,6 +6,8 @@
 class NotificationService {
   constructor() {
     this.registration = null;
+    this.vapidKey = null;
+    this.isSubscribed = false;
     this.initialize();
   }
 
@@ -14,9 +16,56 @@ class NotificationService {
       try {
         this.registration = await navigator.serviceWorker.ready;
         console.log('Notification service initialized');
+        
+        // Get VAPID key from backend
+        await this.loadVapidKey();
       } catch (error) {
         console.error('Failed to initialize notification service:', error);
       }
+    }
+  }
+
+  /**
+   * Load VAPID key from backend
+   */
+  async loadVapidKey() {
+    try {
+      const apiClient = await import('./apiClient.js').then(m => m.default);
+      const response = await apiClient.getVapidKey();
+      
+      // Handle different response formats - the API returns { success: true, vapidKey: "..." }
+      this.vapidKey = response.vapidKey;
+      
+      if (this.vapidKey) {
+        console.log('VAPID key loaded successfully');
+      } else {
+        console.warn('VAPID key not found in response:', response);
+      }
+    } catch (error) {
+      console.error('Failed to load VAPID key:', error);
+    }
+  }
+
+  /**
+   * Auto-subscribe user to push notifications (called after login)
+   */
+  async autoSubscribe() {
+    try {
+      if (!this.vapidKey) {
+        await this.loadVapidKey();
+      }
+
+      if (!this.vapidKey) {
+        console.warn('Cannot auto-subscribe: VAPID key not available');
+        return false;
+      }
+
+      const subscription = await this.subscribeToPush(this.vapidKey);
+      this.isSubscribed = !!subscription;
+      return this.isSubscribed;
+    } catch (error) {
+      console.error('Auto-subscribe failed:', error);
+      return false;
     }
   }
 
@@ -175,7 +224,7 @@ class NotificationService {
   }
 
   /**
-   * Subscribe to push notifications (for future implementation with backend push service)
+   * Subscribe to push notifications and send to backend
    */
   async subscribeToPush(vapidPublicKey = null) {
     if (!this.registration) {
@@ -183,10 +232,19 @@ class NotificationService {
     }
 
     try {
+      // Request permission first
+      const permission = await this.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('Notification permission not granted');
+        return null;
+      }
+
       // Check if already subscribed
       const existingSubscription = await this.registration.pushManager.getSubscription();
       if (existingSubscription) {
         console.log('Already subscribed to push notifications');
+        // Send existing subscription to backend
+        await this.sendSubscriptionToBackend(existingSubscription);
         return existingSubscription;
       }
 
@@ -203,13 +261,26 @@ class NotificationService {
       
       console.log('Push subscription created:', subscription);
       
-      // Send subscription to backend (when implemented)
-      // await this.sendSubscriptionToBackend(subscription);
+      // Send subscription to backend
+      await this.sendSubscriptionToBackend(subscription);
       
       return subscription;
     } catch (error) {
       console.error('Failed to subscribe to push notifications:', error);
       return null;
+    }
+  }
+
+  /**
+   * Send subscription to backend
+   */
+  async sendSubscriptionToBackend(subscription) {
+    try {
+      const apiClient = await import('./apiClient.js').then(m => m.default);
+      await apiClient.subscribeToPushNotifications(subscription);
+      console.log('Subscription sent to backend successfully');
+    } catch (error) {
+      console.error('Failed to send subscription to backend:', error);
     }
   }
 
@@ -272,5 +343,6 @@ export const {
   isNotificationSupported,
   subscribeToPush,
   unsubscribeFromPush,
-  clearNotifications
+  clearNotifications,
+  autoSubscribe
 } = notificationService;
