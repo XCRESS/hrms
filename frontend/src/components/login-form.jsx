@@ -10,6 +10,7 @@ import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
 import { Eye, EyeOff, Bug, Copy, AlertTriangle } from "lucide-react";
 import DebugUtils from "../utils/debugUtils.js";
+import notificationService from "../service/notificationService.js";
 
 
 export default function LoginForm({ className, ...props }) {
@@ -48,6 +49,13 @@ export default function LoginForm({ className, ...props }) {
           email,
           tokenLength: data.token?.length,
           timestamp: new Date().toISOString()
+        });
+        
+        // Auto-subscribe to push notifications
+        notificationService.autoSubscribe().then(subscribed => {
+          console.log('Push notification auto-subscribe:', subscribed);
+        }).catch(error => {
+          console.warn('Auto-subscribe failed:', error);
         });
         
         navigate("/");

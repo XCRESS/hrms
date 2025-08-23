@@ -261,9 +261,12 @@ const SettingsPage = () => {
     console.log('Testing notification with user:', user?.role, 'token exists:', !!token);
     
     try {
+      console.log('Calling testNotification API...');
       const data = await apiClient.testNotification('hr');
       
       console.log('API Response:', data);
+      console.log('API Response type:', typeof data);
+      console.log('API Response keys:', Object.keys(data || {}));
       
       if (data && data.success) {
         const { details } = data;

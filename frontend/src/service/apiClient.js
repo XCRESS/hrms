@@ -720,6 +720,18 @@ class ApiClient {
     async getNotificationStatus() {
       return this.get(API_ENDPOINTS.NOTIFICATIONS.STATUS);
     }
+
+    async subscribeToPushNotifications(subscription) {
+      return this.post(API_ENDPOINTS.NOTIFICATIONS.SUBSCRIBE, { subscription });
+    }
+
+    async unsubscribeFromPushNotifications() {
+      return this.post(API_ENDPOINTS.NOTIFICATIONS.UNSUBSCRIBE);
+    }
+
+    async getVapidKey() {
+      return this.get(API_ENDPOINTS.NOTIFICATIONS.VAPID_KEY);
+    }
   }
   
   // Export the instance

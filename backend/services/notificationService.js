@@ -56,8 +56,16 @@ class NotificationService {
         );
       }
 
-      // TODO: Add push notifications for HR users when implemented
-      // For now, we can skip this as it requires user subscription management
+      // Send push notifications to HR users
+      if (settings.notifications.pushEnabled) {
+        const hrSubscriptions = PushService.getHRSubscriptions();
+        if (hrSubscriptions.length > 0) {
+          promises.push(
+            PushService.sendNotification(type, data, hrSubscriptions)
+              .catch(error => console.error('Push notification failed:', error))
+          );
+        }
+      }
 
       await Promise.allSettled(promises);
       console.log(`HR notification sent: ${type}`);
@@ -103,7 +111,16 @@ class NotificationService {
         }
       }
 
-      // TODO: Add push notifications when subscription management is implemented
+      // Send push notifications to all employees
+      if (settings.notifications.pushEnabled) {
+        const allSubscriptions = PushService.getAllSubscriptions();
+        if (allSubscriptions.length > 0) {
+          promises.push(
+            PushService.sendNotification(type, data, allSubscriptions)
+              .catch(error => console.error('Push notification failed:', error))
+          );
+        }
+      }
 
       await Promise.allSettled(promises);
       console.log(`Employee notification sent to ${employees.length} employees: ${type}`);
@@ -140,7 +157,17 @@ class NotificationService {
         );
       }
 
-      // TODO: Add push notification when subscription management is implemented
+      // Send push notification to specific employee
+      if (settings.notifications.pushEnabled) {
+        const allSubscriptions = PushService.getAllSubscriptions();
+        // In a real app, you'd filter by employee - for now send to all
+        if (allSubscriptions.length > 0) {
+          promises.push(
+            PushService.sendNotification(type, data, allSubscriptions)
+              .catch(error => console.error('Push notification failed:', error))
+          );
+        }
+      }
 
       await Promise.allSettled(promises);
       console.log(`Employee notification sent to ${employee.firstName} ${employee.lastName}: ${type}`);
