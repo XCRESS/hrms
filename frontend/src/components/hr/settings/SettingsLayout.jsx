@@ -1,10 +1,11 @@
 import React from 'react';
-import { Settings, Clock, Building2 } from 'lucide-react';
+import { Settings, Clock, Building2, Bell } from 'lucide-react';
 
 const SettingsLayout = ({ activeSection, onSectionChange, children }) => {
   const settingsNav = [
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'departments', label: 'Departments', icon: Building2 },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'general', label: 'General', icon: Settings }
   ];
 

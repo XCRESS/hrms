@@ -6,7 +6,7 @@
 import cache, { TTL } from '../../utils/cache.js';
 import { invalidateAttendanceCache, invalidateDashboardCache } from '../../utils/cacheInvalidation.js';
 import { CACHE_CONFIG } from '../../utils/attendance/attendanceConstants.js';
-import { getISTDateString } from '../../utils/istUtils.js';
+import { getISTDateString } from '../../utils/timezoneUtils.js';
 import Employee from '../../models/Employee.model.js';
 import Holiday from '../../models/Holiday.model.js';
 

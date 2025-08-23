@@ -17,7 +17,4 @@ const departmentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// The unique index on name is automatically created by unique: true
-// Only add index for isActive since name already has unique index
-
 export default mongoose.model('Department', departmentSchema);

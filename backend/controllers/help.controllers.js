@@ -1,4 +1,6 @@
 import Help from "../models/Help.model.js";
+import User from "../models/User.model.js";
+import NotificationService from "../services/notificationService.js";
 
 // Standard response formatter for consistency
 const formatResponse = (success, message, data = null, errors = null) => {
@@ -33,6 +35,19 @@ export const submitInquiry = async (req, res) => {
       category: category || "other",
       priority: priority || "medium"
     });
+    
+    // Get user information for notification
+    const user = await User.findById(req.user._id);
+    
+    // Trigger notification to HR
+    NotificationService.notifyHR('help_request', {
+      employee: user ? user.name : 'Unknown User',
+      employeeId: user ? user.employeeId : 'N/A',
+      subject: subject,
+      description: description,
+      category: category || "other",
+      priority: priority || "medium"
+    }).catch(error => console.error('Failed to send help request notification:', error));
     
     res.status(201).json(
       formatResponse(true, "Inquiry submitted successfully", { inquiry })

@@ -1,5 +1,6 @@
-import React from 'react';
-import { Building2, Plus, Edit2, Trash2, UserCheck, Eye } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, Plus, Edit2, Trash2, UserCheck, Eye, Users, AlertTriangle } from 'lucide-react';
+import apiClient from '../../../service/apiClient';
 
 const DepartmentManagement = ({ 
   departmentStats, 
@@ -24,6 +25,62 @@ const DepartmentManagement = ({
   handleDeleteDepartment,
   resetMessages
 }) => {
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [selectedDeptForEmployees, setSelectedDeptForEmployees] = useState(null);
+  const [availableEmployees, setAvailableEmployees] = useState(null);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [assigningEmployee, setAssigningEmployee] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [employeeToAssign, setEmployeeToAssign] = useState(null);
+
+  const openEmployeeModal = async (dept) => {
+    setSelectedDeptForEmployees(dept);
+    setShowEmployeeModal(true);
+    setLoadingEmployees(true);
+    
+    try {
+      const response = await apiClient.getAvailableEmployees(dept.name);
+      setAvailableEmployees(response.data);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  const handleAssignEmployee = async (employee) => {
+    if (employee.department && employee.department !== selectedDeptForEmployees.name) {
+      // Show confirmation for changing department
+      setEmployeeToAssign(employee);
+      setShowConfirmModal(true);
+    } else {
+      // Direct assignment for employees without department
+      await assignEmployee(employee);
+    }
+  };
+
+  const assignEmployee = async (employee) => {
+    setAssigningEmployee(true);
+    try {
+      await apiClient.assignEmployeeToDepartment(selectedDeptForEmployees.name, employee.employeeId);
+      
+      // Close modals
+      setShowEmployeeModal(false);
+      setShowConfirmModal(false);
+      setEmployeeToAssign(null);
+      setSelectedDeptForEmployees(null);
+      setAvailableEmployees(null);
+      
+      // Refresh data - assuming these functions are passed down
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error('Error assigning employee:', error);
+    } finally {
+      setAssigningEmployee(false);
+    }
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -79,6 +136,13 @@ const DepartmentManagement = ({
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEmployeeModal(dept)}
+                      className="p-2 text-green-500 hover:text-green-700 transition-colors"
+                      title="Manage employees"
+                    >
+                      <Users className="w-4 h-4" />
+                    </button>
                     {dept.employeeCount > 0 && (
                       <button
                         onClick={() => setExpandedDept(expandedDept === dept.name ? null : dept.name)}
@@ -279,6 +343,197 @@ const DepartmentManagement = ({
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete Department
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Assignment Modal */}
+      {showEmployeeModal && selectedDeptForEmployees && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Manage Employees - {selectedDeptForEmployees.name}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Assign employees to this department
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+              {loadingEmployees ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                  <p className="mt-2 text-slate-600 dark:text-slate-400">Loading employees...</p>
+                </div>
+              ) : availableEmployees ? (
+                <div className="space-y-6">
+                  {/* Current Department Employees */}
+                  {availableEmployees.employeesInDepartment.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-green-600" />
+                        Current Department Employees ({availableEmployees.employeesInDepartment.length})
+                      </h4>
+                      <div className="grid gap-2">
+                        {availableEmployees.employeesInDepartment.map((employee) => (
+                          <div key={employee._id} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {employee.firstName} {employee.lastName}
+                              </span>
+                              <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                ({employee.employeeId})
+                              </span>
+                            </div>
+                            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                              Already in {selectedDeptForEmployees.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Employees Without Department */}
+                  {availableEmployees.employeesWithoutDepartment.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        Available Employees ({availableEmployees.employeesWithoutDepartment.length})
+                      </h4>
+                      <div className="grid gap-2">
+                        {availableEmployees.employeesWithoutDepartment.map((employee) => (
+                          <div key={employee._id} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <div>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {employee.firstName} {employee.lastName}
+                              </span>
+                              <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                ({employee.employeeId})
+                              </span>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {employee.email}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleAssignEmployee(employee)}
+                              disabled={assigningEmployee}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Employees in Other Departments */}
+                  {availableEmployees.employeesInOtherDepartments.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-amber-600" />
+                        Employees in Other Departments ({availableEmployees.employeesInOtherDepartments.length})
+                      </h4>
+                      <div className="grid gap-2">
+                        {availableEmployees.employeesInOtherDepartments.map((employee) => (
+                          <div key={employee._id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <div>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {employee.firstName} {employee.lastName}
+                              </span>
+                              <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                ({employee.employeeId})
+                              </span>
+                              <div className="text-xs text-amber-600 dark:text-amber-400">
+                                Currently in: {employee.department}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleAssignEmployee(employee)}
+                              disabled={assigningEmployee}
+                              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                            >
+                              Move Here
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No employees message */}
+                  {availableEmployees.employeesWithoutDepartment.length === 0 && 
+                   availableEmployees.employeesInOtherDepartments.length === 0 && 
+                   availableEmployees.employeesInDepartment.length === 0 && (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">No employees available</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 dark:text-gray-400">Failed to load employees</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmployeeModal(false);
+                  setSelectedDeptForEmployees(null);
+                  setAvailableEmployees(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Changing Department */}
+      {showConfirmModal && employeeToAssign && selectedDeptForEmployees && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Confirm Department Change
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to change <strong>{employeeToAssign.firstName} {employeeToAssign.lastName}</strong> department from{' '}
+                <strong className="text-red-600 dark:text-red-400">{employeeToAssign.department}</strong> to{' '}
+                <strong className="text-green-600 dark:text-green-400">{selectedDeptForEmployees.name}</strong>?
+              </p>
+            </div>
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setEmployeeToAssign(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => assignEmployee(employeeToAssign)}
+                disabled={assigningEmployee}
+                className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {assigningEmployee ? 'Moving...' : 'Yes, Move Employee'}
               </button>
             </div>
           </div>

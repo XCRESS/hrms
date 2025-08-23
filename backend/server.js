@@ -6,7 +6,8 @@ import { autoInvalidateMiddleware, getCacheInvalidationStats } from "./utils/cac
 
 dotenv.config();
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 🚀 Add cache auto-invalidation middleware for performance optimization
 app.use(autoInvalidateMiddleware);
@@ -43,7 +44,8 @@ const connectToMongoDB = async () => {
   
   const connectionOptions = {
     // Connection pool settings for better performance
-    maxPoolSize: 10, // Maximum number of connections in pool
+    maxPoolSize: 20, // Increased pool size for higher concurrency
+    minPoolSize: 5, // Minimum connections to maintain
     serverSelectionTimeoutMS: 30000, // Increased timeout for better stability
     socketTimeoutMS: 45000, // How long to wait for a response
     connectTimeoutMS: 30000, // Increased connection timeout
@@ -58,7 +60,8 @@ const connectToMongoDB = async () => {
     
     // Additional stability options
     maxIdleTimeMS: 30000,
-    waitQueueTimeoutMS: 5000
+    waitQueueTimeoutMS: 30000, // Increased from 5s to 30s to prevent timeouts
+    maxConnecting: 5 // Limit concurrent connection attempts
   };
   
   try {
@@ -114,6 +117,11 @@ import salaryStructureRoutes from "./routes/salaryStructure.routes.js";
 import policyRoutes from "./routes/policy.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import healthRoutes from "./routes/health.js";
+import notificationTestRoutes from "./routes/notification.test.js";
+
+// Notification Services
+import NotificationService from "./services/notificationService.js";
+import SchedulerService from "./services/schedulerService.js";
 
 // API health check endpoint
 app.get('/api', (req, res) => {
@@ -165,6 +173,7 @@ app.use("/api/salary-slips", salarySlipRoutes);
 app.use("/api/salary-structures", salaryStructureRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/notifications", notificationTestRoutes);
 app.use("/health", healthRoutes);
 
 app.get('/', (req, res) => {
@@ -173,10 +182,31 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
+// Initialize notification system
+const initializeNotificationSystem = async () => {
+  try {
+    console.log('Initializing notification system...');
+    
+    // Initialize notification services
+    await NotificationService.initialize();
+    
+    // Start scheduler for holiday reminders and milestone alerts
+    SchedulerService.start();
+    
+    console.log('✓ Notification system initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize notification system:', error);
+    console.error('Server will continue without notifications');
+  }
+};
+
 // Add graceful error handling for server startup
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`HRMS Server running on port ${PORT}`);
   console.log(`API Base URL: http://localhost:${PORT}/api`);
+  
+  // Initialize notification system after server starts
+  await initializeNotificationSystem();
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use. Please stop the existing server or use a different port.`);
@@ -189,6 +219,10 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('Received SIGTERM, shutting down gracefully...');
+  
+  // Stop notification services
+  SchedulerService.stop();
+  
   server.close(() => {
     console.log('Server closed');
     mongoose.connection.close(false, () => {
@@ -200,6 +234,10 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('Received SIGINT, shutting down gracefully...');
+  
+  // Stop notification services
+  SchedulerService.stop();
+  
   server.close(() => {
     console.log('Server closed');
     mongoose.connection.close(false, () => {

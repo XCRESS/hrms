@@ -79,6 +79,48 @@ const settingsSchema = new mongoose.Schema({
     }
   },
 
+  // Notification Configuration
+  notifications: {
+    // HR Contact Information  
+    hrEmails: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(arr) {
+          return arr.every(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+        },
+        message: "All HR emails must be valid email addresses"
+      }
+    },
+    hrPhones: {
+      type: [String], 
+      default: [],
+      validate: {
+        validator: function(arr) {
+          return arr.every(phone => /^\+91[0-9]{10}$/.test(phone));
+        },
+        message: "All HR phones must be valid Indian numbers (+91xxxxxxxxxx)"
+      }
+    },
+    
+    // Channel Toggle Settings
+    emailEnabled: { type: Boolean, default: true },
+    whatsappEnabled: { type: Boolean, default: false },
+    pushEnabled: { type: Boolean, default: true },
+    
+    // Holiday Reminder Configuration
+    holidayReminderEnabled: { type: Boolean, default: true },
+    holidayReminderDays: { type: Number, default: 1, min: 0, max: 7 },
+    
+    // Employee Milestone Alerts
+    milestoneAlertsEnabled: { type: Boolean, default: true },
+    milestoneTypes: {
+      threeMonths: { type: Boolean, default: true },
+      sixMonths: { type: Boolean, default: true }, 
+      oneYear: { type: Boolean, default: true }
+    }
+  },
+
   // Scope Configuration
   scope: {
     type: String,
@@ -192,6 +234,21 @@ settingsSchema.statics.getGlobalSettings = async function() {
         nonWorkingDays: [0],
         saturdayWorkType: "full",
         saturdayHolidays: []
+      },
+      notifications: {
+        hrEmails: [],
+        hrPhones: [],
+        emailEnabled: true,
+        whatsappEnabled: false,
+        pushEnabled: true,
+        holidayReminderEnabled: true,
+        holidayReminderDays: 1,
+        milestoneAlertsEnabled: true,
+        milestoneTypes: {
+          threeMonths: true,
+          sixMonths: true,
+          oneYear: true
+        }
       },
       lastUpdatedBy: null
     });

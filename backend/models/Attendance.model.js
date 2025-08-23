@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { calculateWorkHours } from "../utils/istUtils.js";
+import { calculateWorkHours } from "../utils/timezoneUtils.js";
 
 const attendanceSchema = new mongoose.Schema({
   employee: {

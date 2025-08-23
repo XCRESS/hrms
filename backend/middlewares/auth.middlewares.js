@@ -15,11 +15,14 @@ const authMiddleware = (allowedRoles = []) => {
       
       const decoded = verifyToken(token);
       
-      // Fetch complete user data to ensure we have all necessary fields
-      const user = await User.findById(decoded.id || decoded._id);
+      // Fetch complete user data with isActive check in single query
+      const user = await User.findOne({ 
+        _id: decoded.id || decoded._id,
+        isActive: true 
+      });
       
       if (!user) {
-        return res.status(401).json({ success: false, message: "Access Denied: User not found" });
+        return res.status(401).json({ success: false, message: "Access Denied: User not found or inactive" });
       }
       
       // Set user data in request for controllers to use
@@ -33,31 +36,23 @@ const authMiddleware = (allowedRoles = []) => {
       }
       
       // For employees, check if their Employee profile is active
-      if (user.role === "employee") {
-        // Check if the user account is active
-        const userExists = await User.findOne({ 
-          _id: user._id,
-          isActive: true
+      if (user.role === "employee" && user.employeeId) {
+        // Single query to check if employee profile is active
+        const employee = await Employee.findOne({ 
+          employeeId: user.employeeId,
+          isActive: true 
         });
         
-        if (!userExists) {
-          return res.status(403).json({ success: false, message: "Access Forbidden: Invalid user ID or inactive account" });
+        if (!employee) {
+          return res.status(403).json({ 
+            success: false, 
+            message: "Access Forbidden: Employee account is deactivated. Please contact HR." 
+          });
         }
-        
-        // If employeeId exists, check if the employee profile is active
-        if (user.employeeId) {
-          const employee = await Employee.findOne({ employeeId: user.employeeId });
-          if (!employee || !employee.isActive) {
-            return res.status(403).json({ 
-              success: false, 
-              message: "Access Forbidden: Employee account is deactivated. Please contact HR." 
-            });
-          }
-        } else {
-          // If employeeId is missing, add a warning in the request object but don't block access
-          req.missingEmployeeId = true;
-          console.warn(`User ${user._id} has role 'employee' but no employeeId`);
-        }
+      } else if (user.role === "employee" && !user.employeeId) {
+        // If employeeId is missing, add a warning in the request object but don't block access
+        req.missingEmployeeId = true;
+        console.warn(`User ${user._id} has role 'employee' but no employeeId`);
       }
       
       next();

@@ -13,7 +13,7 @@ import {
   getISTRangeBoundaries,
   parseISTDateString,
   getISTDateString 
-} from '../../utils/istUtils.js';
+} from '../../utils/timezoneUtils.js';
 import { 
   buildPaginationMeta, 
   buildSimpleAttendanceMap, 

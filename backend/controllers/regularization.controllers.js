@@ -3,9 +3,10 @@ import User from "../models/User.model.js";
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import moment from "moment-timezone";
-import { getISTNow, getISTDayBoundaries, calculateWorkHours } from "../utils/istUtils.js";
+import { getISTNow, getISTDayBoundaries, calculateWorkHours } from "../utils/timezoneUtils.js";
 import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 import { AttendanceBusinessService } from "../services/attendance/AttendanceBusinessService.js";
+import NotificationService from "../services/notificationService.js";
 
 // Employee: Submit a regularization request
 export const requestRegularization = async (req, res) => {
@@ -40,6 +41,20 @@ export const requestRegularization = async (req, res) => {
       requestedCheckOut: requestedCheckOutIST,
       reason
     });
+    
+    // Get user information for notification
+    const userInfo = await User.findById(user._id);
+    
+    // Trigger notification to HR
+    NotificationService.notifyHR('regularization_request', {
+      employee: userInfo ? userInfo.name : 'Unknown User',
+      employeeId: user.employeeId,
+      date: date,
+      checkIn: requestedCheckIn || 'Not specified',
+      checkOut: requestedCheckOut || 'Not specified',
+      reason: reason
+    }).catch(error => console.error('Failed to send regularization request notification:', error));
+    
     res.status(201).json({ success: true, message: "Regularization request submitted.", reg });
   } catch (err) {
     res.status(500).json({ message: "Failed to submit regularization request", error: err.message });
@@ -203,7 +218,7 @@ export const reviewRegularization = async (req, res) => {
       
       // Calculate work hours and determine final status using business service
       if (att.checkIn && att.checkOut) {
-        const statusResult = AttendanceBusinessService.calculateFinalStatus(att.checkIn, att.checkOut);
+        const statusResult = await AttendanceBusinessService.calculateFinalStatus(att.checkIn, att.checkOut);
         
         att.status = statusResult.status;
         att.workHours = statusResult.workHours;
@@ -220,12 +235,40 @@ export const reviewRegularization = async (req, res) => {
       }
       
       // Invalidate attendance cache for this employee and overall dashboard
-      console.log("Invalidating cache for employee:", reg.employeeId);
-      invalidateAttendanceCache(reg.employeeId);
-      invalidateDashboardCache();
+      try {
+        console.log("Invalidating cache for employee:", reg.employeeId);
+        invalidateAttendanceCache(reg.employeeId);
+        invalidateDashboardCache();
+      } catch (cacheError) {
+        console.error("Error invalidating cache (non-critical):", cacheError.message);
+      }
     }
+    
+    // Notify employee about status update (non-critical operation)
+    try {
+      if (reg.employeeId) {
+        NotificationService.notifyEmployee(reg.employeeId, 'regularization_status_update', {
+          status: status,
+          date: reg.date ? reg.date.toDateString() : 'Unknown date',
+          checkIn: reg.requestedCheckIn ? reg.requestedCheckIn.toLocaleString() : 'Not specified',
+          checkOut: reg.requestedCheckOut ? reg.requestedCheckOut.toLocaleString() : 'Not specified',
+          reason: reg.reason || 'No reason provided',
+          comment: reviewComment || 'No comment'
+        }).catch(error => console.error('Failed to send regularization status notification:', error));
+      }
+    } catch (notificationError) {
+      console.error("Error in notification service (non-critical):", notificationError.message);
+    }
+    
     res.json({ success: true, message: `Request ${status}`, reg });
   } catch (err) {
-    res.status(500).json({ message: "Failed to review request", error: err.message, stack: err.stack });
+    console.error("Detailed error in reviewRegularization:", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.params.id,
+      status: req.body.status,
+      reviewComment: req.body.reviewComment
+    });
+    res.status(500).json({ message: "Failed to review request", error: err.message, stack: process.env.NODE_ENV === 'development' ? err.stack : undefined });
   }
 }; 
