@@ -4,7 +4,7 @@
  */
 
 import { BUSINESS_RULES } from './attendanceConstants.js';
-import { getISTDateString } from '../istUtils.js';
+import { getISTDateString, toIST } from '../timezoneUtils.js';
 import settingsService from '../../services/settings/SettingsService.js';
 
 /**
@@ -20,13 +20,14 @@ export const computeAttendanceFlags = async (record, dayType = null, approvedLea
 
   // Compute late flag from check-in time using dynamic settings
   if (record?.checkIn) {
-    const checkInDate = new Date(record.checkIn);
-    const checkInHour = checkInDate.getHours();
-    const checkInMinutes = checkInDate.getMinutes();
+    const checkInIST = toIST(record.checkIn);
+    const checkInHour = checkInIST.hours();
+    const checkInMinutes = checkInIST.minutes();
     const checkInDecimal = checkInHour + (checkInMinutes / 60);
     
     try {
       // Get dynamic late arrival threshold from settings
+      const checkInDate = new Date(record.checkIn);
       const businessHours = await settingsService.getBusinessHours(checkInDate, department);
       const lateThresholdDecimal = businessHours.lateThresholdDecimal;
       

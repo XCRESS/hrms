@@ -1,6 +1,6 @@
 import Holiday from "../models/Holiday.model.js";
 import notificationService from "../utils/notificationService.js";
-import { getISTDayBoundaries, parseISTDateString } from "../utils/istUtils.js";
+import { getISTDayBoundaries, parseISTDateString, momentToDate } from "../utils/timezoneUtils.js";
 
 export const createHoliday = async (req, res) => {
   try {
@@ -14,7 +14,7 @@ export const createHoliday = async (req, res) => {
     try {
       const parsedDate = parseISTDateString(date);
       const { startOfDay } = getISTDayBoundaries(parsedDate);
-      holidayDate = startOfDay;
+      holidayDate = momentToDate(startOfDay);
     } catch (dateError) {
       return res.status(400).json({ 
         success: false, 

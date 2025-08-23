@@ -9,7 +9,7 @@ import {
   SUCCESS_MESSAGES,
   HTTP_STATUS 
 } from './attendanceConstants.js';
-import { getISTDateString, calculateWorkHours } from '../istUtils.js';
+import { getISTDateString, calculateWorkHours } from '../timezoneUtils.js';
 import { computeComprehensiveFlags } from './attendanceComputedFlags.js';
 
 /**

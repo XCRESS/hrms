@@ -10,7 +10,7 @@ import {
   groupRecordsByEmployee,
   groupRecordsByDate 
 } from '../../utils/attendance/attendanceHelpers.js';
-import { getISTDateString, calculateWorkHours } from '../../utils/istUtils.js';
+import { getISTDateString, calculateWorkHours } from '../../utils/timezoneUtils.js';
 import AttendanceDataService from './AttendanceDataService.js';
 import AttendanceBusinessService from './AttendanceBusinessService.js';
 import AttendanceCacheService from './AttendanceCacheService.js';

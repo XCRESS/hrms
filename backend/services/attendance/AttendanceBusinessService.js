@@ -13,8 +13,9 @@ import {
   getISTDayBoundaries,
   getISTDateString,
   calculateWorkHours,
-  determineAttendanceStatus as originalDetermineStatus
-} from '../../utils/istUtils.js';
+  determineAttendanceStatus as originalDetermineStatus,
+  toIST
+} from '../../utils/timezoneUtils.js';
 import { computeAttendanceFlags, computeDayFlags } from '../../utils/attendance/attendanceComputedFlags.js';
 import settingsService from '../settings/SettingsService.js';
 
@@ -41,9 +42,9 @@ export class AttendanceBusinessService {
       };
     }
 
-    const checkInDate = new Date(checkInTime);
-    const checkInHour = checkInDate.getHours();
-    const checkInMinutes = checkInDate.getMinutes();
+    const checkInIST = toIST(checkInTime);
+    const checkInHour = checkInIST.hours();
+    const checkInMinutes = checkInIST.minutes();
     const checkInDecimal = checkInHour + (checkInMinutes / 60);
     
     // Calculate work hours if checkout time is available
@@ -60,7 +61,7 @@ export class AttendanceBusinessService {
       const attendanceSettings = await settingsService.getAttendanceSettings(department);
       
       // Check if it's Saturday and has half-day policy
-      const dayOfWeek = checkInDate.getDay();
+      const dayOfWeek = checkInTime.getDay();
       const isSaturday = dayOfWeek === 6;
       const isSaturdayHalfDay = isSaturday && attendanceSettings.saturdayWorkType === 'half';
       

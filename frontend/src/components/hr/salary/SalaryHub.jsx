@@ -78,13 +78,13 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Employees</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {loading ? (
                     <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
                   ) : (
                     statistics?.overview?.totalEmployees || '0'
                   )}
-                </p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -98,13 +98,13 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Active Structures</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {loading ? (
                     <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
                   ) : (
                     statistics?.overview?.activeSalaryStructures || '0'
                   )}
-                </p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -118,13 +118,13 @@ const SalaryHub = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">This Month's Slips</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {loading ? (
                     <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-8 w-12 rounded"></div>
                   ) : (
                     statistics?.currentMonth?.slipsGenerated || '0'
                   )}
-                </p>
+                </div>
               </div>
             </div>
           </CardContent>

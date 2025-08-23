@@ -23,26 +23,33 @@ export const getGlobalSettings = async (req, res) => {
 // Update global settings
 export const updateGlobalSettings = async (req, res) => {
   try {
-    const { attendance } = req.body;
+    const { attendance, notifications } = req.body;
     
-    // Validate attendance data
-    if (!attendance) {
-      return res.status(400).json(formatResponse(false, "Attendance settings are required"));
+    // Validate that at least one setting type is provided
+    if (!attendance && !notifications) {
+      return res.status(400).json(formatResponse(false, "At least one settings section is required"));
     }
     
     let settings = await Settings.findOne({ scope: "global" });
     
     if (!settings) {
       // Create new global settings
-      settings = new Settings({
+      const newSettings = {
         scope: "global",
-        attendance,
         lastUpdatedBy: req.user && req.user._id ? req.user._id : null
-      });
+      };
+      
+      if (attendance) newSettings.attendance = attendance;
+      if (notifications) newSettings.notifications = notifications;
+      
+      settings = new Settings(newSettings);
     } else {
       // Update existing global settings
       if (attendance) {
         settings.attendance = { ...settings.attendance, ...attendance };
+      }
+      if (notifications) {
+        settings.notifications = { ...settings.notifications, ...notifications };
       }
       settings.lastUpdatedBy = req.user && req.user._id ? req.user._id : settings.lastUpdatedBy;
     }
@@ -339,8 +346,8 @@ export const deleteDepartment = async (req, res) => {
     // Count employees that will be affected
     const employeeCount = await Employee.countDocuments({ department: name, isActive: true });
     
-    // Soft delete department (set isActive to false)
-    await Department.findByIdAndUpdate(department._id, { isActive: false });
+    // Properly delete department
+    await Department.findByIdAndDelete(department._id);
     
     // Remove department from all employees (set to null)
     const employeeUpdateResult = await Employee.updateMany(
@@ -366,6 +373,79 @@ export const deleteDepartment = async (req, res) => {
   }
 };
 
+// Assign employee to department
+export const assignEmployeeToDepartment = async (req, res) => {
+  try {
+    const { departmentName } = req.params;
+    const { employeeId } = req.body;
+    
+    if (!departmentName || !employeeId) {
+      return res.status(400).json(formatResponse(false, "Department name and employee ID are required"));
+    }
+    
+    // Check if department exists
+    const department = await Department.findOne({ name: departmentName, isActive: true });
+    if (!department) {
+      return res.status(404).json(formatResponse(false, "Department not found"));
+    }
+    
+    // Find employee
+    const employee = await Employee.findOne({ employeeId, isActive: true });
+    if (!employee) {
+      return res.status(404).json(formatResponse(false, "Employee not found"));
+    }
+    
+    const oldDepartment = employee.department;
+    
+    // Update employee department
+    await Employee.findByIdAndUpdate(employee._id, { department: departmentName });
+    
+    res.json(formatResponse(true, "Employee assigned to department successfully", {
+      employeeId,
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+      oldDepartment: oldDepartment || null,
+      newDepartment: departmentName
+    }));
+  } catch (error) {
+    console.error("Error assigning employee to department:", error);
+    res.status(500).json(formatResponse(false, "Server error while assigning employee", error.message));
+  }
+};
+
+// Get available employees for department assignment
+export const getAvailableEmployees = async (req, res) => {
+  try {
+    const { departmentName } = req.params;
+    
+    // Get all employees
+    const allEmployees = await Employee.find(
+      { isActive: true },
+      { employeeId: 1, firstName: 1, lastName: 1, email: 1, department: 1 }
+    ).sort({ firstName: 1, lastName: 1 });
+    
+    // Separate employees in current department vs others
+    const employeesInDepartment = allEmployees.filter(emp => emp.department === departmentName);
+    const employeesInOtherDepartments = allEmployees.filter(emp => emp.department && emp.department !== departmentName);
+    const employeesWithoutDepartment = allEmployees.filter(emp => !emp.department);
+    
+    res.json(formatResponse(true, "Available employees retrieved successfully", {
+      departmentName,
+      employeesInDepartment,
+      employeesInOtherDepartments,
+      employeesWithoutDepartment,
+      totals: {
+        inDepartment: employeesInDepartment.length,
+        inOtherDepartments: employeesInOtherDepartments.length,
+        withoutDepartment: employeesWithoutDepartment.length,
+        total: allEmployees.length
+      }
+    }));
+  } catch (error) {
+    console.error("Error fetching available employees:", error);
+    res.status(500).json(formatResponse(false, "Server error while fetching employees", error.message));
+  }
+};
+
 export default {
   getGlobalSettings,
   updateGlobalSettings,
@@ -377,5 +457,7 @@ export default {
   getDepartmentStats,
   addDepartment,
   renameDepartment,
-  deleteDepartment
+  deleteDepartment,
+  assignEmployeeToDepartment,
+  getAvailableEmployees
 };

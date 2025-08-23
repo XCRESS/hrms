@@ -27,7 +27,7 @@ import {
   NotFoundError,
   validateRequiredFields
 } from '../utils/attendance/attendanceErrorHandler.js';
-import { getISTNow } from '../utils/istUtils.js';
+import { getISTNow } from '../utils/timezoneUtils.js';
 import TaskReport from '../models/TaskReport.model.js';
 
 const { Business, Data, Cache, Report } = AttendanceServices;

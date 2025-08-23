@@ -110,7 +110,7 @@ class ApiClient {
           return { success: response.ok };
         }
         } catch (error) {
-          const errorTime = Date.now() - startTime;
+          // const errorTime = Date.now() - startTime; // Not used currently
           
           // Only log unexpected errors
           if (!error.isExpectedValidation && !error.message.includes('Failed to fetch')) {
@@ -588,7 +588,7 @@ class ApiClient {
     }
 
     async updateSalarySlipStatus(employeeId, month, year, status) {
-      return this.put(`${API_ENDPOINTS.SALARY_SLIPS.BASE}/${employeeId}/${month}/${year}/status`, { status });
+      return this.put(`${API_ENDPOINTS.SALARY_SLIPS.BASE}/${encodeURIComponent(employeeId)}/${month}/${year}/status`, { status });
     }
 
     async bulkUpdateSalarySlipStatus(salarySlips, status) {
@@ -702,6 +702,14 @@ class ApiClient {
 
     async deleteDepartment(name) {
       return this.delete(API_ENDPOINTS.SETTINGS.DELETE_DEPARTMENT(name));
+    }
+
+    async getAvailableEmployees(departmentName) {
+      return this.get(`/settings/departments/${encodeURIComponent(departmentName)}/employees`);
+    }
+
+    async assignEmployeeToDepartment(departmentName, employeeId) {
+      return this.post(`/settings/departments/${encodeURIComponent(departmentName)}/employees`, { employeeId });
     }
   }
   

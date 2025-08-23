@@ -1,6 +1,6 @@
 import Announcement from "../models/Announcement.model.js";
 import User from "../models/User.model.js"; // To populate author details
-import notificationService from "../utils/notificationService.js";
+import NotificationService from "../services/notificationService.js";
 
 // @desc    Create a new announcement
 // @route   POST /api/announcements
@@ -26,12 +26,12 @@ export const createAnnouncement = async (req, res) => {
 
     // Send notification if announcement is published
     if (status === 'published') {
-      try {
-        await notificationService.sendAnnouncementNotification(announcement);
-      } catch (notificationError) {
-        console.error('Failed to send announcement notification:', notificationError);
-        // Don't fail the main operation if notification fails
-      }
+      NotificationService.notifyAllEmployees('announcement', {
+        title: title,
+        content: content,
+        author: authorName,
+        targetAudience: targetAudience
+      }).catch(error => console.error('Failed to send announcement notification:', error));
     }
 
     res.status(201).json({ success: true, message: "Announcement created successfully", announcement });

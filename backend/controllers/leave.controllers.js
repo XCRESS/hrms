@@ -1,6 +1,7 @@
 import Leave from "../models/Leave.model.js";
 import User from "../models/User.model.js";
 import Employee from "../models/Employee.model.js";
+import NotificationService from "../services/notificationService.js";
 
 export const requestLeave = async (req, res) => {
   try {
@@ -21,6 +22,15 @@ export const requestLeave = async (req, res) => {
       leaveDate: new Date(leaveDate),
       leaveReason,
     });
+    
+    // Trigger notification to HR
+    NotificationService.notifyHR('leave_request', {
+      employee: user.name,
+      employeeId: user.employeeId,
+      type: leaveType,
+      date: leaveDate,
+      reason: leaveReason
+    }).catch(error => console.error('Failed to send leave request notification:', error));
     
     res.status(201).json({ 
       success: true, 
@@ -111,6 +121,14 @@ export const updateLeaveStatus = async (req, res) => {
     leave.status = status;
     leave.approvedBy = req.user.id;
     await leave.save();
+    
+    // Notify employee about status update
+    NotificationService.notifyEmployee(leave.employeeId, 'leave_status_update', {
+      status: status,
+      type: leave.leaveType,
+      date: leave.leaveDate.toDateString(),
+      reason: leave.leaveReason
+    }).catch(error => console.error('Failed to send leave status notification:', error));
     
     res.json({ 
       success: true, 

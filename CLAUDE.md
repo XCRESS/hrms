@@ -105,6 +105,12 @@ pnpm lint           # ESLint
 - Implement proper loading states in components
 - Handle authentication token refresh as needed
 
+### Code Quality & Testing
+- **IMPORTANT**: Always run lint checks after coding changes: `pnpm lint`
+- Fix all ESLint errors and warnings before considering code complete
+- Frontend uses ESLint for code quality and consistency
+- Address React-specific warnings (e.g., multiple createRoot calls, unused variables)
+
 ## Important Implementation Details
 
 ### Attendance Status Logic

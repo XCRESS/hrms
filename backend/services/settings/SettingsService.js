@@ -4,7 +4,7 @@
  */
 
 import Settings from '../../models/Settings.model.js';
-import { getISTNow } from '../../utils/istUtils.js';
+import { getISTNow, createISTDateTime, timeToDecimal, decimalToTime24 } from '../../utils/timezoneUtils.js';
 
 /**
  * Settings Service Class
@@ -62,7 +62,7 @@ export class SettingsService {
    * @returns {number} Decimal hours
    */
   timeToDecimal(timeString) {
-    return Settings.timeToDecimal(timeString);
+    return timeToDecimal(timeString);
   }
 
   /**
@@ -71,7 +71,7 @@ export class SettingsService {
    * @returns {string} Time in 24-hour format (HH:MM)
    */
   decimalToTime(decimal) {
-    return Settings.decimalToTime24(decimal);
+    return decimalToTime24(decimal);
   }
 
   /**
@@ -122,20 +122,23 @@ export class SettingsService {
     const attendanceSettings = await this.getAttendanceSettings(department);
     const targetDate = date || getISTNow();
     
-    // Create date objects for start and end times
-    const startTime = new Date(targetDate);
-    const endTime = new Date(targetDate);
-    
-    // Parse time strings (HH:MM) and set the hours/minutes
+    // Parse time strings (HH:MM) and create IST moment objects
     const [startHour, startMinute] = attendanceSettings.workStartTime.split(':').map(Number);
     const [endHour, endMinute] = attendanceSettings.workEndTime.split(':').map(Number);
+    const [lateHour, lateMinute] = attendanceSettings.lateThreshold.split(':').map(Number);
+    const [halfHour, halfMinute] = attendanceSettings.halfDayEndTime.split(':').map(Number);
     
-    startTime.setHours(startHour, startMinute, 0, 0);
-    endTime.setHours(endHour, endMinute, 0, 0);
+    // Create IST datetime objects using timezoneUtils
+    const workStart = createISTDateTime(targetDate, startHour, startMinute);
+    const workEnd = createISTDateTime(targetDate, endHour, endMinute);
+    const lateThreshold = createISTDateTime(targetDate, lateHour, lateMinute);
+    const halfDayEnd = createISTDateTime(targetDate, halfHour, halfMinute);
     
     return {
-      workStart: startTime,
-      workEnd: endTime,
+      workStart: workStart.toDate(), // Convert to Date for backward compatibility
+      workEnd: workEnd.toDate(),
+      lateThreshold: lateThreshold.toDate(),
+      halfDayEnd: halfDayEnd.toDate(),
       workStartDecimal: this.timeToDecimal(attendanceSettings.workStartTime),
       workEndDecimal: this.timeToDecimal(attendanceSettings.workEndTime),
       lateThresholdDecimal: this.timeToDecimal(attendanceSettings.lateThreshold),
@@ -151,7 +154,15 @@ export class SettingsService {
    */
   async isWorkingDay(date, department = null) {
     const attendanceSettings = await this.getAttendanceSettings(department);
-    const dayOfWeek = date.getDay();
+    
+    // Convert to IST moment for consistent timezone handling
+    const istMoment = getISTNow().set({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      date: date.getDate()
+    });
+    
+    const dayOfWeek = istMoment.day(); // moment uses 0=Sunday, 1=Monday, etc.
     
     // Check if it's in working days
     if (!attendanceSettings.workingDays.includes(dayOfWeek)) {
@@ -160,7 +171,7 @@ export class SettingsService {
     
     // Special handling for Saturday - check if it's a holiday Saturday
     if (dayOfWeek === 6) { // Saturday
-      const saturdayWeek = this.getSaturdayWeekOfMonth(date);
+      const saturdayWeek = this.getSaturdayWeekOfMonth(istMoment.toDate());
       if (attendanceSettings.saturdayHolidays && attendanceSettings.saturdayHolidays.includes(saturdayWeek)) {
         return false; // This Saturday is configured as a holiday
       }
