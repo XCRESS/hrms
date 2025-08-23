@@ -60,12 +60,48 @@ class NotificationService {
         return false;
       }
 
-      const subscription = await this.subscribeToPush(this.vapidKey);
+      // Always refresh subscription to avoid 410 errors
+      const subscription = await this.refreshSubscription();
       this.isSubscribed = !!subscription;
       return this.isSubscribed;
     } catch (error) {
       console.error('Auto-subscribe failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Refresh push subscription (unsubscribe and resubscribe)
+   */
+  async refreshSubscription() {
+    try {
+      if (!this.registration) {
+        await this.initialize();
+      }
+
+      // Unsubscribe from any existing subscription
+      const existingSubscription = await this.registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        await existingSubscription.unsubscribe();
+        console.log('Unsubscribed from previous subscription');
+      }
+
+      // Create new subscription
+      const subscriptionOptions = {
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToUint8Array(this.vapidKey)
+      };
+
+      const newSubscription = await this.registration.pushManager.subscribe(subscriptionOptions);
+      console.log('New push subscription created:', newSubscription);
+
+      // Send new subscription to backend
+      await this.sendSubscriptionToBackend(newSubscription);
+      
+      return newSubscription;
+    } catch (error) {
+      console.error('Failed to refresh subscription:', error);
+      return null;
     }
   }
 

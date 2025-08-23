@@ -44,13 +44,43 @@ class PushService {
       return true;
     } catch (error) {
       console.error('Failed to send push notification:', error);
+      
+      // Handle expired subscription (410 error)
+      if (error.statusCode === 410) {
+        console.log('Subscription expired, removing from memory');
+        // Find and remove expired subscription
+        for (const [userId, storedSubscription] of this.subscriptions.entries()) {
+          if (storedSubscription.endpoint === subscription.endpoint) {
+            this.subscriptions.delete(userId);
+            console.log(`Removed expired subscription for user ${userId}`);
+            break;
+          }
+        }
+      }
+      
+      // Don't throw error for expired subscriptions, just log it
+      if (error.statusCode === 410) {
+        return false;
+      }
+      
       throw error;
     }
   }
 
   async sendToMultiple(subscriptions, payload) {
-    const promises = subscriptions.map(sub => this.send(sub, payload));
-    return Promise.allSettled(promises);
+    const promises = subscriptions.map(sub => this.send(sub, payload).catch(error => {
+      console.warn('Push send failed for one subscription:', error.message);
+      return false;
+    }));
+    const results = await Promise.allSettled(promises);
+    
+    // Count successful sends
+    const successful = results.filter(result => 
+      result.status === 'fulfilled' && result.value === true
+    ).length;
+    
+    console.log(`Push notifications: ${successful}/${subscriptions.length} successful`);
+    return results;
   }
 
   async sendNotification(type, data, subscriptions) {
