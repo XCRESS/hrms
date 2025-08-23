@@ -20,7 +20,7 @@ class SchedulerService {
     this.holidayReminderJob = cron.schedule('0 18 * * *', async () => {
       await this.checkHolidayReminders();
     }, {
-      scheduled: false,
+      scheduled: true,
       timezone: 'Asia/Kolkata'
     });
 
@@ -28,12 +28,9 @@ class SchedulerService {
     this.milestoneJob = cron.schedule('0 9 * * *', async () => {
       await this.checkEmployeeMilestones();
     }, {
-      scheduled: false,
+      scheduled: true,
       timezone: 'Asia/Kolkata'
     });
-
-    this.holidayReminderJob.start();
-    this.milestoneJob.start();
 
     this.isRunning = true;
     console.log('Scheduler service started successfully');
