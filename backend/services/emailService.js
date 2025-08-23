@@ -163,7 +163,7 @@ class EmailService {
         `
       },
       leave_status_update: {
-        subject: `Leave Request ${data.status.charAt(0).toUpperCase() + data.status.slice(1)}`,
+        subject: `Leave Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: `
           <div style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>Leave Request Update</h2>
@@ -175,7 +175,7 @@ class EmailService {
         `
       },
       regularization_status_update: {
-        subject: `Regularization Request ${data.status.charAt(0).toUpperCase() + data.status.slice(1)}`,
+        subject: `Regularization Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: `
           <div style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>Regularization Request Update</h2>

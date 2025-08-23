@@ -163,6 +163,13 @@ export const API_ENDPOINTS = {
     ADD_DEPARTMENT: "/settings/departments",
     RENAME_DEPARTMENT: (oldName) => `/settings/departments/${encodeURIComponent(oldName)}/rename`,
     DELETE_DEPARTMENT: (name) => `/settings/departments/${encodeURIComponent(name)}`
+  },
+
+  // Notifications
+  NOTIFICATIONS: {
+    BASE: "/notifications",
+    TEST: "/notifications/test",
+    STATUS: "/notifications/status"
   }
 };
 
