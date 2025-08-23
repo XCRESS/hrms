@@ -711,6 +711,15 @@ class ApiClient {
     async assignEmployeeToDepartment(departmentName, employeeId) {
       return this.post(`/settings/departments/${encodeURIComponent(departmentName)}/employees`, { employeeId });
     }
+
+    // Notification methods
+    async testNotification(type) {
+      return this.post(API_ENDPOINTS.NOTIFICATIONS.TEST, { type });
+    }
+
+    async getNotificationStatus() {
+      return this.get(API_ENDPOINTS.NOTIFICATIONS.STATUS);
+    }
   }
   
   // Export the instance

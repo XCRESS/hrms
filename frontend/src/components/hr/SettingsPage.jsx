@@ -261,9 +261,7 @@ const SettingsPage = () => {
     console.log('Testing notification with user:', user?.role, 'token exists:', !!token);
     
     try {
-      const data = await apiClient.post('/notifications/test', { 
-        type: 'hr' 
-      });
+      const data = await apiClient.testNotification('hr');
       
       console.log('API Response:', data);
       
