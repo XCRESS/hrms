@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
-import { AlertCircle, CheckCircle, XCircle, TestTube, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TestTube, Send, RefreshCw, Save } from 'lucide-react';
+import { useToast } from '../ui/toast';
 
 import SettingsLayout from './settings/SettingsLayout';
 import AttendanceSettings from './settings/AttendanceSettings';
@@ -9,6 +10,7 @@ import DepartmentManagement from './settings/DepartmentManagement';
 
 const SettingsPage = () => {
   const user = useAuth();
+  const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('attendance');
   const [settings, setSettings] = useState(null);
   const [departments, setDepartments] = useState([]);
@@ -57,6 +59,10 @@ const SettingsPage = () => {
         sixMonths: true,
         oneYear: true
       }
+    },
+    general: {
+      locationSetting: 'na',
+      taskReportSetting: 'na'
     }
   });
 
@@ -100,6 +106,10 @@ const SettingsPage = () => {
             sixMonths: response.data.notifications?.milestoneTypes?.sixMonths ?? true,
             oneYear: response.data.notifications?.milestoneTypes?.oneYear ?? true
           }
+        },
+        general: {
+          locationSetting: response.data.general?.locationSetting ?? 'na',
+          taskReportSetting: response.data.general?.taskReportSetting ?? 'na'
         }
       });
     } catch (err) {
@@ -226,15 +236,27 @@ const SettingsPage = () => {
     try {
       if (selectedDepartment) {
         await apiClient.updateDepartmentSettings(selectedDepartment, formData);
-        setMessage({ type: 'success', content: `Department settings updated successfully for ${selectedDepartment}!` });
+        toast({
+          variant: "success",
+          title: "Settings Saved",
+          description: `Department settings updated successfully for ${selectedDepartment}!`
+        });
       } else {
         await apiClient.updateGlobalSettings(formData);
-        setMessage({ type: 'success', content: 'Global settings updated successfully!' });
+        toast({
+          variant: "success", 
+          title: "Settings Saved",
+          description: "Global settings updated successfully!"
+        });
       }
       
       await fetchSettings();
     } catch (err) {
-      setError(err.message || 'Failed to save settings.');
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: err.message || 'Failed to save settings.'
+      });
     } finally {
       setSaving(false);
     }
@@ -260,13 +282,46 @@ const SettingsPage = () => {
     const token = localStorage.getItem('authToken');
     console.log('Testing notification with user:', user?.role, 'token exists:', !!token);
     
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please log in again to test notifications"
+      });
+      setTestingNotification(false);
+      return;
+    }
+    
+    if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+      toast({
+        variant: "destructive", 
+        title: "Access Denied",
+        description: "Only admin and HR users can test notifications"
+      });
+      setTestingNotification(false);
+      return;
+    }
+    
     try {
       console.log('Calling testNotification API...');
-      const data = await apiClient.testNotification('hr');
       
-      console.log('API Response:', data);
-      console.log('API Response type:', typeof data);
-      console.log('API Response keys:', Object.keys(data || {}));
+      // Test HR notifications
+      console.log('Testing HR notifications...');
+      const hrData = await apiClient.testNotification('hr');
+      console.log('HR Test Response:', hrData);
+      
+      // Test milestone alerts
+      console.log('Testing milestone alerts...');
+      const milestoneData = await apiClient.testNotification('milestone');
+      console.log('Milestone Test Response:', milestoneData);
+      
+      // Test holiday reminders
+      console.log('Testing holiday reminders...');
+      const holidayData = await apiClient.testNotification('holiday');
+      console.log('Holiday Test Response:', holidayData);
+      
+      // Use the latest response (holiday) for status info
+      const data = holidayData;
       
       if (data && data.success) {
         const { details } = data;
@@ -276,18 +331,24 @@ const SettingsPage = () => {
         if (details && details.pushReady) statusInfo.push('Push ✓');
         
         if (statusInfo.length === 0) {
-          setMessage({ 
-            type: 'success', 
-            content: 'Test completed, but no notification services are configured. Please configure email or WhatsApp settings to receive notifications.' 
+          toast({
+            variant: "warning",
+            title: "Test Completed",
+            description: "No notification services are configured. Please configure email or WhatsApp settings to receive notifications."
           });
         } else {
-          setMessage({ 
-            type: 'success', 
-            content: `Test notification sent successfully! Services ready: ${statusInfo.join(', ')}. Check your configured channels.` 
+          toast({
+            variant: "success",
+            title: "All Tests Successful",
+            description: `All notification tests passed! Services ready: ${statusInfo.join(', ')}. HR notifications, milestone alerts, and holiday reminders are working. Check your configured channels.`
           });
         }
       } else {
-        setError(`Server returned: ${data?.message || 'Unknown response format'}`);
+        toast({
+          variant: "destructive",
+          title: "Test Failed",
+          description: `Server returned: ${data?.message || 'Unknown response format'}`
+        });
       }
     } catch (err) {
       console.error('Test notification error:', err);
@@ -304,7 +365,11 @@ const SettingsPage = () => {
         errorMessage = err.message || 'Unknown error occurred';
       }
       
-      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Test Failed",
+        description: errorMessage
+      });
     } finally {
       setTestingNotification(false);
     }
@@ -332,7 +397,11 @@ const SettingsPage = () => {
 
   const handleAddDepartment = async () => {
     if (!newDeptName.trim()) {
-      setError('Department name is required');
+      toast({
+        variant: "warning",
+        title: "Validation Error", 
+        description: "Department name is required"
+      });
       return;
     }
 
@@ -341,7 +410,11 @@ const SettingsPage = () => {
         name: newDeptName.trim()
       });
       
-      setMessage({ type: 'success', content: 'Department added successfully!' });
+      toast({
+        variant: "success",
+        title: "Department Added",
+        description: "Department added successfully!"
+      });
       setShowAddDeptModal(false);
       setNewDeptName('');
       
@@ -349,20 +422,32 @@ const SettingsPage = () => {
       fetchDepartments();
     } catch (err) {
       const errorMessage = err.message || err.data?.message || 'Failed to add department';
-      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Add Failed",
+        description: errorMessage
+      });
     }
   };
 
   const handleRenameDepartment = async () => {
     if (!newDeptName.trim() || !selectedDeptForAction) {
-      setError('Department name is required');
+      toast({
+        variant: "warning",
+        title: "Validation Error",
+        description: "Department name is required"
+      });
       return;
     }
 
     try {
       await apiClient.renameDepartment(selectedDeptForAction.name, newDeptName.trim());
       
-      setMessage({ type: 'success', content: 'Department renamed successfully!' });
+      toast({
+        variant: "success",
+        title: "Department Renamed",
+        description: "Department renamed successfully!"
+      });
       setShowRenameDeptModal(false);
       setNewDeptName('');
       setSelectedDeptForAction(null);
@@ -375,7 +460,11 @@ const SettingsPage = () => {
       }
     } catch (err) {
       const errorMessage = err.message || err.data?.message || 'Failed to rename department';
-      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Rename Failed",
+        description: errorMessage
+      });
     }
   };
 
@@ -385,9 +474,10 @@ const SettingsPage = () => {
     try {
       const response = await apiClient.deleteDepartment(selectedDeptForAction.name);
       
-      setMessage({ 
-        type: 'success', 
-        content: `Department deleted successfully! ${response.data.affectedEmployees} employees updated.` 
+      toast({
+        variant: "success",
+        title: "Department Deleted",
+        description: `Department deleted successfully! ${response.data.affectedEmployees} employees updated.`
       });
       setShowDeleteDeptModal(false);
       setSelectedDeptForAction(null);
@@ -400,7 +490,11 @@ const SettingsPage = () => {
       }
     } catch (err) {
       const errorMessage = err.message || err.data?.message || 'Failed to delete department';
-      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: errorMessage
+      });
     }
   };
 
@@ -465,13 +559,34 @@ const SettingsPage = () => {
       case 'notifications':
         return (
           <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notification Settings</h2>
+                  <p className="text-slate-600 dark:text-slate-400">Configure notification channels and preferences</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notification Settings</h2>
-                <p className="text-slate-600 dark:text-slate-400">Configure notification channels and preferences</p>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </div>
 
@@ -600,7 +715,7 @@ const SettingsPage = () => {
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Test
+                      Test All
                     </>
                   )}
                 </button>
@@ -760,34 +875,144 @@ const SettingsPage = () => {
                 </div>
               )}
             </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-              >
-                {saving ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
           </div>
         );
       case 'general':
         return (
           <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-lg">
+                  <AlertCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">General Settings</h2>
+                  <p className="text-slate-600 dark:text-slate-400">System preferences and configurations</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">General Settings</h2>
-                <p className="text-slate-600 dark:text-slate-400">System preferences and configurations</p>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </div>
+            
+            {/* Location Settings */}
             <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400">General settings coming soon...</p>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-in Location Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="location-na"
+                    name="general.locationSetting"
+                    value="na"
+                    checked={formData.general.locationSetting === 'na'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="location-na" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">N/A - No Location Required</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Check-in without location tracking</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="location-optional"
+                    name="general.locationSetting"
+                    value="optional"
+                    checked={formData.general.locationSetting === 'optional'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="location-optional" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">Optional - Allow Check-in Without Location</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Try to get location, but allow check-in even if permission is denied</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="location-mandatory"
+                    name="general.locationSetting"
+                    value="mandatory"
+                    checked={formData.general.locationSetting === 'mandatory'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="location-mandatory" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">Mandatory - Location Required</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Check-in not allowed if location permission is denied or unavailable</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Task Report Settings */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-out Task Report Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="task-na"
+                    name="general.taskReportSetting"
+                    value="na"
+                    checked={formData.general.taskReportSetting === 'na'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="task-na" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">N/A - Direct Check-out</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Check-out without task report prompt</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="task-optional"
+                    name="general.taskReportSetting"
+                    value="optional"
+                    checked={formData.general.taskReportSetting === 'optional'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="task-optional" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">Optional - Prompt After Check-out</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Allow check-out, then ask if employee wants to submit task report</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    id="task-mandatory"
+                    name="general.taskReportSetting"
+                    value="mandatory"
+                    checked={formData.general.taskReportSetting === 'mandatory'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="task-mandatory" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <span className="block">Mandatory - Required for Check-out</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Check-out not allowed without submitting task report</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         );

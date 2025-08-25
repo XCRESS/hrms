@@ -121,6 +121,25 @@ const settingsSchema = new mongoose.Schema({
     }
   },
 
+  // General Configuration
+  general: {
+    // Location settings for check-in
+    locationSetting: {
+      type: String,
+      enum: ["na", "optional", "mandatory"],
+      default: "na",
+      description: "Location requirement for check-in: na=no location fetch, optional=validate if provided, mandatory=require location"
+    },
+    
+    // Task report settings for check-out  
+    taskReportSetting: {
+      type: String,
+      enum: ["na", "optional", "mandatory"],
+      default: "na", 
+      description: "Task report requirement for check-out: na=direct checkout, optional=prompt after checkout, mandatory=required for checkout"
+    }
+  },
+
   // Scope Configuration
   scope: {
     type: String,
@@ -249,6 +268,10 @@ settingsSchema.statics.getGlobalSettings = async function() {
           sixMonths: true,
           oneYear: true
         }
+      },
+      general: {
+        locationSetting: "na",
+        taskReportSetting: "na"
       },
       lastUpdatedBy: null
     });

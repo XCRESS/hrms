@@ -23,10 +23,10 @@ export const getGlobalSettings = async (req, res) => {
 // Update global settings
 export const updateGlobalSettings = async (req, res) => {
   try {
-    const { attendance, notifications } = req.body;
+    const { attendance, notifications, general } = req.body;
     
     // Validate that at least one setting type is provided
-    if (!attendance && !notifications) {
+    if (!attendance && !notifications && !general) {
       return res.status(400).json(formatResponse(false, "At least one settings section is required"));
     }
     
@@ -41,6 +41,7 @@ export const updateGlobalSettings = async (req, res) => {
       
       if (attendance) newSettings.attendance = attendance;
       if (notifications) newSettings.notifications = notifications;
+      if (general) newSettings.general = general;
       
       settings = new Settings(newSettings);
     } else {
@@ -50,6 +51,9 @@ export const updateGlobalSettings = async (req, res) => {
       }
       if (notifications) {
         settings.notifications = { ...settings.notifications, ...notifications };
+      }
+      if (general) {
+        settings.general = { ...settings.general, ...general };
       }
       settings.lastUpdatedBy = req.user && req.user._id ? req.user._id : settings.lastUpdatedBy;
     }
@@ -101,7 +105,7 @@ export const getDepartmentSettings = async (req, res) => {
 export const updateDepartmentSettings = async (req, res) => {
   try {
     const { department } = req.params;
-    const { attendance } = req.body;
+    const { attendance, general } = req.body;
     
     if (!department) {
       return res.status(400).json(formatResponse(false, "Department parameter is required"));
@@ -113,16 +117,22 @@ export const updateDepartmentSettings = async (req, res) => {
     
     if (!settings) {
       // Create new department settings
-      settings = new Settings({
+      const newSettings = {
         scope: "department",
         department,
-        attendance,
         lastUpdatedBy: req.user && req.user._id ? req.user._id : null
-      });
+      };
+      if (attendance) newSettings.attendance = attendance;
+      if (general) newSettings.general = general;
+      
+      settings = new Settings(newSettings);
     } else {
       // Update existing department settings
       if (attendance) {
         settings.attendance = { ...settings.attendance, ...attendance };
+      }
+      if (general) {
+        settings.general = { ...settings.general, ...general };
       }
       settings.lastUpdatedBy = req.user && req.user._id ? req.user._id : settings.lastUpdatedBy;
     }

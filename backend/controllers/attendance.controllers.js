@@ -70,9 +70,19 @@ export const checkIn = asyncErrorHandler(async (req, res) => {
     });
   }
 
-  // Validate location data if provided
+  // Get effective settings for location requirement
+  const Settings = (await import('../models/Settings.model.js')).default;
+  const effectiveSettings = await Settings.getEffectiveSettings(employee.department);
+  const locationSetting = effectiveSettings.general?.locationSetting || 'na';
+
+  // Validate location data based on settings
   const { latitude, longitude } = req.body;
-  if (latitude !== undefined || longitude !== undefined) {
+  
+  if (locationSetting === 'mandatory') {
+    // Location is mandatory - require valid coordinates
+    if (!latitude || !longitude) {
+      throw new BusinessLogicError('Location is required for check-in', { locationRequired: true });
+    }
     validateRequiredFields({ latitude, longitude }, ['latitude', 'longitude']);
     
     const lat = parseFloat(latitude);
@@ -80,7 +90,19 @@ export const checkIn = asyncErrorHandler(async (req, res) => {
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new BusinessLogicError('Invalid location coordinates', { latitude, longitude });
     }
+  } else if (locationSetting === 'optional' && (latitude !== undefined || longitude !== undefined)) {
+    // Location is optional but if provided, validate it
+    if (latitude || longitude) {
+      validateRequiredFields({ latitude, longitude }, ['latitude', 'longitude']);
+      
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        throw new BusinessLogicError('Invalid location coordinates', { latitude, longitude });
+      }
+    }
   }
+  // For 'na' setting, we don't validate or require location at all
 
   // Determine status and create attendance record using employee's department
   const statusResult = await Business.determineAttendanceStatus(now, null, employee.department);
@@ -93,8 +115,8 @@ export const checkIn = asyncErrorHandler(async (req, res) => {
     status: statusResult.status
   };
 
-  // Add location if provided and valid
-  if (latitude && longitude) {
+  // Add location if provided and valid (based on setting)
+  if (locationSetting !== 'na' && latitude && longitude) {
     attendanceData.location = {
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude)
@@ -136,20 +158,41 @@ export const checkOut = asyncErrorHandler(async (req, res) => {
     });
   }
 
-  // Get employee for task report
+  // Get employee for department settings
   const employee = await Data.getEmployeeById(employeeObjId);
   if (!employee) {
     throw new NotFoundError(ERROR_MESSAGES.EMPLOYEE_NOT_FOUND);
   }
-  
-  // Create task report
-  const taskValidation = Business.validateTaskReport(tasks);
-  await TaskReport.create({
-    employee: employeeObjId,
-    employeeId: employee.employeeId,
-    date: attendance.date,
-    tasks: taskValidation.validTasks
-  });
+
+  // Get effective settings for task report requirement
+  const Settings = (await import('../models/Settings.model.js')).default;
+  const effectiveSettings = await Settings.getEffectiveSettings(employee.department);
+  const taskReportSetting = effectiveSettings.general?.taskReportSetting || 'na';
+
+  // Handle task report based on setting
+  if (taskReportSetting === 'mandatory') {
+    // Task report is required for checkout
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      throw new BusinessLogicError('Task report is required for check-out', { taskReportRequired: true });
+    }
+    const taskValidation = Business.validateTaskReport(tasks);
+    await TaskReport.create({
+      employee: employeeObjId,
+      employeeId: employee.employeeId,
+      date: attendance.date,
+      tasks: taskValidation.validTasks
+    });
+  } else if (taskReportSetting === 'optional' && tasks && Array.isArray(tasks) && tasks.length > 0) {
+    // Task report is optional but if provided, save it
+    const taskValidation = Business.validateTaskReport(tasks);
+    await TaskReport.create({
+      employee: employeeObjId,
+      employeeId: employee.employeeId,
+      date: attendance.date,
+      tasks: taskValidation.validTasks
+    });
+  }
+  // For 'na' setting, we don't save task report at all
 
   // Calculate final status and update attendance using employee's department
   const finalStatus = await Business.calculateFinalStatus(attendance.checkIn, now, employee.department);
