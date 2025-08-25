@@ -139,7 +139,7 @@ export class AttendanceBusinessService {
     }
 
     // Check if it's a very early check-in (before 6 AM)
-    const checkInHour = now.getHours();
+    const checkInHour = now.hours();
     if (checkInHour < 6) {
       validation.warnings.push('Very early check-in detected');
     }
