@@ -458,6 +458,8 @@ const SettingsPage = () => {
             handleRenameDepartment={handleRenameDepartment}
             handleDeleteDepartment={handleDeleteDepartment}
             resetMessages={resetMessages}
+            fetchDepartmentStats={fetchDepartmentStats}
+            fetchDepartments={fetchDepartments}
           />
         );
       case 'notifications':
