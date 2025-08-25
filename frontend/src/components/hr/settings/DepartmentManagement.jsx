@@ -23,7 +23,9 @@ const DepartmentManagement = ({
   handleAddDepartment,
   handleRenameDepartment,
   handleDeleteDepartment,
-  resetMessages
+  resetMessages,
+  fetchDepartmentStats,
+  fetchDepartments
 }) => {
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [selectedDeptForEmployees, setSelectedDeptForEmployees] = useState(null);
@@ -71,9 +73,12 @@ const DepartmentManagement = ({
       setSelectedDeptForEmployees(null);
       setAvailableEmployees(null);
       
-      // Refresh data - assuming these functions are passed down
-      if (typeof window !== 'undefined' && window.location) {
-        window.location.reload(); // Simple refresh for now
+      // Refresh department data without page reload
+      if (fetchDepartmentStats && typeof fetchDepartmentStats === 'function') {
+        await fetchDepartmentStats();
+      }
+      if (fetchDepartments && typeof fetchDepartments === 'function') {
+        await fetchDepartments();
       }
     } catch (error) {
       console.error('Error assigning employee:', error);
