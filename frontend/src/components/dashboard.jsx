@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, memo, useReducer, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useReducer, useRef } from "react";
 import useAuth from "../hooks/authjwt"; // Ensure this path is correct
 import apiClient from "../service/apiClient"; // Ensure this path is correct
 import { useDataCache, CACHE_KEYS } from '../contexts/DataCacheContext';
-import { useCachedApi } from '../hooks/useCachedApi';
 import LeaveRequestModal from "./LeaveRequestModal";
 import HelpDeskModal from "./HelpDeskModal";
 import { useTheme } from '../contexts/ThemeContext';
@@ -80,6 +79,7 @@ const dashboardInitialState = {
     isCheckedIn: false,
     dailyCycleComplete: false,
     regularizationPrefillData: null,
+    taskReportSetting: 'na',
   }
 };
 
@@ -168,7 +168,8 @@ export default function HRMSDashboard() {
   const {
     isCheckedIn,
     dailyCycleComplete,
-    regularizationPrefillData
+    regularizationPrefillData,
+    taskReportSetting
   } = app;
   
   const {
@@ -282,38 +283,6 @@ export default function HRMSDashboard() {
   };
 
   // Manual refresh function to force reload all data
-  const refreshDashboard = useCallback(async () => {
-    console.log('🔄 Dashboard: Force refresh requested');
-    clearCache(); // Clear all cache
-    
-    try {
-      setLoading('isLoading', true);
-      
-      // Load common data
-      await Promise.all([
-        fetchTodayAttendance(),
-        loadAnnouncements(),
-        loadHolidays()
-      ]);
-
-      // Load role-specific data with FORCE REFRESH = true
-      if (isAdmin) {
-        await loadAdminDashboardData();
-      } else {
-        // Force refresh = true to bypass cache
-        await loadEmployeeDashboardData(true);
-      }
-      
-      // Load missing checkouts for all users
-      await loadMissingCheckouts();
-      
-    } catch (error) {
-      console.error("Dashboard refresh error:", error);
-    } finally {
-      setLoading('isLoading', false);
-    }
-  }, [clearCache, isAdmin, invalidateCache]);
-
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.employeeId) return;
     
@@ -522,51 +491,67 @@ export default function HRMSDashboard() {
     let locationData = {};
     
     try {
-      // First try to get location
-      setLoading('locationLoading', true);
+      // Get location settings first
+      const settingsResponse = await apiClient.getGlobalSettings();
+      const locationSetting = settingsResponse?.data?.general?.locationSetting || 'na';
       
-      if (navigator.geolocation) {
-        try {
-          locationData = await new Promise((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                resolve({
-                  latitude: position.coords.latitude,
-                  longitude: position.coords.longitude
-                });
-              },
-              (error) => {
-                let locationError = "Location access failed";
-                switch(error.code) {
-                  case error.PERMISSION_DENIED:
-                    locationError = "Location permission denied";
-                    break;
-                  case error.POSITION_UNAVAILABLE:
-                    locationError = "Location unavailable";
-                    break;
-                  case error.TIMEOUT:
-                    locationError = "Location request timed out";
-                    break;
-                  default:
-                    locationError = `Location error: ${error.message}`;
+      if (locationSetting !== 'na') {
+        // Location is required or optional - try to get it
+        setLoading('locationLoading', true);
+        
+        if (navigator.geolocation) {
+          try {
+            locationData = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                  });
+                },
+                (error) => {
+                  let locationError = "Location access failed";
+                  switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                      locationError = "Location permission denied";
+                      break;
+                    case error.POSITION_UNAVAILABLE:
+                      locationError = "Location unavailable";
+                      break;
+                    case error.TIMEOUT:
+                      locationError = "Location request timed out";
+                      break;
+                    default:
+                      locationError = `Location error: ${error.message}`;
+                  }
+                  
+                  if (locationSetting === 'mandatory') {
+                    reject(new Error(locationError));
+                  } else {
+                    // Optional setting - continue without location
+                    resolve({});
+                  }
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 20000,
+                  maximumAge: 0
                 }
-                // console.warn(locationError, error);
-                resolve({}); // Continue with check-in even if location fails
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 20000,
-                maximumAge: 0
-              }
-            );
-          });
-        } catch (error) {
-          console.warn("Geolocation error:", error);
-          // Continue with check-in even if location fails
+              );
+            });
+          } catch (error) {
+            if (locationSetting === 'mandatory') {
+              throw new Error(`Location is required for check-in: ${error.message}`);
+            }
+            console.warn("Geolocation error:", error);
+            // Continue with check-in for optional setting
+          }
+        } else if (locationSetting === 'mandatory') {
+          throw new Error("Location is required but geolocation is not supported by this browser");
         }
+        
+        setLoading('locationLoading', false);
       }
-      
-      setLoading('locationLoading', false);
       
       // Proceed with check-in
       const response = await apiClient.checkIn(locationData);
@@ -650,7 +635,70 @@ export default function HRMSDashboard() {
       });
       return;
     }
-    setModal('showTaskReportModal', true);
+    
+    try {
+      // Get task report settings first
+      const settingsResponse = await apiClient.getGlobalSettings();
+      const taskReportSettingValue = settingsResponse?.data?.general?.taskReportSetting || 'na';
+      
+      // Store setting in state for modal
+      setAppState('taskReportSetting', taskReportSettingValue);
+      
+      if (taskReportSettingValue === 'na') {
+        // Direct checkout - no task report needed
+        await handleDirectCheckOut();
+      } else if (taskReportSettingValue === 'optional') {
+        // Optional - show task report modal but allow skip
+        setModal('showTaskReportModal', true);
+      } else {
+        // Mandatory - show task report modal
+        setModal('showTaskReportModal', true);
+      }
+    } catch (error) {
+      console.error("Error checking task report settings:", error);
+      // Fallback to showing task report modal
+      setModal('showTaskReportModal', true);
+    }
+  };
+
+  const handleDirectCheckOut = async () => {
+    setLoading('checkOutLoading', true);
+    try {
+      const result = await apiClient.checkOut([]);
+      if (result.success) {
+        toast({
+          title: "Checked Out Successfully",
+          description: "You have successfully checked out."
+        });
+        setAppState('dailyCycleComplete', true);
+        await fetchTodayAttendance();
+        await loadAttendanceData(true); // Force refresh after check-out
+      }
+    } catch (error) {
+      console.error("Check-out error:", error);
+      
+      let title = "Check-out Failed";
+      let description = "An unexpected error occurred during check-out.";
+      let variant = "destructive";
+      
+      if (error?.response?.data?.message) {
+        description = error.response.data.message;
+        if (error.response.status === 400) {
+          variant = "warning";
+          title = "Check-out Not Allowed";
+        }
+      } else if (error.message) {
+        description = error.message;
+      }
+      
+      toast({
+        variant,
+        title,
+        description
+      });
+    } finally {
+      setLoading('checkOutLoading', false);
+    }
   };
 
   const handleTaskReportSubmit = async (tasks) => {
@@ -711,6 +759,12 @@ export default function HRMSDashboard() {
     } finally {
       setLoading('checkOutLoading', false);
     }
+  };
+
+  const handleTaskReportSkip = async () => {
+    // For optional task reports, skip and directly check out
+    await handleDirectCheckOut();
+    setModal('showTaskReportModal', false);
   };
 
   const handleLeaveRequestSubmit = async (data) => {
@@ -1111,7 +1165,9 @@ export default function HRMSDashboard() {
         isOpen={showTaskReportModal}
         onClose={() => setModal('showTaskReportModal', false)}
         onSubmit={handleTaskReportSubmit}
+        onSkip={handleTaskReportSkip}
         isLoading={checkOutLoading}
+        isOptional={taskReportSetting === 'optional'}
       />
 
       <AbsentEmployeesModal

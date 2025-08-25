@@ -1,450 +1,465 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { PlusCircle, XCircle, FileText, Clock, CheckCircle, AlertCircle, Save, ArrowRight, Coffee, Sunset } from 'lucide-react';
+import { PlusCircle, XCircle, Clock, CheckCircle, AlertCircle, Coffee, Sunset, User, Calendar, Timer } from 'lucide-react';
+import useAuth from '../../hooks/authjwt';
+import apiClient from '../../service/apiClient';
 
-const TaskReportModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
-  const [currentStep, setCurrentStep] = useState(1); // 1 = pre-lunch, 2 = post-lunch
-  const [preLunchTasks, setPreLunchTasks] = useState(['']);
-  const [postLunchTasks, setPostLunchTasks] = useState(['']);
+const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptional = false }) => {
+  const [tasks, setTasks] = useState(['']);
   const [error, setError] = useState('');
-  const [savedPreLunch, setSavedPreLunch] = useState(false);
+  const [isHalfDay, setIsHalfDay] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [workDuration, setWorkDuration] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [attendanceSettings, setAttendanceSettings] = useState(null);
+  
   const modalRef = useRef(null);
-  const backdropRef = useRef(null);
+  const user = useAuth();
 
-  const STORAGE_KEY = 'taskReport_preLunch';
-
-  // Detect mobile device and keyboard state
+  // Mobile detection
   useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    const checkDevice = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice || isSmallScreen);
     };
-    
-    checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    
-    return () => window.removeEventListener('resize', checkIfMobile);
+
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  // Handle keyboard open/close on mobile with better viewport detection
+  // Enhanced keyboard detection
   useEffect(() => {
     if (!isMobile) return;
 
-    let initialViewportHeight = window.visualViewport?.height || window.innerHeight;
-    
-    const handleViewportChange = () => {
-      const currentHeight = window.visualViewport?.height || window.innerHeight;
-      const heightDiff = initialViewportHeight - currentHeight;
-      
-      // Use a more reliable threshold and add debouncing
-      const threshold = Math.min(150, initialViewportHeight * 0.25); // 25% of initial height or 150px
-      setIsKeyboardOpen(heightDiff > threshold);
-    };
+    const initialHeight = window.innerHeight;
+    let keyboardTimeout;
 
     const handleResize = () => {
-      // Fallback for browsers without visualViewport
-      if (!window.visualViewport) {
+      clearTimeout(keyboardTimeout);
+      keyboardTimeout = setTimeout(() => {
         const currentHeight = window.innerHeight;
-        const heightDiff = initialViewportHeight - currentHeight;
-        const threshold = Math.min(150, initialViewportHeight * 0.25);
-        setIsKeyboardOpen(heightDiff > threshold);
+        const heightDifference = initialHeight - currentHeight;
+        setIsKeyboardVisible(heightDifference > 150);
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(keyboardTimeout);
+    };
+  }, [isMobile]);
+
+  // Fetch settings and attendance data
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isOpen || !user?.employeeId) return;
+
+      try {
+        // Fetch attendance settings
+        const settingsResponse = await apiClient.getGlobalSettings();
+        const settings = settingsResponse?.data?.attendance || {};
+        setAttendanceSettings(settings);
+
+        // Fetch today's attendance
+        const today = new Date().toISOString().slice(0, 10);
+        const attendanceResponse = await apiClient.getMyAttendanceRecords({
+          startDate: today,
+          endDate: today,
+          limit: 1,
+        });
+
+        if (attendanceResponse.success && attendanceResponse.data?.records?.length > 0) {
+          const record = attendanceResponse.data.records[0];
+          if (record.checkIn) {
+            const checkInDateTime = new Date(record.checkIn);
+            setCheckInTime(checkInDateTime);
+            
+            const now = new Date();
+            const workHours = (now - checkInDateTime) / (1000 * 60 * 60);
+            const minimumWorkHours = settings.minimumWorkHours || 4;
+            
+            setIsHalfDay(workHours < minimumWorkHours);
+            setWorkDuration(formatWorkDuration(workHours));
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
       }
     };
 
-    // Use visualViewport API when available (more reliable)
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportChange);
-      return () => window.visualViewport?.removeEventListener('resize', handleViewportChange);
-    } else {
-      // Fallback for older browsers
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [isMobile]);
+    fetchData();
+  }, [isOpen, user?.employeeId]);
 
+  // Update time every minute
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      
+      if (checkInTime && attendanceSettings) {
+        const workHours = (now - checkInTime) / (1000 * 60 * 60);
+        setWorkDuration(formatWorkDuration(workHours));
+        
+        const minimumWorkHours = attendanceSettings.minimumWorkHours || 4;
+        setIsHalfDay(workHours < minimumWorkHours);
+      }
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, checkInTime, attendanceSettings]);
+
+  // Initialize form when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Load saved pre-lunch tasks if available
-      const savedTasks = localStorage.getItem(STORAGE_KEY);
-      if (savedTasks) {
-        try {
-          const parsedTasks = JSON.parse(savedTasks);
-          setPreLunchTasks(parsedTasks.length > 0 ? parsedTasks : ['']);
-          setSavedPreLunch(true);
-        } catch (e) {
-          setPreLunchTasks(['']);
-          setSavedPreLunch(false);
-        }
-      } else {
-        setPreLunchTasks(['']);
-        setSavedPreLunch(false);
-      }
-      
-      setPostLunchTasks(['']);
-      setCurrentStep(1);
+      setTasks(['']);
       setError('');
       
-      // Prevent body scroll on mobile
-      if (isMobile) {
-        document.body.style.overflow = 'hidden';
+      // Load saved draft
+      const savedTasks = localStorage.getItem('taskReport_draft');
+      if (savedTasks) {
+        try {
+          const parsed = JSON.parse(savedTasks);
+          if (parsed.length > 0) {
+            setTasks(parsed);
+          }
+        } catch (e) {
+          // Ignore
+        }
       }
+
+      // Prevent background scroll
+      document.body.style.overflow = 'hidden';
     } else {
-      // Restore body scroll
       document.body.style.overflow = '';
     }
-    
+
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen, isMobile]);
+  }, [isOpen]);
 
-  const getCurrentTasks = () => currentStep === 1 ? preLunchTasks : postLunchTasks;
-  const setCurrentTasks = currentStep === 1 ? setPreLunchTasks : setPostLunchTasks;
+  // Auto-save tasks
+  useEffect(() => {
+    const nonEmptyTasks = tasks.filter(task => task.trim());
+    if (nonEmptyTasks.length > 0) {
+      localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+    }
+  }, [tasks]);
 
-  const handleTaskChange = (index, value) => {
-    const newTasks = [...getCurrentTasks()];
-    newTasks[index] = value;
-    setCurrentTasks(newTasks);
+  const formatWorkDuration = (hours) => {
+    const h = Math.floor(hours);
+    const m = Math.floor((hours - h) * 60);
+    return `${h}h ${m}m`;
   };
 
-  // Handle backdrop click - disabled to prevent accidental closure
-  const handleBackdropClick = useCallback((e) => {
-    // Modal no longer closes when clicking outside - only via close button or cancel
-    // This prevents accidental closure when clicking outside the modal
-  }, []);
+  const formatTime = (date) => {
+    return date ? date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    }) : '';
+  };
+
+  const handleTaskChange = (index, value) => {
+    const newTasks = [...tasks];
+    newTasks[index] = value;
+    setTasks(newTasks);
+  };
 
   const handleAddTask = () => {
-    setCurrentTasks([...getCurrentTasks(), '']);
+    setTasks([...tasks, '']);
   };
 
   const handleRemoveTask = (index) => {
-    const currentTasks = getCurrentTasks();
-    if (currentTasks.length > 1) {
-      const newTasks = currentTasks.filter((_, i) => i !== index);
-      setCurrentTasks(newTasks);
+    if (tasks.length > 1) {
+      const newTasks = tasks.filter((_, i) => i !== index);
+      setTasks(newTasks);
     }
-  };
-
-  const savePreLunchTasks = () => {
-    const nonEmptyTasks = preLunchTasks.map(t => t.trim()).filter(t => t !== '');
-    if (nonEmptyTasks.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nonEmptyTasks));
-      setSavedPreLunch(true);
-      setError('');
-      // Show success message briefly
-      const originalError = error;
-      setError('Pre-lunch tasks saved successfully!');
-      setTimeout(() => setError(originalError), 2000);
-    } else {
-      setError('Please enter at least one pre-lunch task to save.');
-    }
-  };
-
-  const goToPostLunch = () => {
-    const nonEmptyTasks = preLunchTasks.map(t => t.trim()).filter(t => t !== '');
-    if (nonEmptyTasks.length > 0) {
-      setError('');
-      setCurrentStep(2);
-    } else {
-      setError('Please enter at least one pre-lunch task before proceeding.');
-    }
-  };
-
-  const goBackToPreLunch = () => {
-    setCurrentStep(1);
-    setError('');
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (currentStep === 1) {
-      goToPostLunch();
-      return;
-    }
-
-    // Final submission for checkout
-    const preLunchNonEmpty = preLunchTasks.map(t => t.trim()).filter(t => t !== '');
-    const postLunchNonEmpty = postLunchTasks.map(t => t.trim()).filter(t => t !== '');
+    const nonEmptyTasks = tasks.map(t => t.trim()).filter(t => t !== '');
     
-    if (preLunchNonEmpty.length === 0) {
-      setError('Please enter at least one pre-lunch task.');
-      setCurrentStep(1);
-      return;
-    }
-    
-    if (postLunchNonEmpty.length === 0) {
-      setError('Please enter at least one post-lunch task.');
+    if (nonEmptyTasks.length === 0) {
+      setError('Please add at least one task to continue.');
       return;
     }
 
-    // Combine all tasks with labels
-    const allTasks = [
-      ...preLunchNonEmpty.map(task => `[Pre-lunch] ${task}`),
-      ...postLunchNonEmpty.map(task => `[Post-lunch] ${task}`)
-    ];
-
+    localStorage.removeItem('taskReport_draft');
     setError('');
-    // Clear saved pre-lunch tasks after successful submission
-    localStorage.removeItem(STORAGE_KEY);
-    onSubmit(allTasks);
+    onSubmit(nonEmptyTasks);
+  };
+
+  const handleClose = () => {
+    const nonEmptyTasks = tasks.filter(task => task.trim());
+    if (nonEmptyTasks.length > 0) {
+      localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+    }
+    onClose();
   };
 
   if (!isOpen) return null;
 
+  // Calculate modal height based on device and keyboard state
+  const getModalHeight = () => {
+    if (isMobile && isKeyboardVisible) return '70vh';
+    if (isMobile) return '85vh';
+    return '90vh';
+  };
+
+  const isLikelyPostLunch = currentTime.getHours() >= 14;
+
   return (
     <div 
-      ref={backdropRef}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center p-4"
-      onClick={handleBackdropClick}
-      style={{
-        alignItems: isMobile && isKeyboardOpen ? 'flex-start' : 'center',
-        paddingTop: isMobile && isKeyboardOpen ? 'max(1rem, env(safe-area-inset-top))' : undefined,
-        height: isMobile && isKeyboardOpen ? '100vh' : undefined,
-        position: 'fixed',
-        overflow: 'hidden'
-      }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={handleClose}
     >
+      {/* Modal Container - Fixed Height with Flexbox Layout */}
       <div 
         ref={modalRef}
-        className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full mx-auto transform transition-all duration-200 ${
-          isMobile 
-            ? `max-w-full ${!isKeyboardOpen ? 'max-w-lg animate-in slide-in-from-bottom-4' : ''}` 
-            : 'max-w-lg animate-in slide-in-from-bottom-4'
+        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col ${
+          isMobile ? 'mx-2' : ''
         }`}
-        onClick={(e) => e.stopPropagation()}
         style={{
-          maxHeight: isMobile && isKeyboardOpen 
-            ? 'calc(100vh - 2rem)' 
-            : isMobile ? '90vh' : undefined,
-          overflowY: isMobile && isKeyboardOpen ? 'auto' : undefined,
-          marginTop: isMobile && isKeyboardOpen ? '0' : undefined
+          height: getModalHeight(),
+          maxHeight: getModalHeight(),
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`p-2 rounded-lg ${currentStep === 1 ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-              {currentStep === 1 ? (
-                <Coffee className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              ) : (
-                <Sunset className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              )}
+        {/* HEADER - Fixed at top, never scrolls */}
+        <div className="flex-shrink-0 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className={`p-3 rounded-full ${
+                isHalfDay 
+                  ? 'bg-amber-100 dark:bg-amber-900/30' 
+                  : isLikelyPostLunch 
+                    ? 'bg-blue-100 dark:bg-blue-900/30' 
+                    : 'bg-green-100 dark:bg-green-900/30'
+              }`}>
+                {isHalfDay ? (
+                  <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                ) : isLikelyPostLunch ? (
+                  <Sunset className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <Coffee className="h-6 w-6 text-green-600 dark:text-green-400" />
+                )}
+              </div>
+              
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  {isHalfDay ? 'Half Day Checkout' : 'Daily Task Report'}
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {isHalfDay 
+                    ? 'Summarize your half-day accomplishments' 
+                    : 'Record your daily accomplishments before checkout'
+                  }
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                {currentStep === 1 ? 'Pre-Lunch Tasks' : 'Post-Lunch Tasks'}
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {currentStep === 1 
-                  ? 'Document your morning accomplishments' 
-                  : 'Record your afternoon tasks and activities'
-                }
-              </p>
-            </div>
+            
             <button 
-              onClick={onClose} 
-              className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              onClick={handleClose}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <XCircle className="h-5 w-5" />
             </button>
           </div>
-
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              currentStep === 1 
-                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' 
-                : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-            }`}>
-              <Coffee className="h-3 w-3" />
-              Pre-Lunch
-              {savedPreLunch && <CheckCircle className="h-3 w-3" />}
-            </div>
-            <div className={`w-8 h-px ${currentStep === 2 ? 'bg-blue-400' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              currentStep === 2 
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-            }`}>
-              <Sunset className="h-3 w-3" />
-              Post-Lunch
-            </div>
-          </div>
         </div>
-        
-        {/* Form Content */}
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Tasks List */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                  <Clock className="h-4 w-4" />
-                  <span>{currentStep === 1 ? 'Morning tasks completed' : 'Afternoon accomplishments'}</span>
-                </div>
-                {currentStep === 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={savePreLunchTasks}
-                    className="text-xs"
-                  >
-                    <Save className="h-3 w-3 mr-1" />
-                    Save for Later
-                  </Button>
-                )}
-              </div>
-              
-              <div 
-                className="space-y-3 pr-2 overflow-y-auto"
-                style={{
-                  maxHeight: isMobile && isKeyboardOpen 
-                    ? '30vh' 
-                    : isMobile ? '50vh' : '16rem'
-                }}
-              >
-                {getCurrentTasks().map((task, index) => (
-                  <div key={index} className="group">
-                    <div className="flex items-start gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-slate-300 dark:hover:border-slate-500 transition-colors focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20">
-                      <div className="mt-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      </div>
-                      <textarea
-                        placeholder={`${currentStep === 1 ? 'Morning' : 'Afternoon'} task #${index + 1}...`}
-                        value={task}
-                        onChange={(e) => handleTaskChange(index, e.target.value)}
-                        className="flex-1 bg-transparent border-0 outline-none resize-none min-h-[20px] placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
-                        rows={isMobile ? "2" : "1"}
-                        style={{ 
-                          height: 'auto',
-                          minHeight: isMobile ? '40px' : '20px',
-                          maxHeight: isMobile && isKeyboardOpen ? '60px' : isMobile ? '120px' : 'auto',
-                          resize: 'none'
-                        }}
-                        onInput={(e) => {
-                          // Auto-resize with constraints
-                          const maxHeight = isMobile && isKeyboardOpen ? 60 : isMobile ? 120 : 200;
-                          e.target.style.height = 'auto';
-                          const newHeight = Math.min(e.target.scrollHeight, maxHeight);
-                          e.target.style.height = newHeight + 'px';
-                        }}
-                        onTouchStart={(e) => {
-                          // Prevent accidental backdrop clicks while typing on mobile
-                          e.stopPropagation();
-                        }}
-                        required
-                      />
-                      {getCurrentTasks().length > 1 && (
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveTask(index)} 
-                          className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all mt-0.5"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={handleAddTask} 
-                className="w-full border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Another Task
-              </Button>
-            </div>
 
-            {/* Error/Success Message */}
-            {error && (
-              <div className={`flex items-center gap-2 p-3 border rounded-lg ${
-                error.includes('successfully') 
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-              }`}>
-                {error.includes('successfully') ? (
-                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
-                )}
-                <p className={`text-sm ${
-                  error.includes('successfully') 
-                    ? 'text-green-700 dark:text-green-300'
-                    : 'text-red-700 dark:text-red-300'
+        {/* WORK SESSION INFO - Fixed section, shows work details */}
+        {checkInTime && (
+          <div className="flex-shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <span className="text-gray-600 dark:text-gray-400 truncate">{user?.name}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  {currentTime.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  In: {formatTime(checkInTime)}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Timer className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <span className={`font-medium ${
+                  isHalfDay ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                 }`}>
-                  {error}
-                </p>
+                  {workDuration}
+                </span>
+              </div>
+            </div>
+            
+            {isHalfDay && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                    Half Day Session - Simplified task reporting
+                  </span>
+                </div>
               </div>
             )}
+          </div>
+        )}
 
-            {/* Footer */}
-            <div className={`flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700 ${
-              isMobile ? 'flex-col' : 'flex-col sm:flex-row'
-            }`}>
-              {currentStep === 2 && (
+        {/* CONTENT AREA - Scrollable, takes remaining space */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+            {/* Tasks Section Header */}
+            <div className="flex-shrink-0 px-6 pt-6 pb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                  {isHalfDay ? 'Tasks Completed Today' : 'Tasks & Accomplishments'}
+                </h3>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {tasks.filter(t => t.trim()).length} task{tasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+
+            {/* SCROLLABLE TASKS AREA - This is the only part that scrolls */}
+            <div className="flex-1 min-h-0 px-6 pb-6">
+              <div className="h-full overflow-y-auto">
+                <div className="space-y-3 pb-4">
+                  {tasks.map((task, index) => (
+                    <div key={index} className="group">
+                      <div className="flex items-start space-x-3 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-white dark:bg-gray-800">
+                        <div className="mt-2 flex-shrink-0">
+                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                        </div>
+                        
+                        <textarea
+                          placeholder={`Task ${index + 1}: What did you accomplish?`}
+                          value={task}
+                          onChange={(e) => handleTaskChange(index, e.target.value)}
+                          className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                          rows="2"
+                          style={{ 
+                            minHeight: '48px',
+                            maxHeight: '120px'
+                          }}
+                          onInput={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                          }}
+                          required
+                        />
+                        
+                        {tasks.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveTask(index)} 
+                            className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Add Task Button - Inside scrollable area */}
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={goBackToPreLunch}
-                  disabled={isLoading}
-                  className="sm:order-1"
+                  onClick={handleAddTask}
+                  className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                 >
-                  <ArrowRight className="h-4 w-4 rotate-180 mr-2" />
-                  Back to Pre-Lunch
+                  <PlusCircle className="h-5 w-5 mr-2" />
+                  Add Another Task
                 </Button>
-              )}
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={onClose}
-                className={currentStep === 2 ? "sm:order-2" : "sm:order-1"}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              
-              <Button 
-                type="submit" 
-                disabled={isLoading}
-                className={`${currentStep === 2 ? "sm:order-3" : "sm:order-2"} ${
-                  currentStep === 1 
-                    ? 'bg-orange-600 hover:bg-orange-700' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } text-white flex items-center gap-2`}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Checking Out...
-                  </>
-                ) : currentStep === 1 ? (
-                  <>
-                    <ArrowRight className="h-4 w-4" />
-                    Continue to Post-Lunch
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    Submit & Check Out
-                  </>
+
+                {/* Error Message - Inside scrollable area */}
+                {error && (
+                  <div className="flex items-center space-x-3 p-4 mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                    <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                      {error}
+                    </p>
+                  </div>
                 )}
-              </Button>
+              </div>
             </div>
           </form>
+        </div>
+
+        {/* FOOTER - Fixed at bottom, never scrolls, always accessible */}
+        <div className="flex-shrink-0 px-6 py-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+          <div className={`flex gap-3 ${isMobile ? 'flex-col-reverse' : 'flex-row justify-end'}`}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleClose}
+              disabled={isLoading}
+              className={isMobile ? 'w-full h-12' : ''}
+            >
+              Cancel
+            </Button>
+            
+            {isOptional && onSkip && (
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={onSkip}
+                disabled={isLoading}
+                className={`text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${isMobile ? 'w-full h-12' : ''}`}
+              >
+                Skip & Check Out
+              </Button>
+            )}
+            
+            <Button 
+              onClick={handleSubmit}
+              disabled={isLoading || tasks.filter(t => t.trim()).length === 0}
+              className={`bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all ${isMobile ? 'w-full h-12' : 'px-8'}`}
+            >
+              {isLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Submitting...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span>{isHalfDay ? 'Complete Half Day' : 'Submit & Check Out'}</span>
+                </div>
+              )}
+            </Button>
+          </div>
+          
+          {/* Auto-save indicator */}
+          {tasks.filter(t => t.trim()).length > 0 && (
+            <div className="flex items-center justify-center space-x-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+              <CheckCircle className="h-3 w-3" />
+              <span>Tasks auto-saved locally</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default TaskReportModal; 
+export default TaskReportModal;
