@@ -6,6 +6,8 @@ import apiClient from '../../service/apiClient';
 
 const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptional = false }) => {
   const [tasks, setTasks] = useState(['']);
+  const [preLunchTasks, setPreLunchTasks] = useState(['']);
+  const [postLunchTasks, setPostLunchTasks] = useState(['']);
   const [error, setError] = useState('');
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [checkInTime, setCheckInTime] = useState(null);
@@ -119,6 +121,8 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
   useEffect(() => {
     if (isOpen) {
       setTasks(['']);
+      setPreLunchTasks(['']);
+      setPostLunchTasks(['']);
       setError('');
       
       // Load saved draft
@@ -127,7 +131,14 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         try {
           const parsed = JSON.parse(savedTasks);
           if (parsed.length > 0) {
-            setTasks(parsed);
+            // Check if it's structured data with pre/post lunch sections
+            if (parsed.preLunchTasks && parsed.postLunchTasks) {
+              setPreLunchTasks(parsed.preLunchTasks.length > 0 ? parsed.preLunchTasks : ['']);
+              setPostLunchTasks(parsed.postLunchTasks.length > 0 ? parsed.postLunchTasks : ['']);
+            } else {
+              // Legacy format - just tasks array
+              setTasks(parsed);
+            }
           }
         } catch (e) {
           // Ignore
@@ -147,11 +158,22 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
 
   // Auto-save tasks
   useEffect(() => {
-    const nonEmptyTasks = tasks.filter(task => task.trim());
-    if (nonEmptyTasks.length > 0) {
-      localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+    if (isHalfDay) {
+      const nonEmptyTasks = tasks.filter(task => task.trim());
+      if (nonEmptyTasks.length > 0) {
+        localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+      }
+    } else {
+      const nonEmptyPreLunchTasks = preLunchTasks.filter(task => task.trim());
+      const nonEmptyPostLunchTasks = postLunchTasks.filter(task => task.trim());
+      if (nonEmptyPreLunchTasks.length > 0 || nonEmptyPostLunchTasks.length > 0) {
+        localStorage.setItem('taskReport_draft', JSON.stringify({
+          preLunchTasks: nonEmptyPreLunchTasks,
+          postLunchTasks: nonEmptyPostLunchTasks
+        }));
+      }
     }
-  }, [tasks]);
+  }, [tasks, preLunchTasks, postLunchTasks, isHalfDay]);
 
   const formatWorkDuration = (hours) => {
     const h = Math.floor(hours);
@@ -173,8 +195,28 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
     setTasks(newTasks);
   };
 
+  const handlePreLunchTaskChange = (index, value) => {
+    const newTasks = [...preLunchTasks];
+    newTasks[index] = value;
+    setPreLunchTasks(newTasks);
+  };
+
+  const handlePostLunchTaskChange = (index, value) => {
+    const newTasks = [...postLunchTasks];
+    newTasks[index] = value;
+    setPostLunchTasks(newTasks);
+  };
+
   const handleAddTask = () => {
     setTasks([...tasks, '']);
+  };
+
+  const handleAddPreLunchTask = () => {
+    setPreLunchTasks([...preLunchTasks, '']);
+  };
+
+  const handleAddPostLunchTask = () => {
+    setPostLunchTasks([...postLunchTasks, '']);
   };
 
   const handleRemoveTask = (index) => {
@@ -184,13 +226,48 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
     }
   };
 
+  const handleRemovePreLunchTask = (index) => {
+    if (preLunchTasks.length > 1) {
+      const newTasks = preLunchTasks.filter((_, i) => i !== index);
+      setPreLunchTasks(newTasks);
+    }
+  };
+
+  const handleRemovePostLunchTask = (index) => {
+    if (postLunchTasks.length > 1) {
+      const newTasks = postLunchTasks.filter((_, i) => i !== index);
+      setPostLunchTasks(newTasks);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const nonEmptyTasks = tasks.map(t => t.trim()).filter(t => t !== '');
+    let nonEmptyTasks;
+    
+    if (isHalfDay) {
+      nonEmptyTasks = tasks.map(t => t.trim()).filter(t => t !== '');
+    } else {
+      // For full-day checkouts, combine pre and post lunch tasks
+      const preLunchTasksClean = preLunchTasks.map(t => t.trim()).filter(t => t !== '');
+      const postLunchTasksClean = postLunchTasks.map(t => t.trim()).filter(t => t !== '');
+      
+      // Combine with section labels for clarity
+      const preLunchWithLabels = preLunchTasksClean.length > 0 
+        ? preLunchTasksClean.map(task => `[Pre-lunch] ${task}`) 
+        : [];
+      const postLunchWithLabels = postLunchTasksClean.length > 0 
+        ? postLunchTasksClean.map(task => `[Post-lunch] ${task}`) 
+        : [];
+      
+      nonEmptyTasks = [...preLunchWithLabels, ...postLunchWithLabels];
+    }
     
     if (nonEmptyTasks.length === 0) {
-      setError('Please add at least one task to continue.');
+      setError(isHalfDay 
+        ? 'Please add at least one task to continue.' 
+        : 'Please add at least one task in either pre-lunch or post-lunch section to continue.'
+      );
       return;
     }
 
@@ -200,9 +277,20 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
   };
 
   const handleClose = () => {
-    const nonEmptyTasks = tasks.filter(task => task.trim());
-    if (nonEmptyTasks.length > 0) {
-      localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+    if (isHalfDay) {
+      const nonEmptyTasks = tasks.filter(task => task.trim());
+      if (nonEmptyTasks.length > 0) {
+        localStorage.setItem('taskReport_draft', JSON.stringify(nonEmptyTasks));
+      }
+    } else {
+      const nonEmptyPreLunchTasks = preLunchTasks.filter(task => task.trim());
+      const nonEmptyPostLunchTasks = postLunchTasks.filter(task => task.trim());
+      if (nonEmptyPreLunchTasks.length > 0 || nonEmptyPostLunchTasks.length > 0) {
+        localStorage.setItem('taskReport_draft', JSON.stringify({
+          preLunchTasks: nonEmptyPreLunchTasks,
+          postLunchTasks: nonEmptyPostLunchTasks
+        }));
+      }
     }
     onClose();
   };
@@ -333,7 +421,11 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                   {isHalfDay ? 'Tasks Completed Today' : 'Tasks & Accomplishments'}
                 </h3>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {tasks.filter(t => t.trim()).length} task{tasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
+                  {isHalfDay ? (
+                    `${tasks.filter(t => t.trim()).length} task${tasks.filter(t => t.trim()).length !== 1 ? 's' : ''}`
+                  ) : (
+                    `${(preLunchTasks.filter(t => t.trim()).length + postLunchTasks.filter(t => t.trim()).length)} task${(preLunchTasks.filter(t => t.trim()).length + postLunchTasks.filter(t => t.trim()).length) !== 1 ? 's' : ''}`
+                  )}
                 </div>
               </div>
             </div>
@@ -341,55 +433,183 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             {/* SCROLLABLE TASKS AREA - This is the only part that scrolls */}
             <div className="flex-1 min-h-0 px-6 pb-6">
               <div className="h-full overflow-y-auto">
-                <div className="space-y-3 pb-4">
-                  {tasks.map((task, index) => (
-                    <div key={index} className="group">
-                      <div className="flex items-start space-x-3 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-white dark:bg-gray-800">
-                        <div className="mt-2 flex-shrink-0">
-                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                {isHalfDay ? (
+                  /* Half-day tasks - single section */
+                  <div className="space-y-3 pb-4">
+                    {tasks.map((task, index) => (
+                      <div key={index} className="group">
+                        <div className="flex items-start space-x-3 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-white dark:bg-gray-800">
+                          <div className="mt-2 flex-shrink-0">
+                            <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                          </div>
+                          
+                          <textarea
+                            placeholder={`Task ${index + 1}: What did you accomplish?`}
+                            value={task}
+                            onChange={(e) => handleTaskChange(index, e.target.value)}
+                            className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                            rows="2"
+                            style={{ 
+                              minHeight: '48px',
+                              maxHeight: '120px'
+                            }}
+                            onInput={(e) => {
+                              e.target.style.height = 'auto';
+                              e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                            }}
+                            required
+                          />
+                          
+                          {tasks.length > 1 && (
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveTask(index)} 
+                              className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
+                      </div>
+                    ))}
+                    
+                    {/* Add Task Button for half-day */}
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleAddTask}
+                      className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                    >
+                      <PlusCircle className="h-5 w-5 mr-2" />
+                      Add Another Task
+                    </Button>
+                  </div>
+                ) : (
+                  /* Full-day tasks - pre/post lunch sections */
+                  <div className="space-y-6 pb-4">
+                    {/* Pre-lunch section */}
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Coffee className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <h4 className="text-md font-semibold text-gray-900 dark:text-gray-100">
+                          Pre-lunch Tasks (Morning)
+                        </h4>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {preLunchTasks.filter(t => t.trim()).length} task{preLunchTasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {preLunchTasks.map((task, index) => (
+                          <div key={`pre-${index}`} className="group">
+                            <div className="flex items-start space-x-3 p-4 border-2 border-green-200 dark:border-green-700 rounded-xl hover:border-green-300 dark:hover:border-green-500 focus-within:border-green-500 dark:focus-within:border-green-400 transition-colors bg-green-50 dark:bg-green-900/10">
+                              <div className="mt-2 flex-shrink-0">
+                                <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+                              </div>
+                              
+                              <textarea
+                                placeholder={`Morning Task ${index + 1}: What did you accomplish before lunch?`}
+                                value={task}
+                                onChange={(e) => handlePreLunchTaskChange(index, e.target.value)}
+                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                                rows="2"
+                                style={{ 
+                                  minHeight: '48px',
+                                  maxHeight: '120px'
+                                }}
+                                onInput={(e) => {
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                }}
+                              />
+                              
+                              {preLunchTasks.length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleRemovePreLunchTask(index)} 
+                                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                         
-                        <textarea
-                          placeholder={`Task ${index + 1}: What did you accomplish?`}
-                          value={task}
-                          onChange={(e) => handleTaskChange(index, e.target.value)}
-                          className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
-                          rows="2"
-                          style={{ 
-                            minHeight: '48px',
-                            maxHeight: '120px'
-                          }}
-                          onInput={(e) => {
-                            e.target.style.height = 'auto';
-                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                          }}
-                          required
-                        />
-                        
-                        {tasks.length > 1 && (
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveTask(index)} 
-                            className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </button>
-                        )}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={handleAddPreLunchTask}
+                          className="w-full h-12 border-2 border-dashed border-green-300 dark:border-green-600 text-green-600 dark:text-green-400 hover:border-green-400 dark:hover:border-green-500 hover:text-green-700 dark:hover:text-green-300 transition-all"
+                        >
+                          <PlusCircle className="h-5 w-5 mr-2" />
+                          Add Pre-lunch Task
+                        </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-                
-                {/* Add Task Button - Inside scrollable area */}
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleAddTask}
-                  className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
-                >
-                  <PlusCircle className="h-5 w-5 mr-2" />
-                  Add Another Task
-                </Button>
+
+                    {/* Post-lunch section */}
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Sunset className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <h4 className="text-md font-semibold text-gray-900 dark:text-gray-100">
+                          Post-lunch Tasks (Afternoon)
+                        </h4>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {postLunchTasks.filter(t => t.trim()).length} task{postLunchTasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {postLunchTasks.map((task, index) => (
+                          <div key={`post-${index}`} className="group">
+                            <div className="flex items-start space-x-3 p-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-blue-50 dark:bg-blue-900/10">
+                              <div className="mt-2 flex-shrink-0">
+                                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                              </div>
+                              
+                              <textarea
+                                placeholder={`Afternoon Task ${index + 1}: What did you accomplish after lunch?`}
+                                value={task}
+                                onChange={(e) => handlePostLunchTaskChange(index, e.target.value)}
+                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                                rows="2"
+                                style={{ 
+                                  minHeight: '48px',
+                                  maxHeight: '120px'
+                                }}
+                                onInput={(e) => {
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                }}
+                              />
+                              
+                              {postLunchTasks.length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleRemovePostLunchTask(index)} 
+                                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={handleAddPostLunchTask}
+                          className="w-full h-12 border-2 border-dashed border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-all"
+                        >
+                          <PlusCircle className="h-5 w-5 mr-2" />
+                          Add Post-lunch Task
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Error Message - Inside scrollable area */}
                 {error && (
@@ -432,7 +652,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             
             <Button 
               onClick={handleSubmit}
-              disabled={isLoading || tasks.filter(t => t.trim()).length === 0}
+              disabled={isLoading || (isHalfDay 
+                ? tasks.filter(t => t.trim()).length === 0 
+                : (preLunchTasks.filter(t => t.trim()).length + postLunchTasks.filter(t => t.trim()).length) === 0
+              )}
               className={`bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all ${isMobile ? 'w-full h-12' : 'px-8'}`}
             >
               {isLoading ? (
@@ -450,7 +673,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
           </div>
           
           {/* Auto-save indicator */}
-          {tasks.filter(t => t.trim()).length > 0 && (
+          {(isHalfDay 
+            ? tasks.filter(t => t.trim()).length > 0 
+            : (preLunchTasks.filter(t => t.trim()).length + postLunchTasks.filter(t => t.trim()).length) > 0
+          ) && (
             <div className="flex items-center justify-center space-x-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
               <CheckCircle className="h-3 w-3" />
               <span>Tasks auto-saved locally</span>
