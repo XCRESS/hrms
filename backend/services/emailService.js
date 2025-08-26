@@ -187,6 +187,27 @@ class EmailService {
             ${data.comment ? `<p><strong>Review Comment:</strong> ${data.comment}</p>` : ''}
           </div>
         `
+      },
+      birthday_wish: {
+        subject: `🎉 Happy Birthday ${data.employee}!`,
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px;">
+            <div style="text-align: center; padding: 20px;">
+              <h1 style="font-size: 2.5em; margin: 0; color: #fff;">🎉 Happy Birthday! 🎉</h1>
+              <h2 style="color: #fff; margin: 10px 0;">${data.employee}</h2>
+              <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="font-size: 1.2em; margin: 0;">Wishing you a wonderful birthday and an amazing year ahead!</p>
+                ${data.age ? `<p style="margin: 10px 0;">Celebrating ${data.age} years of awesomeness! 🎂</p>` : ''}
+                ${data.department ? `<p style="margin: 10px 0;">From your ${data.department} team and the entire HRMS family</p>` : ''}
+              </div>
+              <div style="margin-top: 20px;">
+                <p style="font-size: 1.1em; margin: 5px 0;">🎁 May this special day bring you joy and happiness</p>
+                <p style="font-size: 1.1em; margin: 5px 0;">🌟 Here's to another year of great achievements</p>
+                <p style="font-size: 1.1em; margin: 5px 0;">🎈 Enjoy your celebration!</p>
+              </div>
+            </div>
+          </div>
+        `
       }
     };
 

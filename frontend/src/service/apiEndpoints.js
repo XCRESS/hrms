@@ -101,7 +101,8 @@ export const API_ENDPOINTS = {
   // Dashboard
   DASHBOARD: {
     ADMIN: "/dashboard/admin",
-    ADMIN_SUMMARY: "/dashboard/admin-summary"
+    ADMIN_SUMMARY: "/dashboard/admin-summary",
+    ALERTS: "/dashboard/alerts"
   },
   
   // Activity Feed

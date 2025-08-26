@@ -18,6 +18,7 @@
     "pnpm": ">=9.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.873.0",
     "@tailwindcss/vite": "^4.1.4",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
@@ -28,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "moment-timezone": "^0.5.40",
     "mongoose": "^8.13.2",
+    "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^6.10.0",
     "qrcode-terminal": "^0.12.0",

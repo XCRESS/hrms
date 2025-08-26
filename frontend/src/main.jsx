@@ -32,6 +32,7 @@ const SalarySlipManagement = lazy(() => import('./components/hr/salary/SalarySli
 const SalaryStructureManagement = lazy(() => import('./components/hr/salary/SalaryStructureManagement.jsx'));
 const SalaryHub = lazy(() => import('./components/hr/salary/SalaryHub.jsx'));
 const MyRequests = lazy(() => import('./components/employee/MyRequests.jsx'));
+const DocumentsPage = lazy(() => import('./components/employee/DocumentsPage.jsx'));
 const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage.jsx'));
 const PoliciesPage = lazy(() => import('./components/hr/PoliciesPage.jsx'));
 const SettingsPage = lazy(() => import('./components/hr/SettingsPage.jsx'));
@@ -148,6 +149,7 @@ createRoot(document.getElementById('root')).render(
                   <Route path="task-reports/my" element={<MyTaskReports />} />
                   <Route path="salary-slips/my" element={<MySalarySlips />} />
                   <Route path="profile" element={<GetProfile />} />
+                  <Route path="profile/documents" element={<DocumentsPage />} />
                   <Route path="task-reports" element={<TaskReportsManage />} />
                   <Route path="task-reports/generate" element={<TaskReportGenerator />} />
                   <Route path="salary" element={<SalaryHub />} />

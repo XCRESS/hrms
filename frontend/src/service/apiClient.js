@@ -181,13 +181,22 @@ class ApiClient {
 
     async post(endpoint, data = {}, options = {}) {
       const token = localStorage.getItem("authToken");
+      const isFormData = data instanceof FormData;
+      
+      const headers = {
+        Authorization: token ? `Bearer ${token}` : undefined,
+        ...options.headers,
+      };
+      
+      // Don't set Content-Type for FormData, let browser set it with boundary
+      if (!isFormData) {
+        headers["Content-Type"] = "application/json";
+      }
+      
       return this.customFetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : undefined,
-          ...options.headers,
-        },
-        body: JSON.stringify(data),
+        headers,
+        body: isFormData ? data : JSON.stringify(data),
         ...options,
       });
     }
@@ -454,6 +463,10 @@ class ApiClient {
           Authorization: `Bearer ${token}`,
         },
       });
+    }
+
+    async getTodayAlerts() {
+      return this.get(API_ENDPOINTS.DASHBOARD.ALERTS);
     }
 
     // Help/Support
