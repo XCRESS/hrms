@@ -32,6 +32,14 @@ class SchedulerService {
       timezone: 'Asia/Kolkata'
     });
 
+    // Birthday wishes job - runs daily at 8 AM
+    this.birthdayJob = cron.schedule('0 8 * * *', async () => {
+      await this.checkBirthdayWishes();
+    }, {
+      scheduled: true,
+      timezone: 'Asia/Kolkata'
+    });
+
     this.isRunning = true;
     console.log('Scheduler service started successfully');
   }
@@ -47,6 +55,11 @@ class SchedulerService {
     if (this.milestoneJob) {
       this.milestoneJob.stop();
       this.milestoneJob = null;
+    }
+
+    if (this.birthdayJob) {
+      this.birthdayJob.stop();
+      this.birthdayJob = null;
     }
 
     this.isRunning = false;
@@ -155,6 +168,56 @@ class SchedulerService {
     }
   }
 
+  async checkBirthdayWishes() {
+    try {
+      console.log('Checking for birthday wishes to send...');
+      
+      const settings = await Settings.getGlobalSettings();
+      if (!settings.notifications.emailEnabled) {
+        console.log('Email notifications are disabled - skipping birthday wishes');
+        return;
+      }
+
+      const today = new Date();
+      const employees = await Employee.find({ 
+        isActive: true,
+        dateOfBirth: { $exists: true, $ne: null }
+      });
+
+      let birthdayCount = 0;
+
+      for (const employee of employees) {
+        const birthday = new Date(employee.dateOfBirth);
+        
+        // Check if today matches birthday (month and day)
+        if (birthday.getMonth() === today.getMonth() && 
+            birthday.getDate() === today.getDate()) {
+          
+          console.log(`Sending birthday wishes to: ${employee.firstName} ${employee.lastName}`);
+          
+          const age = today.getFullYear() - birthday.getFullYear();
+          
+          await NotificationService.notifyEmployee(employee.employeeId, 'birthday_wish', {
+            employee: `${employee.firstName} ${employee.lastName}`,
+            age: age,
+            department: employee.department,
+            employeeId: employee.employeeId
+          });
+          
+          birthdayCount++;
+        }
+      }
+
+      if (birthdayCount > 0) {
+        console.log(`Sent ${birthdayCount} birthday wish email(s)`);
+      } else {
+        console.log('No birthdays today');
+      }
+    } catch (error) {
+      console.error('Error checking birthday wishes:', error);
+    }
+  }
+
   // Manual trigger methods for testing
   async triggerHolidayReminder() {
     console.log('Manually triggering holiday reminder check...');
@@ -166,11 +229,17 @@ class SchedulerService {
     await this.checkEmployeeMilestones();
   }
 
+  async triggerBirthdayCheck() {
+    console.log('Manually triggering birthday check...');
+    await this.checkBirthdayWishes();
+  }
+
   getStatus() {
     return {
       isRunning: this.isRunning,
       holidayReminderActive: this.holidayReminderJob ? this.holidayReminderJob.getStatus() === 'scheduled' : false,
-      milestoneJobActive: this.milestoneJob ? this.milestoneJob.getStatus() === 'scheduled' : false
+      milestoneJobActive: this.milestoneJob ? this.milestoneJob.getStatus() === 'scheduled' : false,
+      birthdayJobActive: this.birthdayJob ? this.birthdayJob.getStatus() === 'scheduled' : false
     };
   }
 }

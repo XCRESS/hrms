@@ -6,6 +6,7 @@ import RegularizationRequest from "../models/Regularization.model.js";
 import PasswordResetRequest from "../models/PasswordResetRequest.model.js";
 import Holiday from "../models/Holiday.model.js";
 import moment from "moment-timezone";
+import AlertService from "../services/alertService.js";
 
 export const getAdminDashboardSummary = async (req, res) => {
   try {
@@ -118,6 +119,27 @@ export const getAdminDashboardSummary = async (req, res) => {
   } catch (error) {
     console.error("Error fetching admin dashboard summary:", error);
     res.status(500).json({ success: false, message: "Server error while fetching admin summary.", error: error.message });
+  }
+};
+
+export const getTodayAlerts = async (req, res) => {
+  try {
+    const alerts = await AlertService.getTodayAlerts();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        alerts,
+        count: alerts.length
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching today's alerts:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error while fetching alerts.", 
+      error: error.message 
+    });
   }
 };
 

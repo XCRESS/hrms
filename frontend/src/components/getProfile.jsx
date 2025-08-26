@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Phone, Mail, Building, Calendar, CreditCard,
   Users, HeartPulse, Loader2, MapPin, Award, Briefcase,
-  Clock, DollarSign, Shield, Edit, Download
+  Clock, DollarSign, Shield, FileText
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -77,19 +77,9 @@ export default function GetProfile() {
     });
   };
 
-  const handleEdit = () => {
-    navigate("/profile/edit");
-  };
-
-  const handleDownload = () => {
-    if (!employee) return;
-    const blob = new Blob([JSON.stringify(employee, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${employee.firstName}_${employee.lastName}_profile.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDocuments = () => {
+    console.log("Documents button clicked, navigating to /profile/documents");
+    navigate("/profile/documents");
   };
 
   if (loading) {
@@ -120,7 +110,7 @@ export default function GetProfile() {
       <div className="relative z-10 max-w-6xl mx-auto">
         {/* Top Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-white/70 dark:bg-neutral-900/60 shadow-sm border border-slate-100 dark:border-neutral-800">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 pointer-events-none" />
           <div className="p-6 sm:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center gap-6">
               <div className="relative">
@@ -153,11 +143,16 @@ export default function GetProfile() {
                   </div>
 
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <Button variant="outline" className="gap-2" onClick={handleDownload}>
-                      <Download size={16} /> Download
-                    </Button>
-                    <Button className="gap-2" onClick={handleEdit}>
-                      <Edit size={16} /> Edit Profile
+                    <Button 
+                      className="gap-2" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("Documents button clicked!");
+                        handleDocuments();
+                      }}
+                    >
+                      <FileText size={16} /> Documents
                     </Button>
                   </div>
                 </div>

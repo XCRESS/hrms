@@ -26,6 +26,7 @@ const AdminStats = lazy(() => import('./dashboard/AdminStats'));
 const AdminAttendanceTable = lazy(() => import('./dashboard/AdminAttendanceTable'));
 const AdminPendingRequests = lazy(() => import('./dashboard/AdminPendingRequests'));
 const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert'));
+const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
 // Component loading skeleton
 const ComponentSkeleton = () => (
@@ -492,7 +493,7 @@ export default function HRMSDashboard() {
     
     try {
       // Get location settings first
-      const settingsResponse = await apiClient.getGlobalSettings();
+      const settingsResponse = await apiClient.getEffectiveSettings();
       const locationSetting = settingsResponse?.data?.general?.locationSetting || 'na';
       
       if (locationSetting !== 'na') {
@@ -1018,6 +1019,9 @@ export default function HRMSDashboard() {
               {isAdmin ? (
                 <>
                   <Suspense fallback={<ComponentSkeleton />}>
+                    <AlertsSection />
+                  </Suspense>
+                  <Suspense fallback={<ComponentSkeleton />}>
                     <AdminStats 
                       summaryData={adminSummary} 
                       isLoading={loadingAdminData}
@@ -1052,6 +1056,9 @@ export default function HRMSDashboard() {
                 </>
               ) : (
                 <>
+                  <Suspense fallback={<ComponentSkeleton />}>
+                    <AlertsSection />
+                  </Suspense>
                   <Suspense fallback={<ComponentSkeleton />}>
                     <MissingCheckoutAlert 
                       onRegularizationRequest={handleRegularizationFromReminder}

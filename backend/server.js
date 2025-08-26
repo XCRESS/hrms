@@ -28,7 +28,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Enhanced MongoDB connection with retry logic and better error handling
+// Simple direct MongoDB connection
 const connectToMongoDB = async () => {
   const mongoUrl = process.env.MONGO_URL;
   
@@ -37,66 +37,27 @@ const connectToMongoDB = async () => {
     process.exit(1);
   }
   
-  // Use the MongoDB URL as-is (Atlas connection strings don't require database name)
-  const dbUrl = mongoUrl;
-  
   console.log('Connecting to MongoDB...');
   
-  const connectionOptions = {
-    // Connection pool settings for better performance
-    maxPoolSize: 20, // Increased pool size for higher concurrency
-    minPoolSize: 5, // Minimum connections to maintain
-    serverSelectionTimeoutMS: 30000, // Increased timeout for better stability
-    socketTimeoutMS: 45000, // How long to wait for a response
-    connectTimeoutMS: 30000, // Increased connection timeout
-    heartbeatFrequencyMS: 10000, // How often to check connection health
-    
-    // Buffer settings for better performance
-    bufferCommands: false, // Disable mongoose buffering
-    
-    // Retry settings
-    retryWrites: true,
-    retryReads: true,
-    
-    // Additional stability options
-    maxIdleTimeMS: 30000,
-    waitQueueTimeoutMS: 30000, // Increased from 5s to 30s to prevent timeouts
-    maxConnecting: 5 // Limit concurrent connection attempts
-  };
-  
   try {
-    await mongoose.connect(dbUrl, connectionOptions);
+    await mongoose.connect(mongoUrl);
+    console.log('MongoDB connected successfully');
   } catch (err) {
     console.error("MongoDB connection failed:", err.message);
-    console.log('Retrying connection in 5 seconds...');
-    setTimeout(() => {
-      connectToMongoDB();
-    }, 5000);
+    process.exit(1);
   }
 };
 
 // Initial connection attempt
 connectToMongoDB();
 
-// Enhanced connection event listeners for monitoring
-mongoose.connection.on('connected', () => {
-  console.log('MongoDB connected successfully');
-});
-
+// Simple connection event listeners
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err.message);
+  console.error('MongoDB error:', err.message);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected - attempting to reconnect...');
-});
-
-mongoose.connection.on('reconnected', () => {
-  console.log('MongoDB reconnected successfully');
-});
-
-mongoose.connection.on('reconnectFailed', () => {
-  console.error('MongoDB reconnection failed');
+  console.log('MongoDB disconnected');
 });
 
 import authRoutes from "./routes/auth.js";
@@ -118,6 +79,7 @@ import policyRoutes from "./routes/policy.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import healthRoutes from "./routes/health.js";
 import notificationTestRoutes from "./routes/notification.test.js";
+import documentRoutes from "./routes/document.js";
 
 // Notification Services
 import NotificationService from "./services/notificationService.js";
@@ -174,6 +136,7 @@ app.use("/api/salary-structures", salaryStructureRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/notifications", notificationTestRoutes);
+app.use("/api/documents", documentRoutes);
 app.use("/health", healthRoutes);
 
 app.get('/', (req, res) => {

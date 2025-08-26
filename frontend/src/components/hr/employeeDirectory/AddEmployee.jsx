@@ -76,9 +76,10 @@ const AddEmployee = () => {
     const loadDepartments = async () => {
       try {
         const response = await apiClient.getDepartments();
-        setDepartments(response.departments || []);
+        setDepartments(response.data.departments || []);
       } catch (error) {
-        console.error('Failed to load departments:', error);
+        console.error('❌ Failed to load departments:', error);
+        console.error('❌ Error details:', error.message, error.status);
         setDepartments([]);
       } finally {
         setLoadingDepartments(false);
@@ -463,7 +464,7 @@ const AddEmployee = () => {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no-departments" disabled>
                         {loadingDepartments ? "Loading..." : "No departments available"}
                       </SelectItem>
                     )}
