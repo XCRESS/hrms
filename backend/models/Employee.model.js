@@ -35,21 +35,25 @@ const employeeSchema = new mongoose.Schema(
             unique: true,
         },
         phone: {
-            type: Number,
+            type: String,
             required: true,
             unique: true,
-            minlength: 10,
-            maxlength: 10,
+            validate: {
+                validator: function(v) { return /^[0-9]{10}$/.test(v); },
+                message: 'Phone number must be exactly 10 digits'
+            }
         },
         address: {
             type: String,
         },
         aadhaarNumber: {
-            type: Number,
+            type: String,
             required: true,
             unique: true,
-            minlength: 12,
-            maxlength: 12,
+            validate: {
+                validator: function(v) { return /^[0-9]{12}$/.test(v); },
+                message: 'Aadhaar number must be exactly 12 digits'
+            }
         },
         panNumber: {
             type: String,
@@ -65,14 +69,18 @@ const employeeSchema = new mongoose.Schema(
             type: String,
         },
         fatherPhone: {
-            type: Number,
-            minlength: 10,
-            maxlength: 10,
+            type: String,
+            validate: {
+                validator: function(v) { return !v || /^[0-9]{10}$/.test(v); },
+                message: 'Father phone number must be exactly 10 digits'
+            }
         },
         motherPhone: {
-            type: Number,
-            minlength: 10,
-            maxlength: 10,
+            type: String,
+            validate: {
+                validator: function(v) { return !v || /^[0-9]{10}$/.test(v); },
+                message: 'Mother phone number must be exactly 10 digits'
+            }
         },
         officeAddress: {
             type: String,
@@ -124,10 +132,12 @@ const employeeSchema = new mongoose.Schema(
             required: true,
         },
         emergencyContactNumber: {
-            type: Number,
+            type: String,
             required: true,
-            minlength: 10,
-            maxlength: 10,
+            validate: {
+                validator: function(v) { return /^[0-9]{10}$/.test(v); },
+                message: 'Emergency contact number must be exactly 10 digits'
+            }
         },
         emergencyContactName: {
             type: String,
