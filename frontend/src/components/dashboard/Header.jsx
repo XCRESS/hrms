@@ -1,6 +1,7 @@
 import React, { useState, useEffect, memo } from "react";
 import { Clock, User, CheckCircle, XCircle, RefreshCw, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin, Edit3 } from "lucide-react";
 import { formatTime, formatDate } from "../../utils/istUtils";
+import useProfilePicture from "../../hooks/useProfilePicture";
 
 // Separate memoized component for time display to prevent unnecessary re-renders
 const TimeDisplay = memo(() => {
@@ -43,15 +44,27 @@ const Header = ({
   toggleTheme,
   theme
 }) => {
+  const { profilePicture } = useProfilePicture();
+  
   return (
     <header className="bg-gradient-to-r from-white to-neutral-50 dark:from-neutral-800 dark:to-neutral-900 shadow-lg p-4 transition-all duration-300 rounded-xl border border-neutral-200 dark:border-neutral-700">
       {/* Top section: Welcome and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
         {/* Welcome Message */}
         <div className="flex items-center mb-4 sm:mb-0">
-          <div className="bg-gradient-to-br from-[#EBA04B] to-[#D4881A] text-white p-3 rounded-xl shadow-lg">
-            <User size={22} />
-          </div>
+          {profilePicture?.s3Url ? (
+            <div className="w-12 h-12 rounded-xl shadow-lg overflow-hidden ring-2 ring-white/20 dark:ring-black/20">
+              <img 
+                src={profilePicture.s3Url} 
+                alt={username}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-[#EBA04B] to-[#D4881A] text-white p-3 rounded-xl shadow-lg">
+              <User size={22} />
+            </div>
+          )}
           <div className="ml-4">
             <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Welcome back,</p>
             <p className="text-xl font-bold" style={{ color: '#FEE2A1' }}>

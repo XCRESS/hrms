@@ -8,8 +8,7 @@ const employeeDocumentSchema = new mongoose.Schema(
         },
         documentType: {
             type: String,
-            required: true,
-            enum: ["aadhaar", "pan", "10th_marksheet", "12th_marksheet", "college_marksheet", "profile_picture"]
+            required: true
         },
         fileName: {
             type: String,

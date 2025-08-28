@@ -64,8 +64,7 @@ export default function SidebarDemo() {
     navigate("/auth/login");
   };
 
-  const iconClass = "h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200";
-  const accentIconClass = (color) => `h-5 w-5 shrink-0 text-${color}-700 dark:text-${color}-300`;
+  const iconClass = "h-5 w-5 shrink-0 text-neutral-600 dark:text-neutral-300 transition-colors duration-200";
 
   const links = [
     {
@@ -83,47 +82,45 @@ export default function SidebarDemo() {
               href: "/employees",
               icon: <Users className={iconClass} />,
             },
-            
-            
             {
               label: "Requests",
               href: "/admin/requests",
-              icon: <FileText className={accentIconClass('blue')} />,
+              icon: <FileText className={iconClass} />,
             },
             {
               label: "Holidays",
               href: "/holidays",
-              icon: <CalendarDays className={accentIconClass('yellow')} />,
+              icon: <CalendarDays className={iconClass} />,
             },
             {
               label: "Announcements",
               href: "/announcements",
-              icon: <Megaphone className={accentIconClass('pink')} />,
+              icon: <Megaphone className={iconClass} />,
             },
             {
               label: "Policies",
               href: "/policies",
-              icon: <Shield className={accentIconClass('indigo')} />,
+              icon: <Shield className={iconClass} />,
             },
             {
               label: "Task Reports",
               href: "/task-reports",
-              icon: <FileText className={accentIconClass('purple')} />,
+              icon: <FileText className={iconClass} />,
             },
             {
               label: "Salary",
               href: "/salary",
-              icon: <DollarSign className={accentIconClass('green')} />,
+              icon: <DollarSign className={iconClass} />,
             },
             {
               label: "HR Buddy",
               href: "/chatbot",
-              icon: <MessageCircle className={accentIconClass('orange')} />,
+              icon: <MessageCircle className={iconClass} />,
             },
             {
               label: "Settings",
               href: "/settings",
-              icon: <Settings className={accentIconClass('gray')} />,
+              icon: <Settings className={iconClass} />,
             },
           ];
         } else if (user && user.role === "employee") {
@@ -131,22 +128,22 @@ export default function SidebarDemo() {
             {
               label: "Attendance",
               href: "/attendance/my",
-              icon: <CalendarDays className={accentIconClass('blue')} />,
+              icon: <CalendarDays className={iconClass} />,
             },
             {
               label: "Task Reports",
               href: "/task-reports/my",
-              icon: <FileText className={accentIconClass('purple')} />,
+              icon: <FileText className={iconClass} />,
             },
             {
               label: "Salary Slips",
               href: "/salary-slips/my",
-              icon: <Receipt className={accentIconClass('green')} />,
+              icon: <Receipt className={iconClass} />,
             },
             {
               label: "Requests",
               href: "/requests",
-              icon: <FileText className={accentIconClass('blue')} />,
+              icon: <FileText className={iconClass} />,
             },
             {
               label: "Holidays",
@@ -181,9 +178,8 @@ export default function SidebarDemo() {
     >
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10 z-50 border-r-1">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <Logo /> : <LogoIcon />}
-            <div className="mt-8 flex flex-col gap-2">
+          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hide">
+            <div className="mt-6 flex flex-col gap-1">
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
               ))}
@@ -200,7 +196,7 @@ export default function SidebarDemo() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0 md:ml-[60px] transition-all duration-300">
+      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0 md:ml-[80px] transition-all duration-300">
         <Outlet />
       </div>
     </div>

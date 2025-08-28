@@ -16,7 +16,8 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm build:*)",
       "Bash(npx eslint:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:aws.amazon.com)"
     ],
     "deny": []
   }

@@ -7,8 +7,7 @@ import LeaveSection from './LeaveSection';
 import InactiveEmployees from './InactiveEmployees';
 import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, FileText } from 'lucide-react';
 import { useToast } from '../../ui/toast';
-import DocumentUpload from './DocumentUpload';
-import DocumentViewer from './DocumentViewer';
+import DocumentManager from './DocumentManager';
 
 
 
@@ -55,7 +54,7 @@ export default function EmployeeDirectory() {
   const [togglingStatus, setTogglingStatus] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
-  const [currentView, setCurrentView] = useState('profile'); // 'profile', 'documents', 'upload'
+  const [currentView, setCurrentView] = useState('profile'); // 'profile', 'documents'
 
   const fetchEmployeeData = useCallback(async () => {
     if (!selectedEmployeeId) return;
@@ -423,13 +422,8 @@ export default function EmployeeDirectory() {
         ) : profileError ? (
           <div className="p-6 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg shadow">{profileError}</div>
         ) : employeeProfile ? (
-          currentView === 'upload' ? (
-            <DocumentUpload 
-              employeeProfile={employeeProfile}
-              onBack={() => setCurrentView('profile')}
-            />
-          ) : currentView === 'documents' ? (
-            <DocumentViewer 
+          currentView === 'documents' ? (
+            <DocumentManager 
               employeeProfile={employeeProfile}
               onBack={() => setCurrentView('profile')}
             />
@@ -464,8 +458,8 @@ export default function EmployeeDirectory() {
                   ) : (
                     <>
                       <button
-                        onClick={() => setCurrentView('upload')}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                        onClick={() => setCurrentView('documents')}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
                       >
                         <FileText className="w-4 h-4" />
                         Documents
@@ -475,7 +469,7 @@ export default function EmployeeDirectory() {
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
                       >
                         <Edit className="w-4 h-4" />
-                        Edit Employee
+                        Edit
                       </button>
                       <button
                         onClick={() => handleToggleEmployeeStatus(

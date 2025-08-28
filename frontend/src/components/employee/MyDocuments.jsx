@@ -1,78 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, Eye, Trash2, Plus } from 'lucide-react';
+import { FileText, User, Shield, GraduationCap, Plus, Eye, X, Upload } from 'lucide-react';
 import { useToast } from '../ui/toast';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
 
 const MyDocuments = () => {
-  const { toast } = useToast();
   const userObject = useAuth();
   const [documents, setDocuments] = useState([]);
-  const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
 
   const documentTypes = [
-    { key: 'aadhaar', label: 'Aadhaar Card' },
-    { key: 'pan', label: 'PAN Card' },
-    { key: '10th_marksheet', label: '10th Marksheet' },
-    { key: '12th_marksheet', label: '12th Marksheet' },
-    { key: 'college_marksheet', label: 'College Marksheet' },
+    { key: 'profile_picture', label: 'Profile Photo', icon: User, accept: 'image/*' },
+    { key: 'aadhaar', label: 'Aadhaar Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: 'pan', label: 'PAN Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: '10th_marksheet', label: '10th Certificate', icon: GraduationCap, accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: '12th_marksheet', label: '12th Certificate', icon: GraduationCap, accept: '.pdf,.jpg,.jpeg,.png' },
+    { key: 'college_marksheet', label: 'College Certificate', icon: GraduationCap, accept: '.pdf,.jpg,.jpeg,.png' },
   ];
 
   useEffect(() => {
     if (userObject?.employeeId) {
       fetchDocuments();
-      // Fallback to stop loading after 10 seconds
-      const timeout = setTimeout(() => {
-        setLoading(false);
-        console.log('Stopped loading due to timeout');
-      }, 10000);
-      
-      return () => clearTimeout(timeout);
     }
   }, [userObject]);
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      console.log('Fetching documents for employeeId:', userObject.employeeId);
       const response = await apiClient.get(`/documents/employee/${encodeURIComponent(userObject.employeeId)}`);
-      console.log('Documents response:', response);
-      const docsMap = {};
-      response.documents.forEach(doc => {
-        if (doc.documentType !== 'profile_picture') {
-          docsMap[doc.documentType] = doc;
-        }
-      });
-      console.log('Documents map:', docsMap);
-      setDocuments(docsMap);
+      setDocuments(response.documents || []);
     } catch (error) {
       console.error('Failed to fetch documents:', error);
-      console.error('Error details:', error.status, error.message);
-      // Set empty documents on error so UI shows upload options
-      setDocuments({});
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileUpload = async (documentType, file) => {
-    if (!file || !userObject?.employeeId) return;
-
-    setUploading(prev => ({ ...prev, [documentType]: true }));
-
+  const handleFileUpload = async (docType, file) => {
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append('document', file);
       formData.append('employeeId', userObject.employeeId);
-      formData.append('documentType', documentType);
+      formData.append('documentType', docType);
 
       const response = await apiClient.post('/documents/upload', formData);
-
-      setDocuments(prev => ({
-        ...prev,
-        [documentType]: response.document
-      }));
+      
+      // Update documents list
+      setDocuments(prev => {
+        const filtered = prev.filter(doc => doc.documentType !== docType);
+        return [...filtered, response.document];
+      });
 
       toast({
         title: "Success",
@@ -82,30 +63,23 @@ const MyDocuments = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to upload document",
+        description: "Failed to upload document",
         variant: "destructive"
       });
     } finally {
-      setUploading(prev => ({ ...prev, [documentType]: false }));
+      setUploading(false);
     }
   };
 
-  const handleDelete = async (documentType, documentId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
-
+  const handleFileDelete = async (documentId) => {
     try {
       await apiClient.delete(`/documents/${documentId}`);
-      setDocuments(prev => {
-        const newDocs = { ...prev };
-        delete newDocs[documentType];
-        return newDocs;
-      });
-
+      setDocuments(prev => prev.filter(doc => doc._id !== documentId));
+      
       toast({
         title: "Success",
-        description: "Document deleted successfully"
+        description: "Document deleted successfully",
+        variant: "default"
       });
     } catch (error) {
       toast({
@@ -116,112 +90,158 @@ const MyDocuments = () => {
     }
   };
 
+  const getDocumentForType = (docType) => {
+    return documents.find(doc => doc.documentType === docType);
+  };
+
+  const isImage = (fileName) => {
+    return /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+  };
+
   if (loading) {
     return (
-      <div className="p-6">
-        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-4">My Documents</h3>
-        <div className="animate-pulse space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-slate-200 dark:bg-slate-700 rounded-lg h-24"></div>
-          ))}
-        </div>
-        <div className="mt-4 text-sm text-slate-500">
-          Loading documents...
-        </div>
+      <div className="p-6 flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">Loading documents...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-4">My Documents</h3>
-      
-      <div className="space-y-4">
-        {documentTypes.map(({ key, label }) => (
-          <div key={key} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <FileText className="w-5 h-5 text-slate-500" />
-                <h4 className="font-medium text-slate-700 dark:text-slate-300">{label}</h4>
-              </div>
-            </div>
-
-            {documents[key] ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                      ✓ {documents[key].fileName}
-                    </p>
-                    <p className="text-xs text-green-600 dark:text-green-400">
-                      Uploaded: {new Date(documents[key].createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <a
-                      href={documents[key].s3Url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors flex items-center space-x-1"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span>View</span>
-                    </a>
-                    <button
-                      onClick={() => handleDelete(key, documents[key]._id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors flex items-center space-x-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
-
-                <label className="flex items-center justify-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg cursor-pointer transition-colors text-sm">
-                  <Plus className="w-4 h-4" />
-                  <span>Replace Document</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.gif"
-                    onChange={(e) => handleFileUpload(key, e.target.files[0])}
-                    className="hidden"
-                    disabled={uploading[key]}
-                  />
-                </label>
-              </div>
-            ) : (
-              <label className="flex items-center justify-center space-x-2 px-4 py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:border-cyan-500 dark:hover:border-cyan-400 cursor-pointer transition-colors text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400">
-                {uploading[key] ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-cyan-600 border-t-transparent"></div>
-                    <span className="text-sm">Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    <span className="text-sm">Upload {label}</span>
-                  </>
-                )}
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.gif"
-                  onChange={(e) => handleFileUpload(key, e.target.files[0])}
-                  className="hidden"
-                  disabled={uploading[key]}
-                />
-              </label>
-            )}
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Simple Header */}
+      <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+        <div className="px-6 py-4">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              My Documents
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Upload and manage your personal documents
+            </p>
           </div>
-        ))}
+        </div>
       </div>
 
-      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Document Guidelines</h4>
-        <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-          <li>• Accepted formats: PDF, JPG, JPEG, PNG, GIF</li>
-          <li>• Maximum file size: 5MB</li>
-          <li>• Ensure documents are clear and readable</li>
-        </ul>
+      {/* Document Grid */}
+      <div className="px-6 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {documentTypes.map((docType) => {
+          const IconComponent = docType.icon;
+          const existingDoc = getDocumentForType(docType.key);
+
+          return (
+            <div key={docType.key} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-shadow overflow-hidden min-h-[280px]">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                  <IconComponent className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <h3 className="font-medium text-gray-900 dark:text-white">{docType.label}</h3>
+              </div>
+
+              {existingDoc ? (
+                /* Document exists - show preview with actions */
+                <div className="space-y-4">
+                  {/* Document preview */}
+                  {isImage(existingDoc.fileName) ? (
+                    <div className="h-32 bg-gray-100 dark:bg-slate-700 rounded-lg overflow-hidden">
+                      <img
+                        src={existingDoc.s3Url}
+                        alt={existingDoc.fileName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                      <FileText className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+
+                  {/* File info */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={existingDoc.fileName}>
+                      {existingDoc.fileName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(existingDoc.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <a
+                      href={existingDoc.s3Url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </a>
+                    <button
+                      onClick={() => handleFileDelete(existingDoc._id)}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Replace option */}
+                  <div className="pt-3 border-t border-gray-100 dark:border-slate-700">
+                    <label className="cursor-pointer flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      <Upload className="w-4 h-4" />
+                      Replace
+                      <input
+                        type="file"
+                        accept={docType.accept}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) handleFileUpload(docType.key, file);
+                        }}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                /* No document - show upload */
+                <div className="space-y-4">
+                  <div className="h-32 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg flex items-center justify-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                    <label className="cursor-pointer flex flex-col items-center gap-2 p-4 text-center">
+                      <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-full">
+                        <Plus className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload Document</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PDF, JPG, PNG</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept={docType.accept}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) handleFileUpload(docType.key, file);
+                        }}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        </div>
+
+        {uploading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+              <span className="text-gray-900 dark:text-white">Uploading...</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

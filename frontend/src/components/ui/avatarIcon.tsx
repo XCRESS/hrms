@@ -1,4 +1,8 @@
+import React from 'react';
+import useProfilePicture from '../../hooks/useProfilePicture';
+
 const Avatar = ({ name }: { name: string }) => {
+  const { profilePicture } = useProfilePicture();
   const firstLetter = name.charAt(0).toUpperCase();
   const bgColors = [
     'bg-red-500',
@@ -10,6 +14,16 @@ const Avatar = ({ name }: { name: string }) => {
     'bg-indigo-500',
   ];
   const color = bgColors[name.charCodeAt(0) % bgColors.length];
+
+  if (profilePicture?.s3Url) {
+    return (
+      <img 
+        src={profilePicture.s3Url} 
+        alt={name}
+        className="h-7 w-7 min-w-7 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
 
   return (
     <div
