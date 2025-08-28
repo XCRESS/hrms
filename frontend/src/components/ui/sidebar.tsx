@@ -94,8 +94,13 @@ export const DesktopSidebar = ({
           "h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 fixed left-0 top-0 z-50 shadow-lg",
           className
         )}
+        style={{ 
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitScrollbar: { display: 'none' }
+        }}
         animate={{
-          width: animate ? (open ? "200px" : "60px") : "200px",
+          width: animate ? (open ? "240px" : "80px") : "240px",
         }}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
@@ -194,9 +199,10 @@ export const SidebarLink = ({
 
   const linkClasses = (isActive: boolean) =>
     cn(
-      "flex items-center justify-start gap-2 group/sidebar py-2 px-2 rounded-md",
+      "flex items-center justify-start gap-3 group/sidebar py-3 rounded-xl transition-all duration-200 hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60",
+      open ? "px-3" : "px-4",
       {
-        "bg-neutral-200 dark:bg-neutral-700": isActive,
+        "bg-neutral-200 dark:bg-neutral-700 shadow-sm": isActive,
       },
       className
     );

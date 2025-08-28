@@ -16,7 +16,27 @@ class ApiClient {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           const url = `${this.baseURL}${endpoint}`;
-          const headers = { ...this.defaultHeaders, ...options.headers };
+          // Only apply default headers if not explicitly overridden
+          const headers = {};
+          
+          // Add default headers first
+          Object.entries(this.defaultHeaders).forEach(([key, value]) => {
+            if (!(key in (options.headers || {}))) {
+              headers[key] = value;
+            }
+          });
+          
+          // Add custom headers (these can override defaults)
+          if (options.headers) {
+            Object.entries(options.headers).forEach(([key, value]) => {
+              if (value !== null) {
+                headers[key] = value;
+              } else {
+                // Remove header if explicitly set to null
+                delete headers[key];
+              }
+            });
+          }
           const config = {
             ...options,
             headers,
@@ -191,6 +211,9 @@ class ApiClient {
       // Don't set Content-Type for FormData, let browser set it with boundary
       if (!isFormData) {
         headers["Content-Type"] = "application/json";
+      } else {
+        // Explicitly set to null to prevent default Content-Type from being applied
+        headers["Content-Type"] = null;
       }
       
       return this.customFetch(endpoint, {

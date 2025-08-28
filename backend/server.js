@@ -6,12 +6,8 @@ import { autoInvalidateMiddleware, getCacheInvalidationStats } from "./utils/cac
 
 dotenv.config();
 const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 🚀 Add cache auto-invalidation middleware for performance optimization
-app.use(autoInvalidateMiddleware);
-
+// CORS first
 const allowedOrigins = [
   "http://localhost:5173",
   "https://hrms-jx26.vercel.app",
@@ -27,6 +23,17 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Document upload route BEFORE JSON middleware
+import documentRoutes from "./routes/document.js";
+app.use("/api/documents", documentRoutes);
+
+// JSON middleware for all other routes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// 🚀 Add cache auto-invalidation middleware for performance optimization
+app.use(autoInvalidateMiddleware);
 
 // Simple direct MongoDB connection
 const connectToMongoDB = async () => {
@@ -79,7 +86,6 @@ import policyRoutes from "./routes/policy.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import healthRoutes from "./routes/health.js";
 import notificationTestRoutes from "./routes/notification.test.js";
-import documentRoutes from "./routes/document.js";
 
 // Notification Services
 import NotificationService from "./services/notificationService.js";
@@ -136,7 +142,6 @@ app.use("/api/salary-structures", salaryStructureRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/notifications", notificationTestRoutes);
-app.use("/api/documents", documentRoutes);
 app.use("/health", healthRoutes);
 
 app.get('/', (req, res) => {

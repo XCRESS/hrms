@@ -98,6 +98,14 @@ export const API_ENDPOINTS = {
     MISSING_EMPLOYEES: "/users/missing-employees"
   },
   
+  // Documents
+  DOCUMENTS: {
+    BASE: "/documents",
+    UPLOAD: "/documents/upload",
+    GET_BY_EMPLOYEE: (employeeId) => `/documents/employee/${encodeURIComponent(employeeId)}`,
+    DELETE: (id) => `/documents/${id}`
+  },
+  
   // Dashboard
   DASHBOARD: {
     ADMIN: "/dashboard/admin",

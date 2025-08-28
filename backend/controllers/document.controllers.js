@@ -1,86 +1,88 @@
 import EmployeeDocument from "../models/EmployeeDocument.model.js";
 import Employee from "../models/Employee.model.js";
-import { uploadFileToS3, deleteFileFromS3 } from "../services/s3Service.js";
+import s3Service from "../services/s3Service.js";
+import fileValidationService from "../services/fileValidationService.js";
 import multer from "multer";
 
 const storage = multer.memoryStorage();
 export const upload = multer({ 
     storage,
     limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|pdf/;
-        const extname = allowedTypes.test(file.originalname.toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Only images (jpg, jpeg, png, gif) and PDFs are allowed'));
-        }
+        fileSize: 10 * 1024 * 1024, // 10MB limit
     }
 });
 
 export const uploadDocument = async (req, res) => {
     try {
-        const { employeeId, documentType } = req.body;
+        const { employeeId, documentType = 'document' } = req.body;
         const file = req.file;
 
         if (!file) {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
-        const fileExtension = file.originalname.split('.').pop();
-        const s3Key = `documents/${employeeId}/${documentType}/${Date.now()}.${fileExtension}`;
+        if (!employeeId) {
+            return res.status(400).json({ message: "Employee ID is required" });
+        }
 
-        const s3Url = await uploadFileToS3(file, s3Key);
+        // Simple validation
+        const validation = fileValidationService.validateFile(file);
+        if (!validation.isValid) {
+            return res.status(400).json({ 
+                message: "File validation failed", 
+                errors: validation.errors 
+            });
+        }
 
-        // Delete existing document of same type if exists
+        const isProfilePicture = documentType === 'profile_picture';
+
+        // Delete existing file if it exists
         const existingDoc = await EmployeeDocument.findOne({ employeeId, documentType });
         if (existingDoc) {
-            const oldKey = existingDoc.s3Url.split('.amazonaws.com/')[1];
-            await deleteFileFromS3(oldKey);
+            await s3Service.deleteFile(existingDoc.s3Url);
             await EmployeeDocument.findByIdAndDelete(existingDoc._id);
         }
 
+        // Upload new file
+        const uploadResult = await s3Service.uploadFile(file, employeeId, isProfilePicture);
+
+        // Save to database
         const document = new EmployeeDocument({
             employeeId,
-            documentType,
+            documentType: documentType || 'document',
             fileName: file.originalname,
-            s3Url
+            s3Url: uploadResult.url
         });
 
         await document.save();
 
-        // If it's a profile picture, update the Employee model
-        if (documentType === 'profile_picture') {
+        // Update profile picture in Employee model
+        if (isProfilePicture) {
             await Employee.findOneAndUpdate(
                 { employeeId },
-                { profilePicture: s3Url }
+                { profilePicture: uploadResult.url }
             );
         }
 
         res.status(201).json({
-            message: "Document uploaded successfully",
+            message: "File uploaded successfully",
             document
         });
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Upload error:', error);
+        res.status(500).json({ message: "Failed to upload file" });
     }
 };
 
 export const getEmployeeDocuments = async (req, res) => {
     try {
         const { employeeId } = req.params;
-        const decodedEmployeeId = decodeURIComponent(employeeId);
-        console.log('Fetching documents for employee:', decodedEmployeeId);
-        const documents = await EmployeeDocument.find({ employeeId: decodedEmployeeId });
-        console.log('Found documents:', documents.length);
+        const documents = await EmployeeDocument.find({ employeeId });
         res.json({ documents });
     } catch (error) {
-        console.error('Error fetching documents:', error);
-        res.status(500).json({ message: error.message });
+        console.error('Get documents error:', error);
+        res.status(500).json({ message: "Failed to get documents" });
     }
 };
 
@@ -93,10 +95,10 @@ export const deleteDocument = async (req, res) => {
             return res.status(404).json({ message: "Document not found" });
         }
 
-        const s3Key = document.s3Url.split('.amazonaws.com/')[1];
-        await deleteFileFromS3(s3Key);
+        // Delete from S3
+        await s3Service.deleteFile(document.s3Url);
 
-        // If it's a profile picture, remove from Employee model
+        // Remove profile picture from Employee model if needed
         if (document.documentType === 'profile_picture') {
             await Employee.findOneAndUpdate(
                 { employeeId: document.employeeId },
@@ -104,10 +106,12 @@ export const deleteDocument = async (req, res) => {
             );
         }
 
+        // Delete from database
         await EmployeeDocument.findByIdAndDelete(id);
 
         res.json({ message: "Document deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Delete error:', error);
+        res.status(500).json({ message: "Failed to delete document" });
     }
 };
