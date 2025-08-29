@@ -120,15 +120,15 @@ const ChatBot = () => {
       const data = await response.json();
       
       // Store conversation ID for future messages
-      if (data.conversation_id) {
-        sessionStorage.setItem('hrms_chat_id', data.conversation_id);
+      if (data.data?.conversation_id) {
+        sessionStorage.setItem('hrms_chat_id', data.data.conversation_id);
       }
 
       const botResponse = {
         id: messages.length + 2,
-        text: data.response || "I'm sorry, I couldn't process your request right now.",
+        text: data.data?.response || data.response || "I'm sorry, I couldn't process your request right now.",
         sender: 'bot',
-        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        timestamp: data.data?.timestamp ? new Date(data.data.timestamp) : new Date(),
       };
 
       setMessages(prev => [...prev, botResponse]);
@@ -140,9 +140,15 @@ const ChatBot = () => {
       // Create more informative error message
       let errorMessage = "I'm sorry, I'm having trouble connecting right now.";
       
-      if (error.message.includes('Both API endpoints are unavailable')) {
+      if (error.message.includes('signal is aborted') || error.message.includes('timeout')) {
+        errorMessage = "The request is taking longer than usual. This can happen with complex queries.\n\n" +
+                      "Please try:\n" +
+                      "• Wait a moment and try again\n" +
+                      "• Try a simpler question first\n" +
+                      "• Check your internet connection";
+      } else if (error.message.includes('Both API endpoints are unavailable')) {
         errorMessage = "Both local and production servers are unavailable. Please check:\n\n" +
-                      "• Local server: Make sure it's running on localhost:8000\n" +
+                      "• Local server: Make sure it's running on localhost:4000\n" +
                       "• Production server: Check network connectivity\n" +
                       "• Try refreshing the page";
       } else if (error.message.includes('Primary endpoint failed')) {

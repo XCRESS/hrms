@@ -12,6 +12,7 @@ pnpm start          # Production server
 pnpm dev            # Development with nodemon
 
 # Stop server (find process and kill by PID)
+netstat -ano | findstr :4000
 taskkill //F //PID <specific_pid>
 ```
 
