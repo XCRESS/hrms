@@ -5,7 +5,7 @@ import apiClient from '../../service/apiClient';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
-import { ArrowLeft, FileSpreadsheet, Calendar, Users, Download } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Calendar, Users, Download, Sparkles } from 'lucide-react';
 
 const TaskReportGenerator = () => {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ const TaskReportGenerator = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
 
@@ -85,6 +86,122 @@ const TaskReportGenerator = () => {
         .replace(/\[Post-lunch\]/gi, '')
         .trim();
     }).filter(task => task.length > 0); // Remove empty tasks after cleaning
+  };
+
+  // Generate AI Summary Report
+  const generateAIReport = async () => {
+    if (!isFormValid()) {
+      setError("Please select at least one employee and specify date range.");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    setError(null);
+
+    try {
+      const reportData = [];
+      let serialNumber = 1;
+
+      // Fetch task reports for each selected employee
+      for (const employee of selectedEmployees) {
+        try {
+          const params = {
+            employeeId: employee.employeeId,
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate,
+            limit: 1000
+          };
+
+          const res = await apiClient.getTaskReports(params);
+          
+          if (res.success && res.data.reports && res.data.reports.length > 0) {
+            const allTasks = res.data.reports
+              .sort((a, b) => new Date(a.date) - new Date(b.date))
+              .flatMap(report => cleanTasks(report.tasks));
+
+            if (allTasks.length > 0) {
+              // Convert bullet points to AI summary
+              const bulletPoints = allTasks.map(task => `• ${task}`).join('\n');
+              
+              try {
+                const aiResponse = await apiClient.post('/chat', {
+                  message: `Please rewrite this as a single paragraph without bullet points:\n\n${bulletPoints}\n\nResponse format: Write as one continuous paragraph, do not use bullet points.`,
+                  conversation_id: null
+                });
+                
+                const summary = aiResponse.data?.response;
+                if (!summary) {
+                  throw new Error('AI response is empty or invalid');
+                }
+                
+                const singlePara = summary.split('\n\n')[0].trim();
+                
+                reportData.push({
+                  'S.No.': serialNumber++,
+                  'Employee Name': employee.fullName,
+                  'Summary Report': singlePara
+                });
+              } catch (aiError) {
+                console.error('AI conversion failed:', aiError);
+                // Don't add data if AI fails - let error show
+                throw aiError;
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to fetch reports for ${employee.fullName}:`, err);
+        }
+      }
+
+      if (reportData.length === 0) {
+        setError("No task reports found for the selected employees and date range.");
+        return;
+      }
+
+      // Create Excel workbook with AI summaries
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(reportData);
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 8 },  // S.No.
+        { wch: 25 }, // Employee Name
+        { wch: 60 }  // Summary Report
+      ];
+      ws['!cols'] = columnWidths;
+
+      // Style the header row
+      const headerCells = ['A1', 'B1', 'C1'];
+      headerCells.forEach(cell => {
+        if (ws[cell]) {
+          ws[cell].s = {
+            font: { bold: true },
+            fill: { bgColor: { indexed: 64 }, fgColor: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" }
+          };
+        }
+      });
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "AI Task Reports");
+
+      // Generate filename with current date
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      const filename = `AI_Task_Reports_${dateRange.startDate}_to_${dateRange.endDate}_${dateStr}.xlsx`;
+
+      // Write and download the file
+      XLSX.writeFile(wb, filename);
+
+      // Show success message
+      setError(null);
+      
+    } catch (err) {
+      console.error("Error generating AI report:", err);
+      setError("Failed to generate AI report. Please try again.");
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   // Generate Excel report
@@ -385,27 +502,48 @@ const TaskReportGenerator = () => {
                   </ul>
                 </div>
 
-                <Button
-                  onClick={generateReport}
-                  disabled={!isFormValid() || isGenerating}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="h-4 w-4" />
-                      Generate Excel Report
-                    </>
-                  )}
-                </Button>
+                <div className="space-y-3">
+                  <Button
+                    onClick={generateAIReport}
+                    disabled={!isFormValid() || isGeneratingAI}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                  >
+                    {isGeneratingAI ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating AI Report...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        AI Generate Report
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={generateReport}
+                    disabled={!isFormValid() || isGenerating}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="h-4 w-4" />
+                        Generate Excel Report
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
         </div>
+
       </div>
     </div>
   );
