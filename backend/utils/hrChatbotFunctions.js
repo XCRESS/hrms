@@ -10,6 +10,9 @@ import Leave from '../models/Leave.model.js';
 import SalarySlip from '../models/SalarySlip.model.js';
 import TaskReport from '../models/TaskReport.model.js';
 import Holiday from '../models/Holiday.model.js';
+import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
+import Help from '../models/Help.model.js';
+import Regularization from '../models/Regularization.model.js';
 import moment from 'moment-timezone';
 
 // Get current date/time in IST
@@ -193,7 +196,7 @@ export const HR_FUNCTIONS = [
   {
     type: "function",
     name: "get_task_report_summary",
-    description: "Get task report submission statistics for employees within a date range with submission details.",
+    description: "Get detailed task reports with actual tasks submitted by employees within a date range. Returns both statistics and complete task details for each report.",
     parameters: {
       type: "object",
       properties: {
@@ -238,6 +241,30 @@ export const HR_FUNCTIONS = [
         }
       },
       required: ["employeeId", "department", "limit"],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: "function",
+    name: "get_all_pending_requests",
+    description: "Get all pending requests from employees including leave requests, help inquiries, attendance regularizations, and password reset requests. Provides comprehensive view of items awaiting approval.",
+    parameters: {
+      type: "object",
+      properties: {
+        requestType: {
+          type: ["string", "null"],
+          enum: ["leave", "help", "regularization", "password_reset", null],
+          description: "Optional filter by request type. If null, returns all types."
+        },
+        limit: {
+          type: "integer",
+          description: "Maximum number of requests to return per type. Defaults to 20.",
+          minimum: 1,
+          maximum: 100
+        }
+      },
+      required: ["requestType", "limit"],
       additionalProperties: false
     },
     strict: true
@@ -651,16 +678,34 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       }
 
       const [reports, employeeStats] = await Promise.all([
-        TaskReport.find(filter).populate('employee', 'firstName lastName employeeId department').limit(50),
+        TaskReport.find(filter)
+          .populate('employee', 'firstName lastName employeeId department')
+          .sort({ date: -1 })
+          .limit(100), // Increased limit to get more comprehensive data
         TaskReport.aggregate([
           { $match: filter },
           { $group: { 
             _id: '$employeeId', 
             reportCount: { $sum: 1 },
-            lastSubmission: { $max: '$date' }
+            lastSubmission: { $max: '$date' },
+            totalTasks: { $sum: { $size: '$tasks' } }
           }}
         ])
       ]);
+
+      // Get employee details for stats
+      const employeeIds = employeeStats.map(stat => stat._id);
+      const employees = await Employee.find({ 
+        employeeId: { $in: employeeIds } 
+      }).select('employeeId firstName lastName department');
+
+      const employeeMap = new Map();
+      employees.forEach(emp => {
+        employeeMap.set(emp.employeeId, {
+          name: `${emp.firstName} ${emp.lastName}`,
+          department: emp.department
+        });
+      });
 
       return {
         success: true,
@@ -669,16 +714,25 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
           start: startDate || 'Not specified',
           end: endDate || 'Not specified'
         },
-        employeeStats: employeeStats.map(stat => ({
-          employeeId: stat._id,
-          reportCount: stat.reportCount,
-          lastSubmission: stat.lastSubmission.toISOString().split('T')[0]
-        })),
-        recentReports: reports.slice(0, 5).map(report => ({
+        employeeStats: employeeStats.map(stat => {
+          const empInfo = employeeMap.get(stat._id) || { name: 'Unknown', department: 'Unknown' };
+          return {
+            employeeId: stat._id,
+            employeeName: empInfo.name,
+            department: empInfo.department,
+            reportCount: stat.reportCount,
+            totalTasks: stat.totalTasks,
+            lastSubmission: stat.lastSubmission.toISOString().split('T')[0]
+          };
+        }),
+        detailedReports: reports.map(report => ({
           employeeId: report.employeeId,
           employeeName: report.employee ? `${report.employee.firstName} ${report.employee.lastName}` : 'Unknown',
+          department: report.employee?.department || 'Unknown',
           date: report.date.toISOString().split('T')[0],
-          taskCount: report.tasks.length
+          taskCount: report.tasks.length,
+          tasks: report.tasks, // Include actual task details
+          submittedAt: report.createdAt.toISOString()
         }))
       };
     } catch (error) {
@@ -722,6 +776,167 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       return {
         success: false,
         error: `Error fetching employee basic info: ${error.message}`
+      };
+    }
+  },
+
+  async get_all_pending_requests({ requestType, limit = 20 }) {
+    try {
+      const allRequests = [];
+      
+      // Fetch leave requests if not filtered or specifically requested
+      if (!requestType || requestType === 'leave') {
+        try {
+          const leaves = await Leave.find({ status: 'pending' })
+            .populate('employee', 'firstName lastName employeeId department')
+            .limit(limit)
+            .sort({ createdAt: -1 });
+          
+          allRequests.push(...leaves.map(leave => ({
+            _id: leave._id,
+            type: 'leave',
+            title: `${leave.leaveType} Leave Request`,
+            description: leave.leaveReason || 'No reason provided',
+            employeeId: leave.employee?.employeeId || leave.employeeId,
+            employeeName: leave.employee ? `${leave.employee.firstName} ${leave.employee.lastName}` : leave.employeeName,
+            department: leave.employee?.department || 'Unknown',
+            requestDate: leave.createdAt,
+            targetDate: leave.leaveDate,
+            status: leave.status,
+            details: {
+              leaveType: leave.leaveType,
+              startDate: leave.startDate,
+              endDate: leave.endDate,
+              duration: leave.duration
+            }
+          })));
+        } catch (err) {
+          console.error('Error fetching leave requests:', err);
+        }
+      }
+
+      // Fetch help inquiries if not filtered or specifically requested  
+      if (!requestType || requestType === 'help') {
+        try {
+          const helpRequests = await Help.find({ status: 'pending' })
+            .populate('userId', 'name email')
+            .limit(limit)
+            .sort({ createdAt: -1 });
+          
+          allRequests.push(...helpRequests.map(help => ({
+            _id: help._id,
+            type: 'help',
+            title: help.subject || 'Help Request',
+            description: help.description || 'No description provided',
+            employeeId: 'Unknown',
+            employeeName: help.userId?.name || 'Unknown User',
+            department: 'Unknown',
+            requestDate: help.createdAt,
+            targetDate: help.createdAt,
+            status: help.status,
+            details: {
+              category: help.category,
+              priority: help.priority,
+              response: help.response
+            }
+          })));
+        } catch (err) {
+          console.error('Error fetching help requests:', err);
+        }
+      }
+
+      // Fetch attendance regularizations if not filtered or specifically requested
+      if (!requestType || requestType === 'regularization') {
+        try {
+          const regularizations = await Regularization.find({ status: 'pending' })
+            .populate('user', 'name email')
+            .populate('employee', 'firstName lastName employeeId department')
+            .limit(limit)
+            .sort({ createdAt: -1 });
+          
+          allRequests.push(...regularizations.map(reg => ({
+            _id: reg._id,
+            type: 'regularization',
+            title: 'Attendance Regularization',
+            description: reg.reason || 'Missing checkout regularization request',
+            employeeId: reg.employee?.employeeId || reg.employeeId || 'Unknown',
+            employeeName: reg.employee ? `${reg.employee.firstName} ${reg.employee.lastName}` : (reg.user?.name || 'Unknown User'),
+            department: reg.employee?.department || 'Unknown',
+            requestDate: reg.createdAt,
+            targetDate: reg.date,
+            status: reg.status,
+            details: {
+              date: reg.date,
+              checkIn: reg.checkIn,
+              checkOut: reg.checkOut,
+              reason: reg.reason
+            }
+          })));
+        } catch (err) {
+          console.error('Error fetching regularization requests:', err);
+        }
+      }
+
+      // Fetch password reset requests if not filtered or specifically requested
+      if (!requestType || requestType === 'password_reset') {
+        try {
+          const passwordResets = await PasswordResetRequest.find({ status: 'pending' })
+            .populate('userId', 'name email')
+            .limit(limit)
+            .sort({ createdAt: -1 });
+          
+          allRequests.push(...passwordResets.map(reset => ({
+            _id: reset._id,
+            type: 'password_reset',
+            title: 'Password Reset Request',
+            description: `Password reset request for ${reset.email}`,
+            employeeId: reset.userId?.employeeId || 'Unknown',
+            employeeName: reset.name || reset.userId?.name || 'Unknown User',
+            department: 'Unknown',
+            requestDate: reset.createdAt,
+            targetDate: reset.resetTokenExpires,
+            status: reset.status,
+            details: {
+              email: reset.email,
+              tokenExpires: reset.resetTokenExpires,
+              remarks: reset.remarks
+            }
+          })));
+        } catch (err) {
+          console.error('Error fetching password reset requests:', err);
+        }
+      }
+
+      // Sort all requests by request date (most recent first)
+      allRequests.sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
+
+      // Group by type for summary
+      const summary = {
+        leave: allRequests.filter(r => r.type === 'leave').length,
+        help: allRequests.filter(r => r.type === 'help').length,
+        regularization: allRequests.filter(r => r.type === 'regularization').length,
+        password_reset: allRequests.filter(r => r.type === 'password_reset').length
+      };
+
+      return {
+        success: true,
+        totalPendingRequests: allRequests.length,
+        summary,
+        requestType: requestType || 'all',
+        requests: allRequests.slice(0, limit * 2), // Allow more results when showing all types
+        recentRequests: allRequests.slice(0, 10).map(req => ({
+          type: req.type,
+          title: req.title,
+          employeeName: req.employeeName,
+          department: req.department,
+          requestDate: req.requestDate.toISOString().split('T')[0],
+          description: req.description.length > 100 ? req.description.substring(0, 100) + '...' : req.description
+        }))
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error fetching pending requests: ${error.message}`
       };
     }
   }
