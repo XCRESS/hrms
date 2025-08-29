@@ -6,14 +6,14 @@
 export const API_CONFIG = {
   // API Endpoints
   ENDPOINTS: {
-    LOCAL: 'http://localhost:8000',
-    PRODUCTION: 'https://hr-buddy-production.up.railway.app'
+    LOCAL: 'http://localhost:4000/api',
+    PRODUCTION: 'https://hrms-backend.up.railway.app/api'
   },
   
-  // Timeout settings
+  // Timeout settings - Increased for OpenAI function calling
   TIMEOUT: {
-    PRIMARY: 10000,    // 10 seconds for primary endpoint
-    FALLBACK: 15000    // 15 seconds for fallback endpoint
+    PRIMARY: 30000,    // 30 seconds for primary endpoint (OpenAI can be slow)
+    FALLBACK: 45000    // 45 seconds for fallback endpoint
   }
 };
 

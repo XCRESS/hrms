@@ -228,7 +228,7 @@
   - Check touch targets - buttons need to be at least 44px
   - Test slow networks - use Chrome DevTools throttling
 
-  Security Headers
+  Security Headers (for later not now)
 
   - Don't break CORS - test frontend can still access backend
   - Rate limiting affects development - set higher limits for dev
@@ -238,11 +238,11 @@
 
   After Each Phase
 
-  1. Test main workflows: Login → Check-in → Employee list → Leave request
-  2. Check mobile experience: Use phone to test critical flows
-  3. Verify no regressions: Old functionality still works
-  4. Check error handling: Try invalid inputs, network failures
-  5. Monitor bundle size: Should get smaller, not larger
+  1. Test main workflows: Login → Check-in → Employee list → Leave request (will do myself)
+  2. Check mobile experience: Use phone to test critical flows (myself)
+  3. Verify no regressions: Old functionality still works (for you to check)
+  4. Check error handling: Try invalid inputs, network failures (for you to check)
+  5. Monitor bundle size: Should get smaller, not larger (for you to check improtant!)
 
   Success Metrics to Track
 
@@ -258,12 +258,10 @@
   Critical Files for Data Fix
 
   - backend/models/Employee.model.js - Data type changes
-  - backend/scripts/fix-data-types.js - Migration script
 
   Error Handling Files
 
   - backend/utils/errorHandler.js - Global error handler
-  - backend/server.js - Import express-async-errors at top
 
   API Client Replacement
 
@@ -271,10 +269,10 @@
   - frontend/src/hooks/useEmployees.js - React Query hooks
   - Delete: frontend/src/service/apiClient.js (750 lines)
 
-  Form Validation
+  Form Validation (think the best approach before implementing)
 
-  - frontend/src/schemas/employee.js - Zod schemas
-  - backend/validations/employee.validation.js - Joi schemas
+  - frontend/src/schemas/employee.js - Zod schemas?
+  - backend/validations/employee.validation.js - Joi schemas?
 
   ---
   💡 DEVELOPMENT WORKFLOW
