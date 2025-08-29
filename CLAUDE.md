@@ -10,6 +10,9 @@ cd backend
 pnpm install
 pnpm start          # Production server
 pnpm dev            # Development with nodemon
+
+# Stop server (find process and kill by PID)
+taskkill //F //PID <specific_pid>
 ```
 
 ### Frontend (React/Vite)

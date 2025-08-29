@@ -120,29 +120,47 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
   // Initialize form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setTasks(['']);
-      setPreLunchTasks(['']);
-      setPostLunchTasks(['']);
       setError('');
       
-      // Load saved draft
+      // Load saved draft first, then set defaults if nothing saved
       const savedTasks = localStorage.getItem('taskReport_draft');
       if (savedTasks) {
         try {
           const parsed = JSON.parse(savedTasks);
-          if (parsed.length > 0) {
+          if (parsed && Object.keys(parsed).length > 0) {
             // Check if it's structured data with pre/post lunch sections
             if (parsed.preLunchTasks && parsed.postLunchTasks) {
               setPreLunchTasks(parsed.preLunchTasks.length > 0 ? parsed.preLunchTasks : ['']);
               setPostLunchTasks(parsed.postLunchTasks.length > 0 ? parsed.postLunchTasks : ['']);
-            } else {
+              setTasks(['']); // Set default for half-day mode
+            } else if (Array.isArray(parsed) && parsed.length > 0) {
               // Legacy format - just tasks array
               setTasks(parsed);
+              setPreLunchTasks(['']); // Set defaults for full-day mode
+              setPostLunchTasks(['']);
+            } else {
+              // Empty or invalid data, set defaults
+              setTasks(['']);
+              setPreLunchTasks(['']);
+              setPostLunchTasks(['']);
             }
+          } else {
+            // No valid saved data, set defaults
+            setTasks(['']);
+            setPreLunchTasks(['']);
+            setPostLunchTasks(['']);
           }
         } catch (e) {
-          // Ignore
+          // Error parsing, set defaults
+          setTasks(['']);
+          setPreLunchTasks(['']);
+          setPostLunchTasks(['']);
         }
+      } else {
+        // No saved data, set defaults
+        setTasks(['']);
+        setPreLunchTasks(['']);
+        setPostLunchTasks(['']);
       }
 
       // Prevent background scroll
