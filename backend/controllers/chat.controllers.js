@@ -39,6 +39,7 @@ const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for
 3. **Professionalism**: Maintain a helpful, professional tone suitable for HR interactions
 4. **Accuracy**: Always verify data through function calls rather than making assumptions
 5. **Clarity**: Present complex data in easy-to-understand formats with clear explanations
+6. **No File Creation**: Never suggest creating files, CSVs, or documents. Only provide data in the chat response
 
 ## Function Usage:
 - Use get_current_datetime() to get current date/time for date-based queries
@@ -50,10 +51,12 @@ const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for
 - Use get_upcoming_holidays() for holiday information
 - Use get_task_report_summary() for task reporting insights
 - Use get_employee_basic_info() for general employee information
+- Use get_all_pending_requests() for comprehensive pending requests across all types (leave, help, regularization, password reset)
 
 ## Response Format:
 - Start with a brief acknowledgment of the query
 - Present data in organized, readable format (use tables, lists, or structured text)
+- **Date Format**: Always display dates in DD-MM-YYYY format (e.g., 25-12-2024, not 2024-12-25)
 - Provide context and insights when relevant
 - End with an offer to help with follow-up questions
 
@@ -83,7 +86,7 @@ export const chat = asyncHandler(async (req, res) => {
     // Generate or use existing conversation ID
     const sessionId = conversation_id || `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Get or create conversation history
+    // Get or create conversation history for OpenAI API
     let conversationHistory = chatSessions.get(sessionId) || [];
     
     // Add user message to history
@@ -92,18 +95,16 @@ export const chat = asyncHandler(async (req, res) => {
       content: message.trim()
     };
     
-    conversationHistory.push(userMessage);
+    // Create a fresh conversation history for this API call
+    const apiConversationHistory = [...conversationHistory, userMessage];
 
     console.log(`[ChatBot] Processing message for session ${sessionId}:`, message.substring(0, 100) + '...');
-
-    // Prepare input for OpenAI Responses API
-    const inputMessages = conversationHistory;
 
     // Make initial request to GPT-5 nano with function calling (cost-effective)
     let response = await openai.responses.create({
       model: 'gpt-5-nano',
       instructions: SYSTEM_INSTRUCTIONS,
-      input: inputMessages,
+      input: apiConversationHistory,
       tools: HR_FUNCTIONS,
       tool_choice: 'auto', // Let the model decide when to use tools
       reasoning: { effort: 'low' }, // Lower reasoning effort for cost efficiency
@@ -119,10 +120,13 @@ export const chat = asyncHandler(async (req, res) => {
     if (functionCalls.length > 0) {
       console.log(`[ChatBot] Processing ${functionCalls.length} function calls for session ${sessionId}`);
       
-      // Add all response items to conversation (including reasoning if present)
-      conversationHistory = conversationHistory.concat(response.output);
+      // Add ALL response items to conversation (including reasoning items)
+      // This is critical for reasoning models like GPT-5
+      for (const item of response.output) {
+        apiConversationHistory.push(item);
+      }
       
-      // Execute function calls
+      // Execute function calls and add their outputs
       for (const functionCall of functionCalls) {
         try {
           console.log(`[ChatBot] Executing function: ${functionCall.name} with args:`, functionCall.arguments);
@@ -131,7 +135,7 @@ export const chat = asyncHandler(async (req, res) => {
           const functionResult = await executeHRFunction(functionCall.name, functionArgs);
           
           // Add function result to conversation
-          conversationHistory.push({
+          apiConversationHistory.push({
             type: 'function_call_output',
             call_id: functionCall.call_id,
             output: JSON.stringify(functionResult)
@@ -142,7 +146,7 @@ export const chat = asyncHandler(async (req, res) => {
           console.error(`[ChatBot] Error executing function ${functionCall.name}:`, error);
           
           // Add error result to conversation
-          conversationHistory.push({
+          apiConversationHistory.push({
             type: 'function_call_output',
             call_id: functionCall.call_id,
             output: JSON.stringify({
@@ -154,11 +158,13 @@ export const chat = asyncHandler(async (req, res) => {
       }
 
       // Make second request to get final response with function results
+      // Use previous_response_id to maintain reasoning continuity
       response = await openai.responses.create({
         model: 'gpt-5-nano',
         instructions: SYSTEM_INSTRUCTIONS,
-        input: conversationHistory,
+        input: apiConversationHistory,
         tools: HR_FUNCTIONS,
+        previous_response_id: response.id, // Pass previous response ID for reasoning continuity
         reasoning: { effort: 'low' }, // Lower effort for final formatting
         text: { verbosity: 'medium' }
       });
@@ -170,16 +176,26 @@ export const chat = asyncHandler(async (req, res) => {
     const assistantResponse = response.output_text || "I apologize, but I couldn't generate a proper response. Please try again.";
 
     // Add assistant response to conversation history
-    conversationHistory.push({
+    const assistantMessage = {
       role: 'assistant',
       content: assistantResponse
-    });
-
-    // Store updated conversation (keep last 20 messages to manage memory)
-    if (conversationHistory.length > 20) {
-      conversationHistory = conversationHistory.slice(-20);
+    };
+    
+    // Update session storage with user/assistant messages only
+    // We don't need to store OpenAI's internal reasoning items, function calls, etc.
+    conversationHistory.push(userMessage); // Add the original user message
+    conversationHistory.push(assistantMessage); // Add the assistant response
+    
+    // Keep only last 20 user/assistant messages to manage memory
+    const filteredHistory = conversationHistory.filter(msg => 
+      msg.role === 'user' || msg.role === 'assistant'
+    );
+    if (filteredHistory.length > 20) {
+      const trimmedHistory = filteredHistory.slice(-20);
+      chatSessions.set(sessionId, trimmedHistory);
+    } else {
+      chatSessions.set(sessionId, filteredHistory);
     }
-    chatSessions.set(sessionId, conversationHistory);
 
     // Clean up old sessions (older than 1 hour)
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
