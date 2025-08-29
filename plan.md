@@ -165,6 +165,43 @@
   pnpm install @sentry/react @sentry/node
 
   ---
+  🏗️ ERROR HANDLING ARCHITECTURE INSIGHTS
+
+  Analysis of Error Handling Approaches (Completed Analysis)
+
+  Two Patterns Discovered in Codebase:
+
+  1. Standard asyncHandler Pattern (Simple & Consistent)
+     - Implementation: backend/utils/asyncHandler.js + globalErrorHandler
+     - Used by: user, dashboard, leave, employee controllers
+     - Pros: Simple, consistent, easy to maintain, unified responses
+     - Format: throw new ValidationError() / throw new NotFoundError()
+     - Response: {success, message, code, statusCode, details, timestamp}
+
+  2. Advanced Attendance Pattern (Sophisticated but Isolated)  
+     - Implementation: backend/utils/attendance/attendanceErrorHandler.js
+     - Used by: attendance controllers only
+     - Pros: Domain-specific errors, business context, operation tracking
+     - Format: throw new BusinessLogicError(msg, {eligibilityErrors, warnings})
+     - Response: Similar JSON but with more business intelligence
+
+  Decision Made: Hybrid Approach (Option B)
+  - Keep sophisticated attendance system (mission-critical, works well)
+  - Gradually upgrade other controllers to standard pattern
+  - Ensure response format compatibility across both systems
+  - Future: Consider upgrading all to attendance-level sophistication
+
+  Migration Status:
+  ✅ user.controllers.js - Fully migrated to standard pattern
+  ✅ dashboard.controllers.js - Fully migrated to standard pattern  
+  ✅ leave.controllers.js - Fully migrated to standard pattern
+  ✅ employee.controllers.js - Partially demonstrated (createEmployee)
+  ⚠️  attendance.controllers.js - Keep existing advanced system
+  ⏳ ~13 remaining controllers - Ready for standard pattern migration
+
+  Key Lesson: Don't break what works, but standardize new development
+
+  ---
   🚨 GOTCHAS & PITFALLS TO REMEMBER
 
   Data Migration (already did it myself skip migration part)
@@ -290,7 +327,7 @@
   Completed ✅
 
   - ✅ Data type corruption fix (Employee model: phone, aadhaar, parent phones, emergency contact - changed from Number to String with regex validation)
-  - Error handling standardization
+  - ✅ Error handling standardization (Phase 1) - Basic asyncHandler pattern established
   - Mobile experience improvements
   - API client replacement
   - Form validation implementation
@@ -302,8 +339,8 @@
 
   Current Status
 
-  Last worked on: Data type corruption fix - Employee model schema updated (phone, aadhaar, parent phones, emergency contact)
-  Next priority: Error handling standardization with express-async-errors
+  Last worked on: Error handling standardization - implemented asyncHandler pattern in user, dashboard, leave, and employee controllers
+  Next priority: API Client replacement with TanStack Query (biggest code reduction impact)
   Blockers: None - ready for next phase
 
   ---

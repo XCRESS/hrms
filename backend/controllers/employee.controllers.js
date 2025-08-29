@@ -1,126 +1,100 @@
 import Employee from "../models/Employee.model.js";
 import Department from "../models/Department.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ValidationError, NotFoundError } from "../utils/errors.js";
 
-export const createEmployee = async (req, res) => {
-  try {
-    const {
-      employeeId,
-      firstName,
-      lastName,
-      gender,
-      dateOfBirth,
-      maritalStatus,
-      email,
-      phone,
-      address,
-      aadhaarNumber,
-      panNumber,
-      fatherName,
-      motherName,
-      fatherPhone,
-      motherPhone,
-      officeAddress,
-      companyName,
-      department,
-      position,
-      paymentMode,
-      bankName,
-      bankAccountNumber,
-      bankIFSCCode,
-      employmentType,
-      reportingSupervisor,
-      joiningDate,
-      emergencyContactName,
-      emergencyContactNumber,
-    } = req.body;
-    
-    // check if employeeId already exists
-    const existingEmployee = await Employee.findOne({
-      $or: [
-        { employeeId },
-        { email },
-        { aadhaarNumber },
-        { panNumber },
-      ]
-    });
+export const createEmployee = asyncHandler(async (req, res) => {
+  const {
+    employeeId,
+    firstName,
+    lastName,
+    gender,
+    dateOfBirth,
+    maritalStatus,
+    email,
+    phone,
+    address,
+    aadhaarNumber,
+    panNumber,
+    fatherName,
+    motherName,
+    fatherPhone,
+    motherPhone,
+    officeAddress,
+    companyName,
+    department,
+    position,
+    paymentMode,
+    bankName,
+    bankAccountNumber,
+    bankIFSCCode,
+    employmentType,
+    reportingSupervisor,
+    joiningDate,
+    emergencyContactName,
+    emergencyContactNumber,
+  } = req.body;
+  
+  // check if employeeId already exists
+  const existingEmployee = await Employee.findOne({
+    $or: [
+      { employeeId },
+      { email },
+      { aadhaarNumber },
+      { panNumber },
+    ]
+  });
 
-    if (existingEmployee) {
-      return res.status(400).json({
-        message: "Employee already exists with same employee ID, email, Aadhaar number, or PAN number."
-      });
-    }
-
-    // Validate department if provided
-    if (department && department.trim()) {
-      const departmentExists = await Department.findOne({ 
-        name: department.trim(), 
-        isActive: true 
-      });
-      
-      if (!departmentExists) {
-        return res.status(400).json({
-          message: `Department '${department}' does not exist. Please select from available departments.`
-        });
-      }
-    }
-
-    // creating employee
-    const employee = await Employee.create({
-      employeeId,
-      firstName,
-      lastName,
-      gender,
-      dateOfBirth,
-      maritalStatus,
-      email,
-      phone,
-      address,
-      aadhaarNumber,
-      panNumber,
-      fatherName,
-      motherName,
-      fatherPhone,
-      motherPhone,
-      officeAddress,
-      companyName,
-      department,
-      position,
-      paymentMode,
-      bankName,
-      bankAccountNumber,
-      bankIFSCCode,
-      employmentType,
-      reportingSupervisor,
-      joiningDate,
-      emergencyContactName,
-      emergencyContactNumber
-    });
-    res.status(201).json({ message: "Employee created", employee });
-  } catch (err) {
-    console.error('Employee creation error:', err);
-    // Mongoose validation error
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({
-        message: 'Validation error',
-        errors: err.errors ? Object.values(err.errors).map(e => e.message) : err.message,
-      });
-    }
-    // Duplicate key error
-    if (err.code === 11000) {
-      const fields = Object.keys(err.keyValue).join(', ');
-      return res.status(400).json({
-        message: `Duplicate value for field(s): ${fields}`,
-        fields: err.keyValue,
-      });
-    }
-    // Other errors
-    res.status(500).json({
-      message: "Employee creation failed",
-      error: err.message,
-      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
-    });
+  if (existingEmployee) {
+    throw new ValidationError("Employee already exists with same employee ID, email, Aadhaar number, or PAN number.");
   }
-};
+
+  // Validate department if provided
+  if (department && department.trim()) {
+    const departmentExists = await Department.findOne({ 
+      name: department.trim(), 
+      isActive: true 
+    });
+    
+    if (!departmentExists) {
+      throw new ValidationError(`Department '${department}' does not exist. Please select from available departments.`);
+    }
+  }
+
+  // creating employee
+  const employee = await Employee.create({
+    employeeId,
+    firstName,
+    lastName,
+    gender,
+    dateOfBirth,
+    maritalStatus,
+    email,
+    phone,
+    address,
+    aadhaarNumber,
+    panNumber,
+    fatherName,
+    motherName,
+    fatherPhone,
+    motherPhone,
+    officeAddress,
+    companyName,
+    department,
+    position,
+    paymentMode,
+    bankName,
+    bankAccountNumber,
+    bankIFSCCode,
+    employmentType,
+    reportingSupervisor,
+    joiningDate,
+    emergencyContactName,
+    emergencyContactNumber
+  });
+  
+  res.status(201).json({ message: "Employee created", employee });
+});
 
 // get all employees (with optional status filter)
 export const getEmployees = async (req, res) => {

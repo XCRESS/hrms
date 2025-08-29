@@ -7,10 +7,10 @@ import PasswordResetRequest from "../models/PasswordResetRequest.model.js";
 import Holiday from "../models/Holiday.model.js";
 import moment from "moment-timezone";
 import AlertService from "../services/alertService.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const getAdminDashboardSummary = async (req, res) => {
-  try {
-    // --- Date and Time Setup (IST) - same as getAdminAttendanceRange ---
+export const getAdminDashboardSummary = asyncHandler(async (req, res) => {
+  // --- Date and Time Setup (IST) - same as getAdminAttendanceRange ---
     const today = moment.tz("Asia/Kolkata");
     const startOfToday = today.clone().startOf('day').toDate();
     const endOfToday = today.clone().endOf('day').toDate();
@@ -104,43 +104,29 @@ export const getAdminDashboardSummary = async (req, res) => {
 
     const totalPendingRequests = pendingLeaves + pendingHelp + pendingRegularizations + pendingPasswordResets;
 
-    res.status(200).json({
-      success: true,
-      data: {
-        presentToday,
-        absentToday: absentEmployees.length,
-        totalPendingRequests,
-        upcomingHolidays,
-        absentEmployees,
-        presentEmployees
-      }
-    });
+  res.status(200).json({
+    success: true,
+    data: {
+      presentToday,
+      absentToday: absentEmployees.length,
+      totalPendingRequests,
+      upcomingHolidays,
+      absentEmployees,
+      presentEmployees
+    }
+  });
+});
 
-  } catch (error) {
-    console.error("Error fetching admin dashboard summary:", error);
-    res.status(500).json({ success: false, message: "Server error while fetching admin summary.", error: error.message });
-  }
-};
-
-export const getTodayAlerts = async (req, res) => {
-  try {
-    const alerts = await AlertService.getTodayAlerts();
-    
-    res.status(200).json({
-      success: true,
-      data: {
-        alerts,
-        count: alerts.length
-      }
-    });
-  } catch (error) {
-    console.error("Error fetching today's alerts:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error while fetching alerts.", 
-      error: error.message 
-    });
-  }
-};
+export const getTodayAlerts = asyncHandler(async (req, res) => {
+  const alerts = await AlertService.getTodayAlerts();
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      alerts,
+      count: alerts.length
+    }
+  });
+});
 
  

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import { autoInvalidateMiddleware, getCacheInvalidationStats } from "./utils/cacheInvalidation.js";
+import { globalErrorHandler } from "./utils/asyncHandler.js";
 
 dotenv.config();
 const app = express();
@@ -147,6 +148,9 @@ app.use("/health", healthRoutes);
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')
 })
+
+// Global error handling middleware (must be last)
+app.use(globalErrorHandler);
 
 const PORT = process.env.PORT || 4000;
 
