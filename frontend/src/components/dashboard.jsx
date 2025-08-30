@@ -1071,10 +1071,7 @@ export default function HRMSDashboard() {
                     <Suspense fallback={<ComponentSkeleton />}>
                       <AttendanceStats 
                         attendanceData={data.attendanceData || []}
-                        holidays={data.holidaysData || []}
-                        calculateAttendancePercentage={calculateAttendancePercentage}
                         isLoading={isLoading}
-                        userDepartment={user?.department}
                       />
                     </Suspense>
                   </div>

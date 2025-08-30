@@ -103,73 +103,10 @@ const TimeInput = ({ value, onChange, className }) => {
   );
 };
 
-// Enhanced Attendance Analytics Component with improved UX
+// Enhanced Attendance Analytics Component - Use backend statistics only
 const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
-  // Use API-provided statistics when available, fall back to calculations if needed
-  const calculateStatsFromData = () => {
-    if (!attendance || attendance.length === 0) return null;
-
-    // Count status types from records
-    let presentDays = 0;
-    let absentDays = 0;
-    let halfDays = 0;
-    let weekendDays = 0;
-    let holidayDays = 0;
-    let leaveDays = 0;
-    let lateDays = 0;
-    let totalWorkingHours = 0;
-
-    attendance.forEach(record => {
-      // Count by status
-      switch (record.status) {
-        case 'present':
-          presentDays++;
-          if (record.flags?.isLate) lateDays++;
-          break;
-        case 'absent':
-          absentDays++;
-          break;
-        case 'half-day':
-          halfDays++;
-          break;
-        case 'weekend':
-          weekendDays++;
-          break;
-        case 'holiday':
-          holidayDays++;
-          break;
-        case 'leave':
-          leaveDays++;
-          break;
-      }
-
-      // Sum working hours
-      if (record.workHours) {
-        totalWorkingHours += record.workHours;
-      }
-    });
-
-    const totalRecords = attendance.length;
-    const workingDays = totalRecords - weekendDays - holidayDays;
-    const attendanceRate = workingDays > 0 ? ((presentDays + halfDays * 0.5) / workingDays) * 100 : 0;
-
-    return {
-      total: totalRecords,
-      present: presentDays,
-      absent: absentDays,
-      halfDay: halfDays,
-      weekend: weekendDays,
-      holiday: holidayDays,
-      leave: leaveDays,
-      late: lateDays,
-      totalWorkHours: totalWorkingHours,
-      attendancePercentage: attendanceRate.toFixed(1),
-      workingDays
-    };
-  };
-
-  // Prefer API statistics, fall back to calculated ones
-  const stats = statistics || calculateStatsFromData();
+  // Always use API-provided statistics - no fallback calculations
+  const stats = statistics;
 
   if (!stats) {
     return (
@@ -181,10 +118,13 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
     );
   }
 
+  // Calculate working days from backend statistics  
+  const workingDays = stats.total - (stats.weekend || 0) - (stats.holiday || 0);
+  
   const analyticsCards = [
     {
       title: 'Working Days',
-      value: stats.workingDays || stats.total - (stats.weekend || 0) - (stats.holiday || 0),
+      value: workingDays,
       icon: Calendar,
       color: 'cyan',
       bgGradient: 'from-cyan-50 to-cyan-100 dark:from-cyan-900/30 dark:to-cyan-800/30',
@@ -202,8 +142,8 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       borderColor: 'border-emerald-200 dark:border-emerald-700',
       textColor: 'text-emerald-600 dark:text-emerald-400',
       iconColor: 'text-emerald-500',
-      progress: parseFloat(stats.attendancePercentage || 0),
-      subtitle: `${stats.attendancePercentage || 0}% attendance`
+      progress: workingDays > 0 ? ((stats.present || 0) / workingDays) * 100 : 0,
+      subtitle: workingDays > 0 ? `${(((stats.present || 0) / workingDays) * 100).toFixed(1)}% attendance` : '0% attendance'
     },
     {
       title: 'Absent Days',
@@ -214,7 +154,7 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       borderColor: 'border-red-200 dark:border-red-700',
       textColor: 'text-red-600 dark:text-red-400',
       iconColor: 'text-red-500',
-      progress: stats.workingDays > 0 ? (stats.absent / stats.workingDays) * 100 : 0
+      progress: workingDays > 0 ? ((stats.absent || 0) / workingDays) * 100 : 0
     },
     {
       title: 'Half Days',
@@ -225,7 +165,7 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       borderColor: 'border-amber-200 dark:border-amber-700',
       textColor: 'text-amber-600 dark:text-amber-400',
       iconColor: 'text-amber-500',
-      progress: stats.workingDays > 0 ? (stats.halfDay / stats.workingDays) * 100 : 0
+      progress: workingDays > 0 ? ((stats.halfDay || 0) / workingDays) * 100 : 0
     },
     {
       title: 'Work Hours',
@@ -236,8 +176,8 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       borderColor: 'border-purple-200 dark:border-purple-700',
       textColor: 'text-purple-600 dark:text-purple-400',
       iconColor: 'text-purple-500',
-      progress: Math.min((stats.totalWorkHours || 0) / ((stats.present || 1) * 8) * 100, 100),
-      subtitle: stats.present > 0 ? `${((stats.totalWorkHours || 0) / stats.present).toFixed(1)}h avg` : '0h avg'
+      progress: Math.min((stats.totalWorkHours || 0) / (workingDays * 8) * 100, 100),
+      subtitle: (stats.present || 0) > 0 ? `${((stats.totalWorkHours || 0) / (stats.present || 1)).toFixed(1)}h avg` : '0h avg'
     }
   ];
 

@@ -1,10 +1,12 @@
 import React, { useMemo, memo, useState, useEffect } from "react";
 import { Calendar, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
 import apiClient from '@/service/apiClient';
+import useAuth from '@/hooks/authjwt';
 
-const AttendanceStats = ({ attendanceData, holidays, isLoading = false, userDepartment = null }) => {
-  const [effectiveSettings, setEffectiveSettings] = useState(null);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+const AttendanceStats = ({ attendanceData, isLoading = false }) => {
+  const user = useAuth();
+  const [backendStats, setBackendStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const currentDate = new Date();
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -12,247 +14,97 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false, userDepa
     0
   ).getDate();
 
-  // Fetch effective settings on component mount
+  // Fetch backend statistics for accurate calculation
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchBackendStats = async () => {
+      if (!user?.employeeId) return;
+      
       try {
-        setSettingsLoading(true);
-        const response = await apiClient.getEffectiveSettings(userDepartment);
+        setStatsLoading(true);
+        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10);
+        const endDate = new Date().toISOString().slice(0, 10);
+        
+        const response = await apiClient.getEmployeeAttendanceWithAbsents({
+          employeeId: user.employeeId,
+          startDate,
+          endDate
+        });
+        
         if (response.success) {
-          setEffectiveSettings(response.data);
+          setBackendStats({
+            workingDays: response.data.attendancePercentage.totalWorkingDays,
+            presentDays: response.data.attendancePercentage.presentDays,
+            absentDays: response.data.attendancePercentage.absentDays,
+            statistics: response.data.statistics,
+            attendancePercentage: response.data.attendancePercentage.percentage
+          });
         }
       } catch (error) {
-        console.error('Failed to fetch effective settings:', error);
-        // Use default settings as fallback
-        setEffectiveSettings({
-          attendance: {
-            workingDays: [1, 2, 3, 4, 5, 6], // Monday to Saturday
-            saturdayHolidays: [2] // 2nd Saturday by default
-          }
-        });
+        console.error('Failed to fetch backend stats:', error);
+        setBackendStats(null);
       } finally {
-        setSettingsLoading(false);
+        setStatsLoading(false);
       }
     };
 
-    fetchSettings();
-  }, [userDepartment]);
+    fetchBackendStats();
+  }, [user?.employeeId]);
 
-  // 🚀 OPTIMIZED: Helper function to check if date is a working day using settings (memoized)
-  const isWorkingDayForCompany = useMemo(() => {
-    return (date) => {
-      if (!effectiveSettings?.attendance) {
-        // Fallback to old logic if settings not loaded
-        const dayOfWeek = date.getDay();
-        if (dayOfWeek === 0) return false; // Sunday
-        if (dayOfWeek === 6) {
-          // 2nd Saturday logic (fallback)
-          const dateNum = date.getDate();
-          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-          const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-          const secondSaturday = firstSaturday + 7;
-          return !(dateNum >= secondSaturday && dateNum < secondSaturday + 7);
-        }
-        return true;
-      }
-
-      const dayOfWeek = date.getDay();
-      const { workingDays, saturdayHolidays } = effectiveSettings.attendance;
-      
-      // Check if this day of week is in working days
-      if (!workingDays.includes(dayOfWeek)) {
-        return false;
-      }
-      
-      // Special handling for Saturday - check if it's a holiday Saturday
-      if (dayOfWeek === 6 && saturdayHolidays && saturdayHolidays.length > 0) {
-        const saturdayWeek = getSaturdayWeekOfMonth(date);
-        if (saturdayHolidays.includes(saturdayWeek)) {
-          return false; // This Saturday is configured as a holiday
-        }
-      }
-      
-      return true;
-    };
-  }, [effectiveSettings]);
-
-  // Helper function to determine which Saturday of the month a given date is
-  const getSaturdayWeekOfMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const dateNum = date.getDate();
-    
-    // Find the first Saturday of the month
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayWeekday = firstDayOfMonth.getDay();
-    
-    // Calculate first Saturday date (0=Sunday, 6=Saturday)
-    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
-    
-    // Calculate which Saturday this date is
-    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
-    
-    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
-  };
-
-  // 🚀 OPTIMIZED: Calculate actual working days in the month (memoized to prevent recalculation)
+  // Use backend working days - no fallback, fail if backend fails
   const workingDaysInMonth = useMemo(() => {
-    let workingDays = 0;
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    const currentDateIterator = new Date(firstDay);
-    
-    while (currentDateIterator <= lastDay) {
-      if (isWorkingDayForCompany(currentDateIterator)) {
-        // Check if this date is not a holiday
-        const isHoliday = holidays.some(holiday => {
-          if (holiday.date) {
-            const holidayDate = new Date(holiday.date);
-            return holidayDate.toDateString() === currentDateIterator.toDateString();
-          }
-          return false;
-        });
-        
-        if (!isHoliday) {
-          workingDays++;
-        }
-      }
-      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
+    if (backendStats && backendStats.workingDays !== null) {
+      return backendStats.workingDays;
     }
     
-    return workingDays;
-  }, [currentDate.getMonth(), currentDate.getFullYear(), holidays, isWorkingDayForCompany]);
+    // No data available - show error state
+    return 0;
+  }, [backendStats]);
   
-  // 🚀 OPTIMIZED: Count weekends in the month (memoized)
+  // Use backend data for weekends and holidays
   const weekendsInMonth = useMemo(() => {
-    let weekends = 0;
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    const currentDateIterator = new Date(firstDay);
-    
-    while (currentDateIterator <= lastDay) {
-      if (!isWorkingDayForCompany(currentDateIterator)) {
-        weekends++;
-      }
-      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
-    }
-    
-    return weekends;
-  }, [currentDate.getMonth(), currentDate.getFullYear(), isWorkingDayForCompany]);
+    return backendStats ? backendStats.statistics.weekend : 0;
+  }, [backendStats]);
 
-  // 🚀 OPTIMIZED: Count holidays in the month (memoized)
   const holidaysInMonth = useMemo(() => {
-    let holidayCount = 0;
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    const currentDateIterator = new Date(firstDay);
-    
-    while (currentDateIterator <= lastDay) {
-      if (isWorkingDayForCompany(currentDateIterator)) {
-        // Check if this working day is a holiday
-        const isHoliday = holidays.some(holiday => {
-          if (holiday.date) {
-            const holidayDate = new Date(holiday.date);
-            return holidayDate.toDateString() === currentDateIterator.toDateString();
-          }
-          return false;
-        });
-        
-        if (isHoliday) {
-          holidayCount++;
-        }
-      }
-      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
+    return backendStats ? backendStats.statistics.holiday : 0;
+  }, [backendStats]);
+
+  // Use backend statistics - no fallback, fail if backend fails
+  const attendanceStats = useMemo(() => {
+    if (backendStats) {
+      return {
+        presentDays: backendStats.presentDays,
+        absentDays: backendStats.absentDays,
+        halfDays: backendStats.statistics.halfDay,
+        invalidDays: backendStats.statistics.present - backendStats.presentDays, // Incomplete checkouts
+        relevantAttendanceData: attendanceData
+      };
     }
     
-    return holidayCount;
-  }, [currentDate.getMonth(), currentDate.getFullYear(), holidays, isWorkingDayForCompany]);
+    // No backend stats - return error state
+    return {
+      presentDays: 0,
+      absentDays: 0,
+      halfDays: 0,
+      invalidDays: 0,
+      relevantAttendanceData: []
+    };
+  }, [backendStats, attendanceData]);
 
-  // 🚀 OPTIMIZED: Calculate attendance statistics (memoized to prevent recalculation)
-  const attendanceStats = useMemo(() => {
-    const today = new Date();
-    // Use local time formatting to avoid timezone issues
-    const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
-    // Filter attendance data to only include days up to today
-    const relevantAttendanceData = attendanceData.filter(record => {
-      const recordDate = new Date(record.date);
-      return recordDate <= today;
-    });
-    
-    // Check if today's record exists - using local time formatting
-    const todayRecord = relevantAttendanceData.find(record => {
-      const recordDate = new Date(record.date);
-      const recordDateString = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
-      return recordDateString === todayDateString;
-    });
-    
-    // Count different types of days in a single pass for better performance
-    let presentDays = 0;
-    let absentDays = 0;
-    let halfDays = 0;
-    let invalidDays = 0;
-    
-    relevantAttendanceData.forEach(day => {
-      const dayDate = new Date(day.date);
-      const isWorkingDay = isWorkingDayForCompany(dayDate);
-      
-      if (day.status === "present") {
-        presentDays++;
-      } else if (day.status === "half-day") {
-        halfDays++;
-        presentDays++; // Half days are also counted as present
-      } else if (day.status === "absent" && isWorkingDay) {
-        absentDays++;
-      } else if (day.checkIn && !day.checkOut && day.status !== "half-day") {
-        invalidDays++;
-        presentDays++; // Missing checkouts are counted as present
-      }
-    });
-    
-    return { presentDays, absentDays, halfDays, invalidDays, relevantAttendanceData };
-  }, [attendanceData, isWorkingDayForCompany]);
-
-  // 🚀 OPTIMIZED: Calculate attendance percentage (memoized)
+  // Use backend attendance percentage when available
   const attendancePercentage = useMemo(() => {
+    if (backendStats && backendStats.attendancePercentage !== undefined) {
+      return backendStats.attendancePercentage.toFixed(1);
+    }
+    
     if (workingDaysInMonth <= 0) return "0.0";
     // Present days now includes half-days and invalid days (missing checkouts)
     const effectivePresentDays = attendanceStats.presentDays - attendanceStats.halfDays + (attendanceStats.halfDays * 0.5); // Half days count as 0.5
     return Math.min((effectivePresentDays / workingDaysInMonth) * 100, 100).toFixed(1);
-  }, [workingDaysInMonth, attendanceStats]);
+  }, [workingDaysInMonth, attendanceStats, backendStats]);
 
-  // 🚀 OPTIMIZED: Calculate working days up to today (memoized)
-  const workingDaysToDate = useMemo(() => {
-    const today = new Date();
-    let count = 0;
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(Math.min(today.getTime(), new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getTime()));
-    
-    const currentDateIterator = new Date(firstDay);
-    
-    while (currentDateIterator <= lastDay) {
-      if (isWorkingDayForCompany(currentDateIterator)) {
-        // Check if this date is not a holiday
-        const isHoliday = holidays.some(holiday => {
-          if (holiday.date) {
-            const holidayDate = new Date(holiday.date);
-            return holidayDate.toDateString() === currentDateIterator.toDateString();
-          }
-          return false;
-        });
-        
-        if (!isHoliday) {
-          count++;
-        }
-      }
-      currentDateIterator.setDate(currentDateIterator.getDate() + 1);
-    }
-    
-    return count;
-  }, [currentDate.getMonth(), currentDate.getFullYear(), holidays, isWorkingDayForCompany]);
+  // Use backend working days for calculations
+  const workingDaysToDate = workingDaysInMonth;
 
   // 🚀 OPTIMIZED: Memoize cards array to prevent recreation on every render
   const cards = useMemo(() => [
@@ -275,7 +127,7 @@ const AttendanceStats = ({ attendanceData, holidays, isLoading = false, userDepa
     { title: "Invalid Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
   ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate, weekendsInMonth, holidaysInMonth]);
 
-  if (isLoading || settingsLoading) {
+  if (isLoading || statsLoading) {
     return (
       <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
         {[...Array(5)].map((_, index) => (

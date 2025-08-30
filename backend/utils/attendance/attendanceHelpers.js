@@ -266,7 +266,11 @@ export const calculateAttendanceStats = (records) => {
         stats.present++;
         break;
       case ATTENDANCE_STATUS.ABSENT:
-        stats.absent++;
+        // Only count as absent if it's an actual working day absence
+        // Don't count weekends, holidays, or leaves as absences in statistics
+        if (!record.flags?.isWeekend && !record.flags?.isHoliday && !record.flags?.isLeave) {
+          stats.absent++;
+        }
         break;
       case ATTENDANCE_STATUS.HALF_DAY:
         stats.halfDay++;
