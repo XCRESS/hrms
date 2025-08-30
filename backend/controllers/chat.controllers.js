@@ -120,10 +120,21 @@ export const chat = asyncHandler(async (req, res) => {
     if (functionCalls.length > 0) {
       console.log(`[ChatBot] Processing ${functionCalls.length} function calls for session ${sessionId}`);
       
-      // Add ALL response items to conversation (including reasoning items)
-      // This is critical for reasoning models like GPT-5
+      // For reasoning models like GPT-5, add all output items except duplicates
+      // Create a set to track already added item IDs to prevent duplicates
+      const addedItemIds = new Set();
+      
       for (const item of response.output) {
+        // Skip items that might cause duplicate ID issues
+        if (item.id && addedItemIds.has(item.id)) {
+          continue;
+        }
+        
         apiConversationHistory.push(item);
+        
+        if (item.id) {
+          addedItemIds.add(item.id);
+        }
       }
       
       // Execute function calls and add their outputs
@@ -158,13 +169,12 @@ export const chat = asyncHandler(async (req, res) => {
       }
 
       // Make second request to get final response with function results
-      // Use previous_response_id to maintain reasoning continuity
+      // Don't use previous_response_id to avoid duplicate ID issues
       response = await openai.responses.create({
         model: 'gpt-5-nano',
         instructions: SYSTEM_INSTRUCTIONS,
         input: apiConversationHistory,
         tools: HR_FUNCTIONS,
-        previous_response_id: response.id, // Pass previous response ID for reasoning continuity
         reasoning: { effort: 'low' }, // Lower effort for final formatting
         text: { verbosity: 'medium' }
       });

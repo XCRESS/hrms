@@ -197,12 +197,16 @@ process.on('SIGTERM', () => {
   // Stop notification services
   SchedulerService.stop();
   
-  server.close(() => {
+  server.close(async () => {
     console.log('Server closed');
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close();
       console.log('MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (error) {
+      console.error('Error closing MongoDB connection:', error);
+      process.exit(1);
+    }
   });
 });
 
@@ -212,11 +216,15 @@ process.on('SIGINT', () => {
   // Stop notification services
   SchedulerService.stop();
   
-  server.close(() => {
+  server.close(async () => {
     console.log('Server closed');
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close();
       console.log('MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (error) {
+      console.error('Error closing MongoDB connection:', error);
+      process.exit(1);
+    }
   });
 });
