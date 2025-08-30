@@ -88,6 +88,7 @@ import settingsRoutes from "./routes/settings.routes.js";
 import healthRoutes from "./routes/health.js";
 import notificationTestRoutes from "./routes/notification.test.js";
 import chatRoutes from "./routes/chat.routes.js";
+import debugRoutes from "./routes/debug.routes.js";
 
 // Notification Services
 import NotificationService from "./services/notificationService.js";
@@ -145,6 +146,7 @@ app.use("/api/policies", policyRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/notifications", notificationTestRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/debug", debugRoutes); // Temporary diagnostic route
 app.use("/health", healthRoutes);
 
 app.get('/', (req, res) => {

@@ -43,6 +43,8 @@ class EmailService {
   }
 
   async initializeAppPassword() {
+    console.log('Creating SMTP transporter with detailed logging...');
+    
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -51,12 +53,35 @@ class EmailService {
       },
       connectionTimeout: 60000,
       greetingTimeout: 30000,
+      socketTimeout: 60000,
+      logger: true,  // Enable detailed logging
+      debug: true    // Enable debug output
+    });
+
+    console.log('SMTP Configuration:', {
+      service: 'gmail',
+      user: process.env.EMAIL_USER,
+      hasPassword: !!process.env.EMAIL_APP_PASSWORD,
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
       socketTimeout: 60000
     });
 
-    // Test the connection
-    await this.transporter.verify();
-    console.log('Gmail SMTP with App Password verified successfully');
+    // Test the connection with detailed error reporting
+    console.log('Attempting SMTP connection verification...');
+    try {
+      await this.transporter.verify();
+      console.log('Gmail SMTP with App Password verified successfully');
+    } catch (error) {
+      console.error('SMTP verification failed with detailed error:');
+      console.error('Error code:', error.code);
+      console.error('Error errno:', error.errno);
+      console.error('Error syscall:', error.syscall);
+      console.error('Error hostname:', error.hostname);
+      console.error('Error port:', error.port);
+      console.error('Full error object:', error);
+      throw error;
+    }
   }
 
   async send(to, subject, htmlContent) {
