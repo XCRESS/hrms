@@ -1,108 +1,68 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import Settings from '../models/Settings.model.js';
 
 class EmailService {
   constructor() {
-    this.transporter = null;
+    this.resend = null;
+    this.initialized = false;
   }
 
   async initialize() {
     try {
-      if (!process.env.EMAIL_APP_PASSWORD || !process.env.EMAIL_USER) {
-        console.log('Email service skipped - App Password credentials not provided');
-        console.log('Required: EMAIL_APP_PASSWORD, EMAIL_USER');
+      if (!process.env.RESEND_API_KEY) {
+        console.log('Email service skipped - Resend API key not provided');
+        console.log('Required: RESEND_API_KEY (sign up at https://resend.com)');
         return;
       }
 
-      console.log('Initializing email service with App Password...');
-      await this.initializeWithRetry();
-      console.log('Email service initialized successfully');
-    } catch (error) {
-      console.error('Email service initialization failed after retries:', error.message);
-      console.log('Email service will be disabled. Emails will not be sent.');
-      this.transporter = null;
-    }
-  }
-
-  async initializeWithRetry(retries = 3, delay = 5000) {
-    for (let i = 0; i < retries; i++) {
+      console.log('Initializing email service with Resend API...');
+      
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      
+      // Test the API key by attempting to get account info
       try {
-        await this.initializeAppPassword();
-        return; // Success, exit retry loop
+        // Simple test - if API key is invalid, this will throw
+        await this.resend.domains.list();
+        this.initialized = true;
+        console.log('Resend email service initialized successfully');
       } catch (error) {
-        console.error(`Email initialization attempt ${i + 1}/${retries} failed:`, error.message);
-        
-        if (i === retries - 1) {
-          throw error; // Last attempt failed, throw error
+        // If domains call fails but API key might be valid, mark as initialized
+        // (some Resend accounts might not have domains set up yet)
+        if (error.message.includes('API key')) {
+          throw error; // Re-throw if it's definitely an API key issue
         }
-        
-        console.log(`Retrying in ${delay / 1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        this.initialized = true;
+        console.log('Resend email service initialized (domain verification skipped)');
       }
-    }
-  }
-
-  async initializeAppPassword() {
-    console.log('Creating SMTP transporter with detailed logging...');
-    
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD
-      },
-      connectionTimeout: 60000,
-      greetingTimeout: 30000,
-      socketTimeout: 60000,
-      logger: true,  // Enable detailed logging
-      debug: true    // Enable debug output
-    });
-
-    console.log('SMTP Configuration:', {
-      service: 'gmail',
-      user: process.env.EMAIL_USER,
-      hasPassword: !!process.env.EMAIL_APP_PASSWORD,
-      connectionTimeout: 60000,
-      greetingTimeout: 30000,
-      socketTimeout: 60000
-    });
-
-    // Test the connection with detailed error reporting
-    console.log('Attempting SMTP connection verification...');
-    try {
-      await this.transporter.verify();
-      console.log('Gmail SMTP with App Password verified successfully');
+      
     } catch (error) {
-      console.error('SMTP verification failed with detailed error:');
-      console.error('Error code:', error.code);
-      console.error('Error errno:', error.errno);
-      console.error('Error syscall:', error.syscall);
-      console.error('Error hostname:', error.hostname);
-      console.error('Error port:', error.port);
-      console.error('Full error object:', error);
-      throw error;
+      console.error('Email service initialization failed:', error.message);
+      console.log('Email service will be disabled. Emails will not be sent.');
+      console.log('Check your RESEND_API_KEY at https://resend.com/api-keys');
+      this.resend = null;
+      this.initialized = false;
     }
   }
+
 
   async send(to, subject, htmlContent) {
-    if (!this.transporter) {
+    if (!this.initialized) {
       await this.initialize();
     }
 
-    if (!this.transporter) {
+    if (!this.initialized || !this.resend) {
       throw new Error('Email service not initialized');
     }
 
     try {
-      const mailOptions = {
-        from: process.env.EMAIL_FROM || '"HRMS System" <noreply@hrms.com>',
-        to,
+      const result = await this.resend.emails.send({
+        from: process.env.EMAIL_FROM || 'HRMS System <onboarding@resend.dev>',
+        to: [to],
         subject,
         html: htmlContent
-      };
+      });
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log(`Email sent to ${to}:`, result.messageId);
+      console.log(`Email sent to ${to} via Resend:`, result.data?.id);
       return result;
     } catch (error) {
       console.error(`Failed to send email to ${to}:`, error.message);

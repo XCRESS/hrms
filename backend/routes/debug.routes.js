@@ -141,4 +141,47 @@ function testPort(host, port, timeout = 10000) {
   });
 }
 
+// Test Resend email sending - REMOVE THIS IN PRODUCTION
+router.post('/test-resend-email', async (req, res) => {
+  try {
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
+    const { to = 'veshant@cosmosfin.com' } = req.body;
+    
+    const result = await resend.emails.send({
+      from: 'HRMS System <onboarding@resend.dev>',
+      to: [to],
+      subject: 'HRMS Email Service Test - Resend Integration',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>✅ HRMS Email Service Test</h2>
+          <p>This email was sent successfully from your HRMS system using Resend API!</p>
+          <p><strong>Service:</strong> Resend</p>
+          <p><strong>Status:</strong> Working ✨</p>
+          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+          <p>Your email service is now working on Railway! 🎉</p>
+        </div>
+      `
+    });
+    
+    res.json({
+      success: true,
+      message: 'Test email sent successfully via Resend!',
+      data: {
+        messageId: result.data?.id,
+        to: to,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.body || error
+    });
+  }
+});
+
 export default router;
