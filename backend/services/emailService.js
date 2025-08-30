@@ -15,11 +15,30 @@ class EmailService {
       }
 
       console.log('Initializing email service with App Password...');
-      await this.initializeAppPassword();
+      await this.initializeWithRetry();
       console.log('Email service initialized successfully');
     } catch (error) {
-      console.error('Email service initialization failed:', error.message);
+      console.error('Email service initialization failed after retries:', error.message);
+      console.log('Email service will be disabled. Emails will not be sent.');
       this.transporter = null;
+    }
+  }
+
+  async initializeWithRetry(retries = 3, delay = 5000) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        await this.initializeAppPassword();
+        return; // Success, exit retry loop
+      } catch (error) {
+        console.error(`Email initialization attempt ${i + 1}/${retries} failed:`, error.message);
+        
+        if (i === retries - 1) {
+          throw error; // Last attempt failed, throw error
+        }
+        
+        console.log(`Retrying in ${delay / 1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -29,7 +48,10 @@ class EmailService {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD
-      }
+      },
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000
     });
 
     // Test the connection
