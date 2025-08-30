@@ -82,6 +82,13 @@ export class AttendanceDataService {
    * @returns {Promise<Object>} Created attendance record
    */
   static async createAttendanceRecord(attendanceData) {
+    // For absent status, ensure checkIn and checkOut are null
+    if (attendanceData.status === 'absent') {
+      attendanceData.checkIn = null;
+      attendanceData.checkOut = null;
+      attendanceData.workHours = 0;
+    }
+    
     const attendance = await Attendance.create(attendanceData);
     
     // Invalidate relevant caches
@@ -97,18 +104,42 @@ export class AttendanceDataService {
    * @returns {Promise<Object>} Updated attendance record
    */
   static async updateAttendanceRecord(recordId, updateData) {
-    const attendance = await Attendance.findByIdAndUpdate(
-      recordId, 
-      updateData, 
-      { new: true, runValidators: true }
-    );
-    
-    // Invalidate relevant caches
-    if (attendance) {
-      await AttendanceCacheService.invalidateAllAttendanceCaches();
+    // For absent status, we need to handle validation manually since 
+    // mongoose required function can't see the new status during update
+    if (updateData.status === 'absent') {
+      // For absent status, clear checkIn and checkOut regardless of what was sent
+      updateData.checkIn = null;
+      updateData.checkOut = null;
+      updateData.workHours = 0;
+      
+      // Update without running validators to avoid the checkIn required issue
+      const attendance = await Attendance.findByIdAndUpdate(
+        recordId, 
+        updateData, 
+        { new: true, runValidators: false }
+      );
+      
+      // Invalidate relevant caches
+      if (attendance) {
+        await AttendanceCacheService.invalidateAllAttendanceCaches();
+      }
+      
+      return attendance;
+    } else {
+      // For non-absent status, run normal validation
+      const attendance = await Attendance.findByIdAndUpdate(
+        recordId, 
+        updateData, 
+        { new: true, runValidators: true }
+      );
+      
+      // Invalidate relevant caches
+      if (attendance) {
+        await AttendanceCacheService.invalidateAllAttendanceCaches();
+      }
+      
+      return attendance;
     }
-    
-    return attendance;
   }
 
   /**

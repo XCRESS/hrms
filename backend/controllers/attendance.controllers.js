@@ -432,9 +432,21 @@ export const updateAttendanceRecord = asyncErrorHandler(async (req, res) => {
     if (existingRecord) {
       // Update existing record instead of creating new one
       const updateData = {};
-      if (status) updateData.status = status;
-      if (checkIn !== undefined) updateData.checkIn = checkIn ? new Date(checkIn) : null;
-      if (checkOut !== undefined) updateData.checkOut = checkOut ? new Date(checkOut) : null;
+      if (status) {
+        updateData.status = status;
+        // If setting status to absent, clear checkIn and checkOut
+        if (status === 'absent') {
+          updateData.checkIn = null;
+          updateData.checkOut = null;
+          updateData.workHours = 0;
+        }
+      }
+      if (checkIn !== undefined && status !== 'absent') {
+        updateData.checkIn = checkIn ? new Date(checkIn) : null;
+      }
+      if (checkOut !== undefined && status !== 'absent') {
+        updateData.checkOut = checkOut ? new Date(checkOut) : null;
+      }
       
       updatedRecord = await Data.updateAttendanceRecord(existingRecord._id, updateData);
     } else {
@@ -455,9 +467,21 @@ export const updateAttendanceRecord = asyncErrorHandler(async (req, res) => {
   } else {
     // Update existing record
     const updateData = {};
-    if (status) updateData.status = status;
-    if (checkIn !== undefined) updateData.checkIn = checkIn ? new Date(checkIn) : null;
-    if (checkOut !== undefined) updateData.checkOut = checkOut ? new Date(checkOut) : null;
+    if (status) {
+      updateData.status = status;
+      // If setting status to absent, clear checkIn and checkOut
+      if (status === 'absent') {
+        updateData.checkIn = null;
+        updateData.checkOut = null;
+        updateData.workHours = 0;
+      }
+    }
+    if (checkIn !== undefined && status !== 'absent') {
+      updateData.checkIn = checkIn ? new Date(checkIn) : null;
+    }
+    if (checkOut !== undefined && status !== 'absent') {
+      updateData.checkOut = checkOut ? new Date(checkOut) : null;
+    }
 
     updatedRecord = await Data.updateAttendanceRecord(recordId, updateData);
     
