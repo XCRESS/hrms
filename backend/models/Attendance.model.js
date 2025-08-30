@@ -19,7 +19,8 @@ const attendanceSchema = new mongoose.Schema({
     type: Date,
     required: function() {
       return this.status !== 'absent';
-    }
+    },
+    default: null
   },
   checkOut: {
     type: Date,
