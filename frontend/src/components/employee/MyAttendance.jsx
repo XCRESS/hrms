@@ -117,17 +117,6 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       description: 'Days you were present'
     },
     {
-      title: 'Work Hours',
-      value: `${(stats.totalWorkHours || 0).toFixed(1)}h`,
-      icon: Clock,
-      gradient: 'from-purple-400 via-purple-500 to-purple-600',
-      bgGradient: 'from-purple-50 via-purple-100 to-purple-200 dark:from-purple-900/20 dark:via-purple-800/30 dark:to-purple-700/40',
-      iconBg: 'bg-purple-500',
-      progress: Math.min((stats.totalWorkHours || 0) / ((stats.present || 1) * 8) * 100, 100),
-      subtitle: `${stats.avgHoursPerDay || 0}h average per day`,
-      description: 'Total hours worked'
-    },
-    {
       title: 'Attendance Score',
       value: `${stats.attendancePercentage || 0}%`,
       icon: TrendingUp,
@@ -147,7 +136,7 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
   return (
     <div className="space-y-8">
       {/* Main Analytics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {mainCards.map((card, index) => {
           const IconComponent = card.icon;
           return (
