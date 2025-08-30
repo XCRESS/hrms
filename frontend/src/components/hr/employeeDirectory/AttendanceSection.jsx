@@ -166,25 +166,13 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       textColor: 'text-amber-600 dark:text-amber-400',
       iconColor: 'text-amber-500',
       progress: workingDays > 0 ? ((stats.halfDay || 0) / workingDays) * 100 : 0
-    },
-    {
-      title: 'Work Hours',
-      value: `${(stats.totalWorkHours || 0).toFixed(1)}h`,
-      icon: Clock,
-      color: 'purple',
-      bgGradient: 'from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30',
-      borderColor: 'border-purple-200 dark:border-purple-700',
-      textColor: 'text-purple-600 dark:text-purple-400',
-      iconColor: 'text-purple-500',
-      progress: Math.min((stats.totalWorkHours || 0) / (workingDays * 8) * 100, 100),
-      subtitle: (stats.present || 0) > 0 ? `${((stats.totalWorkHours || 0) / (stats.present || 1)).toFixed(1)}h avg` : '0h avg'
     }
   ];
 
   return (
     <div className="space-y-6">
       {/* Main Analytics Cards - Fixed Layout */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {analyticsCards.map((card, index) => {
           const IconComponent = card.icon;
           return (
