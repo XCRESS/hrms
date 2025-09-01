@@ -422,14 +422,23 @@ export class AttendanceBusinessService {
   static calculateAttendancePercentage(attendanceRecords) {
     let totalWorkingDays = 0;
     let presentDays = 0;
+    
+    // Only count attendance up to today's date (don't count future dates as absent)
+    const todayIST = getISTNow().toDate();
+    todayIST.setHours(23, 59, 59, 999); // End of today
 
     attendanceRecords.forEach(record => {
-      // Only count working days (exclude weekends and holidays)
-      if (!record.flags?.isWeekend && !record.flags?.isHoliday) {
-        totalWorkingDays++;
-        
-        if (record.status === ATTENDANCE_STATUS.PRESENT || record.status === ATTENDANCE_STATUS.HALF_DAY) {
-          presentDays++;
+      const recordDate = new Date(record.date);
+      
+      // Only process records up to today (don't count future dates)
+      if (recordDate <= todayIST) {
+        // Only count working days (exclude weekends and holidays)
+        if (!record.flags?.isWeekend && !record.flags?.isHoliday) {
+          totalWorkingDays++;
+          
+          if (record.status === ATTENDANCE_STATUS.PRESENT || record.status === ATTENDANCE_STATUS.HALF_DAY) {
+            presentDays++;
+          }
         }
       }
     });

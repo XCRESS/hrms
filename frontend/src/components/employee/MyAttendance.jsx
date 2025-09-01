@@ -5,7 +5,7 @@ import useAuth from "../../hooks/authjwt";
 import { formatDate } from "../../utils/istUtils";
 
 // Enhanced Personal Attendance Analytics with Premium UX
-const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
+const AttendanceAnalytics = ({ attendance, statistics, dateRange, loading, attendancePercentage }) => {
   // Use API statistics when available, calculate from data otherwise
   const calculateStatsFromData = () => {
     if (!attendance || attendance.length === 0) return null;
@@ -79,16 +79,17 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
     };
   };
 
-  const stats = statistics || calculateStatsFromData();
+  // Always use backend statistics - no fallback to ensure consistency
+  const stats = statistics;
 
-  if (!stats) {
+  if (!stats && !loading) {
     return (
       <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-700">
         <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-cyan-200 dark:from-cyan-900/50 dark:to-cyan-800/50 rounded-2xl mb-6">
           <TrendingUp className="w-10 h-10 text-cyan-500" />
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Welcome to Your Analytics</h3>
-        <p className="text-slate-500 dark:text-slate-400 text-lg">Select a date range to view your attendance insights</p>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Data Available</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-lg">Unable to load attendance statistics. Please try refreshing the page.</p>
       </div>
     );
   }
@@ -96,7 +97,7 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
   const mainCards = [
     {
       title: 'Working Days',
-      value: stats.workingDays || stats.total - (stats.weekend || 0) - (stats.holiday || 0),
+      value: attendancePercentage?.totalWorkingDays || (stats.total - (stats.weekend || 0) - (stats.holiday || 0)),
       icon: Calendar,
       gradient: 'from-blue-400 via-blue-500 to-blue-600',
       bgGradient: 'from-blue-50 via-blue-100 to-blue-200 dark:from-blue-900/20 dark:via-blue-800/30 dark:to-blue-700/40',
@@ -112,23 +113,23 @@ const AttendanceAnalytics = ({ attendance, statistics, dateRange }) => {
       gradient: 'from-emerald-400 via-emerald-500 to-emerald-600',
       bgGradient: 'from-emerald-50 via-emerald-100 to-emerald-200 dark:from-emerald-900/20 dark:via-emerald-800/30 dark:to-emerald-700/40',
       iconBg: 'bg-emerald-500',
-      progress: parseFloat(stats.attendancePercentage || 0),
-      subtitle: `${stats.attendancePercentage || 0}% attendance rate`,
+      progress: parseFloat(attendancePercentage?.percentage || 0),
+      subtitle: `${attendancePercentage?.percentage || 0}% attendance rate`,
       description: 'Days you were present'
     },
     {
       title: 'Attendance Score',
-      value: `${stats.attendancePercentage || 0}%`,
+      value: `${attendancePercentage?.percentage || 0}%`,
       icon: TrendingUp,
-      gradient: stats.attendancePercentage >= 90 ? 'from-green-400 via-green-500 to-green-600' : 
-               stats.attendancePercentage >= 75 ? 'from-yellow-400 via-yellow-500 to-yellow-600' : 
+      gradient: (attendancePercentage?.percentage || 0) >= 90 ? 'from-green-400 via-green-500 to-green-600' : 
+               (attendancePercentage?.percentage || 0) >= 75 ? 'from-yellow-400 via-yellow-500 to-yellow-600' : 
                'from-red-400 via-red-500 to-red-600',
-      bgGradient: stats.attendancePercentage >= 90 ? 'from-green-50 via-green-100 to-green-200 dark:from-green-900/20 dark:via-green-800/30 dark:to-green-700/40' :
-                  stats.attendancePercentage >= 75 ? 'from-yellow-50 via-yellow-100 to-yellow-200 dark:from-yellow-900/20 dark:via-yellow-800/30 dark:to-yellow-700/40' :
+      bgGradient: (attendancePercentage?.percentage || 0) >= 90 ? 'from-green-50 via-green-100 to-green-200 dark:from-green-900/20 dark:via-green-800/30 dark:to-green-700/40' :
+                  (attendancePercentage?.percentage || 0) >= 75 ? 'from-yellow-50 via-yellow-100 to-yellow-200 dark:from-yellow-900/20 dark:via-yellow-800/30 dark:to-yellow-700/40' :
                   'from-red-50 via-red-100 to-red-200 dark:from-red-900/20 dark:via-red-800/30 dark:to-red-700/40',
-      iconBg: stats.attendancePercentage >= 90 ? 'bg-green-500' : stats.attendancePercentage >= 75 ? 'bg-yellow-500' : 'bg-red-500',
-      progress: parseFloat(stats.attendancePercentage || 0),
-      subtitle: stats.attendancePercentage >= 90 ? 'Excellent!' : stats.attendancePercentage >= 75 ? 'Good' : 'Needs improvement',
+      iconBg: (attendancePercentage?.percentage || 0) >= 90 ? 'bg-green-500' : (attendancePercentage?.percentage || 0) >= 75 ? 'bg-yellow-500' : 'bg-red-500',
+      progress: parseFloat(attendancePercentage?.percentage || 0),
+      subtitle: (attendancePercentage?.percentage || 0) >= 90 ? 'Excellent!' : (attendancePercentage?.percentage || 0) >= 75 ? 'Good' : 'Needs improvement',
       description: 'Overall performance'
     }
   ];
@@ -257,6 +258,7 @@ export default function MyAttendance() {
   const [loading, setLoading] = useState(false);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0); // Index for sliding window
   const [statistics, setStatistics] = useState(null);
+  const [attendancePercentage, setAttendancePercentage] = useState(null);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
     endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10) // Last day of current month
@@ -296,6 +298,7 @@ export default function MyAttendance() {
       if (response.success) {
         const allRecords = response.data.records || [];
         setStatistics(response.data.statistics);
+        setAttendancePercentage(response.data.attendancePercentage);
         
         // Store joining date and effective date range info
         if (response.data.employee?.joiningDate) {
@@ -556,7 +559,10 @@ export default function MyAttendance() {
       {displayedData.length > 0 && (
         <AttendanceAnalytics 
           attendance={allAttendanceData} 
+          statistics={statistics}
           dateRange={dateRange}
+          loading={loading}
+          attendancePercentage={attendancePercentage}
           holidays={holidays}
         />
       )}
