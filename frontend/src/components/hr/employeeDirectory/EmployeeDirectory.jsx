@@ -35,10 +35,11 @@ export default function EmployeeDirectory() {
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
     // Format dates using local time to avoid timezone issues
     const startDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-    const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
     
     return {
       startDate,
@@ -172,7 +173,7 @@ export default function EmployeeDirectory() {
 
   const handleSaveEmployee = async () => {
     try {
-      await apiClient.put(`/employees/${employeeProfile._id}`, editedEmployee);
+      await apiClient.put(`/employees/update/${employeeProfile._id}`, editedEmployee);
       setEmployeeProfile(editedEmployee);
       setIsEditingEmployee(false);
       setEditedEmployee(null);
@@ -236,9 +237,14 @@ export default function EmployeeDirectory() {
   };
 
   const renderField = (label, field, type = 'text', options = []) => {
-        let value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
+    let value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
     if (type === 'date' && value) {
-        value = new Date(value).toLocaleDateString('en-GB');
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        value = date.toLocaleDateString('en-GB');
+      } else {
+        value = '';
+      }
     }
     
     if (!isEditingEmployee) {
@@ -263,7 +269,13 @@ export default function EmployeeDirectory() {
     }
 
     if (type === 'date') {
-      const formattedValue = value ? new Date(value).toISOString().split('T')[0] : '';
+      let formattedValue = '';
+      if (value) {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          formattedValue = date.toISOString().split('T')[0];
+        }
+      }
       return (
         <div>
           <strong>{label}:</strong>
@@ -505,7 +517,7 @@ export default function EmployeeDirectory() {
                 {renderField('Email', 'email', 'email')}
                 {renderField('Phone', 'phone', 'tel')}
                 <p><strong>Employee ID:</strong> {employeeProfile.employeeId}</p>
-                {renderField('Department', 'department', 'select', departments)}
+                <p><strong>Department:</strong> {employeeProfile.department || 'N/A'}</p>
                 {renderField('Company', 'companyName')}
                 <p><strong>Status:</strong>
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${employeeProfile.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>

@@ -12,7 +12,7 @@ export default function MyTaskReports() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10)
+    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10)
   });
   const [selectedReport, setSelectedReport] = useState(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
