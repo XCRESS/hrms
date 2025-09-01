@@ -232,10 +232,6 @@ export default function EmployeeDirectory() {
   };
 
   const handleFieldChange = (field, value) => {
-        if (type === 'date') {
-      const [day, month, year] = value.split('/');
-      value = new Date(`${year}-${month}-${day}`).toISOString();
-    }
     setEditedEmployee(prev => ({ ...prev, [field]: value }));
   };
 
@@ -267,7 +263,7 @@ export default function EmployeeDirectory() {
     }
 
     if (type === 'date') {
-            const formattedValue = value ? new Date(value).toLocaleDateString('en-GB') : '';
+      const formattedValue = value ? new Date(value).toISOString().split('T')[0] : '';
       return (
         <div>
           <strong>{label}:</strong>

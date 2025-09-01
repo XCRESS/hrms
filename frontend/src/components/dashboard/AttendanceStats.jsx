@@ -22,7 +22,7 @@ const AttendanceStats = ({ attendanceData, isLoading = false }) => {
       try {
         setStatsLoading(true);
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10);
-        const endDate = new Date().toISOString().slice(0, 10);
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10);
         
         const response = await apiClient.getEmployeeAttendanceWithAbsents({
           employeeId: user.employeeId,

@@ -259,7 +259,7 @@ export default function MyAttendance() {
   const [statistics, setStatistics] = useState(null);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
-    endDate: new Date().toISOString().slice(0, 10) // Today
+    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10) // Last day of current month
   });
   const [joiningDate, setJoiningDate] = useState(null);
   const [effectiveDateRange, setEffectiveDateRange] = useState(null);
