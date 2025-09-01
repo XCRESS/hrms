@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SearchableEmployeeSelect from "../../ui/SearchableEmployeeSelect";
 import { 
   ArrowLeft, 
@@ -15,7 +16,8 @@ import {
   Save,
   User,
   Building,
-  CreditCard
+  CreditCard,
+  Info
 } from "lucide-react";
 import apiClient from "../../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
@@ -150,13 +152,16 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
     loadEmployees();
   }, [toast]);
 
-  // Load employee details and salary structure when employee is selected
+  // Load employee details and salary structure when employee is selected or employees list is loaded
   useEffect(() => {
     if (selectedEmployee) {
       loadEmployeeDetails(selectedEmployee);
-      loadSalaryStructure(selectedEmployee);
+      // Only load salary structure if we're not editing (editing loads from editData)
+      if (!isEditing) {
+        loadSalaryStructure(selectedEmployee);
+      }
     }
-  }, [selectedEmployee]);
+  }, [selectedEmployee, employees, isEditing]);
 
   // Load existing salary slip data if editing
   useEffect(() => {
@@ -182,6 +187,11 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
 
   const loadEmployeeDetails = async (employeeId) => {
     try {
+      // Wait for employees to be loaded before attempting to find employee details
+      if (employees.length === 0) {
+        return; // Skip if employees not loaded yet
+      }
+      
       const employee = employees.find(emp => emp.employeeId === employeeId);
       if (employee) {
         setEmployeeDetails(employee);
@@ -707,7 +717,65 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
 
                   {/* Tax Configuration & Summary */}
                   <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tax Configuration</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tax Configuration</h4>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 w-6 p-0 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+                            title="Tax Calculation Details"
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 p-4 dark:bg-slate-800 dark:border-slate-600">
+                          <div className="space-y-4">
+                            <h5 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Tax Calculation Configuration</h5>
+                            
+                            <div className="space-y-3 text-sm">
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                                <h6 className="font-medium text-blue-800 dark:text-blue-200 mb-2">New Tax Regime (Default)</h6>
+                                <ul className="space-y-1 text-blue-700 dark:text-blue-300">
+                                  <li>• Standard Deduction: ₹75,000</li>
+                                  <li>• Up to ₹3,00,000: 0%</li>
+                                  <li>• ₹3,00,001 - ₹7,00,000: 5%</li>
+                                  <li>• ₹7,00,001 - ₹10,00,000: 10%</li>
+                                  <li>• ₹10,00,001 - ₹12,00,000: 15%</li>
+                                  <li>• ₹12,00,001 - ₹15,00,000: 20%</li>
+                                  <li>• Above ₹15,00,000: 30%</li>
+                                  <li>• Rebate: ₹25,000 (income ≤ ₹7,00,000)</li>
+                                  <li>• Health & Education Cess: 4%</li>
+                                </ul>
+                              </div>
+                              
+                              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                                <h6 className="font-medium text-green-800 dark:text-green-200 mb-2">Old Tax Regime</h6>
+                                <ul className="space-y-1 text-green-700 dark:text-green-300">
+                                  <li>• Standard Deduction: ₹50,000</li>
+                                  <li>• Section 80C Deduction: 10% of income (max ₹1,50,000)</li>
+                                  <li>• Up to ₹2,50,000: 0%</li>
+                                  <li>• ₹2,50,001 - ₹5,00,000: 5%</li>
+                                  <li>• ₹5,00,001 - ₹10,00,000: 20%</li>
+                                  <li>• Above ₹10,00,000: 30%</li>
+                                  <li>• Rebate: ₹12,500 (income ≤ ₹5,00,000)</li>
+                                  <li>• Health & Education Cess: 4%</li>
+                                </ul>
+                              </div>
+                              
+                              <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
+                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                  <strong>Note:</strong> Tax calculations are based on FY 2024-25 slabs. 
+                                  Monthly TDS is calculated as (Annual Tax ÷ 12). All calculations 
+                                  include Health & Education Cess at 4%.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     
                     <div className="space-y-2">
                       <Label className="text-slate-700 dark:text-slate-300">Tax Regime</Label>
