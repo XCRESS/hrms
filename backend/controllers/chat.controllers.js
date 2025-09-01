@@ -100,9 +100,9 @@ export const chat = asyncHandler(async (req, res) => {
 
     console.log(`[ChatBot] Processing message for session ${sessionId}:`, message.substring(0, 100) + '...');
 
-    // Make initial request to GPT-5 nano with function calling (cost-effective)
+    // Make initial request to GPT-5 mini with function calling (cost-effective)
     let response = await openai.responses.create({
-      model: 'gpt-5-nano',
+      model: 'gpt-5-mini',
       instructions: SYSTEM_INSTRUCTIONS,
       input: apiConversationHistory,
       tools: HR_FUNCTIONS,
@@ -171,7 +171,7 @@ export const chat = asyncHandler(async (req, res) => {
       // Make second request to get final response with function results
       // Don't use previous_response_id to avoid duplicate ID issues
       response = await openai.responses.create({
-        model: 'gpt-5-nano',
+        model: 'gpt-5-mini',
         instructions: SYSTEM_INSTRUCTIONS,
         input: apiConversationHistory,
         tools: HR_FUNCTIONS,
