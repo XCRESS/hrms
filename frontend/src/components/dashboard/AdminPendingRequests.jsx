@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, HelpCircle, Calendar, RefreshCw } from 'lucide-react';
+import { FileText, HelpCircle, Calendar, RefreshCw, Clock } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { useNavigate } from 'react-router-dom';
 import RequestDetailModal from './RequestDetailModal';
@@ -60,7 +60,7 @@ const AdminPendingRequests = ({ onRefresh }) => {
         allRequests.push(...pendingRegularizations.map(reg => ({
           ...reg,
           type: 'regularization',
-          icon: <RefreshCw className="w-5 h-5 text-orange-500" />,
+          icon: <Clock className="w-5 h-5 text-orange-500" />,
           title: 'Attendance Regularization',
           description: reg.reason || 'Missing checkout regularization request',
           employee: reg.user?.name || 'Unknown User',
@@ -70,6 +70,8 @@ const AdminPendingRequests = ({ onRefresh }) => {
 
       // Sort by date (most recent first)
       allRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Limit to 10 most recent requests for work queue display
+      // Note: Dashboard stat shows total count, but work queue shows limited view
       setRequests(allRequests.slice(0, 10));
     } catch (err) {
       console.error('Failed to fetch requests:', err);
@@ -124,7 +126,7 @@ const AdminPendingRequests = ({ onRefresh }) => {
             Pending Requests
           </h3>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Employee requests awaiting your review
+            Recent requests awaiting your review (showing latest 10)
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
