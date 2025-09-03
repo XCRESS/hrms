@@ -112,7 +112,9 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date</label>
+            <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Attendance Date <span className="text-xs text-gray-500 dark:text-slate-400">(Date for which you want to regularize attendance)</span>
+            </label>
             <input
               id="date"
               type="date"

@@ -462,11 +462,11 @@ const AdminRequestsPage = () => {
                             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {formatDateLocal(request.date)}
+                                <span className="font-medium">For:</span> {formatDateLocal(request.date)}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock4 className="h-3 w-3" />
-                                {formatTimeLocal(request.createdAt)}
+                                <span className="font-medium">Submitted:</span> {formatDateLocal(request.createdAt)}
                               </span>
                               {request.user && (
                                 <span className="flex items-center gap-1">
