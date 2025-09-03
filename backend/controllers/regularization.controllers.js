@@ -19,13 +19,65 @@ export const requestRegularization = async (req, res) => {
     
     // Parse as IST and store as UTC
     const dateIST = moment.tz(date, "Asia/Kolkata").startOf("day").toDate();
-    const requestedCheckInIST = requestedCheckIn ? moment.tz(requestedCheckIn, "Asia/Kolkata").toDate() : undefined;
-    const requestedCheckOutIST = requestedCheckOut ? moment.tz(requestedCheckOut, "Asia/Kolkata").toDate() : undefined;
+    
+    // Fix: Combine the regularization date with the requested times to avoid date mismatch
+    let requestedCheckInIST = undefined;
+    let requestedCheckOutIST = undefined;
+    
+    if (requestedCheckIn) {
+      // If requestedCheckIn contains date info, use it directly, otherwise combine with regularization date
+      if (requestedCheckIn.includes('T') || requestedCheckIn.includes(' ') || requestedCheckIn.length > 8) {
+        requestedCheckInIST = moment.tz(requestedCheckIn, "Asia/Kolkata").toDate();
+      } else {
+        // Combine regularization date with requested time
+        requestedCheckInIST = moment.tz(date + " " + requestedCheckIn, "Asia/Kolkata").toDate();
+      }
+    }
+    
+    if (requestedCheckOut) {
+      // If requestedCheckOut contains date info, use it directly, otherwise combine with regularization date
+      if (requestedCheckOut.includes('T') || requestedCheckOut.includes(' ') || requestedCheckOut.length > 8) {
+        requestedCheckOutIST = moment.tz(requestedCheckOut, "Asia/Kolkata").toDate();
+      } else {
+        // Combine regularization date with requested time
+        requestedCheckOutIST = moment.tz(date + " " + requestedCheckOut, "Asia/Kolkata").toDate();
+      }
+    }
+    
+    // Validation: Ensure check-in and check-out times are on the regularization date
+    const regularizationDateStr = moment.tz(date, "Asia/Kolkata").format("YYYY-MM-DD");
+    
+    if (requestedCheckInIST) {
+      const checkInDateStr = moment.tz(requestedCheckInIST, "Asia/Kolkata").format("YYYY-MM-DD");
+      if (checkInDateStr !== regularizationDateStr) {
+        return res.status(400).json({ 
+          message: `Check-in time must be on the regularization date (${regularizationDateStr}). Got: ${checkInDateStr}` 
+        });
+      }
+    }
+    
+    if (requestedCheckOutIST) {
+      const checkOutDateStr = moment.tz(requestedCheckOutIST, "Asia/Kolkata").format("YYYY-MM-DD");
+      if (checkOutDateStr !== regularizationDateStr) {
+        return res.status(400).json({ 
+          message: `Check-out time must be on the regularization date (${regularizationDateStr}). Got: ${checkOutDateStr}` 
+        });
+      }
+    }
+    
+    // Validation: Ensure check-in is before check-out if both are provided
+    if (requestedCheckInIST && requestedCheckOutIST) {
+      if (requestedCheckInIST >= requestedCheckOutIST) {
+        return res.status(400).json({ 
+          message: "Check-in time must be before check-out time" 
+        });
+      }
+    }
     
     // Check for existing request for same date
     const existing = await RegularizationRequest.findOne({ employeeId: user.employeeId, date: dateIST, status: "pending" });
     if (existing) {
-      // Update existing request instead of creating duplicate
+      // Update existing request instead of creating duplicate (validation already done above)
       existing.requestedCheckIn = requestedCheckInIST;
       existing.requestedCheckOut = requestedCheckOutIST;
       existing.reason = reason;

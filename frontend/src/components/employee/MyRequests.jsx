@@ -380,13 +380,19 @@ const MyRequests = () => {
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {formatDateLocal(request.date)}
+                              <span className="font-medium">For:</span> {formatDateLocal(request.date)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock4 className="h-3 w-3" />
-                              {formatTimeLocal(request.createdAt)}
+                              <span className="font-medium">Submitted:</span> {formatDateLocal(request.createdAt)}
                             </span>
                           </div>
+                          {request.type === 'regularization' && (
+                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded">
+                              <span className="font-medium">Attendance Date:</span> {formatDateLocal(request.date)} | 
+                              <span className="font-medium ml-2">Request Submitted:</span> {formatDate(new Date(request.createdAt), true)}
+                            </div>
+                          )}
                           {isAdminOrHR && request.user && (
                             <span className="flex items-center gap-1">
                               <User className="h-3 w-3" />
