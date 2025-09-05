@@ -3,6 +3,7 @@ import Holiday from '../models/Holiday.model.js';
 import Employee from '../models/Employee.model.js';
 import Settings from '../models/Settings.model.js';
 import NotificationService from './notificationService.js';
+import { getISTNow, toIST } from '../utils/timezoneUtils.js';
 
 class SchedulerService {
   constructor() {
@@ -121,17 +122,16 @@ class SchedulerService {
         return;
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = getISTNow().startOf('day').toDate();
       
       const employees = await Employee.find({ isActive: true });
       let milestonesFound = 0;
 
       for (const employee of employees) {
-        const joiningDate = new Date(employee.joiningDate);
-        joiningDate.setHours(0, 0, 0, 0);
+        const joiningDate = toIST(employee.joiningDate).startOf('day');
+        const todayIST = toIST(today).startOf('day');
         
-        const daysDiff = Math.floor((today - joiningDate) / (1000 * 60 * 60 * 24));
+        const daysDiff = todayIST.diff(joiningDate, 'days');
         
         let milestoneType = null;
         
@@ -151,7 +151,7 @@ class SchedulerService {
             employee: `${employee.firstName} ${employee.lastName}`,
             employeeId: employee.employeeId,
             milestone: milestoneType,
-            joiningDate: joiningDate.toDateString(),
+            joiningDate: joiningDate.format('YYYY-MM-DD'),
             department: employee.department,
             position: employee.position
           });
@@ -178,7 +178,7 @@ class SchedulerService {
         return;
       }
 
-      const today = new Date();
+      const today = getISTNow().toDate(); // Get proper IST date
       const employees = await Employee.find({ 
         isActive: true,
         dateOfBirth: { $exists: true, $ne: null }
@@ -187,15 +187,16 @@ class SchedulerService {
       let birthdayCount = 0;
 
       for (const employee of employees) {
-        const birthday = new Date(employee.dateOfBirth);
+        const birthday = toIST(employee.dateOfBirth);
+        const todayIST = toIST(today);
         
-        // Check if today matches birthday (month and day)
-        if (birthday.getMonth() === today.getMonth() && 
-            birthday.getDate() === today.getDate()) {
+        // Check if today matches birthday (month and day) in IST
+        if (birthday.month() === todayIST.month() && 
+            birthday.date() === todayIST.date()) {
           
           console.log(`Sending birthday wishes to: ${employee.firstName} ${employee.lastName}`);
           
-          const age = today.getFullYear() - birthday.getFullYear();
+          const age = todayIST.year() - birthday.year();
           
           await NotificationService.notifyEmployee(employee.employeeId, 'birthday_wish', {
             employee: `${employee.firstName} ${employee.lastName}`,
