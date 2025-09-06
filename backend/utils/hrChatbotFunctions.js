@@ -196,7 +196,7 @@ export const HR_FUNCTIONS = [
   {
     type: "function",
     name: "get_task_report_summary",
-    description: "Get detailed task reports with actual tasks submitted by employees within a date range. Returns both statistics and complete task details for each report.",
+    description: "Get detailed task reports with actual tasks submitted by employees within a date range. Returns both statistics and complete task details for each report. Use this to analyze employee productivity, task completion patterns, and provide intelligent summaries of work accomplishments.",
     parameters: {
       type: "object",
       properties: {
