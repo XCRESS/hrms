@@ -131,17 +131,22 @@ class SchedulerService {
         const joiningDate = toIST(employee.joiningDate).startOf('day');
         const todayIST = toIST(today).startOf('day');
         
-        const daysDiff = todayIST.diff(joiningDate, 'days');
+        // Calculate months between joining date and today
+        const monthsDiff = todayIST.year() * 12 + todayIST.month() - (joiningDate.year() * 12 + joiningDate.month());
         
         let milestoneType = null;
         
-        // Check for exact milestone matches
-        if (settings.notifications.milestoneTypes.threeMonths && daysDiff === 90) {
-          milestoneType = '3 months';
-        } else if (settings.notifications.milestoneTypes.sixMonths && daysDiff === 180) {
-          milestoneType = '6 months';
-        } else if (settings.notifications.milestoneTypes.oneYear && daysDiff === 365) {
-          milestoneType = '1 year';
+        // Check for exact milestone matches using calendar months and same day
+        const isSameDay = todayIST.date() === joiningDate.date();
+        
+        if (isSameDay) {
+          if (settings.notifications.milestoneTypes.threeMonths && monthsDiff === 3) {
+            milestoneType = '3 months';
+          } else if (settings.notifications.milestoneTypes.sixMonths && monthsDiff === 6) {
+            milestoneType = '6 months';
+          } else if (settings.notifications.milestoneTypes.oneYear && monthsDiff === 12) {
+            milestoneType = '1 year';
+          }
         }
 
         if (milestoneType) {

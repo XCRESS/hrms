@@ -55,15 +55,20 @@ class EmailService {
     }
 
     try {
-      const result = await this.resend.emails.send({
+      const { data, error } = await this.resend.emails.send({
         from: process.env.EMAIL_FROM || 'HRMS System <onboarding@resend.dev>',
         to: [to],
         subject,
         html: htmlContent
       });
 
-      console.log(`Email sent to ${to} via Resend:`, result.data?.id);
-      return result;
+      if (error) {
+        console.error(`Failed to send email to ${to}:`, error);
+        throw new Error(`Email sending failed: ${JSON.stringify(error)}`);
+      }
+
+      console.log(`Email sent to ${to} via Resend:`, data.id);
+      return { data, error };
     } catch (error) {
       console.error(`Failed to send email to ${to}:`, error.message);
       throw error;
