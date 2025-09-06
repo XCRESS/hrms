@@ -42,14 +42,14 @@ const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for
 6. **No File Creation**: Never suggest creating files, CSVs, or documents. Only provide data in the chat response
 
 ## Function Usage:
-- Use get_current_datetime() to get current date/time for date-based queries
-- Use get_employee_attendance_summary() for attendance-related questions
+- Use get_employee_attendance_summary() for attendance-related questions (includes today's attendance, attendance summaries, etc.)
+- Use get_current_datetime() only if you need the current date/time for other purposes
 - Use get_employee_count_by_tenure() for tenure-related queries
 - Use get_leave_statistics() for leave-related information
 - Use get_employees_by_department() for department-wise employee data
 - Use get_salary_slip_statistics() for payroll-related queries
 - Use get_upcoming_holidays() for holiday information
-- Use get_task_report_summary() for task reporting insights
+- Use get_task_report_summary() for task reporting insights - analyze and summarize task patterns, don't just list tasks
 - Use get_employee_basic_info() for general employee information
 - Use get_all_pending_requests() for comprehensive pending requests across all types (leave, help, regularization, password reset)
 
@@ -57,7 +57,8 @@ const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for
 - Start with a brief acknowledgment of the query
 - Present data in organized, readable format (use tables, lists, or structured text)
 - **Date Format**: Always display dates in DD-MM-YYYY format (e.g., 25-12-2024, not 2024-12-25)
-- Provide context and insights when relevant
+- **Task Reports**: When analyzing task reports, provide intelligent summaries of work patterns, productivity insights, and key accomplishments rather than just listing tasks
+- **Data Analysis**: Always provide context, insights, and actionable information when presenting data
 - End with an offer to help with follow-up questions
 
 Remember: You are a helpful HR assistant focused on providing accurate, timely information to support HR operations and employee inquiries.`;
@@ -120,22 +121,9 @@ export const chat = asyncHandler(async (req, res) => {
     if (functionCalls.length > 0) {
       console.log(`[ChatBot] Processing ${functionCalls.length} function calls for session ${sessionId}`);
       
-      // For reasoning models like GPT-5, add all output items except duplicates
-      // Create a set to track already added item IDs to prevent duplicates
-      const addedItemIds = new Set();
-      
-      for (const item of response.output) {
-        // Skip items that might cause duplicate ID issues
-        if (item.id && addedItemIds.has(item.id)) {
-          continue;
-        }
-        
-        apiConversationHistory.push(item);
-        
-        if (item.id) {
-          addedItemIds.add(item.id);
-        }
-      }
+      // For reasoning models like GPT-5, add all output items as per documentation
+      // The correct pattern is: input_list += response.output
+      apiConversationHistory.push(...response.output);
       
       // Execute function calls and add their outputs
       for (const functionCall of functionCalls) {
@@ -182,14 +170,27 @@ export const chat = asyncHandler(async (req, res) => {
       console.log(`[ChatBot] Final response generated for session ${sessionId}`);
     }
 
-    // Debug: Log the actual response structure to understand GPT-5 format
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[ChatBot] Debug - Response keys:`, Object.keys(response));
-      console.log(`[ChatBot] Debug - output_text:`, response.output_text);
-    }
+    // Debug: Log the actual response structure (only keys for brevity)
+    console.log(`[ChatBot] Debug - Response keys:`, Object.keys(response));
+    console.log(`[ChatBot] Debug - output_text exists:`, !!response.output_text);
+    console.log(`[ChatBot] Debug - output_text length:`, response.output_text?.length || 0);
     
     // Extract the assistant's response text using the correct GPT-5 Responses API property
-    const assistantResponse = response.output_text || "I apologize, but I couldn't generate a proper response. Please try again.";
+    let assistantResponse = response.output_text;
+    
+    // If output_text is empty, try to extract from output array
+    if (!assistantResponse && response.output && Array.isArray(response.output)) {
+      const textItems = response.output.filter(item => item.type === 'text' && item.text);
+      if (textItems.length > 0) {
+        assistantResponse = textItems.map(item => item.text).join('\n');
+        console.log(`[ChatBot] Debug - Extracted text from output array: ${assistantResponse.substring(0, 100)}...`);
+      }
+    }
+    
+    // Final fallback
+    if (!assistantResponse) {
+      assistantResponse = "I apologize, but I couldn't generate a proper response. Please try again.";
+    }
 
     // Add assistant response to conversation history
     const assistantMessage = {
