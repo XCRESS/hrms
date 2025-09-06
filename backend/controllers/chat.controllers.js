@@ -182,7 +182,13 @@ export const chat = asyncHandler(async (req, res) => {
       console.log(`[ChatBot] Final response generated for session ${sessionId}`);
     }
 
-    // Extract the assistant's response text
+    // Debug: Log the actual response structure to understand GPT-5 format
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[ChatBot] Debug - Response keys:`, Object.keys(response));
+      console.log(`[ChatBot] Debug - output_text:`, response.output_text);
+    }
+    
+    // Extract the assistant's response text using the correct GPT-5 Responses API property
     const assistantResponse = response.output_text || "I apologize, but I couldn't generate a proper response. Please try again.";
 
     // Add assistant response to conversation history
