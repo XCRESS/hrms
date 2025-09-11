@@ -76,8 +76,63 @@ class EmailService {
   }
 
   async sendToMultiple(emails, subject, htmlContent) {
-    const promises = emails.map(email => this.send(email, subject, htmlContent));
-    return Promise.allSettled(promises);
+    const results = [];
+    const delay = 600; // 600ms delay between emails (safer than 500ms for 2/second limit)
+    
+    console.log(`Sending ${emails.length} emails with rate limiting...`);
+    
+    for (let i = 0; i < emails.length; i++) {
+      try {
+        // Add delay between emails (except for the first one)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        const result = await this.send(emails[i], subject, htmlContent);
+        results.push({ status: 'fulfilled', value: result });
+        
+        console.log(`Progress: ${i + 1}/${emails.length} emails sent`);
+      } catch (error) {
+        results.push({ status: 'rejected', reason: error });
+        console.error(`Failed to send email ${i + 1}/${emails.length} to ${emails[i]}:`, error.message);
+      }
+    }
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    console.log(`Email batch completed: ${successful} successful, ${failed} failed`);
+    
+    return results;
+  }
+
+  async sendBatchWithCallback(emailCallbacks) {
+    const results = [];
+    const delay = 600; // 600ms delay between emails
+    
+    console.log(`Processing ${emailCallbacks.length} email operations with rate limiting...`);
+    
+    for (let i = 0; i < emailCallbacks.length; i++) {
+      try {
+        // Add delay between emails (except for the first one)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        const result = await emailCallbacks[i]();
+        results.push({ status: 'fulfilled', value: result });
+        
+        console.log(`Progress: ${i + 1}/${emailCallbacks.length} operations completed`);
+      } catch (error) {
+        results.push({ status: 'rejected', reason: error });
+        console.error(`Failed operation ${i + 1}/${emailCallbacks.length}:`, error.message);
+      }
+    }
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    console.log(`Batch operations completed: ${successful} successful, ${failed} failed`);
+    
+    return results;
   }
 
   async sendNotification(type, data, recipients) {
