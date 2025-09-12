@@ -63,7 +63,19 @@ const salarySlipSchema = new mongoose.Schema({
       type: Number,
       default: 0,
       min: 0
-    }
+    },
+    customDeductions: [{
+      name: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      amount: {
+        type: Number,
+        required: true,
+        min: 0
+      }
+    }]
   },
   grossSalary: {
     type: Number,
@@ -108,18 +120,23 @@ salarySlipSchema.pre('save', function(next) {
                       earnings.medical + earnings.lta + earnings.specialAllowance + 
                       earnings.mobileAllowance;
     
-    // Calculate annual salary for tax calculation
-    const annualSalary = this.grossSalary * 12;
-    
     // Ensure deductions object exists
     if (!this.deductions) {
-      this.deductions = { incomeTax: 0 };
+      this.deductions = { incomeTax: 0, customDeductions: [] };
     }
     
-    // Calculate income tax based on selected regime
-    this.deductions.incomeTax = this.calculateIncomeTax(annualSalary, this.taxRegime) / 12;
+    // Calculate custom deductions total first
+    const customDeductionsTotal = (this.deductions.customDeductions || []).reduce((sum, deduction) => sum + deduction.amount, 0);
     
-    this.totalDeductions = this.deductions.incomeTax;
+    // Calculate taxable income (gross salary minus custom deductions)
+    const taxableMonthlyIncome = this.grossSalary - customDeductionsTotal;
+    const annualTaxableIncome = Math.max(0, taxableMonthlyIncome * 12);
+    
+    // Calculate income tax based on selected regime on taxable income
+    this.deductions.incomeTax = this.calculateIncomeTax(annualTaxableIncome, this.taxRegime) / 12;
+    
+    // Calculate total deductions (custom deductions already calculated above)
+    this.totalDeductions = this.deductions.incomeTax + customDeductionsTotal;
     this.netSalary = this.grossSalary - this.totalDeductions;
     
     // Convert net salary to words

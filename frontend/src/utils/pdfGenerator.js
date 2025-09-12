@@ -310,9 +310,28 @@ const generateSalaryRows = (slip) => {
     { label: 'Mobile Allowance', value: slip.earnings.mobileAllowance }
   ].filter(item => item.value > 0); // Only show non-zero earnings
 
-  const deductions = [
-    { label: 'Income Tax (TDS)', value: slip.deductions.incomeTax }
-  ].filter(item => item.value > 0); // Only show non-zero deductions
+  // Build deductions array including custom deductions
+  const deductions = [];
+  
+  // Add custom deductions first
+  if (slip.deductions.customDeductions && slip.deductions.customDeductions.length > 0) {
+    slip.deductions.customDeductions.forEach(customDeduction => {
+      if (customDeduction.amount > 0) {
+        deductions.push({
+          label: customDeduction.name,
+          value: customDeduction.amount
+        });
+      }
+    });
+  }
+  
+  // Add income tax if greater than 0
+  if (slip.deductions.incomeTax > 0) {
+    deductions.push({
+      label: 'Income Tax (TDS)',
+      value: slip.deductions.incomeTax
+    });
+  }
 
   const maxRows = Math.max(earnings.length, deductions.length);
   let rows = '';

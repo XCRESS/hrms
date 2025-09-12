@@ -17,7 +17,10 @@ import {
   User,
   Building,
   CreditCard,
-  Info
+  Info,
+  Plus,
+  Trash2,
+  Minus
 } from "lucide-react";
 import apiClient from "../../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
@@ -51,6 +54,9 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   const [taxCalculation, setTaxCalculation] = useState(null);
   const [salarySlip, setSalarySlip] = useState(null);
   const [isEditing, setIsEditing] = useState(!!editData);
+  
+  // Deductions state
+  const [customDeductions, setCustomDeductions] = useState([]);
 
   const { toast } = useToast();
   const user = useAuth();
@@ -75,6 +81,13 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   const calculateGrossSalary = () => {
     return Object.values(salaryStructure).reduce((total, value) => {
       return total + (parseFloat(value) || 0);
+    }, 0);
+  };
+
+  // Calculate total custom deductions
+  const calculateCustomDeductions = () => {
+    return customDeductions.reduce((total, deduction) => {
+      return total + (parseFloat(deduction.amount) || 0);
     }, 0);
   };
 
@@ -171,6 +184,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
       setYear(editData.year);
       setTaxRegime(editData.taxRegime || 'new');
       setSalaryStructure(editData.earnings);
+      setCustomDeductions(editData.deductions?.customDeductions || []);
       setIsEditing(true);
     }
   }, [editData]);
@@ -297,6 +311,23 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
     }));
   };
 
+  // Custom deductions handlers
+  const addCustomDeduction = () => {
+    setCustomDeductions(prev => [...prev, { name: '', amount: '' }]);
+  };
+
+  const removeCustomDeduction = (index) => {
+    setCustomDeductions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateCustomDeduction = (index, field, value) => {
+    setCustomDeductions(prev => 
+      prev.map((deduction, i) => 
+        i === index ? { ...deduction, [field]: value } : deduction
+      )
+    );
+  };
+
   const saveSalaryStructure = async () => {
     console.log('saveSalaryStructure: Starting save process');
     console.log('saveSalaryStructure: selectedEmployee:', selectedEmployee);
@@ -374,6 +405,9 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
         month,
         year,
         earnings: salaryStructure,
+        deductions: {
+          customDeductions: customDeductions.filter(d => d.name && d.amount)
+        },
         taxRegime
       });
 
@@ -435,7 +469,8 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   };
 
   const grossSalary = calculateGrossSalary();
-  const netSalary = grossSalary - (taxCalculation?.monthlyTax || 0);
+  const customDeductionsTotal = calculateCustomDeductions();
+  const netSalary = grossSalary - (taxCalculation?.monthlyTax || 0) - customDeductionsTotal;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
@@ -631,11 +666,17 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Earnings */}
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Earnings</h4>
+              <CardContent className="p-6 space-y-8">
+                {/* Earnings Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-600 pb-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Earnings Components</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
                     <div className="space-y-2">
                       <Label className="text-slate-700 dark:text-slate-300">Basic Salary *</Label>
@@ -714,22 +755,94 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                       />
                     </div>
                   </div>
+                </div>
 
-                  {/* Tax Configuration & Summary */}
-                  <div className="space-y-4">
+                {/* Custom Deductions Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-600 pb-3">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tax Configuration</h4>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 w-6 p-0 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
-                            title="Tax Calculation Details"
+                      <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                        <Minus className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Custom Deductions</h4>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={addCustomDeduction}
+                      variant="outline"
+                      size="sm"
+                      className="dark:border-slate-600 dark:hover:bg-slate-600 bg-red-50 hover:bg-red-100 border-red-200 text-red-700 hover:text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Deduction
+                    </Button>
+                  </div>
+
+                  {customDeductions.length > 0 ? (
+                    <div className="space-y-3">
+                      {customDeductions.map((deduction, index) => (
+                        <div key={index} className="flex gap-3 items-center p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+                          <div className="flex-1">
+                            <Input
+                              placeholder="Deduction name (e.g., Leave deduction, Penalty)"
+                              value={deduction.name}
+                              onChange={(e) => updateCustomDeduction(index, 'name', e.target.value)}
+                              className="border-red-300 dark:border-red-600 bg-white dark:bg-slate-700 focus:border-red-500 dark:focus:border-red-400"
+                            />
+                          </div>
+                          <div className="w-32">
+                            <Input
+                              type="number"
+                              placeholder="Amount"
+                              value={deduction.amount}
+                              onChange={(e) => updateCustomDeduction(index, 'amount', e.target.value)}
+                              className="border-red-300 dark:border-red-600 bg-white dark:bg-slate-700 focus:border-red-500 dark:focus:border-red-400"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => removeCustomDeduction(index)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30 h-10 w-10 p-0"
                           >
-                            <Info className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </PopoverTrigger>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                      <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-full w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                        <Minus className="h-8 w-8" />
+                      </div>
+                      <p className="text-sm font-medium mb-1">No deductions added</p>
+                      <p className="text-xs">Click "Add Deduction" to add leave cuts, penalties, or other deductions</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tax Configuration & Summary Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Tax Configuration */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-600 pb-3">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <Calculator className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tax Configuration</h4>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+                              title="Tax Calculation Details"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
                         <PopoverContent className="w-96 p-4 dark:bg-slate-800 dark:border-slate-600">
                           <div className="space-y-4">
                             <h5 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Tax Calculation Configuration</h5>
@@ -773,8 +886,9 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                               </div>
                             </div>
                           </div>
-                        </PopoverContent>
-                      </Popover>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
                     
                     <div className="space-y-2">
@@ -793,55 +907,82 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
 
-                    {/* Salary Summary */}
-                    <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-600 rounded-lg space-y-3">
-                      <h5 className="font-semibold text-slate-900 dark:text-slate-100">Salary Summary</h5>
-                      
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-300">Gross Salary:</span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  {/* Salary Summary */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-600 pb-3">
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        <Receipt className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Salary Summary</h4>
+                    </div>
+
+                    <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">Gross Salary:</span>
+                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
                           ₹{formatIndianNumber(grossSalary)}
                         </span>
                       </div>
                       
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-300">Income Tax (Monthly):</span>
-                        <span className="font-semibold text-red-600 dark:text-red-400">
-                          ₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}
-                        </span>
-                      </div>
+                      {customDeductionsTotal > 0 && (
+                        <div className="border-t border-blue-200 dark:border-blue-700 pt-3">
+                          <h6 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">DEDUCTIONS</h6>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-slate-600 dark:text-slate-300">Custom Deductions:</span>
+                            <span className="font-semibold text-red-600 dark:text-red-400">
+                              ₹{formatIndianNumber(customDeductionsTotal)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       
-                      <div className="border-t border-slate-300 dark:border-slate-500 pt-2">
-                        <div className="flex justify-between">
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">Net Salary:</span>
-                          <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                      {(taxCalculation?.monthlyTax || 0) > 0 && (
+                        <div className={customDeductionsTotal > 0 ? "" : "border-t border-blue-200 dark:border-blue-700 pt-3"}>
+                          {customDeductionsTotal === 0 && <h6 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">DEDUCTIONS</h6>}
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 dark:text-slate-300">Income Tax (Monthly):</span>
+                            <span className="font-semibold text-red-600 dark:text-red-400">
+                              ₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="border-t border-blue-300 dark:border-blue-600 pt-4 mt-4">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-lg">Net Salary:</span>
+                          <span className="font-bold text-green-600 dark:text-green-400 text-2xl">
                             ₹{formatIndianNumber(netSalary)}
                           </span>
                         </div>
-                      </div>
-                      
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                        {convertToWords(netSalary)}
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+                          {convertToWords(netSalary)}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-between">
+                {/* Navigation Buttons */}
+                <div className="flex justify-between pt-6 border-t border-slate-200 dark:border-slate-600">
                   <Button
+                    type="button"
                     onClick={() => setActiveTab('employee')}
                     variant="outline"
                     className="dark:border-slate-600 dark:hover:bg-slate-600"
                   >
-                    Previous: Employee
+                    ← Previous: Employee
                   </Button>
+                  
                   <Button
+                    type="button"
                     onClick={() => setActiveTab('preview')}
-                    disabled={!grossSalary}
+                    disabled={!selectedEmployee || !grossSalary}
                     className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
                   >
-                    Next: Preview
+                    Next: Preview & Generate →
                   </Button>
                 </div>
               </CardContent>
@@ -952,6 +1093,15 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                           <div>
                             <h4 className="font-semibold text-red-700 dark:text-red-400 mb-2">Deductions</h4>
                             <div className="space-y-1 text-sm">
+                              {customDeductions.map((deduction, index) => {
+                                if (!deduction.name || !deduction.amount) return null;
+                                return (
+                                  <div key={index} className="flex justify-between">
+                                    <span>{deduction.name}</span>
+                                    <span>₹{formatIndianNumber(parseFloat(deduction.amount))}</span>
+                                  </div>
+                                );
+                              })}
                               {(taxCalculation?.monthlyTax || 0) > 0 && (
                                 <div className="flex justify-between">
                                   <span>Income Tax (TDS)</span>
@@ -961,7 +1111,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                               <div className="border-t border-slate-300 dark:border-slate-500 pt-1 mt-2">
                                 <div className="flex justify-between font-semibold">
                                   <span>Total Deductions</span>
-                                  <span>₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}</span>
+                                  <span>₹{formatIndianNumber((taxCalculation?.monthlyTax || 0) + customDeductionsTotal)}</span>
                                 </div>
                               </div>
                             </div>
