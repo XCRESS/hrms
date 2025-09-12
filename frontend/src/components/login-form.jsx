@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../service/apiClient.js";
-import { useState } from "react";   
+import { useState, useEffect } from "react";   
 import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
 import { Eye, EyeOff, Bug, Copy, AlertTriangle } from "lucide-react";
@@ -24,6 +24,14 @@ export default function LoginForm({ className, ...props }) {
   //for navigation
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      navigate("/dashboard");
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,7 +66,7 @@ export default function LoginForm({ className, ...props }) {
           console.warn('Auto-subscribe failed:', error);
         });
         
-        navigate("/");
+        navigate("/dashboard");
       } else {
         const errorMessage = data.message || "Invalid credentials. Please try again.";
         setLastError({
