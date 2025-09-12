@@ -5,7 +5,7 @@ import { formatResponse } from "../utils/response.js";
 // Create or update salary slip
 export const createOrUpdateSalarySlip = async (req, res) => {
   try {
-    const { employeeId, month, year, earnings, taxRegime = 'new' } = req.body;
+    const { employeeId, month, year, earnings, deductions = {}, taxRegime = 'new' } = req.body;
 
     // Validate required fields
     if (!employeeId || !month || !year || !earnings || !earnings.basic) {
@@ -34,7 +34,8 @@ export const createOrUpdateSalarySlip = async (req, res) => {
         mobileAllowance: earnings.mobileAllowance || 0
       },
       deductions: {
-        incomeTax: 0 // Will be calculated in pre-save hook
+        incomeTax: 0, // Will be calculated in pre-save hook
+        customDeductions: deductions.customDeductions || []
       },
       taxRegime,
       createdBy: req.user._id
