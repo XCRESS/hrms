@@ -61,7 +61,10 @@ export default function SidebarDemo() {
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
-    navigate("/auth/login");
+    // Use setTimeout to ensure token is cleared before navigation
+    setTimeout(() => {
+      navigate("/");
+    }, 0);
   };
 
   const iconClass = "h-5 w-5 shrink-0 text-neutral-600 dark:text-neutral-300 transition-colors duration-200";

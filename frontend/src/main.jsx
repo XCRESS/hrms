@@ -16,6 +16,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import DebugPanel from './components/DebugPanel.jsx';
 
 // Lazy load heavy components
+const LandingPage = lazy(() => import('./components/landingPage/LandingPage.jsx'));
 const HRMSDashboard = lazy(() => import('./components/dashboard.jsx'));
 const GetProfile = lazy(() => import('./components/getProfile.jsx'));
 const EmployeeDirectory = lazy(() => import('./components/hr/employeeDirectory/EmployeeDirectory.jsx'));
@@ -134,35 +135,68 @@ createRoot(document.getElementById('root')).render(
               <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<SidebarDemo />}>
-                  <Route index element={<HRMSDashboard />} />
-                  <Route path="dashboard" element={<HRMSDashboard />} />
-                  
-                  <Route path="employees" element={<EmployeeDirectory />} />
-                  <Route path="employees/add" element={<AddEmployee />} />
-                  <Route path="employees/link" element={<EmployeeLink />} />
-                  <Route path="holidays" element={<HolidayManagementPage />} />
-                  <Route path="announcements" element={<AnnouncementsPage />} />
-                  <Route path="policies" element={<PoliciesPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="attendance/my" element={<MyAttendance />} />
-                  <Route path="task-reports/my" element={<MyTaskReports />} />
-                  <Route path="salary-slips/my" element={<MySalarySlips />} />
-                  <Route path="profile" element={<GetProfile />} />
-                  <Route path="profile/documents" element={<DocumentsPage />} />
-                  <Route path="task-reports" element={<TaskReportsManage />} />
-                  <Route path="task-reports/generate" element={<TaskReportGenerator />} />
-                  <Route path="salary" element={<SalaryHub />} />
-                  <Route path="salary-structures" element={<SalaryStructureManagement />} />
-                  <Route path="salary-slips" element={<SalarySlipManagement />} />
-                  <Route path="requests" element={<MyRequests />} />
-                  <Route path="admin/requests" element={<AdminRequestsPage />} />
-                  <Route path="chatbot" element={<ChatBot />} />
-                </Route>
-
+                {/* Landing Page */}
+                <Route path="/" element={<LandingPage />} />
+                
+                {/* Authentication Routes */}
+                <Route path="/login" element={<Login />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
                 <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
+                
+                {/* HRMS Application Routes */}
+                <Route path="/dashboard" element={<SidebarDemo />}>
+                  <Route index element={<HRMSDashboard />} />
+                </Route>
+                <Route path="/employees" element={<SidebarDemo />}>
+                  <Route index element={<EmployeeDirectory />} />
+                  <Route path="add" element={<AddEmployee />} />
+                  <Route path="link" element={<EmployeeLink />} />
+                </Route>
+                <Route path="/holidays" element={<SidebarDemo />}>
+                  <Route index element={<HolidayManagementPage />} />
+                </Route>
+                <Route path="/announcements" element={<SidebarDemo />}>
+                  <Route index element={<AnnouncementsPage />} />
+                </Route>
+                <Route path="/policies" element={<SidebarDemo />}>
+                  <Route index element={<PoliciesPage />} />
+                </Route>
+                <Route path="/settings" element={<SidebarDemo />}>
+                  <Route index element={<SettingsPage />} />
+                </Route>
+                <Route path="/attendance" element={<SidebarDemo />}>
+                  <Route path="my" element={<MyAttendance />} />
+                </Route>
+                <Route path="/task-reports" element={<SidebarDemo />}>
+                  <Route index element={<TaskReportsManage />} />
+                  <Route path="generate" element={<TaskReportGenerator />} />
+                  <Route path="my" element={<MyTaskReports />} />
+                </Route>
+                <Route path="/salary-slips" element={<SidebarDemo />}>
+                  <Route index element={<SalarySlipManagement />} />
+                  <Route path="my" element={<MySalarySlips />} />
+                </Route>
+                <Route path="/profile" element={<SidebarDemo />}>
+                  <Route index element={<GetProfile />} />
+                  <Route path="documents" element={<DocumentsPage />} />
+                </Route>
+                <Route path="/salary" element={<SidebarDemo />}>
+                  <Route index element={<SalaryHub />} />
+                </Route>
+                <Route path="/salary-structures" element={<SidebarDemo />}>
+                  <Route index element={<SalaryStructureManagement />} />
+                </Route>
+                <Route path="/requests" element={<SidebarDemo />}>
+                  <Route index element={<MyRequests />} />
+                </Route>
+                <Route path="/admin" element={<SidebarDemo />}>
+                  <Route path="requests" element={<AdminRequestsPage />} />
+                </Route>
+                <Route path="/chatbot" element={<SidebarDemo />}>
+                  <Route index element={<ChatBot />} />
+                </Route>
+
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

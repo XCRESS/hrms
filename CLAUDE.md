@@ -45,11 +45,11 @@ pnpm lint           # ESLint
 ### User-Employee Relationship
 - Users authenticate and get assigned roles
 - Employees contain detailed HR information (personal, professional, banking)
-- **Linking system**: `linkuser.js` connects User accounts to Employee records
+- **Linking system**: API-based linking via `/employees/link` endpoint connects User accounts to Employee records
 - Admin/HR can manage all employees; employees access only their own data
 
 ### Attendance & Leave Integration
-- **Automatic status detection**: Late (after 9:55 AM), Half-day (<4 hours), Present, Absent
+- **Automatic status detection according to set business logic**: Late, Half-day, Present, Absent
 - **Working day calculation**: Excludes weekends and holidays from attendance requirements
 - **Leave integration**: Approved leaves automatically mark attendance as present
 - **Real-time updates**: Dashboard shows current attendance status and pending actions
@@ -60,7 +60,7 @@ pnpm lint           # ESLint
   - `SalarySlip` generates monthly slips with automatic calculations
   - Tax calculation supporting both old and new Indian tax regimes
   - **Publish/Unpublish system**: Draft → Published workflow for employee access
-- **PDF generation**: Custom utility in `pdfGenerator.js` for salary slip downloads
+- **PDF generation**: Frontend jsPDF library for professional salary slip downloads with company branding
 - **Bulk processing**: HR can generate salary slips for all employees at once
 - **Employee access**: Dedicated `/salary-slips/my` page for employees to view published slips
 
@@ -73,9 +73,12 @@ pnpm lint           # ESLint
 ### Frontend Architecture
 - **Component structure**: Feature-based organization under `src/components/`
 - **Role-based rendering**: Components check user role for conditional UI
-- **Centralized API client**: `service/apiValidator.js` handles all backend communication
+- **Centralized API client**: `service/apiClient.js` (775-line custom implementation) handles all backend communication
 - **State management**: Context providers for theme and user profile
 - **UI components**: Reusable components in `components/ui/` using Radix UI + Tailwind
+- **PDF Generation**: Client-side PDF creation using jsPDF library
+- **AI Integration**: OpenAI-powered chatbot for HR assistance
+- **WhatsApp Integration**: Automated notifications via WhatsApp Web.js
 
 ## Key Configuration Files
 
@@ -104,10 +107,11 @@ pnpm lint           # ESLint
 - Handle loading states and error boundaries
 
 ### API Integration
-- Use `apiValidator.js` for consistent API calls
-- Follow established error handling patterns
+- Use `apiClient.js` (775-line custom implementation) for consistent API calls
+- Follow established error handling patterns with built-in response transformation
 - Implement proper loading states in components
 - Handle authentication token refresh as needed
+- API client includes request/response interceptors and comprehensive error handling
 
 ### Code Quality & Testing
 - **IMPORTANT**: Always run lint checks after coding changes: `pnpm lint`
