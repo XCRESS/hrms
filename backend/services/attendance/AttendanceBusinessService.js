@@ -338,6 +338,7 @@ export class AttendanceBusinessService {
   /**
    * Process attendance for a specific day
    * Determines the appropriate status and flags based on attendance record, leaves, and day type
+   * Priority: Attendance record > Leave > Holiday/Weekend
    * @param {Date} date - Target date
    * @param {Object} employee - Employee document
    * @param {Object} attendanceRecord - Attendance record (optional)
@@ -366,32 +367,7 @@ export class AttendanceBusinessService {
       reason: null
     };
 
-    // Handle holidays
-    if (dayType.type === 'holiday') {
-      result.status = ATTENDANCE_STATUS.ABSENT;
-      result.holidayTitle = dayType.holidayTitle;
-      result.flags = computeDayFlags(date, dayType, null);
-      return result;
-    }
-
-    // Handle weekends
-    if (dayType.type === 'weekend') {
-      result.status = ATTENDANCE_STATUS.ABSENT;
-      result.reason = dayType.reason;
-      result.flags = computeDayFlags(date, dayType, null);
-      return result;
-    }
-
-    // Handle approved leave
-    if (approvedLeave) {
-      result.status = ATTENDANCE_STATUS.ABSENT;
-      result.comments = `Leave: ${approvedLeave.leaveType || 'Approved'}`;
-      result.reason = approvedLeave.leaveReason || 'Approved leave';
-      result.flags = computeDayFlags(date, dayType, approvedLeave);
-      return result;
-    }
-
-    // Handle attendance record
+    // PRIORITY 1: Handle attendance record first (if someone checked in, they are present regardless of day type)
     if (attendanceRecord) {
       const workHours = calculateWorkHours(attendanceRecord.checkIn, attendanceRecord.checkOut);
       const statusResult = await this.determineAttendanceStatus(attendanceRecord.checkIn, attendanceRecord.checkOut, employee.department);
@@ -405,10 +381,40 @@ export class AttendanceBusinessService {
       result.reason = attendanceRecord.reason;
       result.location = attendanceRecord.location;
       
+      // Add holiday/weekend info to result if applicable, but keep Present status
+      if (dayType.type === 'holiday') {
+        result.holidayTitle = dayType.holidayTitle;
+      }
+      
       return result;
     }
 
-    // No attendance record for a working day - absent
+    // PRIORITY 2: Handle approved leave (only if no attendance record)
+    if (approvedLeave) {
+      result.status = ATTENDANCE_STATUS.ABSENT;
+      result.comments = `Leave: ${approvedLeave.leaveType || 'Approved'}`;
+      result.reason = approvedLeave.leaveReason || 'Approved leave';
+      result.flags = computeDayFlags(date, dayType, approvedLeave);
+      return result;
+    }
+
+    // PRIORITY 3: Handle holidays (only if no attendance record and no leave)
+    if (dayType.type === 'holiday') {
+      result.status = ATTENDANCE_STATUS.ABSENT;
+      result.holidayTitle = dayType.holidayTitle;
+      result.flags = computeDayFlags(date, dayType, null);
+      return result;
+    }
+
+    // PRIORITY 4: Handle weekends (only if no attendance record, no leave, and not a holiday)
+    if (dayType.type === 'weekend') {
+      result.status = ATTENDANCE_STATUS.ABSENT;
+      result.reason = dayType.reason;
+      result.flags = computeDayFlags(date, dayType, null);
+      return result;
+    }
+
+    // PRIORITY 5: No attendance record for a working day - absent
     result.reason = 'No check-in recorded';
     result.flags = computeDayFlags(date, dayType, null);
     return result;

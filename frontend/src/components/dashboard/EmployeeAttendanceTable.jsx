@@ -74,15 +74,22 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
           const day = String(new Date(record.date).getDate()).padStart(2, '0');
           const dateKey = `${year}-${month}-${day}`;
           
-          // Determine the proper status based on flags - prioritize holiday > weekend > leave over absent
+          // Keep backend status if present (attendance record takes priority)
+          // Only override with flag-based status if no actual attendance record exists
           let finalStatus = record.status || 'absent';
-          if (record.flags?.isHoliday) {
-            finalStatus = 'holiday';
-          } else if (record.flags?.isWeekend) {
-            finalStatus = 'weekend';
-          } else if (record.flags?.isLeave || record.status === 'leave') {
-            finalStatus = 'leave';
+          
+          // Only override status for flag-based statuses if there's no actual check-in
+          // Priority: Leave > Holiday > Weekend (matching backend logic)
+          if (!record.checkIn) {
+            if (record.flags?.isLeave || record.status === 'leave') {
+              finalStatus = 'leave';
+            } else if (record.flags?.isHoliday) {
+              finalStatus = 'holiday';
+            } else if (record.flags?.isWeekend) {
+              finalStatus = 'weekend';
+            }
           }
+          // If there's a check-in, trust the backend status (present/half-day/etc.)
           
           employeeRecord.weekData[dateKey] = {
             _id: record._id,
