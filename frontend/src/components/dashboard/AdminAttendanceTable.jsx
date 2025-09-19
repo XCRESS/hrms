@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
-import { formatTime, formatDate, toDateTimeLocal, getISTDateString, createDateTimeLocal, getMonthOptions, getAllDaysInMonth, BUSINESS_HOURS } from '@/utils/istUtils';
+import { formatTime, formatDate, getISTDateString, getMonthOptions, getAllDaysInMonth, BUSINESS_HOURS } from '@/utils/istUtils';
 
 // 🚀 OPTIMIZED: Custom Time Input Component with AM/PM support (memoized)
 const TimeInput = memo(({ value, onChange, className }) => {

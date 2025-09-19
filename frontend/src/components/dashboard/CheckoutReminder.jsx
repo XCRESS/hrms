@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Clock, X, Calendar } from 'lucide-react';
+import { formatDate as formatDateUtil, formatTime as formatTimeUtil } from '@/utils/istUtils';
 
 const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -8,22 +9,9 @@ const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss
     return null;
   }
 
-  const formatDate = (date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(new Date(date));
-  };
-
-  const formatTime = (date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).format(new Date(date));
-  };
+  // Use centralized utility functions
+  const formatDate = (date) => formatDateUtil(new Date(date), false, 'ddd MMM DD, YYYY');
+  const formatTime = (date) => formatTimeUtil(new Date(date));
 
   const handleRegularizationClick = (attendance) => {
     // Create default check-in and check-out times for the attendance date

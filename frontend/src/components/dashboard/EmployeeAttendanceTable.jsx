@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Heart, Calendar } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import useAuth from '@/hooks/authjwt';
-import { formatTime, formatDate, getISTDateString, getMonthOptions, getAllDaysInMonth } from '@/utils/istUtils';
+import { formatTime, getISTDateString } from '@/utils/istUtils';
 
 // 🚀 OPTIMIZED: Employee Attendance Table with memoization
 const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
