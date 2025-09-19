@@ -66,7 +66,7 @@ const dashboardInitialState = {
   },
   // Data states
   data: {
-    attendanceData: [],
+    attendanceReport: null, // Single comprehensive attendance report from backend
     holidaysData: [],
     leaveRequests: [],
     helpInquiries: [],
@@ -322,8 +322,7 @@ export default function HRMSDashboard() {
       const hasAllCachedData = Object.values(cachedData).every(cache => cache && !cache.loading);
       
       if (hasAllCachedData) {
-        // Load from cache
-        setData('attendanceData', cachedData.attendance.data || []);
+        setData('attendanceReport', cachedData.attendance.data || null);
         setData('leaveRequests', cachedData.leaveRequests.data || []);
         setData('helpInquiries', cachedData.helpInquiries.data || []);
         setData('regularizationRequests', cachedData.regularizations.data || []);
@@ -368,17 +367,9 @@ export default function HRMSDashboard() {
         endDate: endDate
       });
       
-      if (response.success && response.data?.records) {
-        const processedData = response.data.records.map(record => ({
-          ...record,
-          date: new Date(record.date),
-          checkIn: record.checkIn ? new Date(record.checkIn) : null,
-          checkOut: record.checkOut ? new Date(record.checkOut) : null
-        }));
-        
-        
-        setData('attendanceData', processedData);
-        setCachedData(CACHE_KEYS.DASHBOARD_ATTENDANCE, processedData);
+      if (response.success && response.data) {
+        setData('attendanceReport', response.data);
+        setCachedData(CACHE_KEYS.DASHBOARD_ATTENDANCE, response.data);
       }
     } catch (error) {
       console.error("Error loading attendance data:", error);
@@ -1069,8 +1060,8 @@ export default function HRMSDashboard() {
                       <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Overview</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
-                      <AttendanceStats 
-                        attendanceData={data.attendanceData || []}
+                      <AttendanceStats
+                        attendanceReport={data.attendanceReport}
                         isLoading={isLoading}
                       />
                     </Suspense>
@@ -1102,11 +1093,11 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">This Week</h2>
+                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">This Month</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
-                      <WeeklySummary 
-                        attendanceData={data.attendanceData || []}
+                      <WeeklySummary
+                        attendanceReport={data.attendanceReport}
                       />
                     </Suspense>
                   </div>

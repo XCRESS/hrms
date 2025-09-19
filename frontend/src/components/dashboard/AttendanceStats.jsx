@@ -1,12 +1,7 @@
-import React, { useMemo, memo, useState, useEffect } from "react";
+import React, { useMemo, memo } from "react";
 import { Calendar, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
-import apiClient from '@/service/apiClient';
-import useAuth from '@/hooks/authjwt';
 
-const AttendanceStats = ({ attendanceData, isLoading = false }) => {
-  const user = useAuth();
-  const [backendStats, setBackendStats] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(false);
+const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
   const currentDate = new Date();
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -14,94 +9,36 @@ const AttendanceStats = ({ attendanceData, isLoading = false }) => {
     0
   ).getDate();
 
-  // Fetch backend statistics for accurate calculation
-  useEffect(() => {
-    const fetchBackendStats = async () => {
-      if (!user?.employeeId) return;
-      
-      try {
-        setStatsLoading(true);
-        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10);
-        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10);
-        
-        const response = await apiClient.getEmployeeAttendanceWithAbsents({
-          employeeId: user.employeeId,
-          startDate,
-          endDate
-        });
-        
-        if (response.success) {
-          setBackendStats({
-            workingDays: response.data.attendancePercentage.totalWorkingDays,
-            presentDays: response.data.attendancePercentage.presentDays,
-            absentDays: response.data.attendancePercentage.absentDays,
-            statistics: response.data.statistics,
-            attendancePercentage: response.data.attendancePercentage.percentage
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch backend stats:', error);
-        setBackendStats(null);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
+  // Extract data from attendance report
+  const workingDaysInMonth = attendanceReport?.attendancePercentage?.totalWorkingDays || 0;
+  const weekendsInMonth = attendanceReport?.statistics?.weekend || 0;
+  const holidaysInMonth = attendanceReport?.statistics?.holiday || 0;
 
-    fetchBackendStats();
-  }, [user?.employeeId]);
-
-  // Use backend working days - no fallback, fail if backend fails
-  const workingDaysInMonth = useMemo(() => {
-    if (backendStats && backendStats.workingDays !== null) {
-      return backendStats.workingDays;
-    }
-    
-    // No data available - show error state
-    return 0;
-  }, [backendStats]);
-  
-  // Use backend data for weekends and holidays
-  const weekendsInMonth = useMemo(() => {
-    return backendStats ? backendStats.statistics.weekend : 0;
-  }, [backendStats]);
-
-  const holidaysInMonth = useMemo(() => {
-    return backendStats ? backendStats.statistics.holiday : 0;
-  }, [backendStats]);
-
-  // Use backend statistics - no fallback, fail if backend fails
+  // Extract attendance statistics
   const attendanceStats = useMemo(() => {
-    if (backendStats) {
+    if (attendanceReport) {
       return {
-        presentDays: backendStats.presentDays,
-        absentDays: backendStats.absentDays,
-        halfDays: backendStats.statistics.halfDay,
-        invalidDays: backendStats.statistics.present - backendStats.presentDays, // Incomplete checkouts
-        relevantAttendanceData: attendanceData
+        presentDays: attendanceReport.attendancePercentage?.presentDays || 0,
+        absentDays: attendanceReport.attendancePercentage?.absentDays || 0,
+        halfDays: attendanceReport.statistics?.halfDay || 0,
+        invalidDays: Math.max(0,
+          (attendanceReport.statistics?.present || 0) +
+          (attendanceReport.statistics?.halfDay || 0) -
+          (attendanceReport.attendancePercentage?.presentDays || 0)
+        )
       };
     }
-    
-    // No backend stats - return error state
+
     return {
       presentDays: 0,
       absentDays: 0,
       halfDays: 0,
-      invalidDays: 0,
-      relevantAttendanceData: []
+      invalidDays: 0
     };
-  }, [backendStats, attendanceData]);
+  }, [attendanceReport]);
 
-  // Use backend attendance percentage when available
-  const attendancePercentage = useMemo(() => {
-    if (backendStats && backendStats.attendancePercentage !== undefined) {
-      return backendStats.attendancePercentage.toFixed(1);
-    }
-    
-    if (workingDaysInMonth <= 0) return "0.0";
-    // Present days now includes half-days and invalid days (missing checkouts)
-    const effectivePresentDays = attendanceStats.presentDays - attendanceStats.halfDays + (attendanceStats.halfDays * 0.5); // Half days count as 0.5
-    return Math.min((effectivePresentDays / workingDaysInMonth) * 100, 100).toFixed(1);
-  }, [workingDaysInMonth, attendanceStats, backendStats]);
+  // Get attendance percentage from backend
+  const attendancePercentage = attendanceReport?.attendancePercentage?.percentage?.toFixed(1) || "0.0";
 
   // Use backend working days for calculations
   const workingDaysToDate = workingDaysInMonth;
@@ -121,13 +58,13 @@ const AttendanceStats = ({ attendanceData, isLoading = false }) => {
         workingDays: workingDaysInMonth
       }
     },
-    { title: "Present Days", value: attendanceStats.presentDays, icon: CheckCircle, color: "green", barWidth: `${attendancePercentage}%`, subText: `${attendancePercentage}% att.` },
+    { title: "Present Days", value: attendanceStats.presentDays, icon: CheckCircle, color: "green", barWidth: `${attendancePercentage}%`, subText: `${attendancePercentage}% att. (incl. half-days)` },
     { title: "Absent Days", value: attendanceStats.absentDays, icon: XCircle, color: "red", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.absentDays / workingDaysToDate) * 100 : 0}%` },
     { title: "Half Days", value: attendanceStats.halfDays, icon: AlertCircle, color: "amber", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.halfDays / workingDaysToDate) * 100 : 0}%` },
-    { title: "Invalid Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
+    { title: "Incomplete Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
   ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate, weekendsInMonth, holidaysInMonth]);
 
-  if (isLoading || statsLoading) {
+  if (isLoading) {
     return (
       <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
         {[...Array(5)].map((_, index) => (

@@ -27,139 +27,99 @@ import {
   Award
 } from 'lucide-react';
 
-const WeeklySummary = ({ attendanceData }) => {
+const WeeklySummary = ({ attendanceReport }) => {
   const monthlyMetrics = useMemo(() => {
+    // Use backend data if available, otherwise return empty state
+    if (!attendanceReport) {
+      return {
+        monthDays: [],
+        workDays: [],
+        presentDays: 0,
+        purePresent: 0,
+        halfDays: 0,
+        absentDays: 0,
+        leaveDays: 0,
+        weekendDays: 0,
+        holidayDays: 0,
+        totalHoursWorked: 0,
+        expectedHours: 0,
+        avgDailyHours: 0,
+        attendanceRate: 0,
+        avgProductivity: 0,
+        overtimeHours: 0,
+        efficiency: 0,
+        checkInPattern: [],
+        avgCheckInTime: 9,
+        pastWorkDays: 0,
+        recentWorkDays: []
+      };
+    }
+
+    // Extract data from backend report
+    const records = attendanceReport.records || [];
+    const statistics = attendanceReport.statistics || {};
+    const attendancePercentage = attendanceReport.attendancePercentage || {};
+
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    startOfMonth.setHours(0, 0, 0, 0);
 
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    endOfMonth.setHours(23, 59, 59, 999);
+    // Use backend data directly - already filtered and processed
+    const thisMonthData = records;
 
-    const safeAttendanceData = Array.isArray(attendanceData) ? attendanceData : [];
-    
-    // Filter this month's data
-    const thisMonthData = safeAttendanceData.filter(record => {
-      if (!record?.date) return false;
+    // Convert backend records to frontend format for charts
+    const monthDays = thisMonthData.map(record => {
       const recordDate = new Date(record.date);
-      return recordDate >= startOfMonth && recordDate <= endOfMonth;
-    });
+      const checkInTime = record.checkIn ? new Date(record.checkIn) : null;
+      const checkOutTime = record.checkOut ? new Date(record.checkOut) : null;
+      const hoursWorked = record.workHours || 0;
 
-    // Helper function to check if date is a working day
-    const isWorkingDayForCompany = (date) => {
-      const dayOfWeek = date.getDay();
-      
-      // Sunday is always a non-working day
-      if (dayOfWeek === 0) {
-        return false;
-      }
-      
-      // Saturday logic: exclude 2nd Saturday of the month
-      if (dayOfWeek === 6) {
-        const dateNum = date.getDate();
-        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-        const secondSaturday = firstSaturday + 7;
-        
-        // If this Saturday is the 2nd Saturday, it's a non-working day
-        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-          return false;
-        }
-      }
-      
-      return true;
-    };
-
-    // Generate all working days in the month
-    const monthDays = [];
-    const currentDate = new Date(startOfMonth);
-    
-    while (currentDate <= endOfMonth) {
-      const dayRecord = thisMonthData.find(record => {
-        const recordDate = new Date(record.date);
-        return recordDate.toDateString() === currentDate.toDateString();
-      });
-
-      const isWorkDay = isWorkingDayForCompany(currentDate);
-      const isPastDay = currentDate <= today;
-      
-      let status = 'not-marked';
-      let hoursWorked = 0;
-      let checkInTime = null;
-      let checkOutTime = null;
+      // Calculate productivity based on backend status and hours
       let productivity = 0;
-      
-      if (dayRecord) {
-        status = dayRecord.status || 'not-marked';
-        checkInTime = dayRecord.checkIn ? new Date(dayRecord.checkIn) : null;
-        checkOutTime = dayRecord.checkOut ? new Date(dayRecord.checkOut) : null;
-        
-        if (checkInTime && checkOutTime) {
-          hoursWorked = Math.max(0, (checkOutTime - checkInTime) / (1000 * 60 * 60));
-        }
-        
-        // Calculate productivity based on hours and timing
-        if (status === 'present' && hoursWorked > 0) {
-          const expectedHours = 8;
-          const timeEfficiency = Math.min(hoursWorked / expectedHours, 1.2); // Cap at 120%
-          
-          // Factor in punctuality (9:40 AM is ideal start time)
-          const idealStartHour = 9;
-          const idealStartMinutes = 40;
-          const idealStartTime = idealStartHour + (idealStartMinutes / 60); // 9.67 hours          
-          const punctualityScore = checkInTime ? 
-            Math.max(0, 1 - Math.max(0, (checkInTime.getHours() + (checkInTime.getMinutes() / 60)) - idealStartTime) * 0.1) : 0.5;
-          
-          productivity = Math.round((timeEfficiency * punctualityScore * 100));
-        } else if (status === 'half-day') {
-          productivity = 50;
-        }
-      } else if (!isWorkDay) {
-        // Set status for weekends when no record exists
-        status = 'weekend';
-      } else {
-        // No record for a working day - mark as absent only if past day
-        if (isPastDay) {
-          status = 'absent';
-        }
+      if (record.status === 'present' && hoursWorked > 0) {
+        const expectedHours = 8;
+        const timeEfficiency = Math.min(hoursWorked / expectedHours, 1.2);
+
+        // Factor in punctuality
+        const idealStartTime = 9.67; // 9:40 AM
+        const punctualityScore = checkInTime ?
+          Math.max(0, 1 - Math.max(0, (checkInTime.getHours() + (checkInTime.getMinutes() / 60)) - idealStartTime) * 0.1) : 0.5;
+
+        productivity = Math.round((timeEfficiency * punctualityScore * 100));
+      } else if (record.status === 'half-day') {
+        productivity = 50;
       }
 
-      monthDays.push({
-        day: currentDate.getDate(),
-        date: currentDate.getDate(),
-        fullDate: new Date(currentDate),
-        status,
+      return {
+        day: recordDate.getDate(),
+        date: recordDate.getDate(),
+        fullDate: recordDate,
+        status: record.status,
         hoursWorked: Math.round(hoursWorked * 100) / 100,
         checkInTime,
         checkOutTime,
         productivity: Math.min(100, productivity),
-        isWorkDay,
-        isPastDay
-      });
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+        isWorkDay: !record.flags?.isWeekend && !record.flags?.isHoliday,
+        isPastDay: recordDate <= today
+      };
+    });
 
-    // Calculate summary metrics - only count working days for work-related stats
+    // Use backend statistics directly instead of recalculating
     const workDays = monthDays.filter(day => day.isWorkDay);
     const pastWorkDays = workDays.filter(day => day.isPastDay);
-    
-    // Count only work-related statuses from working days
-    const presentDays = workDays.filter(day => day.status === 'present').length;
-    const halfDays = workDays.filter(day => day.status === 'half-day').length;
-    const absentDays = pastWorkDays.filter(day => day.status === 'absent').length;
-    const leaveDays = workDays.filter(day => day.status === 'leave').length;
-    
-    // Count non-working days separately (these shouldn't be in attendance distribution)
-    const weekendDays = monthDays.filter(day => day.status === 'weekend').length;
-    const holidayDays = monthDays.filter(day => day.status === 'holiday').length;
+
+    // Use backend statistics for accurate counts
+    const purePresent = statistics.present || 0;
+    const halfDays = statistics.halfDay || 0;
+    const presentDays = attendancePercentage.presentDays || 0; // Backend includes half-days in present count
+    const absentDays = attendancePercentage.absentDays || 0;
+    const leaveDays = statistics.leave || 0;
+    const weekendDays = statistics.weekend || 0;
+    const holidayDays = statistics.holiday || 0;
     
     const totalHoursWorked = workDays.reduce((sum, day) => sum + day.hoursWorked, 0);
     const expectedHours = pastWorkDays.length * 8;
     const avgDailyHours = pastWorkDays.length > 0 ? totalHoursWorked / pastWorkDays.length : 0;
     
-    const attendanceRate = pastWorkDays.length > 0 ? 
-      Math.round(((presentDays + (halfDays * 0.5)) / pastWorkDays.length) * 100) : 100;
+    const attendanceRate = attendancePercentage.percentage || 0;
     
     const avgProductivity = workDays.length > 0 ? 
       Math.round(workDays.reduce((sum, day) => sum + day.productivity, 0) / workDays.length) : 0;
@@ -183,7 +143,8 @@ const WeeklySummary = ({ attendanceData }) => {
     return {
       monthDays,
       workDays,
-      presentDays,
+      presentDays, // Includes both present and half-day records
+      purePresent, // Only pure present records (excludes half-days)
       halfDays,
       absentDays,
       leaveDays,
@@ -201,7 +162,7 @@ const WeeklySummary = ({ attendanceData }) => {
       pastWorkDays: pastWorkDays.length,
       recentWorkDays
     };
-  }, [attendanceData]);
+  }, [attendanceReport]);
 
   // Chart color schemes
   const chartColors = {
@@ -215,7 +176,7 @@ const WeeklySummary = ({ attendanceData }) => {
 
   // Status distribution data for pie chart - only work-related statuses
   const statusData = [
-    { name: 'Present', value: monthlyMetrics.presentDays, color: chartColors.secondary },
+    { name: 'Present', value: monthlyMetrics.purePresent, color: chartColors.secondary },
     { name: 'Half Day', value: monthlyMetrics.halfDays, color: chartColors.accent },
     { name: 'Absent', value: monthlyMetrics.absentDays, color: chartColors.danger },
     { name: 'Leave', value: monthlyMetrics.leaveDays, color: chartColors.purple }
@@ -307,7 +268,7 @@ const WeeklySummary = ({ attendanceData }) => {
           icon={CheckCircle}
           title="Present Days"
           value={`${monthlyMetrics.presentDays}/${monthlyMetrics.pastWorkDays}`}
-          subtitle="This month"
+          subtitle="This month (incl. half-days)"
           color="green"
         />
         <MetricCard
