@@ -6,7 +6,7 @@ import RequestDetailModal from './RequestDetailModal';
 import { formatDate } from '@/utils/istUtils';
 
 
-const AdminPendingRequests = ({ onRefresh }) => {
+const AdminPendingRequests = () => {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);

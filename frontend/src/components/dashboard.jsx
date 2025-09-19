@@ -136,7 +136,7 @@ export default function HRMSDashboard() {
   const [dashboardState, dispatch] = useReducer(dashboardReducer, dashboardInitialState);
   
   // 🚀 CACHE OPTIMIZATION: Use data cache for persistent data across routes
-  const { getCachedData, setCachedData, invalidateCachePattern, clearCache, invalidateCache } = useDataCache();
+  const { getCachedData, setCachedData, invalidateCachePattern, invalidateCache } = useDataCache();
   
   // Ref for scrolling to pending requests section
   const pendingRequestsRef = useRef(null);
@@ -373,6 +373,7 @@ export default function HRMSDashboard() {
       }
     } catch (error) {
       console.error("Error loading attendance data:", error);
+      setData('attendanceReport', null);
     }
   };
 
@@ -384,7 +385,8 @@ export default function HRMSDashboard() {
         setData('adminSummary', summaryRes.data);
       }
     } catch (error) {
-      // console.error("Failed to load admin dashboard data:", error);
+      console.error("Failed to load admin dashboard data:", error);
+      setData('adminSummary', null);
     } finally {
       setLoading('loadingAdminData', false);
     }
@@ -405,7 +407,8 @@ export default function HRMSDashboard() {
         setCachedData(CACHE_KEYS.DASHBOARD_HOLIDAYS, mapped);
       }
     } catch (error) {
-      // console.error("Failed to load holidays:", error);
+      console.error("Failed to load holidays:", error);
+      setData('holidaysData', []);
     }
   };
 
@@ -417,7 +420,8 @@ export default function HRMSDashboard() {
       setData('announcements', processedAnns);
       setCachedData(CACHE_KEYS.DASHBOARD_ANNOUNCEMENTS, processedAnns);
     } catch (error) {
-      // console.error("Failed to load announcements:", error);
+      console.error("Failed to load announcements:", error);
+      setData('announcements', []);
     }
   };
 
@@ -436,7 +440,8 @@ export default function HRMSDashboard() {
         setCachedData(CACHE_KEYS.DASHBOARD_LEAVE_REQUESTS, formattedLeaves);
       }
     } catch (error) {
-      // console.error("Failed to load leave requests:", error);
+      console.error("Failed to load leave requests:", error);
+      setData('leaveRequests', []);
     }
   };
 
@@ -453,7 +458,8 @@ export default function HRMSDashboard() {
         setData('helpInquiries', formattedInquiries);
       }
     } catch (error) {
-      // console.error("Failed to load help inquiries:", error);
+      console.error("Failed to load help inquiries:", error);
+      setData('helpInquiries', []);
     }
   };
 
@@ -461,8 +467,9 @@ export default function HRMSDashboard() {
     try {
       const res = await apiClient.getMyRegularizations();
       setData('regularizationRequests', res.regs || []);
-    } catch (err) {
-      // console.error("Failed to load regularization requests:", err);
+    } catch (error) {
+      console.error("Failed to load regularization requests:", error);
+      setData('regularizationRequests', []);
     }
   };
 
@@ -472,8 +479,8 @@ export default function HRMSDashboard() {
       if (window.refreshMissingCheckouts) {
         window.refreshMissingCheckouts();
       }
-    } catch (err) {
-      // console.error("Failed to load missing checkouts:", err);
+    } catch (error) {
+      console.error("Failed to load missing checkouts:", error);
     }
   };
 
@@ -910,19 +917,6 @@ export default function HRMSDashboard() {
     return types[type] || type;
   }, []);
 
-  const calculateAttendancePercentage = useCallback(() => {
-    // Use a fixed date instead of currentTime to prevent constant re-renders
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const presentDays = (data.attendanceData || []).filter(day => day.status === "present").length;
-    const holidaysCount = (data.holidaysData || []).length;
-    const workingDays = daysInMonth - holidaysCount;
-    
-    if (workingDays <= 0) return "0.0";
-    return Math.min((presentDays / workingDays) * 100, 100).toFixed(1);
-  }, [data.attendanceData, data.holidaysData]);
 
   // Merge all requests for the unified table
   const allRequests = [
@@ -972,7 +966,7 @@ export default function HRMSDashboard() {
           window.refreshPendingRequests();
         }
       } catch (error) {
-        // console.error("Failed to refresh admin dashboard:", error);
+        console.error("Failed to refresh admin dashboard:", error);
       } finally {
         setLoading('isLoading', false);
       }
@@ -1031,7 +1025,7 @@ export default function HRMSDashboard() {
                       </div>
                       <Suspense fallback={<ComponentSkeleton />}>
                         <div ref={pendingRequestsRef}>
-                          <AdminPendingRequests onRefresh={refreshAdminDashboard} />
+                          <AdminPendingRequests />
                         </div>
                       </Suspense>
                     </div>
