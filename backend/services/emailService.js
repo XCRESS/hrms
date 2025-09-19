@@ -292,7 +292,7 @@ class EmailService {
 
   getTemplate(type, data) {
     const templates = {
-      leave_request: {
+      leave_request: () => ({
         subject: `🏖️ New Leave Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -318,9 +318,9 @@ class EmailService {
           
           ${this.getActionButton('Review Request', '#10b981')}
         `)
-      },
+      }),
 
-      help_request: {
+      help_request: () => ({
         subject: `🆘 New Help Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -345,9 +345,9 @@ class EmailService {
           
           ${this.getActionButton('Respond in HRMS', '#3b82f6')}
         `)
-      },
+      }),  
 
-      regularization_request: {
+      regularization_request: () => ({
         subject: `⏰ New Regularization Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -374,9 +374,9 @@ class EmailService {
           
           ${this.getActionButton('Review Request', '#8b5cf6')}
         `)
-      },
+      }),
 
-      holiday_reminder: {
+      holiday_reminder: () => ({
         subject: `🏖️ Holiday Reminder - ${data.title}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -403,9 +403,9 @@ class EmailService {
             </p>
           </div>
         `)
-      },
+      }),
 
-      announcement: {
+      announcement: () => ({
         subject: `📢 ${data.title}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -432,9 +432,9 @@ class EmailService {
             </p>
           </div>
         `)
-      },
+      }),
 
-      employee_milestone: {
+      employee_milestone: () => ({
         subject: `🏆 Employee Milestone Alert - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -469,9 +469,9 @@ class EmailService {
             </p>
           </div>
         `)
-      },
+      }),
 
-      leave_status_update: {
+      leave_status_update: () => ({
         subject: `📋 Leave Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -508,9 +508,9 @@ class EmailService {
             ` : ''}
           </div>
         `)
-      },
+      }),
 
-      regularization_status_update: {
+      regularization_status_update: () => ({
         subject: `⏰ Regularization Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
@@ -548,9 +548,9 @@ class EmailService {
             ` : ''}
           </div>
         `)
-      },
+      }),
 
-      birthday_wish: {
+      birthday_wish: () => ({
         subject: `🎉 Happy Birthday ${data.employee}!`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 40px;">
@@ -601,10 +601,15 @@ class EmailService {
             </p>
           </div>
         `)
-      }
+      })
     };
 
-    return templates[type] || {
+    const template = templates[type];
+    if (template) {
+      return template();
+    }
+    
+    return {
       subject: 'HRMS Notification',
       htmlContent: this.getBaseEmailTemplate(`
         <div style="text-align: center; padding: 40px 0;">
