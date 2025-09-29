@@ -194,13 +194,19 @@ export const reviewRegularization = async (req, res) => {
         return res.status(400).json({ message: "At least check-in or check-out time must be provided for regularization." });
       }
 
+      // Validate time sequence if both are provided
+      if (checkInTime && checkOutTime && checkInTime >= checkOutTime) {
+        console.error("Check-in time must be before check-out time");
+        return res.status(400).json({ message: "Check-in time must be before check-out time." });
+      }
+
       console.log("Regularization times:", {
         checkIn: checkInTime,
         checkOut: checkOutTime,
         date: reg.date
       });
 
-      // Find existing attendance record first
+      // Find or create attendance record
       // Use IST-aware date matching to avoid timezone issues
       const regDate = new Date(reg.date);
 
@@ -216,24 +222,24 @@ export const reviewRegularization = async (req, res) => {
         }
       });
 
-      // Context-aware validation based on existing attendance record
+      // Context-aware validation: if no existing record, check-in is required
       if (!att && !checkInTime) {
         console.error("No existing attendance record and no check-in time provided");
         return res.status(400).json({
           message: "Check-in time is required when no existing attendance record exists for the date."
         });
       }
-      
-      console.log("Date matching:", { 
+
+      console.log("Date matching:", {
         regularizationDate: reg.date,
         startOfDay: startOfDay,
         endOfDay: endOfDay,
         foundAttendance: !!att,
-        attendanceDate: att?.date 
+        attendanceDate: att?.date
       });
-      
+
       console.log("Existing attendance record:", !!att);
-      
+
       if (!att) {
         // Create new attendance record
         const attendanceData = {
