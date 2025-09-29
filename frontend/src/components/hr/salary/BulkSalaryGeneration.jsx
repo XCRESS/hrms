@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
+import {
   ArrowLeft,
-  Users, 
+  Users,
   Calendar,
   FileText,
   CheckCircle,
   AlertCircle,
-  Search
+  Search,
+  Calculator
 } from "lucide-react";
 import apiClient from "../../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
@@ -23,6 +24,7 @@ const BulkSalaryGeneration = ({ employees = [], onBack }) => {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [taxRegime, setTaxRegime] = useState('new');
+  const [enableTaxDeduction, setEnableTaxDeduction] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [generationResults, setGenerationResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -133,7 +135,8 @@ const BulkSalaryGeneration = ({ employees = [], onBack }) => {
             month,
             year,
             earnings: salaryStructure.earnings,
-            taxRegime
+            taxRegime,
+            enableTaxDeduction
           });
 
           results.push({
@@ -164,7 +167,7 @@ const BulkSalaryGeneration = ({ employees = [], onBack }) => {
         description: `${successCount} salary slips generated successfully. ${errorCount} failed.`,
         variant: successCount > 0 ? "default" : "destructive"
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to generate salary slips",
@@ -284,62 +287,112 @@ const BulkSalaryGeneration = ({ employees = [], onBack }) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Month</Label>
-                <Select value={month.toString()} onValueChange={(value) => setMonth(parseInt(value))}>
-                  <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                    <SelectValue placeholder="Select Month" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                    {months.map(m => (
-                      <SelectItem 
-                        key={m.value} 
-                        value={m.value.toString()}
-                        className="dark:text-slate-100 dark:focus:bg-slate-700"
-                      >
-                        {m.label}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Month</Label>
+                  <Select value={month.toString()} onValueChange={(value) => setMonth(parseInt(value))}>
+                    <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
+                      <SelectValue placeholder="Select Month" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
+                      {months.map(m => (
+                        <SelectItem
+                          key={m.value}
+                          value={m.value.toString()}
+                          className="dark:text-slate-100 dark:focus:bg-slate-700"
+                        >
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Year</Label>
+                  <Select value={year.toString()} onValueChange={(value) => setYear(parseInt(value))}>
+                    <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
+                      <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
+                      {[2023, 2024, 2025, 2026].map(y => (
+                        <SelectItem
+                          key={y}
+                          value={y.toString()}
+                          className="dark:text-slate-100 dark:focus:bg-slate-700"
+                        >
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Tax Regime</Label>
+                  <Select
+                    value={taxRegime}
+                    onValueChange={setTaxRegime}
+                    disabled={!enableTaxDeduction}
+                  >
+                    <SelectTrigger className={`dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100 ${
+                      !enableTaxDeduction ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}>
+                      <SelectValue placeholder="Select Tax Regime" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
+                      <SelectItem value="new" className="dark:text-slate-100 dark:focus:bg-slate-700">
+                        New Tax Regime
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      <SelectItem value="old" className="dark:text-slate-100 dark:focus:bg-slate-700">
+                        Old Tax Regime
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {!enableTaxDeduction && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Tax regime selection is disabled when tax deduction is turned off
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Year</Label>
-                <Select value={year.toString()} onValueChange={(value) => setYear(parseInt(value))}>
-                  <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                    <SelectValue placeholder="Select Year" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                    {[2023, 2024, 2025, 2026].map(y => (
-                      <SelectItem 
-                        key={y} 
-                        value={y.toString()}
-                        className="dark:text-slate-100 dark:focus:bg-slate-700"
-                      >
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Tax Regime</Label>
-                <Select value={taxRegime} onValueChange={setTaxRegime}>
-                  <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                    <SelectValue placeholder="Select Tax Regime" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                    <SelectItem value="new" className="dark:text-slate-100 dark:focus:bg-slate-700">
-                      New Tax Regime
-                    </SelectItem>
-                    <SelectItem value="old" className="dark:text-slate-100 dark:focus:bg-slate-700">
-                      Old Tax Regime
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Tax Configuration */}
+              <div className="border-t border-slate-200 dark:border-slate-600 pt-6">
+                <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <Calculator className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <Label className="text-slate-900 dark:text-slate-100 font-medium">Enable Tax Deduction</Label>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Toggle to include or exclude tax calculation for all selected employees
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setEnableTaxDeduction(!enableTaxDeduction)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        enableTaxDeduction
+                          ? 'bg-blue-600 dark:bg-blue-500'
+                          : 'bg-slate-300 dark:bg-slate-600'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          enableTaxDeduction ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className="ml-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {enableTaxDeduction ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>

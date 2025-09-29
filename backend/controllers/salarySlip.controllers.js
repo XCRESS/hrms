@@ -5,7 +5,7 @@ import { formatResponse } from "../utils/response.js";
 // Create or update salary slip
 export const createOrUpdateSalarySlip = async (req, res) => {
   try {
-    const { employeeId, month, year, earnings, deductions = {}, taxRegime = 'new' } = req.body;
+    const { employeeId, month, year, earnings, deductions = {}, taxRegime = 'new', enableTaxDeduction = true } = req.body;
 
     // Validate required fields
     if (!employeeId || !month || !year || !earnings || !earnings.basic) {
@@ -38,6 +38,7 @@ export const createOrUpdateSalarySlip = async (req, res) => {
         customDeductions: deductions.customDeductions || []
       },
       taxRegime,
+      enableTaxDeduction,
       createdBy: req.user._id
     };
 
