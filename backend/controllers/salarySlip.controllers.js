@@ -245,7 +245,7 @@ export const getTaxCalculation = async (req, res) => {
       employee: null,
       employeeId: 'temp',
       month: 1,
-      year: 2024,
+      year: 2025,
       earnings: { basic: 0 },
       taxRegime,
       createdBy: null
@@ -261,7 +261,9 @@ export const getTaxCalculation = async (req, res) => {
       monthlyTax,
       annualTax,
       taxRegime,
-      standardDeduction: taxRegime === 'new' ? 75000 : 50000
+      standardDeduction: taxRegime === 'new' ? 75000 : 50000,
+      rebateLimit: taxRegime === 'new' ? 1200000 : 500000,
+      maxRebate: taxRegime === 'new' ? 60000 : 12500
     }));
   } catch (error) {
     console.error("Error calculating tax:", error);

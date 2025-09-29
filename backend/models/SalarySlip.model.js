@@ -168,41 +168,43 @@ salarySlipSchema.methods.calculateIncomeTax = function(annualSalary, regime = 'n
   }
 };
 
-// New tax regime calculation (FY 2024-25)
+// New tax regime calculation (FY 2025-26)
 salarySlipSchema.methods.calculateNewRegimeTax = function(annualSalary) {
   // Standard deduction for salaried employees
   const standardDeduction = 75000;
   const taxableIncome = Math.max(0, annualSalary - standardDeduction);
-  
+
   let tax = 0;
-  
-  // New regime tax slabs for FY 2024-25
-  if (taxableIncome <= 300000) {
+
+  // New regime tax slabs for FY 2025-26 as per Budget 2025
+  if (taxableIncome <= 400000) {
     tax = 0;
-  } else if (taxableIncome <= 700000) {
-    tax = (taxableIncome - 300000) * 0.05;
-  } else if (taxableIncome <= 1000000) {
-    tax = 400000 * 0.05 + (taxableIncome - 700000) * 0.10;
+  } else if (taxableIncome <= 800000) {
+    tax = (taxableIncome - 400000) * 0.05;
   } else if (taxableIncome <= 1200000) {
-    tax = 400000 * 0.05 + 300000 * 0.10 + (taxableIncome - 1000000) * 0.15;
-  } else if (taxableIncome <= 1500000) {
-    tax = 400000 * 0.05 + 300000 * 0.10 + 200000 * 0.15 + (taxableIncome - 1200000) * 0.20;
+    tax = 400000 * 0.05 + (taxableIncome - 800000) * 0.10;
+  } else if (taxableIncome <= 1600000) {
+    tax = 400000 * 0.05 + 400000 * 0.10 + (taxableIncome - 1200000) * 0.15;
+  } else if (taxableIncome <= 2000000) {
+    tax = 400000 * 0.05 + 400000 * 0.10 + 400000 * 0.15 + (taxableIncome - 1600000) * 0.20;
+  } else if (taxableIncome <= 2400000) {
+    tax = 400000 * 0.05 + 400000 * 0.10 + 400000 * 0.15 + 400000 * 0.20 + (taxableIncome - 2000000) * 0.25;
   } else {
-    tax = 400000 * 0.05 + 300000 * 0.10 + 200000 * 0.15 + 300000 * 0.20 + (taxableIncome - 1500000) * 0.30;
+    tax = 400000 * 0.05 + 400000 * 0.10 + 400000 * 0.15 + 400000 * 0.20 + 400000 * 0.25 + (taxableIncome - 2400000) * 0.30;
   }
-  
-  // Apply rebate under Section 87A (up to Rs. 25,000 for income up to Rs. 7,00,000)
-  if (taxableIncome <= 700000) {
-    tax = Math.max(0, tax - 25000);
+
+  // Apply enhanced rebate under Section 87A (up to Rs. 60,000 for income up to Rs. 12,00,000)
+  if (taxableIncome <= 1200000) {
+    tax = Math.max(0, tax - 60000);
   }
-  
+
   // Add health and education cess (4%)
   tax = tax * 1.04;
-  
+
   return Math.max(0, tax);
 };
 
-// Old tax regime calculation (FY 2024-25)
+// Old tax regime calculation (FY 2025-26)
 salarySlipSchema.methods.calculateOldRegimeTax = function(annualSalary) {
   // Standard deduction for salaried employees in old regime
   const standardDeduction = 50000;
