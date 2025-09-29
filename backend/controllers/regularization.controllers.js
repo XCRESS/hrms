@@ -184,36 +184,45 @@ export const reviewRegularization = async (req, res) => {
         return res.status(404).json({ message: "Employee not found for regularization." });
       }
       
-      if (!reg.requestedCheckIn) {
-        console.error("No requested check-in time found");
-        return res.status(400).json({ message: "Requested check-in time is required for attendance regularization." });
-      }
-      
       // Use the stored times directly as they're already in UTC
       const checkInTime = reg.requestedCheckIn;
       const checkOutTime = reg.requestedCheckOut;
-      
-      console.log("Regularization times:", { 
-        checkIn: checkInTime, 
+
+      // Validate that at least one time is provided
+      if (!checkInTime && !checkOutTime) {
+        console.error("No check-in or check-out time provided");
+        return res.status(400).json({ message: "At least check-in or check-out time must be provided for regularization." });
+      }
+
+      console.log("Regularization times:", {
+        checkIn: checkInTime,
         checkOut: checkOutTime,
-        date: reg.date 
+        date: reg.date
       });
-      
-      // Find or create attendance record
+
+      // Find existing attendance record first
       // Use IST-aware date matching to avoid timezone issues
       const regDate = new Date(reg.date);
-      
+
       // Create IST day boundaries using local date methods (not UTC)
       const startOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 23, 59, 59, 999);
-      
-      let att = await Attendance.findOne({ 
-        employee: employeeDoc._id, 
+
+      let att = await Attendance.findOne({
+        employee: employeeDoc._id,
         date: {
           $gte: startOfDay,
           $lte: endOfDay
         }
       });
+
+      // Context-aware validation based on existing attendance record
+      if (!att && !checkInTime) {
+        console.error("No existing attendance record and no check-in time provided");
+        return res.status(400).json({
+          message: "Check-in time is required when no existing attendance record exists for the date."
+        });
+      }
       
       console.log("Date matching:", { 
         regularizationDate: reg.date,
