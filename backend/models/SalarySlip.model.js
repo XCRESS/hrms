@@ -100,6 +100,10 @@ const salarySlipSchema = new mongoose.Schema({
     enum: ["old", "new"],
     default: "new"
   },
+  enableTaxDeduction: {
+    type: Boolean,
+    default: true
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -128,12 +132,18 @@ salarySlipSchema.pre('save', function(next) {
     // Calculate custom deductions total first
     const customDeductionsTotal = (this.deductions.customDeductions || []).reduce((sum, deduction) => sum + deduction.amount, 0);
     
-    // Calculate taxable income (gross salary minus custom deductions)
-    const taxableMonthlyIncome = this.grossSalary - customDeductionsTotal;
-    const annualTaxableIncome = Math.max(0, taxableMonthlyIncome * 12);
-    
-    // Calculate income tax based on selected regime on taxable income
-    this.deductions.incomeTax = this.calculateIncomeTax(annualTaxableIncome, this.taxRegime) / 12;
+    // Calculate income tax only if tax deduction is enabled
+    if (this.enableTaxDeduction) {
+      // Calculate taxable income (gross salary minus custom deductions)
+      const taxableMonthlyIncome = this.grossSalary - customDeductionsTotal;
+      const annualTaxableIncome = Math.max(0, taxableMonthlyIncome * 12);
+
+      // Calculate income tax based on selected regime on taxable income
+      this.deductions.incomeTax = this.calculateIncomeTax(annualTaxableIncome, this.taxRegime) / 12;
+    } else {
+      // Set income tax to 0 if tax deduction is disabled
+      this.deductions.incomeTax = 0;
+    }
     
     // Calculate total deductions (custom deductions already calculated above)
     this.totalDeductions = this.deductions.incomeTax + customDeductionsTotal;

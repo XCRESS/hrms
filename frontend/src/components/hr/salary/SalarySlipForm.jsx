@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import apiClient from "../../../service/apiClient";
 import { useToast } from "@/components/ui/toast";
-import useAuth from "../../../hooks/authjwt";
 import { downloadSalarySlipPDF } from "../../../utils/pdfGenerator";
 import { formatIndianNumber } from "../../../utils/indianNumber";
 
@@ -38,6 +37,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [taxRegime, setTaxRegime] = useState('new');
+  const [enableTaxDeduction, setEnableTaxDeduction] = useState(true);
   const [activeTab, setActiveTab] = useState('employee');
   
   // Salary structure state
@@ -59,7 +59,6 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
   const [customDeductions, setCustomDeductions] = useState([]);
 
   const { toast } = useToast();
-  const user = useAuth();
 
   // Months array for dropdown
   const months = [
@@ -183,6 +182,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
       setMonth(editData.month);
       setYear(editData.year);
       setTaxRegime(editData.taxRegime || 'new');
+      setEnableTaxDeduction(editData.enableTaxDeduction !== undefined ? editData.enableTaxDeduction : true);
       setSalaryStructure(editData.earnings);
       setCustomDeductions(editData.deductions?.customDeductions || []);
       setIsEditing(true);
@@ -408,7 +408,8 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
         deductions: {
           customDeductions: customDeductions.filter(d => d.name && d.amount)
         },
-        taxRegime
+        taxRegime,
+        enableTaxDeduction
       });
 
       if (response.success) {
@@ -470,7 +471,8 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
 
   const grossSalary = calculateGrossSalary();
   const customDeductionsTotal = calculateCustomDeductions();
-  const netSalary = grossSalary - (taxCalculation?.monthlyTax || 0) - customDeductionsTotal;
+  const taxAmount = enableTaxDeduction ? (taxCalculation?.monthlyTax || 0) : 0;
+  const netSalary = grossSalary - taxAmount - customDeductionsTotal;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
@@ -891,21 +893,68 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label className="text-slate-700 dark:text-slate-300">Tax Regime</Label>
-                      <Select value={taxRegime} onValueChange={setTaxRegime}>
-                        <SelectTrigger className="dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                          <SelectValue placeholder="Select Tax Regime" />
-                        </SelectTrigger>
-                        <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                          <SelectItem value="new" className="dark:text-slate-100 dark:focus:bg-slate-700">
-                            New Tax Regime
-                          </SelectItem>
-                          <SelectItem value="old" className="dark:text-slate-100 dark:focus:bg-slate-700">
-                            Old Tax Regime
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <Calculator className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <Label className="text-slate-900 dark:text-slate-100 font-medium">Enable Tax Deduction</Label>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                              Toggle to include or exclude tax calculation in salary slip
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => setEnableTaxDeduction(!enableTaxDeduction)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                              enableTaxDeduction
+                                ? 'bg-blue-600 dark:bg-blue-500'
+                                : 'bg-slate-300 dark:bg-slate-600'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                enableTaxDeduction ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className="ml-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                            {enableTaxDeduction ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Tax Regime</Label>
+                        <Select
+                          value={taxRegime}
+                          onValueChange={setTaxRegime}
+                          disabled={!enableTaxDeduction}
+                        >
+                          <SelectTrigger className={`dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100 ${
+                            !enableTaxDeduction ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}>
+                            <SelectValue placeholder="Select Tax Regime" />
+                          </SelectTrigger>
+                          <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
+                            <SelectItem value="new" className="dark:text-slate-100 dark:focus:bg-slate-700">
+                              New Tax Regime
+                            </SelectItem>
+                            <SelectItem value="old" className="dark:text-slate-100 dark:focus:bg-slate-700">
+                              Old Tax Regime
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {!enableTaxDeduction && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Tax regime selection is disabled when tax deduction is turned off
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -938,7 +987,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                         </div>
                       )}
                       
-                      {(taxCalculation?.monthlyTax || 0) > 0 && (
+                      {enableTaxDeduction && (taxCalculation?.monthlyTax || 0) > 0 && (
                         <div className={customDeductionsTotal > 0 ? "" : "border-t border-blue-200 dark:border-blue-700 pt-3"}>
                           {customDeductionsTotal === 0 && <h6 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">DEDUCTIONS</h6>}
                           <div className="flex justify-between">
@@ -1102,7 +1151,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                                   </div>
                                 );
                               })}
-                              {(taxCalculation?.monthlyTax || 0) > 0 && (
+                              {enableTaxDeduction && (taxCalculation?.monthlyTax || 0) > 0 && (
                                 <div className="flex justify-between">
                                   <span>Income Tax (TDS)</span>
                                   <span>₹{formatIndianNumber(taxCalculation?.monthlyTax || 0)}</span>
@@ -1111,7 +1160,7 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
                               <div className="border-t border-slate-300 dark:border-slate-500 pt-1 mt-2">
                                 <div className="flex justify-between font-semibold">
                                   <span>Total Deductions</span>
-                                  <span>₹{formatIndianNumber((taxCalculation?.monthlyTax || 0) + customDeductionsTotal)}</span>
+                                  <span>₹{formatIndianNumber(taxAmount + customDeductionsTotal)}</span>
                                 </div>
                               </div>
                             </div>
