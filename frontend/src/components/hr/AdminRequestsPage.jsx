@@ -152,16 +152,23 @@ const AdminRequestsPage = () => {
         try {
           const passwordResponse = await apiClient.getAllPasswordResetRequests();
           const passwordRequests = passwordResponse.data?.requests || [];
-          const formattedPassword = passwordRequests.map(pwd => ({
-            ...pwd,
-            type: 'password',
-            title: 'Password Reset Request',
-            description: `User: ${pwd.email || 'Unknown'}`,
-            date: new Date(pwd.createdAt || Date.now()),
-            createdAt: new Date(pwd.createdAt || Date.now()),
-            status: pwd.status || 'pending',
-            user: { name: pwd.name, email: pwd.email }
-          }));
+          const formattedPassword = passwordRequests.map(pwd => {
+            // Check if token is expired
+            const isTokenExpired = pwd.resetTokenExpires && new Date(pwd.resetTokenExpires) < new Date();
+            const effectiveStatus = isTokenExpired && pwd.status === 'pending' ? 'expired' : pwd.status || 'pending';
+
+            return {
+              ...pwd,
+              type: 'password',
+              title: 'Password Reset Request',
+              description: `User: ${pwd.email || 'Unknown'}${isTokenExpired ? ' (Token Expired)' : ''}`,
+              date: new Date(pwd.createdAt || Date.now()),
+              createdAt: new Date(pwd.createdAt || Date.now()),
+              status: effectiveStatus,
+              isTokenExpired,
+              user: { name: pwd.name, email: pwd.email }
+            };
+          });
           allRequests.push(...formattedPassword);
         } catch (error) {
           console.error('Failed to load password reset requests:', error);
@@ -213,6 +220,8 @@ const AdminRequestsPage = () => {
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'expired': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       case 'in-progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
     }
@@ -496,26 +505,50 @@ const AdminRequestsPage = () => {
 
                       {/* Action buttons and editing interface */}
                       {request.type === 'password' ? (
-                        request.status === 'pending' && (
-                          <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-                            <Button
-                              onClick={() => handlePasswordAction(request._id, 'approve')}
-                              disabled={actionLoading[`${request._id}_approve`]}
-                              className="bg-slate-600 hover:bg-slate-700 text-white"
-                              size="sm"
-                            >
-                              {actionLoading[`${request._id}_approve`] ? 'Approving...' : 'Approve'}
-                            </Button>
-                            <Button
-                              onClick={() => handlePasswordAction(request._id, 'reject')}
-                              disabled={actionLoading[`${request._id}_reject`]}
-                              className="bg-slate-500 hover:bg-slate-600 text-white"
-                              size="sm"
-                            >
-                              {actionLoading[`${request._id}_reject`] ? 'Rejecting...' : 'Reject'}
-                            </Button>
-                          </div>
-                        )
+                        <>
+                          {/* Show expiration info if expired */}
+                          {request.isTokenExpired && (
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-800">
+                                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                <span className="text-sm text-red-700 dark:text-red-300 font-medium">
+                                  Token Expired - Cannot be approved
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Show token expiration info for all password requests */}
+                          {request.resetTokenExpires && (
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                <strong>Token Expires:</strong> {new Date(request.resetTokenExpires).toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Action buttons - only show for pending non-expired requests */}
+                          {request.status === 'pending' && !request.isTokenExpired && (
+                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                              <Button
+                                onClick={() => handlePasswordAction(request._id, 'approve')}
+                                disabled={actionLoading[`${request._id}_approve`]}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                size="sm"
+                              >
+                                {actionLoading[`${request._id}_approve`] ? 'Approving...' : 'Approve & Generate Token'}
+                              </Button>
+                              <Button
+                                onClick={() => handlePasswordAction(request._id, 'reject')}
+                                disabled={actionLoading[`${request._id}_reject`]}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                size="sm"
+                              >
+                                {actionLoading[`${request._id}_reject`] ? 'Rejecting...' : 'Reject'}
+                              </Button>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <>
                           {isEditing ? (

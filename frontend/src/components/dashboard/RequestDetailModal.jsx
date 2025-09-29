@@ -51,6 +51,15 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
         case 'regularization':
           response = await apiClient.reviewRegularization(requestId, status, reviewComment);
           break;
+        case 'password':
+          if (status === 'approved') {
+            response = await apiClient.approvePasswordResetRequest(requestId);
+          } else if (status === 'rejected') {
+            response = await apiClient.rejectPasswordResetRequest(requestId, reviewComment);
+          } else {
+            throw new Error('Invalid status for password reset request');
+          }
+          break;
         default:
           throw new Error('Unknown request type');
       }
@@ -197,7 +206,85 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             </div>
           </div>
         );
-      
+
+      case 'password':
+        // Check if token is expired
+        const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
+        const isRequestExpired = request.status === 'expired' || isTokenExpired;
+
+        return (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Email</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-mono">{request.email}</p>
+              </div>
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Name</label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1">{request.name || 'Not provided'}</p>
+              </div>
+            </div>
+
+            {/* Token Status and Expiration */}
+            <div>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reset Token Status</label>
+              <div className="mt-1 p-2 sm:p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 font-medium">
+                    Token-Based Password Reset
+                  </p>
+                  {isRequestExpired && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
+                      <AlertCircle className="w-3 h-3" />
+                      Expired
+                    </span>
+                  )}
+                </div>
+
+                {request.resetTokenExpires && (
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400 space-y-1">
+                    <p>
+                      <strong>Token Expires:</strong> {formatDateTime(request.resetTokenExpires)}
+                    </p>
+                    {isRequestExpired ? (
+                      <p className="text-red-500 dark:text-red-400 font-medium">
+                        ⚠️ Token has expired and can no longer be approved
+                      </p>
+                    ) : request.status === 'approved' ? (
+                      <p className="text-green-600 dark:text-green-400 font-medium">
+                        ✅ Token is active - User can now reset their password
+                      </p>
+                    ) : (
+                      <p>
+                        Once approved, user will receive a secure token to reset their password
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {request.status === 'completed' && (
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium mt-2">
+                    ✅ Password has been successfully reset by the user
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Reset Flow Information */}
+            <div>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reset Process</label>
+              <div className="mt-1 p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                  <p><strong>1.</strong> User submits reset request with name and email</p>
+                  <p><strong>2.</strong> Admin reviews and approves/rejects the request</p>
+                  <p><strong>3.</strong> If approved, user receives secure token (valid for 24 hours)</p>
+                  <p><strong>4.</strong> User uses token to set new password</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return <p className="text-neutral-500">No additional details available.</p>;
     }
@@ -269,12 +356,21 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
           </div>
 
           {/* Response/Comment Field */}
-          {(request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
+          {(() => {
+            // Don't show comment field for expired password requests
+            if (request.type === 'password') {
+              const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
+              const isRequestExpired = request.status === 'expired' || isTokenExpired;
+              return request.status === 'pending' && !isRequestExpired;
+            }
+            // For other request types, keep original logic
+            return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
+          })() && (
             <div className="mb-4 sm:mb-6">
               {request.type === 'help' ? (
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                    Response Message {request.type === 'help' && '(Required for resolution)'}
+                    Response Message (Required for resolution)
                   </label>
                   <textarea
                     value={helpResponse}
@@ -282,6 +378,19 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                     rows="4"
                     placeholder="Provide a detailed response to help the employee..."
+                  />
+                </div>
+              ) : request.type === 'password' ? (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                    Admin Remarks (Optional)
+                  </label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                    rows="2"
+                    placeholder="Optional remarks for this password reset decision..."
                   />
                 </div>
               ) : (
@@ -303,7 +412,17 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
         </div>
 
         {/* Footer */}
-        {(request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
+        {(() => {
+          // Check if password request is expired
+          if (request.type === 'password') {
+            const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
+            const isRequestExpired = request.status === 'expired' || isTokenExpired;
+            const canTakeAction = request.status === 'pending' && !isRequestExpired;
+            return canTakeAction;
+          }
+          // For other request types, keep original logic
+          return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
+        })() && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/50">
             <button
               onClick={onClose}
@@ -337,7 +456,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                 </button>
               </>
             ) : (
-              // Leave and regularization request buttons
+              // Leave, regularization, and password reset request buttons
               <>
                 <button
                   onClick={() => handleStatusUpdate('rejected')}
@@ -353,7 +472,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                   className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
                 >
                   <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {isProcessing ? 'Processing...' : 'Approve'}
+                  {isProcessing ? 'Processing...' : (request.type === 'password' ? 'Approve & Generate Token' : 'Approve')}
                 </button>
               </>
             )}
