@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, HelpCircle, Calendar, RefreshCw, Clock } from 'lucide-react';
+import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { useNavigate } from 'react-router-dom';
 import RequestDetailModal from './RequestDetailModal';
@@ -21,10 +21,11 @@ const AdminPendingRequests = () => {
     try {
       setIsLoading(true);
       
-      const [leaveResponse, helpResponse, regularizationResponse] = await Promise.all([
+      const [leaveResponse, helpResponse, regularizationResponse, passwordResetResponse] = await Promise.all([
         apiClient.getAllLeaves().catch(() => ({ success: true, leaves: [] })),
         apiClient.getAllInquiries({ status: 'pending' }).catch(() => ({ success: true, data: { inquiries: [] } })),
-        apiClient.getAllRegularizations().catch(() => ({ success: true, regs: [] }))
+        apiClient.getAllRegularizations().catch(() => ({ success: true, regs: [] })),
+        apiClient.getAllPasswordResetRequests().catch(() => ({ success: true, data: { requests: [] } }))
       ]);
 
       const allRequests = [];
@@ -65,6 +66,19 @@ const AdminPendingRequests = () => {
           description: reg.reason || 'Missing checkout regularization request',
           employee: reg.user?.name || 'Unknown User',
           date: reg.createdAt || reg.date
+        })));
+      }
+
+      if (passwordResetResponse.success && passwordResetResponse.data?.requests) {
+        const pendingPasswordResets = passwordResetResponse.data.requests.filter(req => req.status === 'pending');
+        allRequests.push(...pendingPasswordResets.map(req => ({
+          ...req,
+          type: 'password',
+          icon: <Key className="w-5 h-5 text-cyan-500" />,
+          title: 'Password Reset Request',
+          description: `User: ${req.email}`,
+          employee: req.name || 'Unknown User',
+          date: req.createdAt
         })));
       }
 

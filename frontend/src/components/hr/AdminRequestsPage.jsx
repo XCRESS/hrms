@@ -151,7 +151,7 @@ const AdminRequestsPage = () => {
       if (activeTab === 'all' || activeTab === 'password') {
         try {
           const passwordResponse = await apiClient.getAllPasswordResetRequests();
-          const passwordRequests = passwordResponse.requests || [];
+          const passwordRequests = passwordResponse.data?.requests || [];
           const formattedPassword = passwordRequests.map(pwd => ({
             ...pwd,
             type: 'password',
