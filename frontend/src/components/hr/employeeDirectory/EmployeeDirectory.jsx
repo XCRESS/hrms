@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
@@ -136,15 +136,17 @@ export default function EmployeeDirectory() {
     return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
   }
 
-  const filteredEmployees = employees
-    .filter(e =>
-      (e.fullName || `${e.firstName} ${e.lastName}`).toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => {
-      const nameA = a.fullName || `${a.firstName} ${a.lastName}`;
-      const nameB = b.fullName || `${b.firstName} ${b.lastName}`;
-      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-    });
+  const filteredEmployees = useMemo(() =>
+    employees
+      .filter(e =>
+        (e.fullName || `${e.firstName} ${e.lastName}`).toLowerCase().includes(search.toLowerCase())
+      )
+      .sort((a, b) => {
+        const nameA = a.fullName || `${a.firstName} ${a.lastName}`;
+        const nameB = b.fullName || `${b.firstName} ${b.lastName}`;
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      })
+  , [employees, search]);
 
   const isEmployeeLinked = (employeeId) => {
     return users.some(u => u.employeeId === employeeId);
