@@ -26,22 +26,40 @@ export const requestRegularization = async (req, res) => {
     
     if (requestedCheckIn) {
       // If requestedCheckIn contains date info, use it directly, otherwise combine with regularization date
+      let parsedCheckIn;
       if (requestedCheckIn.includes('T') || requestedCheckIn.includes(' ') || requestedCheckIn.length > 8) {
-        requestedCheckInIST = moment.tz(requestedCheckIn, "Asia/Kolkata").toDate();
+        parsedCheckIn = moment.tz(requestedCheckIn, "Asia/Kolkata");
       } else {
         // Combine regularization date with requested time
-        requestedCheckInIST = moment.tz(date + " " + requestedCheckIn, "Asia/Kolkata").toDate();
+        parsedCheckIn = moment.tz(date + " " + requestedCheckIn, "Asia/Kolkata");
       }
+
+      if (!parsedCheckIn.isValid()) {
+        return res.status(400).json({
+          message: `Invalid check-in time format: ${requestedCheckIn}`
+        });
+      }
+
+      requestedCheckInIST = parsedCheckIn.toDate();
     }
     
     if (requestedCheckOut) {
       // If requestedCheckOut contains date info, use it directly, otherwise combine with regularization date
+      let parsedCheckOut;
       if (requestedCheckOut.includes('T') || requestedCheckOut.includes(' ') || requestedCheckOut.length > 8) {
-        requestedCheckOutIST = moment.tz(requestedCheckOut, "Asia/Kolkata").toDate();
+        parsedCheckOut = moment.tz(requestedCheckOut, "Asia/Kolkata");
       } else {
         // Combine regularization date with requested time
-        requestedCheckOutIST = moment.tz(date + " " + requestedCheckOut, "Asia/Kolkata").toDate();
+        parsedCheckOut = moment.tz(date + " " + requestedCheckOut, "Asia/Kolkata");
       }
+
+      if (!parsedCheckOut.isValid()) {
+        return res.status(400).json({
+          message: `Invalid check-out time format: ${requestedCheckOut}`
+        });
+      }
+
+      requestedCheckOutIST = parsedCheckOut.toDate();
     }
     
     // Validation: Ensure check-in and check-out times are on the regularization date

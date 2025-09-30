@@ -112,11 +112,6 @@ export const updateAnnouncement = async (req, res) => {
       return res.status(404).json({ success: false, message: "Announcement not found" });
     }
 
-    // Optional: Check if the user updating is the author or has higher privileges
-    // if (announcement.author.toString() !== req.user.id && req.user.role !== 'admin') {
-    //   return res.status(403).json({ success: false, message: "Not authorized to update this announcement" });
-    // }
-
     const updatedFields = {};
     if (title !== undefined) updatedFields.title = title;
     if (content !== undefined) updatedFields.content = content;
@@ -164,11 +159,6 @@ export const deleteAnnouncement = async (req, res) => {
     if (!announcement) {
       return res.status(404).json({ success: false, message: "Announcement not found" });
     }
-
-    // Optional: Check if the user deleting is the author or has higher privileges
-    // if (announcement.author.toString() !== req.user.id && req.user.role !== 'admin') {
-    //   return res.status(403).json({ success: false, message: "Not authorized to delete this announcement" });
-    // }
 
     await Announcement.findByIdAndDelete(announcementId);
 

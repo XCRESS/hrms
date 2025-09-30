@@ -119,7 +119,6 @@ const SalarySlipManagement = ({ onBack }) => {
     loadSalarySlips();
     loadEmployees();
   }, [loadSalarySlips, loadEmployees]);
-  };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({

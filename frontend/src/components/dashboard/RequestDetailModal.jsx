@@ -121,7 +121,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
           </div>
         );
       
-      case 'help':
+      case 'help': {
         const getPriorityBadge = (priority) => {
           const priorityConfig = {
             low: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' },
@@ -166,8 +166,9 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             )}
           </div>
         );
-      
-      case 'regularization':
+      }
+
+      case 'regularization': {
         return (
           <div className="space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -206,8 +207,9 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             </div>
           </div>
         );
+      }
 
-      case 'password':
+      case 'password': {
         // Check if token is expired
         const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
         const isRequestExpired = request.status === 'expired' || isTokenExpired;
@@ -284,6 +286,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             </div>
           </div>
         );
+      }
 
       default:
         return <p className="text-neutral-500">No additional details available.</p>;

@@ -3,6 +3,9 @@ import Employee from "../models/Employee.model.js";
 import Department from "../models/Department.model.js";
 import { formatResponse } from "../utils/response.js";
 
+// Helper function to escape regex special characters
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Get global settings
 export const getGlobalSettings = async (req, res) => {
   try {
@@ -250,11 +253,11 @@ export const addDepartment = async (req, res) => {
     }
     
     const trimmedName = name.trim();
-    
+
     // Check if department already exists (case-insensitive)
-    const existingDepartment = await Department.findOne({ 
-      name: { $regex: new RegExp(`^${trimmedName}$`, 'i') },
-      isActive: true 
+    const existingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
+      isActive: true
     });
     
     if (existingDepartment) {
@@ -294,11 +297,11 @@ export const renameDepartment = async (req, res) => {
     }
     
     const trimmedNewName = newName.trim();
-    
+
     // Check if new name already exists (case-insensitive)
-    const conflictingDepartment = await Department.findOne({ 
-      name: { $regex: new RegExp(`^${trimmedNewName}$`, 'i') },
-      isActive: true 
+    const conflictingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${escapeRegex(trimmedNewName)}$`, 'i') },
+      isActive: true
     });
     
     if (conflictingDepartment && conflictingDepartment.name !== oldName) {

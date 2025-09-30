@@ -128,17 +128,19 @@ export const formatDate = (date, shortYear = false, format = null) => {
           month: 'long', 
           year: 'numeric' 
         });
-      case 'DD/MM/YYYY':
+      case 'DD/MM/YYYY': {
         const day1 = String(istDate.getDate()).padStart(2, '0');
         const month1 = String(istDate.getMonth() + 1).padStart(2, '0');
         const year1 = istDate.getFullYear();
         return `${day1}/${month1}/${year1}`;
-      case 'MM/DD/YYYY':
+      }
+      case 'MM/DD/YYYY': {
         // Convert to Indian DD/MM/YYYY format instead of American MM/DD/YYYY
         const day2 = String(istDate.getDate()).padStart(2, '0');
         const month2 = String(istDate.getMonth() + 1).padStart(2, '0');
         const year2 = istDate.getFullYear();
         return `${day2}/${month2}/${year2}`;
+      }
       default:
         // Fall back to default behavior for unknown formats
         break;
