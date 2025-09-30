@@ -27,8 +27,8 @@ export default function GetProfile() {
       }
       try {
         setLoading(true);
-        const data = await apiClient.employees.getProfile();
-        setEmployee(data);
+        const response = await apiClient.getProfile();
+        setEmployee(response.data);
         setLoading(false);
       } catch (err) {
         console.error("Failed to fetch profile:", err);
