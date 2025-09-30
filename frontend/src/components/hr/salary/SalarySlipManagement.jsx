@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -75,13 +75,7 @@ const SalarySlipManagement = ({ onBack }) => {
     { value: 12, label: 'December' }
   ];
 
-  // Load data on component mount and filter changes
-  useEffect(() => {
-    loadSalarySlips();
-    loadEmployees();
-  }, [filters, pagination.currentPage]);
-
-  const loadSalarySlips = async () => {
+  const loadSalarySlips = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -107,9 +101,9 @@ const SalarySlipManagement = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.currentPage, pagination.itemsPerPage, filters, toast]);
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       const response = await apiClient.getEmployees();
       if (response.employees) {
@@ -118,6 +112,13 @@ const SalarySlipManagement = ({ onBack }) => {
     } catch (error) {
       console.error('Failed to load employees:', error);
     }
+  }, []);
+
+  // Load data on component mount and filter changes
+  useEffect(() => {
+    loadSalarySlips();
+    loadEmployees();
+  }, [loadSalarySlips, loadEmployees]);
   };
 
   const handleFilterChange = (key, value) => {

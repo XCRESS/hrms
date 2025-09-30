@@ -66,13 +66,6 @@ class ApiClient {
           if (response.status === 401) {
             console.warn("🔐 Authentication error - clearing token");
             localStorage.removeItem("authToken");
-            // Store detailed auth error info for debugging
-            window.lastAuthError = {
-              endpoint,
-              timestamp: new Date().toISOString(),
-              error: data,
-              userAgent: navigator.userAgent
-            };
           }
           
           if (!response.ok) {
@@ -286,14 +279,6 @@ class ApiClient {
         return result;
       } catch (error) {
         console.error("❌ Login failed for:", email, error.message);
-        // Store login error for debugging
-        if (!window.loginErrors) window.loginErrors = [];
-        window.loginErrors.push({
-          email,
-          error: error.message,
-          status: error.status,
-          timestamp: new Date().toISOString()
-        });
         throw error;
       }
     }

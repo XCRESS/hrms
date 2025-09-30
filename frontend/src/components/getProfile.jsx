@@ -10,26 +10,7 @@ import {
   Clock, DollarSign, Shield, FileText
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-// API client setup
-const apiClient = {
-  getProfile: async () => {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
-    const response = await fetch(`${apiUrl}/employees/profile`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("authToken")}`,
-        "Content-Type": "application/json"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
-    }
-
-    return response.json();
-  }
-};
+import apiClient from "@/service/apiClient";
 
 export default function GetProfile() {
   const [employee, setEmployee] = useState(null);
@@ -46,7 +27,7 @@ export default function GetProfile() {
       }
       try {
         setLoading(true);
-        const data = await apiClient.getProfile();
+        const data = await apiClient.employees.getProfile();
         setEmployee(data);
         setLoading(false);
       } catch (err) {

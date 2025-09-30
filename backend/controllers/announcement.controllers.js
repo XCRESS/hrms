@@ -139,7 +139,7 @@ export const updateAnnouncement = async (req, res) => {
     // Send notification if announcement status changed to published
     if (status === 'published' && announcement.status !== 'published') {
       try {
-        await notificationService.sendAnnouncementNotification(updatedAnnouncement);
+        await NotificationService.sendAnnouncementNotification(updatedAnnouncement);
       } catch (notificationError) {
         console.error('Failed to send announcement notification:', notificationError);
         // Don't fail the main operation if notification fails
