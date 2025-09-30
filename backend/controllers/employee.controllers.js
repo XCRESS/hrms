@@ -2,6 +2,7 @@ import Employee from "../models/Employee.model.js";
 import Department from "../models/Department.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
+import { formatResponse } from "../utils/response.js";
 
 export const createEmployee = asyncHandler(async (req, res) => {
   const {
@@ -93,7 +94,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
     emergencyContactNumber
   });
   
-  res.status(201).json({ message: "Employee created", employee });
+  res.status(201).json(formatResponse(true, "Employee created successfully", { employee }));
 });
 
 // get all employees (with optional status filter)
@@ -127,9 +128,9 @@ export const getEmployees = async (req, res) => {
       companyName: employee.companyName,
       isActive: employee.isActive,
     }));
-    res.json({ employees: employeeList });
+    res.json(formatResponse(true, "Employees fetched successfully", { employees: employeeList }));
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch employees", error: err.message });
+    res.status(500).json(formatResponse(false, "Failed to fetch employees", null, { error: err.message }));
   }
 };
 
@@ -141,7 +142,7 @@ export const updateEmployee = async (req, res) => {
     // Check if employee exists
     const existingEmployee = await Employee.findById(id);
     if (!existingEmployee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json(formatResponse(false, "Employee not found"));
     }
 
     // Validate department if it's being updated
@@ -152,21 +153,22 @@ export const updateEmployee = async (req, res) => {
       });
       
       if (!departmentExists) {
-        return res.status(400).json({
-          message: `Department '${updateData.department}' does not exist. Please select from available departments.`
-        });
+        return res.status(400).json(formatResponse(
+          false,
+          `Department '${updateData.department}' does not exist. Please select from available departments.`
+        ));
       }
     }
 
     // Update employee
-    const employee = await Employee.findByIdAndUpdate(id, updateData, { 
+    const employee = await Employee.findByIdAndUpdate(id, updateData, {
       new: true,
-      runValidators: true 
+      runValidators: true
     });
-    
-    res.json({ message: "Employee updated successfully", employee });
+
+    res.json(formatResponse(true, "Employee updated successfully", { employee }));
   } catch (err) {
-    res.status(500).json({ message: "Update failed", error: err.message });
+    res.status(500).json(formatResponse(false, "Update failed", null, { error: err.message }));
   }
 };
 
@@ -186,9 +188,10 @@ export const getProfile = async (req, res) => {
     // If user is an employee but their profile doesn't exist in the Employee collection
     if (!employee && req.user.role === "employee") {
       // Return basic profile from User collection instead of 404
-      return res.status(200).json({
-        success: true,
-        message: "Basic profile retrieved from user account",
+      return res.status(200).json(formatResponse(
+        true,
+        "Basic profile retrieved from user account",
+        {
         firstName: req.user.name.split(' ')[0] || req.user.name,
         lastName: req.user.name.split(' ').slice(1).join(' ') || '',
         email: req.user.email,
@@ -196,29 +199,23 @@ export const getProfile = async (req, res) => {
         // Include placeholder values for required fields
         position: "Not specified",
         department: "Not assigned",
-        // Flag to indicate this is a partial profile
-        isPartialProfile: true
-      });
+          // Flag to indicate this is a partial profile
+          isPartialProfile: true
+        }
+      ));
     }
     
     if (!employee) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Profile not found"
+      return res.status(404).json(formatResponse(
+        false, 
+        "Profile not found"
       });
     }
     
-    res.status(200).json({
-      success: true,
-      ...employee.toObject()
-    });
+    res.status(200).json(formatResponse(true, "Profile fetched successfully", employee.toObject()));
   } catch (err) {
     console.error("Error fetching profile:", err);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error fetching profile", 
-      error: err.message 
-    });
+    res.status(500).json(formatResponse(false, "Error fetching profile", null, { error: err.message }));
   }
 };
 
@@ -226,11 +223,11 @@ export const getEmployeeById = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id);
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json(formatResponse(false, "Employee not found"));
     }
-    res.json(employee);
+    res.json(formatResponse(true, "Employee fetched successfully", employee));
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch employee", error: err.message });
+    res.status(500).json(formatResponse(false, "Failed to fetch employee", null, { error: err.message }));
   }
 };
 
@@ -242,18 +239,18 @@ export const toggleEmployeeStatus = async (req, res) => {
     // Find the employee
     const employee = await Employee.findById(id);
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json(formatResponse(false, "Employee not found"));
     }
-    
+
     // Toggle the isActive status
     employee.isActive = !employee.isActive;
     await employee.save();
-    
+
     // If employee is being deactivated, unlink from user account
     if (!employee.isActive) {
       // Import User model to unlink the employee
       const User = (await import("../models/User.model.js")).default;
-      
+
       // Find and unlink the user account
       const user = await User.findOne({ employeeId: employee.employeeId });
       if (user) {
@@ -263,18 +260,19 @@ export const toggleEmployeeStatus = async (req, res) => {
         console.log(`Unlinked user ${user.email} from deactivated employee ${employee.employeeId}`);
       }
     }
-    
-    res.json({
-      message: `Employee ${employee.isActive ? 'activated' : 'deactivated'} successfully`,
-      employee: {
+
+    res.json(formatResponse(
+      true,
+      `Employee ${employee.isActive ? 'activated' : 'deactivated'} successfully`,
+      {
         _id: employee._id,
         employeeId: employee.employeeId,
         fullName: `${employee.firstName} ${employee.lastName}`,
         isActive: employee.isActive
       }
-    });
+    ));
   } catch (err) {
     console.error('Toggle employee status error:', err);
-    res.status(500).json({ message: "Failed to toggle employee status", error: err.message });
+    res.status(500).json(formatResponse(false, "Failed to toggle employee status", null, { error: err.message }));
   }
 };

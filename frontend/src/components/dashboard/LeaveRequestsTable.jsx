@@ -1,4 +1,4 @@
-import React, { useEffect, memo, useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { Paperclip, HelpCircle, AlertCircle, CheckCircle } from "lucide-react";
 
 // 🚀 OPTIMIZED: Leave Requests Table with memoization
@@ -34,7 +34,7 @@ const LeaveRequestsTable = memo(({
     })), [safeLeaveRequests]);
 
   // Process help inquiries with better error handling for both backend and mock data formats
-  const processedHelpInquiries = safeHelpInquiries
+  const _processedHelpInquiries = safeHelpInquiries
     .filter(inquiry => inquiry && typeof inquiry === 'object' && (inquiry.id || inquiry._id))
     .map(inquiry => ({
       ...inquiry,

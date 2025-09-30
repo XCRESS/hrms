@@ -11,7 +11,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const [monthlyAttendanceData, setMonthlyAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 } });
+  const [_stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 } });
   const [allWorkingDays, setAllWorkingDays] = useState([]);
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
