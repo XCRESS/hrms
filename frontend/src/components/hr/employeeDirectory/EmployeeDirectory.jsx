@@ -66,10 +66,10 @@ export default function EmployeeDirectory() {
     setLeaves([]);
     try {
       const res = await apiClient.get(`/employees/${selectedEmployeeId}`);
-      setEmployeeProfile(res);
-      if (res && res.employeeId) {
+      setEmployeeProfile(res.data);
+      if (res.data && res.data.employeeId) {
         try {
-          const lv = await apiClient.get(`/leaves/all?employeeId=${res.employeeId}`);
+          const lv = await apiClient.get(`/leaves/all?employeeId=${res.data.employeeId}`);
           setLeaves(lv.leaves || []);
         } catch (lvErr) {
           setLeaves([]);
@@ -80,7 +80,7 @@ export default function EmployeeDirectory() {
       } else {
         setLeaves([]);
         setAttendance([]);
-        if (res && !res.employeeId) {
+        if (res.data && !res.data.employeeId) {
           console.warn("Employee profile fetched but missing employeeId, cannot fetch leaves or attendance.");
         }
       }
@@ -102,7 +102,7 @@ export default function EmployeeDirectory() {
       try {
         // Load only active employees for main directory
         const res = await apiClient.getEmployees({ status: 'active' });
-        setEmployees(res.employees || []);
+        setEmployees(res.data?.employees || []);
         try {
           const userRes = await apiClient.getAllUsers();
           setUsers(userRes.users || []);
@@ -114,7 +114,7 @@ export default function EmployeeDirectory() {
         // Load departments for editing
         try {
           const deptRes = await apiClient.getDepartments();
-          setDepartments(deptRes.departments || []);
+          setDepartments(deptRes.data?.departments || []);
         } catch (deptErr) {
           console.error('Failed to load departments:', deptErr);
           setDepartments([]);
@@ -129,13 +129,7 @@ export default function EmployeeDirectory() {
     })();
   }, []);
 
-  if (!userObject) return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Loading user data...</div>;
-  const user = userObject;
-
-  if (user.role !== 'hr' && user.role !== 'admin') {
-    return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
-  }
-
+  // useMemo must be called before any conditional returns (Rules of Hooks)
   const filteredEmployees = useMemo(() =>
     employees
       .filter(e =>
@@ -147,6 +141,13 @@ export default function EmployeeDirectory() {
         return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
       })
   , [employees, search]);
+
+  if (!userObject) return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Loading user data...</div>;
+  const user = userObject;
+
+  if (user.role !== 'hr' && user.role !== 'admin') {
+    return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
+  }
 
   const isEmployeeLinked = (employeeId) => {
     return users.some(u => u.employeeId === employeeId);
@@ -181,7 +182,7 @@ export default function EmployeeDirectory() {
       setEditedEmployee(null);
       // Refresh employee list
       const res = await apiClient.getEmployees({ status: 'active' });
-      setEmployees(res.employees || []);
+      setEmployees(res.data?.employees || []);
     } catch (error) {
       console.error('Failed to update employee:', error);
       alert('Failed to update employee: ' + error.message);
@@ -211,7 +212,7 @@ export default function EmployeeDirectory() {
         
         // Refresh employee list and profile if needed
         const res = await apiClient.getEmployees({ status: 'active' });
-        setEmployees(res.employees || []);
+        setEmployees(res.data?.employees || []);
         
         // If the current profile was deactivated, clear the selection
         if (selectedEmployeeId === employeeId && currentStatus) {
