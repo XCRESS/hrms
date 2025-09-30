@@ -207,9 +207,9 @@ export const getProfile = async (req, res) => {
     
     if (!employee) {
       return res.status(404).json(formatResponse(
-        false, 
+        false,
         "Profile not found"
-      });
+      ));
     }
     
     res.status(200).json(formatResponse(true, "Profile fetched successfully", employee.toObject()));
