@@ -150,6 +150,7 @@ createRoot(document.getElementById('root')).render(
                 </Route>
                 <Route path="/employees" element={<SidebarDemo />}>
                   <Route index element={<EmployeeDirectory />} />
+                  <Route path=":employeeId" element={<EmployeeDirectory />} />
                   <Route path="add" element={<AddEmployee />} />
                   <Route path="link" element={<EmployeeLink />} />
                 </Route>
