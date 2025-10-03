@@ -30,8 +30,8 @@ const TaskReportGenerator = () => {
     try {
       setIsLoading(true);
       const res = await apiClient.getEmployees();
-      if (res.employees) {
-        setEmployees(res.employees);
+      if (res.data?.employees) {
+        setEmployees(res.data.employees);
       }
     } catch (err) {
       console.error("Failed to fetch employees:", err);

@@ -146,8 +146,8 @@ const SalarySlipForm = ({ employeeId: propEmployeeId, onBack, editData = null })
       setEmployeesLoading(true);
       try {
         const response = await apiClient.getEmployees();
-        if (response.employees) {
-          setEmployees(response.employees);
+        if (response.data?.employees) {
+          setEmployees(response.data.employees);
         }
       } catch (error) {
         console.error('Error loading employees:', error);

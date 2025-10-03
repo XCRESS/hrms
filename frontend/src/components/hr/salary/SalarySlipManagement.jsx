@@ -106,8 +106,8 @@ const SalarySlipManagement = ({ onBack }) => {
   const loadEmployees = useCallback(async () => {
     try {
       const response = await apiClient.getEmployees();
-      if (response.employees) {
-        setEmployees(response.employees);
+      if (response.data?.employees) {
+        setEmployees(response.data.employees);
       }
     } catch (error) {
       console.error('Failed to load employees:', error);
