@@ -82,7 +82,7 @@ const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
   }
 
   return (
-    <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+    <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
       {cards.map((card) => {
         const Icon = card.icon;
         // Define color classes based on light/dark mode and card type

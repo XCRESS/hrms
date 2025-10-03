@@ -71,22 +71,38 @@ const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidays
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
       {stats.map((stat) => {
         const Icon = stat.icon;
+        const Element = stat.clickable ? 'button' : 'div';
+
         return (
-          <div 
-            key={stat.title} 
+          <Element
+            key={stat.title}
             className={`bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
-              stat.clickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700' : ''
+              stat.clickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 w-full text-left' : ''
             }`}
             onClick={stat.clickable ? stat.onClick : undefined}
+            aria-label={stat.clickable ? `View ${stat.title}: ${stat.value} ${stat.title.toLowerCase()}` : undefined}
+            role={stat.clickable ? 'button' : undefined}
+            tabIndex={stat.clickable ? 0 : undefined}
+            onKeyDown={stat.clickable ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                stat.onClick();
+              }
+            } : undefined}
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400 leading-tight">{stat.title}</p>
-              <div className={`p-1.5 sm:p-2 rounded-full ${colorClasses[stat.color]}`}>
+              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400 leading-tight">
+                <span className="sr-only">{stat.title}: </span>
+                {stat.title}
+              </p>
+              <div className={`p-1.5 sm:p-2 rounded-full ${colorClasses[stat.color]}`} aria-hidden="true">
                 <Icon size={16} className="sm:w-5 sm:h-5" />
               </div>
             </div>
-            <p className={`text-xl sm:text-2xl lg:text-3xl font-bold ${textClasses[stat.color]}`}>{stat.value}</p>
-          </div>
+            <p className={`text-xl sm:text-2xl lg:text-3xl font-bold ${textClasses[stat.color]}`} aria-live="polite">
+              {stat.value}
+            </p>
+          </Element>
         );
       })}
     </div>

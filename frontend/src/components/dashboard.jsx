@@ -997,8 +997,8 @@ export default function HRMSDashboard() {
           theme={theme}
         />
 
-        
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+
+        <main id="main-content" className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto" role="main">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
               {isAdmin ? (

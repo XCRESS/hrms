@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import useAuth from '../../../hooks/authjwt';
 import apiClient from '../../../service/apiClient';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
@@ -8,6 +8,8 @@ import InactiveEmployees from './InactiveEmployees';
 import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, FileText } from 'lucide-react';
 import { useToast } from '../../ui/toast';
 import DocumentManager from './DocumentManager';
+import { sanitizeText, maskAadhaar, maskBankAccount, maskPAN } from '../../../utils/sanitization';
+import { validateUpdateEmployee, validateField } from '../../../schemas/employeeValidation';
 
 
 
@@ -19,11 +21,13 @@ import DocumentManager from './DocumentManager';
 
 export default function EmployeeDirectory() {
   const navigate = useNavigate();
+  const { employeeId: urlEmployeeId } = useParams();
   const userObject = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(urlEmployeeId || null);
   const [employeeProfile, setEmployeeProfile] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +36,7 @@ export default function EmployeeDirectory() {
   const [profileError, setProfileError] = useState(null);
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -53,6 +58,7 @@ export default function EmployeeDirectory() {
   const [editedEmployee, setEditedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'inactive'
   const [togglingStatus, setTogglingStatus] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [currentView, setCurrentView] = useState('profile'); // 'profile', 'documents'
@@ -176,16 +182,54 @@ export default function EmployeeDirectory() {
 
   const handleSaveEmployee = async () => {
     try {
-      await apiClient.put(`/employees/update/${employeeProfile._id}`, editedEmployee);
+      // Validate before saving
+      const validation = validateUpdateEmployee({
+        ...editedEmployee,
+        _id: employeeProfile._id
+      });
+
+      if (!validation.success) {
+        // Show validation errors
+        const firstError = Object.entries(validation.errors)[0];
+        toast({
+          variant: "error",
+          title: "Validation Error",
+          description: `${firstError[0]}: ${firstError[1]}`
+        });
+        setFieldErrors(validation.errors);
+        return;
+      }
+
+      // Sanitize data before sending
+      const sanitizedData = {
+        ...validation.data,
+        firstName: sanitizeText(validation.data.firstName || ''),
+        lastName: sanitizeText(validation.data.lastName || ''),
+        address: sanitizeText(validation.data.address || ''),
+      };
+
+      await apiClient.put(`/employees/update/${employeeProfile._id}`, sanitizedData);
       setEmployeeProfile(editedEmployee);
       setIsEditingEmployee(false);
       setEditedEmployee(null);
+      setFieldErrors({});
+
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Employee updated successfully"
+      });
+
       // Refresh employee list
       const res = await apiClient.getEmployees({ status: 'active' });
       setEmployees(res.data?.employees || []);
     } catch (error) {
       console.error('Failed to update employee:', error);
-      alert('Failed to update employee: ' + error.message);
+      toast({
+        variant: "error",
+        title: "Update Failed",
+        description: error.message || 'Failed to update employee'
+      });
     }
   };
 
@@ -237,22 +281,50 @@ export default function EmployeeDirectory() {
 
   const handleFieldChange = (field, value) => {
     setEditedEmployee(prev => ({ ...prev, [field]: value }));
+
+    // Real-time field validation
+    const fieldValidation = validateField(field, value);
+    if (!fieldValidation.valid) {
+      setFieldErrors(prev => ({ ...prev, [field]: fieldValidation.error }));
+    } else {
+      setFieldErrors(prev => {
+        const { [field]: _, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const renderField = (label, field, type = 'text', options = []) => {
     let value = isEditingEmployee ? editedEmployee?.[field] || '' : employeeProfile[field];
+    let displayValue = value;
+
+    // Apply masking for sensitive fields when not editing
+    if (!isEditingEmployee && value) {
+      if (field === 'aadhaarNumber') {
+        displayValue = maskAadhaar(value);
+      } else if (field === 'bankAccountNumber') {
+        displayValue = maskBankAccount(value);
+      } else if (field === 'panNumber') {
+        displayValue = maskPAN(value);
+      } else {
+        displayValue = sanitizeText(value);
+      }
+    }
+
     if (type === 'date' && value) {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        value = date.toLocaleDateString('en-GB');
+        displayValue = date.toLocaleDateString('en-GB');
       } else {
-        value = '';
+        displayValue = '';
       }
     }
-    
+
     if (!isEditingEmployee) {
-      return <p><strong>{label}:</strong> {value || 'N/A'}</p>;
+      return <p><strong>{label}:</strong> {displayValue || 'N/A'}</p>;
     }
+
+    const hasError = fieldErrors[field];
 
     if (type === 'select') {
       return (
@@ -261,12 +333,19 @@ export default function EmployeeDirectory() {
           <select
             value={value}
             onChange={(e) => handleFieldChange(field, e.target.value)}
-            className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+            className={`ml-2 px-2 py-1 border rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 ${
+              hasError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+            }`}
+            aria-invalid={hasError ? 'true' : 'false'}
+            aria-describedby={hasError ? `${field}-error` : undefined}
           >
             {options.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
           </select>
+          {hasError && (
+            <p id={`${field}-error`} className="text-red-600 dark:text-red-400 text-sm mt-1">{hasError}</p>
+          )}
         </div>
       );
     }
@@ -286,8 +365,15 @@ export default function EmployeeDirectory() {
             type="date"
             value={formattedValue}
             onChange={(e) => handleFieldChange(field, e.target.value)}
-            className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+            className={`ml-2 px-2 py-1 border rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 ${
+              hasError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+            }`}
+            aria-invalid={hasError ? 'true' : 'false'}
+            aria-describedby={hasError ? `${field}-error` : undefined}
           />
+          {hasError && (
+            <p id={`${field}-error`} className="text-red-600 dark:text-red-400 text-sm mt-1">{hasError}</p>
+          )}
         </div>
       );
     }
@@ -299,8 +385,15 @@ export default function EmployeeDirectory() {
           type={type}
           value={value}
           onChange={(e) => handleFieldChange(field, e.target.value)}
-          className="ml-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+          className={`ml-2 px-2 py-1 border rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 ${
+            hasError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+          }`}
+          aria-invalid={hasError ? 'true' : 'false'}
+          aria-describedby={hasError ? `${field}-error` : undefined}
         />
+        {hasError && (
+          <p id={`${field}-error` } className="text-red-600 dark:text-red-400 text-sm mt-1">{hasError}</p>
+        )}
       </div>
     );
   };
@@ -391,7 +484,10 @@ export default function EmployeeDirectory() {
                 <li
                   key={e._id}
                   className={`p-4 cursor-pointer hover:bg-cyan-50 dark:hover:bg-slate-700 transition-colors ${selectedEmployeeId === e._id ? 'bg-cyan-100 dark:bg-cyan-700 text-cyan-700 dark:text-cyan-50 font-semibold' : ''}`}
-                  onClick={() => setSelectedEmployeeId(e._id)}
+                  onClick={() => {
+                    setSelectedEmployeeId(e._id);
+                    navigate(`/employees/${e._id}`);
+                  }}
                 >
                   <div className="flex justify-between items-center">
                     <span>{e.fullName || `${e.firstName} ${e.lastName}`}</span>
@@ -444,10 +540,10 @@ export default function EmployeeDirectory() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-cyan-700 dark:text-cyan-300">
-                    {employeeProfile.firstName} {employeeProfile.lastName}
+                    {sanitizeText(employeeProfile.firstName)} {sanitizeText(employeeProfile.lastName)}
                   </h2>
                   <p className="text-slate-600 dark:text-slate-400 mt-1">
-                    {employeeProfile.position} &mdash; {employeeProfile.department}
+                    {sanitizeText(employeeProfile.position || 'N/A')} &mdash; {sanitizeText(employeeProfile.department || 'N/A')}
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
