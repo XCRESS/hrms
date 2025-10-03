@@ -22,7 +22,7 @@ export default function EmployeeLink() {
         apiClient.getEmployees()
       ]);
       setUsers(userRes.users || []);
-      setEmployees(empRes.employees || []);
+      setEmployees(empRes.data?.employees || []);
     } catch (err) {
       setMessage("Failed to load users or employees: " + (err?.message || ""));
     } finally {
