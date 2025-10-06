@@ -81,12 +81,21 @@ export const getSalarySlip = async (req, res) => {
       return res.status(404).json(formatResponse(false, "Employee not found"));
     }
 
+    // Build filter for salary slip
+    const filter = {
+      employee: employee._id,
+      month: parseInt(month),
+      year: parseInt(year)
+    };
+
+    // If user is an employee (not admin/hr), only show finalized slips
+    if (req.user.role === 'employee') {
+      filter.status = 'finalized';
+    }
+
     // Find salary slip
-    const salarySlip = await SalarySlip.findOne({ 
-      employee: employee._id, 
-      month: parseInt(month), 
-      year: parseInt(year) 
-    }).populate('employee', 'firstName lastName employeeId department position bankName bankAccountNumber');
+    const salarySlip = await SalarySlip.findOne(filter)
+      .populate('employee', 'firstName lastName employeeId department position bankName bankAccountNumber');
 
     if (!salarySlip) {
       return res.status(404).json(formatResponse(false, "Salary slip not found"));
@@ -115,14 +124,22 @@ export const getEmployeeSalarySlips = async (req, res) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Build filter - employees should only see finalized slips
+    const filter = { employee: employee._id };
+
+    // If user is an employee (not admin/hr), only show finalized slips
+    if (req.user.role === 'employee') {
+      filter.status = 'finalized';
+    }
+
     // Find salary slips with pagination
     const [salarySlips, total] = await Promise.all([
-      SalarySlip.find({ employee: employee._id })
+      SalarySlip.find(filter)
         .populate('employee', 'firstName lastName employeeId department position')
         .sort({ year: -1, month: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      SalarySlip.countDocuments({ employee: employee._id })
+      SalarySlip.countDocuments(filter)
     ]);
 
     const totalPages = Math.ceil(total / parseInt(limit));
