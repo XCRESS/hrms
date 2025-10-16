@@ -8,6 +8,7 @@ import Employee from '../../models/Employee.model.js';
 import Leave from '../../models/Leave.model.js';
 import Holiday from '../../models/Holiday.model.js';
 import TaskReport from '../../models/TaskReport.model.js';
+import RegularizationRequest from '../../models/Regularization.model.js';
 import { 
   getISTDayBoundaries, 
   getISTRangeBoundaries,
@@ -266,22 +267,25 @@ export class AttendanceDataService {
 
   /**
    * Get missing checkout records
+   * Excludes dates that have pending regularization requests to avoid showing reminders
+   * when employee has already submitted a regularization request
    * @param {string} employeeObjectId - Employee ObjectId
    * @param {number} lookbackDays - Number of days to look back (default: 7)
-   * @returns {Promise<Array>} Records with missing checkouts
+   * @returns {Promise<Array>} Records with missing checkouts (excluding dates with pending regularizations)
    */
   static async getMissingCheckoutRecords(employeeObjectId, lookbackDays = 7) {
     const now = new Date();
     const { startOfDay: today } = getISTDayBoundaries(now);
-    
+
     const lookbackDate = new Date(today);
     lookbackDate.setDate(lookbackDate.getDate() - lookbackDays);
 
-    return await Attendance.find({
+    // Step 1: Get all attendance records with missing checkouts
+    const missingCheckouts = await Attendance.find({
       employee: employeeObjectId,
-      date: { 
-        $gte: lookbackDate, 
-        $lt: today 
+      date: {
+        $gte: lookbackDate,
+        $lt: today
       },
       checkIn: { $exists: true },
       $or: [
@@ -289,6 +293,47 @@ export class AttendanceDataService {
         { checkOut: { $exists: false } }
       ]
     }).sort({ date: -1 });
+
+    // Step 2: If no missing checkouts, return early
+    if (missingCheckouts.length === 0) {
+      return [];
+    }
+
+    // Step 3: Get employee's employeeId for regularization lookup
+    const employee = await Employee.findById(employeeObjectId, 'employeeId');
+    if (!employee) {
+      return missingCheckouts; // Return all if employee not found (shouldn't happen)
+    }
+
+    // Step 4: Get all pending regularization requests for this employee in the date range
+    const pendingRegularizations = await RegularizationRequest.find({
+      employeeId: employee.employeeId,
+      status: 'pending',
+      date: {
+        $gte: lookbackDate,
+        $lt: today
+      }
+    }).lean();
+
+    // Step 5: Create a Set of dates with pending regularizations for O(1) lookup
+    const pendingRegDates = new Set(
+      pendingRegularizations.map(reg => {
+        // Normalize date to start of day for comparison
+        const d = new Date(reg.date);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      })
+    );
+
+    // Step 6: Filter out missing checkouts that have pending regularizations
+    const filteredMissingCheckouts = missingCheckouts.filter(attendance => {
+      const attDate = new Date(attendance.date);
+      const attDateNormalized = new Date(attDate.getFullYear(), attDate.getMonth(), attDate.getDate()).getTime();
+
+      // Keep attendance record only if it doesn't have a pending regularization
+      return !pendingRegDates.has(attDateNormalized);
+    });
+
+    return filteredMissingCheckouts;
   }
 
   // Leave Data Operations
