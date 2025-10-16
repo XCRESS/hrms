@@ -316,18 +316,27 @@ export class AttendanceDataService {
     }).lean();
 
     // Step 5: Create a Set of dates with pending regularizations for O(1) lookup
+    // IMPORTANT: Use UTC date strings (YYYY-MM-DD) to avoid timezone issues
+    // Both Attendance and RegularizationRequest dates are stored as UTC in MongoDB
     const pendingRegDates = new Set(
       pendingRegularizations.map(reg => {
-        // Normalize date to start of day for comparison
+        // Convert to YYYY-MM-DD format using UTC components
         const d = new Date(reg.date);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
       })
     );
 
     // Step 6: Filter out missing checkouts that have pending regularizations
     const filteredMissingCheckouts = missingCheckouts.filter(attendance => {
+      // Convert attendance date to YYYY-MM-DD format using UTC components
       const attDate = new Date(attendance.date);
-      const attDateNormalized = new Date(attDate.getFullYear(), attDate.getMonth(), attDate.getDate()).getTime();
+      const year = attDate.getUTCFullYear();
+      const month = String(attDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(attDate.getUTCDate()).padStart(2, '0');
+      const attDateNormalized = `${year}-${month}-${day}`;
 
       // Keep attendance record only if it doesn't have a pending regularization
       return !pendingRegDates.has(attDateNormalized);
