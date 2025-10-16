@@ -1,7 +1,7 @@
 import React, { useMemo, memo } from "react";
 import { Calendar, CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
 
-const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
+const AttendanceStats = ({ attendanceReport, isLoading = false, missingCheckoutsCount = 0 }) => {
   const currentDate = new Date();
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -21,11 +21,7 @@ const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
         presentDays: attendanceReport.attendancePercentage?.presentDays || 0,
         absentDays: attendanceReport.attendancePercentage?.absentDays || 0,
         halfDays: attendanceReport.statistics?.halfDay || 0,
-        invalidDays: Math.max(0,
-          (attendanceReport.statistics?.present || 0) +
-          (attendanceReport.statistics?.halfDay || 0) -
-          (attendanceReport.attendancePercentage?.presentDays || 0)
-        )
+        missingCheckouts: missingCheckoutsCount
       };
     }
 
@@ -33,9 +29,9 @@ const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
       presentDays: 0,
       absentDays: 0,
       halfDays: 0,
-      invalidDays: 0
+      missingCheckouts: missingCheckoutsCount
     };
-  }, [attendanceReport]);
+  }, [attendanceReport, missingCheckoutsCount]);
 
   // Get attendance percentage from backend
   const attendancePercentage = attendanceReport?.attendancePercentage?.percentage?.toFixed(1) || "0.0";
@@ -61,7 +57,7 @@ const AttendanceStats = ({ attendanceReport, isLoading = false }) => {
     { title: "Present Days", value: attendanceStats.presentDays, icon: CheckCircle, color: "green", barWidth: `${attendancePercentage}%`, subText: `${attendancePercentage}% att. (incl. half-days)` },
     { title: "Absent Days", value: attendanceStats.absentDays, icon: XCircle, color: "red", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.absentDays / workingDaysToDate) * 100 : 0}%` },
     { title: "Half Days", value: attendanceStats.halfDays, icon: AlertCircle, color: "amber", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.halfDays / workingDaysToDate) * 100 : 0}%` },
-    { title: "Incomplete Days", value: attendanceStats.invalidDays, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.invalidDays / workingDaysToDate) * 100 : 0}%` },
+    { title: "Missing Checkouts", value: attendanceStats.missingCheckouts, icon: Clock, color: "orange", barWidth: `${workingDaysToDate > 0 ? (attendanceStats.missingCheckouts / workingDaysToDate) * 100 : 0}%` },
   ], [workingDaysInMonth, daysInMonth, attendanceStats, attendancePercentage, workingDaysToDate, weekendsInMonth, holidaysInMonth]);
 
   if (isLoading) {

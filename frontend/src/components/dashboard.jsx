@@ -74,6 +74,7 @@ const dashboardInitialState = {
     announcements: [],
     activityData: [],
     adminSummary: null,
+    missingCheckoutsCount: 0, // Count of missing checkouts for the user
   },
   // App states
   app: {
@@ -475,12 +476,19 @@ export default function HRMSDashboard() {
 
   const loadMissingCheckouts = async () => {
     try {
+      // Fetch missing checkouts count
+      const response = await apiClient.getMissingCheckouts();
+      if (response.success && response.data) {
+        setData('missingCheckoutsCount', response.data.total || 0);
+      }
+
       // Trigger refresh of MissingCheckoutAlert component
       if (window.refreshMissingCheckouts) {
         window.refreshMissingCheckouts();
       }
     } catch (error) {
       console.error("Failed to load missing checkouts:", error);
+      setData('missingCheckoutsCount', 0);
     }
   };
 
@@ -672,6 +680,7 @@ export default function HRMSDashboard() {
         setAppState('dailyCycleComplete', true);
         await fetchTodayAttendance();
         await loadAttendanceData(true); // Force refresh after check-out
+        await loadMissingCheckouts(); // Refresh missing checkouts count
       }
     } catch (error) {
       console.error("Check-out error:", error);
@@ -713,6 +722,7 @@ export default function HRMSDashboard() {
         setModal('showTaskReportModal', false);
         await fetchTodayAttendance();
         await loadAttendanceData(true); // Force refresh after check-out
+        await loadMissingCheckouts(); // Refresh missing checkouts count
       }
     } catch (error) {
       console.error("Check-out error:", error);
@@ -1057,6 +1067,7 @@ export default function HRMSDashboard() {
                       <AttendanceStats
                         attendanceReport={data.attendanceReport}
                         isLoading={isLoading}
+                        missingCheckoutsCount={data.missingCheckoutsCount}
                       />
                     </Suspense>
                   </div>
