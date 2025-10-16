@@ -138,18 +138,27 @@ class ApiClient {
           // If it's a network error and we have retries left, retry with delay
           if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
             error.isServerUnavailable = true;
-            
+            error.isDNSError = true;
+
+            // Enhance error message for DNS issues
+            const backendHostname = new URL(this.baseURL).hostname;
+            error.userFriendlyMessage = `Cannot connect to ${backendHostname}. This may be due to:\n` +
+                                       `• DNS resolution issues on your mobile network\n` +
+                                       `• Network restrictions by your mobile carrier\n` +
+                                       `• Try switching to WiFi or use a different network`;
+
             if (attempt < maxRetries) {
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue; // Retry the request
             }
-            
+
             // Final attempt failed
-            console.error(`🚨 Server unavailable: ${endpoint}`);
+            console.error(`🚨 DNS/Network Error: Cannot resolve ${backendHostname}`);
+            console.error(`💡 Suggestion: Try switching to WiFi or use a different mobile network`);
           } else if (!error.isValidationError) {
             console.error(`🚨 Unexpected error: ${endpoint} - ${error.message}`);
           }
-          
+
           throw error;
         }
       }
@@ -163,19 +172,62 @@ class ApiClient {
         // Use a simple fetch with a timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-        
+
         const response = await fetch(`${this.baseURL}`, {
           signal: controller.signal,
           method: 'GET'
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         // Server is reachable if we get any response
         return response.ok;
       } catch (error) {
         console.warn("Server ping failed:", error.message);
         return false;
+      }
+    }
+
+    // Check DNS resolution for the backend server
+    async checkDNSHealth() {
+      try {
+        const backendHostname = new URL(this.baseURL).hostname;
+
+        // Try to resolve DNS by attempting a HEAD request with short timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch(`https://${backendHostname}`, {
+          method: 'HEAD',
+          signal: controller.signal,
+          mode: 'no-cors' // Avoid CORS issues, we just want to check DNS resolution
+        });
+
+        clearTimeout(timeoutId);
+
+        return {
+          success: true,
+          hostname: backendHostname,
+          message: 'DNS resolved successfully'
+        };
+      } catch (error) {
+        const backendHostname = new URL(this.baseURL).hostname;
+
+        // Check if error is DNS-related
+        const isDNSError = error.name === 'TypeError' &&
+                          (error.message.includes('Failed to fetch') ||
+                           error.message.includes('NetworkError') ||
+                           error.message.includes('ERR_NAME_NOT_RESOLVED'));
+
+        return {
+          success: false,
+          hostname: backendHostname,
+          error: error.message,
+          isDNSError,
+          message: isDNSError
+            ? `Cannot resolve ${backendHostname}. This may be due to network restrictions or DNS issues on your mobile carrier.`
+            : `Connection error: ${error.message}`
+        };
       }
     }
 
