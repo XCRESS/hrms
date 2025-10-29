@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { 
+import {
   ArrowRight, Play, Check, Menu, X, Mail, MapPin,
   Clock, Users, Calendar, FileText, DollarSign,
   Shield, Bot, Bell, Building, Star, ArrowUpRight
@@ -73,11 +73,10 @@ const LandingPage = () => {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-white/90 backdrop-blur-lg border-b border-gray-200/50 shadow-sm' 
-            : 'bg-transparent'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+          ? 'bg-white/90 backdrop-blur-lg border-b border-gray-200/50 shadow-sm'
+          : 'bg-transparent'
+          }`}
       >
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex justify-between items-center h-16">
@@ -138,7 +137,7 @@ const LandingPage = () => {
 
         <motion.div
           initial={false}
-          animate={{ 
+          animate={{
             height: isMenuOpen ? 'auto' : 0,
             opacity: isMenuOpen ? 1 : 0
           }}
@@ -181,7 +180,7 @@ const LandingPage = () => {
     return (
       <section id="hero" className="relative min-h-screen bg-white overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/40 via-white to-indigo-50/30" />
-        
+
         <motion.div
           className="absolute top-1/3 right-1/5 w-40 h-40 bg-gradient-to-br from-blue-100/30 to-indigo-100/20 rounded-full blur-3xl"
           animate={{
@@ -206,7 +205,7 @@ const LandingPage = () => {
                 className="mb-8"
               >
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-blue-50 rounded-full border border-green-100">
-                  <motion.div 
+                  <motion.div
                     className="w-2 h-2 bg-green-500 rounded-full"
                     animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
                     transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -215,7 +214,7 @@ const LandingPage = () => {
                 </div>
               </motion.div>
 
-              <motion.h1 
+              <motion.h1
                 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -233,7 +232,7 @@ const LandingPage = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-xl text-gray-600 mb-10 leading-relaxed"
               >
-                Complete HR automation built for Indian SMEs. GPS attendance tracking, 
+                Complete HR automation built for Indian SMEs. GPS attendance tracking,
                 automated payroll compliance, AI-powered HR assistant, and seamless employee management.
               </motion.p>
 
@@ -249,8 +248,8 @@ const LandingPage = () => {
                   { icon: Bot, text: "HR Buddy AI", desc: "24/7 intelligent assistant" },
                   { icon: Shield, text: "100% Compliance", desc: "PF, ESI, TDS automated" }
                 ].map((item, index) => (
-                  <motion.div 
-                    key={index} 
+                  <motion.div
+                    key={index}
                     className="flex items-start gap-4 p-4 bg-white/70 rounded-xl border border-gray-100/50 backdrop-blur-sm hover:bg-white/90 transition-colors duration-300"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -273,15 +272,15 @@ const LandingPage = () => {
                 transition={{ duration: 0.6, delay: 0.8 }}
                 className="flex flex-col sm:flex-row gap-6 items-start"
               >
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
                   onClick={handleLogin}
                   className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:shadow-2xl hover:from-blue-700 hover:to-indigo-700 transform hover:translate-y-[-2px]"
                 >
                   Start 14-Day Free Trial
                   <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                
+
                 <button className="text-gray-700 hover:text-gray-900 transition-all duration-300 flex items-center gap-3 group hover:translate-y-[-1px]">
                   <div className="w-12 h-12 rounded-2xl border-2 border-gray-300 flex items-center justify-center group-hover:border-blue-500 group-hover:bg-blue-50 transition-all duration-300">
                     <Play className="w-4 h-4 ml-0.5" />
@@ -321,15 +320,15 @@ const LandingPage = () => {
               className="lg:col-span-2 relative"
             >
               <div className="relative max-w-sm mx-auto">
-                <motion.div 
+                <motion.div
                   className="relative bg-white rounded-3xl shadow-2xl p-3 border border-gray-200/50"
                   initial={{ scale: 0.95 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.6 }}
                 >
                   <div className="aspect-[9/16] bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl overflow-hidden">
-                    <img 
-                      src="/screenshots/dashboard.jpg" 
+                    <img
+                      src="/screenshots/dashboard.jpg"
                       alt="HRMS Dashboard - Complete HR Management"
                       className="w-full h-full object-cover"
                     />
@@ -347,8 +346,8 @@ const LandingPage = () => {
                 >
                   <div className="bg-white rounded-2xl shadow-xl p-2 border border-gray-100">
                     <div className="aspect-[9/16] bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl overflow-hidden">
-                      <img 
-                        src="/screenshots/hrbuddy.jpg" 
+                      <img
+                        src="/screenshots/hrbuddy.jpg"
                         alt="HR Buddy AI Assistant"
                         className="w-full h-full object-cover"
                       />
@@ -367,8 +366,8 @@ const LandingPage = () => {
                 >
                   <div className="bg-white rounded-2xl shadow-xl p-2 border border-gray-100">
                     <div className="aspect-[9/16] bg-gradient-to-br from-green-50 to-blue-50 rounded-xl overflow-hidden">
-                      <img 
-                        src="/screenshots/directory.jpg" 
+                      <img
+                        src="/screenshots/directory.jpg"
                         alt="Employee Directory Management"
                         className="w-full h-full object-cover"
                       />
@@ -492,7 +491,7 @@ const LandingPage = () => {
               <span className="block text-blue-600">Needs to Succeed</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Comprehensive HR management designed specifically for Indian businesses. 
+              Comprehensive HR management designed specifically for Indian businesses.
               Save time, reduce costs, ensure compliance.
             </p>
           </motion.div>
@@ -509,8 +508,8 @@ const LandingPage = () => {
               >
                 {feature.image && (
                   <div className="aspect-[4/3] mb-6 rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 relative">
-                    <img 
-                      src={feature.image} 
+                    <img
+                      src={feature.image}
                       alt={feature.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
@@ -526,7 +525,7 @@ const LandingPage = () => {
                     {feature.title}
                   </h3>
                 </div>
-                
+
                 <p className="text-gray-600 leading-relaxed mb-4">
                   {feature.description}
                 </p>
@@ -552,11 +551,11 @@ const LandingPage = () => {
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${colorMap[feature.color]} mb-4 group-hover:scale-110 transition-transform duration-300`}>
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                
+
                 <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-300">
                   {feature.title}
                 </h3>
-                
+
                 <p className="text-gray-600 leading-relaxed">
                   {feature.description}
                 </p>
@@ -595,7 +594,7 @@ const LandingPage = () => {
     const plans = [
       {
         name: 'Starter',
-        price: '₹1,999',
+        price: '₹599',
         period: 'per month',
         description: 'Perfect for small businesses up to 25 employees',
         features: [
@@ -604,14 +603,15 @@ const LandingPage = () => {
           'Leave management',
           'Salary slip generation',
           'Email support',
-          'Mobile app access'
+          'Mobile app access',
+          'Add document management'
         ],
         popular: false,
         savings: 'Save ₹30,000/month'
       },
       {
         name: 'Business',
-        price: '₹3,999',
+        price: '₹3,500',
         period: 'per month',
         description: 'Complete solution for growing SMEs up to 100 employees',
         features: [
@@ -629,7 +629,7 @@ const LandingPage = () => {
       },
       {
         name: 'Enterprise',
-        price: '₹7,999',
+        price: '₹6,500',
         period: 'per month',
         description: 'Full-featured solution for large organizations',
         features: [
@@ -670,11 +670,10 @@ const LandingPage = () => {
             {plans.map((plan, index) => (
               <motion.div
                 key={index}
-                className={`relative bg-white rounded-2xl p-8 transition-all duration-300 hover:shadow-xl ${
-                  plan.popular 
-                    ? 'border-2 border-blue-500 shadow-lg scale-105' 
-                    : 'border border-gray-200'
-                }`}
+                className={`relative bg-white rounded-2xl p-8 transition-all duration-300 hover:shadow-xl ${plan.popular
+                  ? 'border-2 border-blue-500 shadow-lg scale-105'
+                  : 'border border-gray-200'
+                  }`}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
@@ -698,13 +697,12 @@ const LandingPage = () => {
                   <p className="text-gray-600">{plan.description}</p>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleLogin}
-                  className={`w-full mb-8 ${
-                    plan.popular 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  }`}
+                  className={`w-full mb-8 ${plan.popular
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                    }`}
                   size="lg"
                 >
                   Start Free Trial
@@ -734,7 +732,7 @@ const LandingPage = () => {
               All plans include 14-day free trial. No credit card required. Cancel anytime.
             </p>
             <p className="text-sm text-gray-500">
-              Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact our sales team</button>
+              Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact our team</button>
             </p>
           </motion.div>
         </div>
@@ -759,12 +757,12 @@ const LandingPage = () => {
             </h2>
 
             <p className="text-xl opacity-90 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Join 500+ Indian businesses already saving thousands monthly on HR operations. 
+              Join 500+ Indian businesses already saving thousands monthly on HR operations.
               Start your free trial today - no credit card needed.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Button 
+              <Button
                 size="lg"
                 onClick={handleLogin}
                 className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:bg-gray-100 hover:scale-105 shadow-lg"
@@ -811,7 +809,7 @@ const LandingPage = () => {
                 <span className="text-2xl font-bold">HRMS</span>
               </div>
               <p className="text-gray-400 mb-8 leading-relaxed max-w-2xl mx-auto text-lg">
-                Modern HR management system designed specifically for Indian businesses. 
+                Modern HR management system designed specifically for Indian businesses.
                 Streamline operations, ensure compliance, and focus on growth.
               </p>
             </div>
@@ -834,7 +832,7 @@ const LandingPage = () => {
                 ))}
               </div>
               <blockquote className="text-lg italic text-gray-300 mb-4">
-                "HRMS has completely transformed our HR operations. We've saved over ₹80,000 monthly 
+                "HRMS has completely transformed our HR operations. We've saved over ₹80,000 monthly
                 and our team productivity has increased by 40%. The AI assistant is a game-changer!"
               </blockquote>
               <cite className="text-blue-400 font-semibold">— Rajesh Kumar, CEO, TechnoSoft Solutions</cite>
