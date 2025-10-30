@@ -277,7 +277,7 @@ const LandingPage = () => {
                   onClick={handleLogin}
                   className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:shadow-2xl hover:from-blue-700 hover:to-indigo-700 transform hover:translate-y-[-2px]"
                 >
-                  Start 14-Day Free Trial
+                  Start 30-Day Free Trial
                   <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
 
@@ -662,7 +662,7 @@ const LandingPage = () => {
               <span className="block text-blue-600">Scales With You</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Fixed monthly pricing. No per-employee charges. 14-day free trial with all features.
+              Fixed monthly pricing. No per-employee charges. 30-day free trial with all features.
             </p>
           </motion.div>
 
@@ -729,7 +729,7 @@ const LandingPage = () => {
             transition={{ duration: 0.8 }}
           >
             <p className="text-gray-600 mb-4">
-              All plans include 14-day free trial. No credit card required. Cancel anytime.
+              All plans include 30-day free trial. No credit card required. Cancel anytime.
             </p>
             <p className="text-sm text-gray-500">
               Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact our team</button>
@@ -776,7 +776,7 @@ const LandingPage = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto opacity-90">
-              {['No Setup Fees', '14-Day Free Trial', 'Cancel Anytime', 'Migration Support'].map((benefit, index) => (
+              {['No Setup Fees', '30-day Free Trial', 'Cancel Anytime', 'Migration Support'].map((benefit, index) => (
                 <div key={index} className="flex items-center justify-center text-sm">
                   <Check className="w-4 h-4 mr-2 text-green-300" />
                   {benefit}
