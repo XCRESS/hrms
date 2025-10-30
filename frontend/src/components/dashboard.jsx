@@ -1112,11 +1112,9 @@ export default function HRMSDashboard() {
             
             <div className="w-full lg:w-1/4 lg:pl-2">
               <Suspense fallback={<ComponentSkeleton />}>
-                <UpdatesSidebar 
+                <UpdatesSidebar
                   announcements={data.announcements || []}
                   holidays={data.holidaysData || []}
-                  username={username}
-                  activityData={data.activityData || []}
                   initialActiveTab={updatesActiveTab}
                   onTabChange={handleUpdatesTabChange}
                 />

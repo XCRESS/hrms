@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Calendar, FileText, Shield } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import PolicyModal from "../ui/PolicyModal";
 
-const UpdatesSidebar = ({ 
-  announcements, 
-  holidays, 
-  username,
+const UpdatesSidebar = ({
+  announcements,
+  holidays,
   initialActiveTab = "policies",
   onTabChange
 }) => {
@@ -189,9 +188,9 @@ const UpdatesSidebar = ({
                           <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
                             {new Date(announcement.createdAt || announcement.date).toLocaleDateString()}
                           </p>
-                          {announcement.author && (
+                          {(announcement.authorName || announcement.author?.name) && (
                             <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
-                              by {announcement.author}
+                              by {announcement.authorName || announcement.author?.name}
                             </span>
                           )}
                         </div>
