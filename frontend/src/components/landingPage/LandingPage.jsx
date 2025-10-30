@@ -735,16 +735,11 @@ const LandingPage = () => {
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-<<<<<<< HEAD
-            <p className="text-gray-600 mb-4">
-              All plans include 30-day free trial. No credit card required. Cancel anytime.
-=======
             <p className="text-gray-600 mb-2">
               All plans include 30-day free trial. No credit card required. Cancel anytime.
             </p>
             <p className="text-md text-gray-600 mb-2">
               An annual maintenance & recruitment charge of ₹5,000 will be applicable.
->>>>>>> 43c668da6151c3c1fe0a48a645178337191f31b6
             </p>
             <p className="text-sm text-gray-500">
               Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact Us</button>
