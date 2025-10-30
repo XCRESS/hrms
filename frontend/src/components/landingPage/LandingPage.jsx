@@ -604,7 +604,7 @@ const LandingPage = () => {
           'Salary slip generation',
           'Email support',
           'Mobile app access',
-          'Add document management'
+          'Document management'
         ],
         popular: false,
         savings: 'Save ₹30,000/month'
@@ -622,9 +622,11 @@ const LandingPage = () => {
           'Document management',
           'Priority phone support',
           'Custom reports',
-          'Department management'
+          'Department management',
+          'Employee document automation'
         ],
         popular: true,
+        note: '* Extended feature available',
         savings: 'Save ₹75,000/month'
       },
       {
@@ -714,8 +716,13 @@ const LandingPage = () => {
                     <li key={idx} className="flex items-center">
                       <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
                       <span className="text-gray-700">{feature}</span>
+
                     </li>
                   ))}
+
+                  {plan.note && (
+                    <p className="pl-7 text-sm text-blue-500">{plan.note}</p>
+                  )}
                 </ul>
               </motion.div>
             ))}
@@ -728,11 +735,14 @@ const LandingPage = () => {
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.8 }}
           >
-            <p className="text-gray-600 mb-4">
-              All plans include 14-day free trial. No credit card required. Cancel anytime.
+            <p className="text-gray-600 mb-2">
+              All plans include 30-day free trial. No credit card required. Cancel anytime.
+            </p>
+            <p className="text-md text-gray-600 mb-2">
+              An annual maintenance & recruitment charge of ₹5,000 will be applicable.
             </p>
             <p className="text-sm text-gray-500">
-              Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact our team</button>
+              Need a custom solution? <button className="text-blue-600 hover:underline font-semibold">Contact Us</button>
             </p>
           </motion.div>
         </div>
