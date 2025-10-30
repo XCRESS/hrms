@@ -153,27 +153,37 @@ class EmailService {
 
   getEmailHeader() {
     return `
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 0; text-align: center; margin-bottom: 30px;">
-        <div style="max-width: 600px; margin: 0 auto;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0.5px;">
-            📊 HRMS System
-          </h1>
-          <p style="color: rgba(255, 255, 255, 0.9); margin: 5px 0 0 0; font-size: 14px;">
-            Human Resource Management System
-          </p>
-        </div>
+      <div class="header-padding" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center; margin-bottom: 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td align="center">
+              <h1 class="mobile-heading" style="color: white; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0.5px; padding: 0;">
+                📊 HRMS System
+              </h1>
+              <p class="mobile-text-small" style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 14px; padding: 0;">
+                Human Resource Management System
+              </p>
+            </td>
+          </tr>
+        </table>
       </div>
     `;
   }
 
   getEmailFooter() {
     return `
-      <div style="margin-top: 40px; padding: 25px 0; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 13px;">
-        <p style="margin: 0 0 8px 0;">This is an automated message from HRMS System</p>
-        <p style="margin: 0; font-size: 12px;">Please do not reply to this email</p>
-        <div style="margin-top: 15px; font-size: 12px;">
-          <span style="color: #94a3b8;">© ${new Date().getFullYear()} HRMS System. All rights reserved.</span>
-        </div>
+      <div class="mobile-padding" style="margin-top: 30px; padding: 25px 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td align="center">
+              <p class="mobile-text-small" style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.5;">This is an automated message from HRMS System</p>
+              <p class="mobile-text-small" style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5;">Please do not reply to this email</p>
+              <p class="mobile-text-small" style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                © ${new Date().getFullYear()} HRMS System. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
       </div>
     `;
   }
@@ -185,36 +195,107 @@ class EmailService {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <title>HRMS Notification</title>
+        <!--[if mso]>
+        <style type="text/css">
+          body, table, td { font-family: Arial, Helvetica, sans-serif !important; }
+        </style>
+        <![endif]-->
         <style>
           * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
           }
-          
+
+          body {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+          }
+
+          table {
+            border-collapse: collapse !important;
+          }
+
+          img {
+            -ms-interpolation-mode: bicubic;
+            max-width: 100%;
+            height: auto;
+          }
+
           @media only screen and (max-width: 600px) {
             .email-container {
               width: 100% !important;
               margin: 0 !important;
+              border-radius: 0 !important;
             }
+
             .content-padding {
-              padding: 20px 15px !important;
+              padding: 20px 16px !important;
             }
+
             .header-padding {
-              padding: 20px 15px !important;
+              padding: 24px 16px !important;
+            }
+
+            .mobile-text-center {
+              text-align: center !important;
+            }
+
+            .mobile-full-width {
+              width: 100% !important;
+              display: block !important;
+            }
+
+            .mobile-padding {
+              padding: 12px !important;
+            }
+
+            .mobile-text-small {
+              font-size: 14px !important;
+            }
+
+            .mobile-heading {
+              font-size: 20px !important;
+            }
+
+            .mobile-subheading {
+              font-size: 16px !important;
+            }
+
+            .mobile-hide {
+              display: none !important;
+            }
+
+            .mobile-stack {
+              display: block !important;
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+
+            .mobile-icon-container {
+              width: 50px !important;
+              height: 50px !important;
+              font-size: 20px !important;
             }
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 20px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #334155;">
-        <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
-          ${this.getEmailHeader()}
-          <div class="content-padding" style="padding: 0 40px 40px 40px;">
-            ${content}
-          </div>
-          ${this.getEmailFooter()}
-        </div>
+      <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #334155; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; padding: 20px 0;">
+          <tr>
+            <td align="center" style="padding: 0;">
+              <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                ${this.getEmailHeader()}
+                <div class="content-padding" style="padding: 0 40px 40px 40px;">
+                  ${content}
+                </div>
+                ${this.getEmailFooter()}
+              </div>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
@@ -250,40 +331,51 @@ class EmailService {
 
   getActionButton(text, color = '#667eea') {
     return `
-      <div style="text-align: center; margin: 25px 0;">
-        <a href="#" style="
-          display: inline-block;
-          background-color: ${color};
-          color: white;
-          text-decoration: none;
-          padding: 12px 30px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 14px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          transition: background-color 0.2s;
-        ">${text}</a>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" style="border-radius: 8px; background-color: ${color};">
+                  <a href="#" class="mobile-text-small" style="
+                    display: inline-block;
+                    background-color: ${color};
+                    color: white;
+                    text-decoration: none;
+                    padding: 14px 32px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    border: none;
+                    min-width: 200px;
+                    text-align: center;
+                  ">${text}</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `;
   }
 
   getInfoCard(items) {
     const itemsHtml = items.map(item => `
       <tr>
-        <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
-          <strong style="color: #475569; font-size: 14px;">${item.label}:</strong>
+        <td class="mobile-text-small" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top;">
+          <strong style="color: #475569; font-size: 14px; display: block; word-break: break-word;">${item.label}:</strong>
         </td>
-        <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: right;">
-          <span style="color: #1e293b; font-size: 14px;">${item.value}</span>
+        <td class="mobile-text-small" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; vertical-align: top;">
+          <span style="color: #1e293b; font-size: 14px; display: block; word-break: break-word;">${item.value}</span>
         </td>
       </tr>
     `).join('');
 
     return `
-      <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
-        <table style="width: 100%; border-collapse: collapse;">
+      <div class="mobile-padding" style="background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
           ${itemsHtml}
         </table>
       </div>
@@ -408,26 +500,48 @@ class EmailService {
       announcement: () => ({
         subject: `📢 ${data.title}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">📢</span>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td align="center" style="padding: 0 0 30px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center">
+                      <div class="mobile-icon-container" style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; margin: 0 auto 15px; display: inline-flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 24px;">📢</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <h2 class="mobile-heading" style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700; padding: 0;">New Announcement</h2>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <p class="mobile-text-small" style="color: #64748b; margin: 8px 0 0 0; font-size: 16px; padding: 0;">Important update from management</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <div class="mobile-padding" style="background: linear-gradient(135deg, #fefbeb, #fef3c7); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #f59e0b;">
+            <h3 class="mobile-subheading" style="color: #92400e; margin: 0 0 15px 0; font-size: 20px; font-weight: 700; word-break: break-word;">${data.title}</h3>
+            <div class="mobile-text-small" style="color: #78350f; font-size: 16px; line-height: 1.7;">
+              ${data.content.split('\n').map(paragraph => `<p style="margin: 0 0 15px 0; word-break: break-word;">${paragraph}</p>`).join('')}
             </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">New Announcement</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Important update from management</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #fed7aa;">
+              <tr>
+                <td align="right">
+                  <p class="mobile-text-small mobile-text-center" style="color: #92400e; margin: 0; font-size: 14px; font-weight: 600;">— ${data.author}</p>
+                </td>
+              </tr>
+            </table>
           </div>
-          
-          <div style="background: linear-gradient(135deg, #fefbeb, #fef3c7); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #f59e0b;">
-            <h3 style="color: #92400e; margin: 0 0 15px 0; font-size: 20px; font-weight: 700;">${data.title}</h3>
-            <div style="color: #78350f; font-size: 16px; line-height: 1.7;">
-              ${data.content.split('\n').map(paragraph => `<p style="margin: 0 0 15px 0;">${paragraph}</p>`).join('')}
-            </div>
-            <div style="text-align: right; margin-top: 20px; padding-top: 15px; border-top: 1px solid #fed7aa;">
-              <p style="color: #92400e; margin: 0; font-size: 14px; font-weight: 600;">— ${data.author}</p>
-            </div>
-          </div>
-          
-          <div style="background: #fffbeb; border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b; text-align: center;">
-            <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500;">
+
+          <div class="mobile-padding" style="background: #fffbeb; border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b; text-align: center;">
+            <p class="mobile-text-small" style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500; line-height: 1.4;">
               📋 This announcement is also available in your HRMS dashboard
             </p>
           </div>
@@ -553,50 +667,97 @@ class EmailService {
       birthday_wish: () => ({
         subject: `🎉 Happy Birthday ${data.employee}!`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 40px;">
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; position: relative; box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);">
-              <span style="font-size: 32px; animation: bounce 2s infinite;">🎂</span>
-            </div>
-            <h1 style="color: #1e293b; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #ff6b6b, #ff8e53); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-              Happy Birthday!
-            </h1>
-            <h2 style="color: #667eea; margin: 0; font-size: 24px; font-weight: 700;">${data.employee}</h2>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td align="center" style="padding: 0 0 30px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center">
+                      <div class="mobile-icon-container" style="width: 80px; height: 80px; background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-radius: 50%; margin: 0 auto 20px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);">
+                        <span style="font-size: 32px;">🎂</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <h1 class="mobile-heading" style="color: #ff6b6b; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; padding: 0;">
+                        Happy Birthday!
+                      </h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <h2 class="mobile-subheading" style="color: #667eea; margin: 0; font-size: 24px; font-weight: 700; padding: 0;">${data.employee}</h2>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <div class="mobile-padding" style="background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 16px; padding: 30px; text-align: center; margin: 30px 0; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);">
+            <p class="mobile-text-small" style="color: white; font-size: 20px; margin: 0 0 15px 0; font-weight: 600; line-height: 1.4;">
+              Wishing you a wonderful birthday and an amazing year ahead!
+            </p>
+            ${data.age ? `<p class="mobile-text-small" style="color: rgba(255,255,255,0.9); margin: 0 0 15px 0; font-size: 18px;">Celebrating ${data.age} years of awesomeness! 🎂</p>` : ''}
+            ${data.department ? `<p class="mobile-text-small" style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">From your ${data.department} team and the entire HRMS family</p>` : ''}
           </div>
-          
-          <div style="background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 16px; padding: 30px; text-align: center; margin: 30px 0; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);">
-            <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\"50\" font-size=\"20\">🎉</text></svg>') repeat; opacity: 0.1;"></div>
-            <div style="position: relative; z-index: 1;">
-              <p style="color: white; font-size: 20px; margin: 0 0 15px 0; font-weight: 600;">
-                Wishing you a wonderful birthday and an amazing year ahead!
-              </p>
-              ${data.age ? `<p style="color: rgba(255,255,255,0.9); margin: 0 0 15px 0; font-size: 18px;">Celebrating ${data.age} years of awesomeness! 🎂</p>` : ''}
-              ${data.department ? `<p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">From your ${data.department} team and the entire HRMS family</p>` : ''}
-            </div>
-          </div>
-          
-          <div style="display: flex; justify-content: space-around; margin: 30px 0; flex-wrap: wrap;">
-            <div style="text-align: center; margin: 10px; flex: 1; min-width: 150px;">
-              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #ff9a9e, #fecfef); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 20px;">🎁</span>
-              </div>
-              <p style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600;">May this special day bring you joy and happiness</p>
-            </div>
-            <div style="text-align: center; margin: 10px; flex: 1; min-width: 150px;">
-              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #a8edea, #fed6e3); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 20px;">🌟</span>
-              </div>
-              <p style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600;">Here's to another year of great achievements</p>
-            </div>
-            <div style="text-align: center; margin: 10px; flex: 1; min-width: 150px;">
-              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #ffecd2, #fcb69f); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 20px;">🎈</span>
-              </div>
-              <p style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600;">Enjoy your special celebration!</p>
-            </div>
-          </div>
-          
-          <div style="background: linear-gradient(135deg, #ffeaa7, #fab1a0); border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
-            <p style="color: #2d3436; margin: 0; font-size: 16px; font-weight: 600;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
+            <tr>
+              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center">
+                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #ff9a9e, #fecfef); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 20px;">🎁</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">May this special day bring you joy and happiness</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center">
+                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #a8edea, #fed6e3); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 20px;">🌟</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">Here's to another year of great achievements</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center">
+                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #ffecd2, #fcb69f); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 20px;">🎈</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">Enjoy your special celebration!</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <div class="mobile-padding" style="background: linear-gradient(135deg, #ffeaa7, #fab1a0); border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+            <p class="mobile-text-small" style="color: #2d3436; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4;">
               🎊 Have a fantastic day filled with love, laughter, and cake! 🎊
             </p>
           </div>

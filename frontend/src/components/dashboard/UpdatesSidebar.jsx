@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell, Calendar, FileText, Shield } from "lucide-react";
 import apiClient from "../../service/apiClient";
 import PolicyModal from "../ui/PolicyModal";
+import AnnouncementModal from "../ui/AnnouncementModal";
 
 const UpdatesSidebar = ({
   announcements,
@@ -14,6 +15,8 @@ const UpdatesSidebar = ({
   const [policiesLoading, setPoliciesLoading] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
 
   // Load active policies
   useEffect(() => {
@@ -42,6 +45,11 @@ const UpdatesSidebar = ({
   const handlePolicyClick = (policyId) => {
     setSelectedPolicyId(policyId);
     setShowPolicyModal(true);
+  };
+
+  const handleAnnouncementClick = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setShowAnnouncementModal(true);
   };
 
   const getPriorityColor = (priority) => {
@@ -167,7 +175,11 @@ const UpdatesSidebar = ({
             <div className="space-y-3 sm:space-y-4">
               {announcements && announcements.length > 0 ? (
                 announcements.map((announcement, index) => (
-                  <div key={announcement.id || `announcement-${index}`} className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                  <div
+                    key={announcement.id || `announcement-${index}`}
+                    className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700 cursor-pointer"
+                    onClick={() => handleAnnouncementClick(announcement)}
+                  >
                     <div className="flex items-start gap-2 sm:gap-3.5">
                       <div className="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm">
                         <Bell size={14} />
@@ -214,6 +226,16 @@ const UpdatesSidebar = ({
         onClose={() => {
           setShowPolicyModal(false);
           setSelectedPolicyId(null);
+        }}
+      />
+
+      {/* Announcement Modal */}
+      <AnnouncementModal
+        announcement={selectedAnnouncement}
+        isOpen={showAnnouncementModal}
+        onClose={() => {
+          setShowAnnouncementModal(false);
+          setSelectedAnnouncement(null);
         }}
       />
     </div>

@@ -3,7 +3,7 @@ import User from "../models/User.model.js";
 import Attendance from "../models/Attendance.model.js";
 import Employee from "../models/Employee.model.js";
 import moment from "moment-timezone";
-import { getISTNow } from "../utils/timezoneUtils.js";
+import { getISTNow, getISTDayBoundaries } from "../utils/timezoneUtils.js";
 import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 import { AttendanceBusinessService } from "../services/attendance/AttendanceBusinessService.js";
 import NotificationService from "../services/notificationService.js";
@@ -226,17 +226,13 @@ export const reviewRegularization = async (req, res) => {
 
       // Find or create attendance record
       // Use IST-aware date matching to avoid timezone issues
-      const regDate = new Date(reg.date);
-
-      // Create IST day boundaries using local date methods (not UTC)
-      const startOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 0, 0, 0, 0);
-      const endOfDay = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate(), 23, 59, 59, 999);
+      const { startOfDay, endOfDay } = getISTDayBoundaries(reg.date);
 
       let att = await Attendance.findOne({
         employee: employeeDoc._id,
         date: {
-          $gte: startOfDay,
-          $lte: endOfDay
+          $gte: startOfDay.toDate(),
+          $lte: endOfDay.toDate()
         }
       });
 
@@ -250,8 +246,8 @@ export const reviewRegularization = async (req, res) => {
 
       console.log("Date matching:", {
         regularizationDate: reg.date,
-        startOfDay: startOfDay,
-        endOfDay: endOfDay,
+        startOfDay: startOfDay.toDate(),
+        endOfDay: endOfDay.toDate(),
         foundAttendance: !!att,
         attendanceDate: att?.date
       });
@@ -263,7 +259,7 @@ export const reviewRegularization = async (req, res) => {
         const attendanceData = {
           employee: employeeDoc._id,
           employeeName: `${employeeDoc.firstName} ${employeeDoc.lastName}`,
-          date: startOfDay, // Use IST start of day
+          date: startOfDay.toDate(), // Use IST start of day
           checkIn: checkInTime,
           checkOut: checkOutTime,
           status: "present", // Will be recalculated below
