@@ -157,8 +157,9 @@ class EmailService {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
             <td align="center">
+              <img src="https://hr.intakesense.com/icon-192x192.png" alt="HRMS Logo" width="64" height="64" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
               <h1 class="mobile-heading" style="color: white; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0.5px; padding: 0;">
-                📊 HRMS System
+                HRMS System
               </h1>
               <p class="mobile-text-small" style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 14px; padding: 0;">
                 Human Resource Management System
@@ -385,7 +386,7 @@ class EmailService {
   getTemplate(type, data) {
     const templates = {
       leave_request: () => ({
-        subject: `🏖️ New Leave Request - ${data.employee}`,
+        subject: `New Leave Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -413,7 +414,7 @@ class EmailService {
       }),
 
       help_request: () => ({
-        subject: `🆘 New Help Request - ${data.employee}`,
+        subject: `New Help Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -440,7 +441,7 @@ class EmailService {
       }),  
 
       regularization_request: () => ({
-        subject: `⏰ New Regularization Request - ${data.employee}`,
+        subject: `New Regularization Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -469,7 +470,7 @@ class EmailService {
       }),
 
       holiday_reminder: () => ({
-        subject: `🏖️ Holiday Reminder - ${data.title}`,
+        subject: `Holiday Reminder - ${data.title}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #06b6d4, #0891b2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -498,7 +499,7 @@ class EmailService {
       }),
 
       announcement: () => ({
-        subject: `📢 ${data.title}`,
+        subject: `Announcement: ${data.title}`,
         htmlContent: this.getBaseEmailTemplate(`
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
@@ -549,7 +550,7 @@ class EmailService {
       }),
 
       employee_milestone: () => ({
-        subject: `🏆 Employee Milestone Alert - ${data.employee}`,
+        subject: `Employee Milestone - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -586,7 +587,7 @@ class EmailService {
       }),
 
       leave_status_update: () => ({
-        subject: `📋 Leave Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
+        subject: `Leave Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -625,7 +626,7 @@ class EmailService {
       }),
 
       regularization_status_update: () => ({
-        subject: `⏰ Regularization Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
+        subject: `Regularization Request ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'Update'}`,
         htmlContent: this.getBaseEmailTemplate(`
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
@@ -665,7 +666,7 @@ class EmailService {
       }),
 
       birthday_wish: () => ({
-        subject: `🎉 Happy Birthday ${data.employee}!`,
+        subject: `Happy Birthday ${data.employee}!`,
         htmlContent: this.getBaseEmailTemplate(`
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
