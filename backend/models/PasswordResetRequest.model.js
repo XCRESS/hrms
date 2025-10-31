@@ -11,15 +11,10 @@ const passwordResetRequestSchema = new mongoose.Schema(
       required: [true, "Email is required"],
       index: true,
     },
-    // Secure token-based system instead of storing plain text passwords
-    resetToken: {
+    // Store the new password securely
+    newPassword: {
       type: String,
-      required: [true, "Reset token is required"],
-      unique: true,
-    },
-    resetTokenExpires: {
-      type: Date,
-      required: [true, "Reset token expiry is required"],
+      required: [true, "New password is required"],
     },
     status: {
       type: String,
