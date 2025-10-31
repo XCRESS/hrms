@@ -43,7 +43,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
           response = await apiClient.updateLeaveStatus(requestId, status);
           break;
         case 'help':
-          response = await apiClient.updateHelpInquiry(requestId, { 
+          response = await apiClient.updateHelpInquiry(requestId, {
             status,
             response: helpResponse || undefined
           });
@@ -87,10 +87,10 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
       'in-progress': { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400', icon: Play },
       resolved: { color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', icon: CheckCheck }
     };
-    
+
     const config = statusConfig[status] || statusConfig.pending;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
         <Icon className="w-3 h-3" />
@@ -120,7 +120,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             </div>
           </div>
         );
-      
+
       case 'help': {
         const getPriorityBadge = (priority) => {
           const priorityConfig = {
@@ -211,8 +211,8 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
 
       case 'password': {
         // Check if token is expired
-        const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
-        const isRequestExpired = request.status === 'expired' || isTokenExpired;
+        // const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
+        // const isRequestExpired = request.status === 'expired' || isTokenExpired;
 
         return (
           <div className="space-y-3 sm:space-y-4">
@@ -228,7 +228,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             </div>
 
             {/* Token Status and Expiration */}
-            <div>
+            {/* <div>
               <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reset Token Status</label>
               <div className="mt-1 p-2 sm:p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
@@ -270,10 +270,10 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                   </p>
                 )}
               </div>
-            </div>
+            </div> */}
 
             {/* Reset Flow Information */}
-            <div>
+            {/* <div>
               <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reset Process</label>
               <div className="mt-1 p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
@@ -283,7 +283,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                   <p><strong>4.</strong> User uses token to set new password</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         );
       }
@@ -369,49 +369,52 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             // For other request types, keep original logic
             return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
           })() && (
-            <div className="mb-4 sm:mb-6">
-              {request.type === 'help' ? (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                    Response Message (Required for resolution)
-                  </label>
-                  <textarea
-                    value={helpResponse}
-                    onChange={(e) => setHelpResponse(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-                    rows="4"
-                    placeholder="Provide a detailed response to help the employee..."
-                  />
-                </div>
-              ) : request.type === 'password' ? (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                    Admin Remarks (Optional)
-                  </label>
-                  <textarea
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-                    rows="2"
-                    placeholder="Optional remarks for this password reset decision..."
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                    Review Comment (Optional)
-                  </label>
-                  <textarea
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-                    rows="3"
-                    placeholder="Add a comment for this review..."
-                  />
-                </div>
-              )}
-            </div>
-          )}
+              <div className="mb-4 sm:mb-6">
+                {request.type === 'help' ? (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                      Response Message (Required for resolution)
+                    </label>
+                    <textarea
+                      value={helpResponse}
+                      onChange={(e) => setHelpResponse(e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                      rows="4"
+                      placeholder="Provide a detailed response to help the employee..."
+                    />
+                  </div>
+                )
+                  // :
+                  //  request.type === 'password' ? (
+                  //   <div>
+                  //     <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                  //       Admin Remarks (Optional)
+                  //     </label>
+                  //     <textarea
+                  //       value={reviewComment}
+                  //       onChange={(e) => setReviewComment(e.target.value)}
+                  //       className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                  //       rows="2"
+                  //       placeholder="Optional remarks for this password reset decision..."
+                  //     />
+                  //   </div>
+                  // ) 
+                  : (
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                        Review Comment (Optional)
+                      </label>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                        rows="3"
+                        placeholder="Add a comment for this review..."
+                      />
+                    </div>
+                  )}
+              </div>
+            )}
         </div>
 
         {/* Footer */}
@@ -426,61 +429,61 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
           // For other request types, keep original logic
           return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
         })() && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/50">
-            <button
-              onClick={onClose}
-              disabled={isProcessing}
-              className="px-4 py-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 font-medium transition-colors disabled:opacity-50 text-sm sm:text-base order-2 sm:order-1"
-            >
-              Cancel
-            </button>
-            
-            {request.type === 'help' ? (
-              // Help request buttons
-              <>
-                {request.status === 'pending' && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/50">
+              <button
+                onClick={onClose}
+                disabled={isProcessing}
+                className="px-4 py-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 font-medium transition-colors disabled:opacity-50 text-sm sm:text-base order-2 sm:order-1"
+              >
+                Cancel
+              </button>
+
+              {request.type === 'help' ? (
+                // Help request buttons
+                <>
+                  {request.status === 'pending' && (
+                    <button
+                      onClick={() => handleStatusUpdate('in-progress')}
+                      disabled={isProcessing}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
+                    >
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4" />
+                      {isProcessing ? 'Processing...' : 'Start Working'}
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleStatusUpdate('in-progress')}
-                    disabled={isProcessing}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
+                    onClick={() => handleStatusUpdate('resolved')}
+                    disabled={isProcessing || !helpResponse.trim()}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
+                    title={!helpResponse.trim() ? 'Response message is required' : ''}
                   >
-                    <Play className="w-3 h-3 sm:w-4 sm:h-4" />
-                    {isProcessing ? 'Processing...' : 'Start Working'}
+                    <CheckCheck className="w-3 h-3 sm:w-4 sm:h-4" />
+                    {isProcessing ? 'Processing...' : 'Resolve'}
                   </button>
-                )}
-                <button
-                  onClick={() => handleStatusUpdate('resolved')}
-                  disabled={isProcessing || !helpResponse.trim()}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
-                  title={!helpResponse.trim() ? 'Response message is required' : ''}
-                >
-                  <CheckCheck className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {isProcessing ? 'Processing...' : 'Resolve'}
-                </button>
-              </>
-            ) : (
-              // Leave, regularization, and password reset request buttons
-              <>
-                <button
-                  onClick={() => handleStatusUpdate('rejected')}
-                  disabled={isProcessing}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
-                >
-                  <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {isProcessing ? 'Processing...' : 'Reject'}
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate('approved')}
-                  disabled={isProcessing}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
-                >
-                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {isProcessing ? 'Processing...' : (request.type === 'password' ? 'Approve & Generate Token' : 'Approve')}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+                </>
+              ) : (
+                // Leave, regularization, and password reset request buttons
+                <>
+                  <button
+                    onClick={() => handleStatusUpdate('rejected')}
+                    disabled={isProcessing}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-2"
+                  >
+                    <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                    {isProcessing ? 'Processing...' : 'Reject'}
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate('approved')}
+                    disabled={isProcessing}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
+                  >
+                    <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                    {isProcessing ? 'Processing...' : (request.type === 'password' ? 'Approve ' : 'Approve')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );

@@ -362,8 +362,8 @@ class ApiClient {
       }
     }
   
-    async requestPasswordReset(name, email) {
-      return this.post(API_ENDPOINTS.PASSWORD_RESET.REQUEST, { name, email });
+    async requestPasswordReset(name, email, newPassword) {
+      return this.post(API_ENDPOINTS.PASSWORD_RESET.REQUEST, { name, email, newPassword });
     }
 
     async resetPasswordWithToken(resetToken, newPassword) {
