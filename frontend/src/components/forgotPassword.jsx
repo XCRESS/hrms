@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../service/apiClient.js";
-import { useState } from "react";   
+import { useState } from "react";
 
 
 export default function forgotPassword({ className, ...props }) {
@@ -15,6 +15,7 @@ export default function forgotPassword({ className, ...props }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   //for navigation
   const navigate = useNavigate();
@@ -23,25 +24,22 @@ export default function forgotPassword({ className, ...props }) {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
-      alert(`Error : Passwords do not match`);
-      return; // Stop submission if passwords don't match
-    } else {
-      setError('');
-      // alert('Form submitted successfully'); // This alert can be removed or adapted based on desired UX
+      return;
     }
     setLoading(true);
     setError("");
+    setSuccess("");
     try {
-      console.log(`Trying to send password change request`);
-      const data = await apiClient.passwordChange(name, email, newPassword);
-      console.log("Login response: ", data);
+      console.log(`Trying to send password reset request`);
+      const data = await apiClient.requestPasswordReset(name, email, newPassword);
+      console.log("Password reset request response: ", data);
       if (data.success) {
-        navigate("/auth/login");
+        setSuccess("Password reset request sent successfully. Please contact HR for approval.");
       } else {
-        setError(data.message || "request failed");
+        setError(data.message || "Request failed");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Password reset request error:", error);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -55,11 +53,13 @@ export default function forgotPassword({ className, ...props }) {
             <form onSubmit={handleSubmit} className="p-6 md:p-8">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col items-center text-center">
-                  <h1 className="text-2xl font-bold">Change password</h1>
+                  <h1 className="text-2xl font-bold">Request Password Reset</h1>
                   <p className="text-muted-foreground text-balance">
-                    Request for your Punch-In account password change
+                    Enter your name, email, and new password to request a password reset.
                   </p>
                 </div>
+                {error && <div className="text-red-500 text-center">{error}</div>}
+                {success && <div className="text-green-500 text-center">{success}</div>}
                 <div className="grid gap-3">
                   <Label htmlFor="name">Name</Label>
                   <Input
@@ -83,16 +83,26 @@ export default function forgotPassword({ className, ...props }) {
                   />
                 </div>
                 <div className="grid gap-3">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">New Password</Label>
-                  </div>
-                  <Input id="password" type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="grid gap-3">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Confirm Password</Label>
-                  </div>
-                  <Input id="password" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
                 </div>
                 <Button type="submit" className="w-full">
                   {loading ? "sending....." : "send request"}
