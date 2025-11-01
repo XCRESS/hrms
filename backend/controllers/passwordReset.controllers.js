@@ -3,16 +3,17 @@ import User from "../models/User.model.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { formatResponse } from "../utils/response.js";
+import emailService from "../services/emailService.js";
 
 // @desc    Create a new password reset request
 // @route   POST /api/password-reset/request
 // @access  Public
 export const createPasswordResetRequest = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, newPassword } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json(formatResponse(false, "Please provide name and email."));
+    if (!name || !email || !newPassword) {
+      return res.status(400).json(formatResponse(false, "Please provide name, email, and new password."));
     }
 
     // Check if user exists
@@ -21,26 +22,23 @@ export const createPasswordResetRequest = async (req, res) => {
       return res.status(404).json(formatResponse(false, "No user found with this email address."));
     }
 
-    // Generate secure reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
     // Check if there's already a pending request for this user
     const existingRequest = await PasswordResetRequest.findOne({
       email,
       status: "pending",
-      resetTokenExpires: { $gt: new Date() }
     });
 
     if (existingRequest) {
       return res.status(400).json(formatResponse(false, "A password reset request is already pending for this email."));
     }
 
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     const newRequest = new PasswordResetRequest({
       name,
       email,
-      resetToken,
-      resetTokenExpires,
+      newPassword: hashedPassword,
       userId: user._id,
     });
 
@@ -50,6 +48,63 @@ export const createPasswordResetRequest = async (req, res) => {
   } catch (error) {
     console.error("Error creating password reset request:", error);
     res.status(500).json(formatResponse(false, "Server error while creating request.", null, { error: error.message }));
+  }
+};
+
+export const approvePasswordResetRequest = async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const request = await PasswordResetRequest.findById(requestId);
+
+    if (!request) {
+      return res.status(404).json(formatResponse(false, "Password reset request not found."));
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json(formatResponse(false, `Request is already ${request.status}.`));
+    }
+
+    const user = await User.findOne({ email: request.email });
+    if (!user) {
+      await PasswordResetRequest.findByIdAndUpdate(requestId, { 
+        status: "rejected", 
+        remarks: "User not found with this email." 
+      });
+      return res.status(404).json(formatResponse(false, "User associated with this request not found. Request rejected."));
+    }
+
+    // Update user's password
+    user.password = request.newPassword;
+    await user.save();
+
+    // Update request status
+    request.status = "approved";
+    await request.save();
+
+    // Send email notification
+    try {
+      const subject = "✅ Password Changed Successfully";
+      const htmlContent = emailService.getBaseEmailTemplate(`
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Password Changed</h2>
+          <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Your password has been successfully changed.</p>
+        </div>
+        <div style="text-align: left;">
+          <p style="color: #475569; font-size: 16px; margin-bottom: 20px;">Hi ${user.name},</p>
+          <p style="color: #475569; font-size: 16px; margin-bottom: 25px;">
+            Your password has been successfully changed as per your request. You can now log in with your new password.
+          </p>
+        </div>
+      `);
+      await emailService.send(user.email, subject, htmlContent);
+    } catch (emailError) {
+      console.error("Error sending password change confirmation email:", emailError);
+    }
+
+    res.status(200).json(formatResponse(true, "Password reset request approved and password updated."));
+  } catch (error) {
+    console.error("Error approving password reset request:", error);
+    res.status(500).json(formatResponse(false, "Server error while approving request.", null, { error: error.message }));
   }
 };
 
@@ -69,52 +124,6 @@ export const getAllPasswordResetRequests = async (req, res) => {
   } catch (error) {
     console.error("Error fetching password reset requests:", error);
     res.status(500).json(formatResponse(false, "Server error while fetching requests.", null, { error: error.message }));
-  }
-};
-
-// @desc    Approve a password reset request (generates reset link)
-// @route   PUT /api/password-reset/request/:id/approve
-// @access  Private (Admin/HR)
-export const approvePasswordResetRequest = async (req, res) => {
-  try {
-    const requestId = req.params.id;
-    const request = await PasswordResetRequest.findById(requestId);
-
-    if (!request) {
-      return res.status(404).json(formatResponse(false, "Password reset request not found."));
-    }
-
-    if (request.status !== "pending") {
-      return res.status(400).json(formatResponse(false, `Request is already ${request.status}.`));
-    }
-
-    // Check if token is still valid
-    if (request.resetTokenExpires < new Date()) {
-      await PasswordResetRequest.findByIdAndUpdate(requestId, { status: "expired" });
-      return res.status(400).json(formatResponse(false, "Reset token has expired."));
-    }
-
-    const user = await User.findOne({ email: request.email });
-    if (!user) {
-      await PasswordResetRequest.findByIdAndUpdate(requestId, { 
-        status: "rejected", 
-        remarks: "User not found with this email." 
-      });
-      return res.status(404).json(formatResponse(false, "User associated with this request not found. Request rejected."));
-    }
-
-    // Approve the request
-    request.status = "approved";
-    await request.save();
-
-    // Return the reset token for the admin to share with user
-    res.status(200).json(formatResponse(true, "Password reset request approved. Share the reset token with the user.", {
-      resetToken: request.resetToken,
-      expiresAt: request.resetTokenExpires
-    }));
-  } catch (error) {
-    console.error("Error approving password reset request:", error);
-    res.status(500).json(formatResponse(false, "Server error while approving request.", null, { error: error.message }));
   }
 };
 
@@ -140,49 +149,5 @@ export const rejectPasswordResetRequest = async (req, res) => {
   } catch (error) {
     console.error("Error rejecting password reset request:", error);
     res.status(500).json(formatResponse(false, "Server error while rejecting request.", null, { error: error.message }));
-  }
-};
-
-// @desc    Reset password using approved token
-// @route   POST /api/password-reset/reset
-// @access  Public
-export const resetPassword = async (req, res) => {
-  try {
-    const { resetToken, newPassword } = req.body;
-
-    if (!resetToken || !newPassword) {
-      return res.status(400).json(formatResponse(false, "Please provide reset token and new password."));
-    }
-
-    // Find the approved reset request
-    const request = await PasswordResetRequest.findOne({
-      resetToken,
-      status: "approved",
-      resetTokenExpires: { $gt: new Date() }
-    });
-
-    if (!request) {
-      return res.status(400).json(formatResponse(false, "Invalid or expired reset token."));
-    }
-
-    // Find the user
-    const user = await User.findById(request.userId);
-    if (!user) {
-      return res.status(404).json(formatResponse(false, "User not found."));
-    }
-
-    // Hash the new password and update user
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // Mark request as used by updating status to completed
-    request.status = "completed";
-    await request.save();
-
-    res.status(200).json(formatResponse(true, "Password has been reset successfully."));
-  } catch (error) {
-    console.error("Error resetting password:", error);
-    res.status(500).json(formatResponse(false, "Server error while resetting password.", null, { error: error.message }));
   }
 }; 
