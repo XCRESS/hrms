@@ -100,7 +100,7 @@ const buildGeofenceErrorDetails = (office, distance, geofenceSettings, operation
   geofence: {
     nearestOffice: office?.name || null,
     radius: office?.radius || geofenceSettings?.defaultRadius || 100,
-    distance: typeof distance === "number" ? Math.round(distance) : null,
+    distance: typeof distance === "number" ? parseFloat(distance.toFixed(2)) : null,
     canRequestWFH: !!geofenceSettings?.allowWFHBypass,
     operation
   }

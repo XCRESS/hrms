@@ -17,7 +17,7 @@ const attendanceSchema = new mongoose.Schema({
   },
   checkIn: {
     type: Date,
-    required: function() {
+    required: function () {
       return this.status !== 'absent';
     },
     default: null
@@ -70,8 +70,7 @@ const attendanceSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['onsite', 'outside', 'wfh', 'skipped'],
-      default: 'skipped'
+      enum: ['onsite', 'wfh'],
     },
     office: {
       type: mongoose.Schema.Types.ObjectId,
@@ -111,13 +110,13 @@ const attendanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Calculate work hours only - business logic moved to service layer
-attendanceSchema.pre('save', async function(next) {
+attendanceSchema.pre('save', async function (next) {
   try {
     // Use IST-aware work hours calculation instead of basic math
     if (this.checkIn && this.checkOut) {
       this.workHours = calculateWorkHours(this.checkIn, this.checkOut);
     }
-    
+
     next();
   } catch (error) {
     next(error);
@@ -132,11 +131,11 @@ attendanceSchema.index({ date: 1, status: 1 }); // Admin queries with date range
 attendanceSchema.index({ employee: 1, date: -1 }); // Employee attendance history (recent first)
 attendanceSchema.index({ date: 1 }); // Date range queries
 attendanceSchema.index({ status: 1, date: 1 }); // Status-based queries with date sorting
-attendanceSchema.index({ 
-  employee: 1, 
-  date: 1, 
-  checkIn: 1, 
-  checkOut: 1 
+attendanceSchema.index({
+  employee: 1,
+  date: 1,
+  checkIn: 1,
+  checkOut: 1
 }); // Missing checkout queries
 
 const Attendance = mongoose.model("Attendance", attendanceSchema);
