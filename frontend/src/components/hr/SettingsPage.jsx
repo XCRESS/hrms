@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
-import { AlertCircle, CheckCircle, XCircle, TestTube, Send, RefreshCw, Save } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TestTube, Send, RefreshCw, Save, MapPin } from 'lucide-react';
 import { useToast } from '../ui/toast';
 
 import SettingsLayout from './settings/SettingsLayout';
@@ -30,6 +30,19 @@ const SettingsPage = () => {
   const [selectedDeptForAction, setSelectedDeptForAction] = useState(null);
   const [newDeptName, setNewDeptName] = useState('');
   const [expandedDept, setExpandedDept] = useState(null);
+
+  // Geofence & office locations
+  const [officeLocations, setOfficeLocations] = useState([]);
+  const [officeLoading, setOfficeLoading] = useState(false);
+  const [officeSubmitting, setOfficeSubmitting] = useState(false);
+  const [officeForm, setOfficeForm] = useState({
+    name: '',
+    address: '',
+    latitude: '',
+    longitude: '',
+    radius: 100,
+    isActive: true
+  });
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -62,10 +75,17 @@ const SettingsPage = () => {
     },
     general: {
       locationSetting: 'na',
-      taskReportSetting: 'na'
+      taskReportSetting: 'na',
+      geofence: {
+        enabled: true,
+        enforceCheckIn: true,
+        enforceCheckOut: true,
+        defaultRadius: 100,
+        allowWFHBypass: true
+      }
     }
   });
-
+ 
   const canManageSettings = user && (user.role === 'admin' || user.role === 'hr');
 
   const resetMessages = () => {
@@ -109,9 +129,20 @@ const SettingsPage = () => {
         },
         general: {
           locationSetting: response.data.general?.locationSetting ?? 'na',
-          taskReportSetting: response.data.general?.taskReportSetting ?? 'na'
+          taskReportSetting: response.data.general?.taskReportSetting ?? 'na',
+          geofence: {
+            enabled: response.data.general?.geofence?.enabled ?? true,
+            enforceCheckIn: response.data.general?.geofence?.enforceCheckIn ?? true,
+            enforceCheckOut: response.data.general?.geofence?.enforceCheckOut ?? true,
+            defaultRadius: response.data.general?.geofence?.defaultRadius ?? 100,
+            allowWFHBypass: response.data.general?.geofence?.allowWFHBypass ?? true
+          }
         }
       });
+      setOfficeForm((prev) => ({
+        ...prev,
+        radius: response.data.general?.geofence?.defaultRadius ?? prev.radius
+      }));
     } catch (err) {
       setError(err.message || 'Failed to fetch settings.');
       setSettings(null);
@@ -168,6 +199,19 @@ const SettingsPage = () => {
         }
       }));
     }
+  };
+
+  const handleGeofenceSettingChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      general: {
+        ...prev.general,
+        geofence: {
+          ...prev.general.geofence,
+          [field]: field === 'defaultRadius' ? Number(value) : value
+        }
+      }
+    }));
   };
 
   const handleWorkingDayChange = (day, isWorking) => {
@@ -372,6 +416,153 @@ const SettingsPage = () => {
       });
     } finally {
       setTestingNotification(false);
+    }
+  };
+
+  const loadOfficeLocations = useCallback(async () => {
+    if (!canManageSettings) return;
+    setOfficeLoading(true);
+    try {
+      const response = await apiClient.getOfficeLocations();
+      setOfficeLocations(response?.data?.locations || response.locations || []);
+    } catch (err) {
+      console.error('Failed to load office locations:', err);
+      toast({
+        variant: "destructive",
+        title: "Failed to load office locations",
+        description: err.message || 'Please try again.'
+      });
+    } finally {
+      setOfficeLoading(false);
+    }
+  }, [canManageSettings, toast]);
+
+  useEffect(() => {
+    if (activeSection === 'geofence' && canManageSettings) {
+      loadOfficeLocations();
+    }
+  }, [activeSection, canManageSettings, loadOfficeLocations]);
+
+  const handleOfficeInputChange = (field, value) => {
+    setOfficeForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleUseCurrentOfficeLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        variant: "destructive",
+        title: "Geolocation Not Supported",
+        description: "Your browser does not support location access."
+      });
+      return;
+    }
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0
+        });
+      });
+
+      setOfficeForm(prev => ({
+        ...prev,
+        latitude: position.coords.latitude.toFixed(6),
+        longitude: position.coords.longitude.toFixed(6)
+      }));
+    } catch (error) {
+      let message = error.message || "Unable to capture location.";
+      if (error.code === error.PERMISSION_DENIED) {
+        message = "Location permission denied.";
+      } else if (error.code === error.POSITION_UNAVAILABLE) {
+        message = "Location unavailable.";
+      } else if (error.code === error.TIMEOUT) {
+        message = "Location request timed out.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Location Error",
+        description: message
+      });
+    }
+  };
+
+  const handleCreateOfficeLocation = async (e) => {
+    e.preventDefault();
+    setOfficeSubmitting(true);
+    try {
+      await apiClient.createOfficeLocation({
+        name: officeForm.name,
+        address: officeForm.address,
+        latitude: parseFloat(officeForm.latitude),
+        longitude: parseFloat(officeForm.longitude),
+        radius: parseFloat(officeForm.radius),
+        isActive: officeForm.isActive
+      });
+      toast({
+        variant: "success",
+        title: "Office Location Added",
+        description: `${officeForm.name} has been saved.`
+      });
+      setOfficeForm(prev => ({
+        ...prev,
+        name: '',
+        address: '',
+        latitude: '',
+        longitude: '',
+        radius: formData.general.geofence.defaultRadius || 100,
+        isActive: true
+      }));
+      loadOfficeLocations();
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Failed to save location",
+        description: err.message || 'Please check the details and try again.'
+      });
+    } finally {
+      setOfficeSubmitting(false);
+    }
+  };
+
+  const handleToggleOfficeStatus = async (location) => {
+    try {
+      await apiClient.updateOfficeLocation(location._id, { isActive: !location.isActive });
+      loadOfficeLocations();
+      toast({
+        variant: "success",
+        title: "Office Updated",
+        description: `${location.name} is now ${!location.isActive ? 'active' : 'inactive'}.`
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Failed to update office",
+        description: err.message || 'Please try again.'
+      });
+    }
+  };
+
+  const handleDeleteOfficeLocation = async (locationId) => {
+    if (!window.confirm('Are you sure you want to remove this office location?')) return;
+    try {
+      await apiClient.deleteOfficeLocation(locationId);
+      loadOfficeLocations();
+      toast({
+        variant: "success",
+        title: "Office Removed",
+        description: "The office location has been deleted."
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete office",
+        description: err.message || 'Please try again.'
+      });
     }
   };
 
@@ -1012,6 +1203,247 @@ const SettingsPage = () => {
                     <span className="block text-xs text-slate-500 dark:text-slate-400">Check-out not allowed without submitting task report</span>
                   </label>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 'geofence':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Geo-Fence & Office Locations</h2>
+                <p className="text-slate-600 dark:text-slate-400">Manage geo-fenced attendance policies and office coordinates</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Geo-Fence Enforcement</h3>
+              <div className="space-y-4">
+                <label className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">Enable Geo-Fenced Attendance</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Require employees to be within office radius to check in/out</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.general.geofence.enabled}
+                    onChange={(e) => handleGeofenceSettingChange('enabled', e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+                <label className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">Enforce On Check-in</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Block check-in attempts outside the configured radius</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.general.geofence.enforceCheckIn}
+                    onChange={(e) => handleGeofenceSettingChange('enforceCheckIn', e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+                <label className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">Enforce On Check-out</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Require location validation for check-outs as well</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.general.geofence.enforceCheckOut}
+                    onChange={(e) => handleGeofenceSettingChange('enforceCheckOut', e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+                <label className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">Allow WFH Requests</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Employees outside the radius can submit WFH requests</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.general.geofence.allowWFHBypass}
+                    onChange={(e) => handleGeofenceSettingChange('allowWFHBypass', e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Default Radius (meters)</label>
+                  <input
+                    type="number"
+                    min={50}
+                    max={500}
+                    value={formData.general.geofence.defaultRadius}
+                    onChange={(e) => handleGeofenceSettingChange('defaultRadius', e.target.value)}
+                    className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Add Office Location</h3>
+                <form className="space-y-4" onSubmit={handleCreateOfficeLocation}>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Office Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={officeForm.name}
+                      onChange={(e) => handleOfficeInputChange('name', e.target.value)}
+                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Address (optional)</label>
+                    <textarea
+                      value={officeForm.address}
+                      onChange={(e) => handleOfficeInputChange('address', e.target.value)}
+                      rows={2}
+                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Latitude</label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        required
+                        value={officeForm.latitude}
+                        onChange={(e) => handleOfficeInputChange('latitude', e.target.value)}
+                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Longitude</label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        required
+                        value={officeForm.longitude}
+                        onChange={(e) => handleOfficeInputChange('longitude', e.target.value)}
+                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Radius (m)</label>
+                      <input
+                        type="number"
+                        min={50}
+                        max={1000}
+                        value={officeForm.radius}
+                        onChange={(e) => handleOfficeInputChange('radius', e.target.value)}
+                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    <label className="flex items-end gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Active
+                      <input
+                        type="checkbox"
+                        checked={officeForm.isActive}
+                        onChange={(e) => handleOfficeInputChange('isActive', e.target.checked)}
+                        className="h-5 w-5"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleUseCurrentOfficeLocation}
+                      className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      Use My Current Location
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={officeSubmitting}
+                      className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {officeSubmitting ? 'Saving...' : 'Add Location'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Saved Office Locations</h3>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{officeLocations.length} locations</span>
+                </div>
+                {officeLoading ? (
+                  <p className="text-slate-500 dark:text-slate-400">Loading office locations...</p>
+                ) : officeLocations.length === 0 ? (
+                  <p className="text-slate-500 dark:text-slate-400">No office locations configured yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                    {officeLocations.map(location => (
+                      <div key={location._id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">{location.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{location.address || 'No address provided'}</p>
+                          </div>
+                          <span className={`px-3 py-1 text-xs rounded-full ${location.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                            {location.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300 mt-3">
+                          <div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Latitude</p>
+                            <p className="font-mono">{location.coordinates?.latitude}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Longitude</p>
+                            <p className="font-mono">{location.coordinates?.longitude}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Radius</p>
+                            <p>{location.radius} m</p>
+                          </div>
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleOfficeStatus(location)}
+                              className="text-sm text-blue-600 hover:underline"
+                            >
+                              {location.isActive ? 'Disable' : 'Enable'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOfficeLocation(location._id)}
+                              className="text-sm text-red-600 hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

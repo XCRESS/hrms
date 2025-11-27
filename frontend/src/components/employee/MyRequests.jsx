@@ -10,7 +10,8 @@ import {
   RefreshCw,
   FileText,
   User,
-  Clock4
+  Clock4,
+  MapPin
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -44,7 +45,8 @@ const MyRequests = () => {
     { id: 'all', label: 'All Requests', icon: FileText },
     { id: 'leave', label: 'Leave Requests', icon: Calendar },
     { id: 'help', label: 'Help Desk', icon: HelpCircle },
-    { id: 'regularization', label: 'Regularization', icon: Clock }
+    { id: 'regularization', label: 'Regularization', icon: Clock },
+    { id: 'wfh', label: 'WFH Requests', icon: MapPin }
   ];
 
   const loadRequests = async () => {
@@ -133,6 +135,26 @@ const MyRequests = () => {
         }
       }
 
+      // Load WFH requests
+      if (activeTab === 'all' || activeTab === 'wfh') {
+        try {
+          const wfhResponse = await apiClient.getMyWFHRequests();
+          const wfhRequests = wfhResponse.requests || wfhResponse.data?.requests || wfhResponse.data || [];
+          const formattedWFH = wfhRequests.map(req => ({
+            ...req,
+            type: 'wfh',
+            title: 'Work From Home Request',
+            description: req.reason || 'No description provided',
+            date: new Date(req.requestDate || req.createdAt || Date.now()),
+            createdAt: new Date(req.createdAt || Date.now()),
+            status: req.status || 'pending'
+          }));
+          allRequests.push(...formattedWFH);
+        } catch (error) {
+          console.error('Failed to load WFH requests:', error);
+        }
+      }
+
 
       // Sort by most recent first
       allRequests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -163,6 +185,7 @@ const MyRequests = () => {
       case 'leave': return Calendar;
       case 'help': return HelpCircle;
       case 'regularization': return Clock;
+      case 'wfh': return MapPin;
       case 'password': return Key;
       default: return FileText;
     }

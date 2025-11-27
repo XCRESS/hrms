@@ -137,6 +137,35 @@ const settingsSchema = new mongoose.Schema({
       enum: ["na", "optional", "mandatory"],
       default: "na", 
       description: "Task report requirement for check-out: na=direct checkout, optional=prompt after checkout, mandatory=required for checkout"
+    },
+    geofence: {
+      enabled: {
+        type: Boolean,
+        default: true,
+        description: "Toggle geo-fenced attendance enforcement"
+      },
+      enforceCheckIn: {
+        type: Boolean,
+        default: true,
+        description: "Require employees to be inside geofence for check-in"
+      },
+      enforceCheckOut: {
+        type: Boolean,
+        default: true,
+        description: "Require employees to be inside geofence for check-out"
+      },
+      defaultRadius: {
+        type: Number,
+        default: 100,
+        min: 50,
+        max: 1000,
+        description: "Default radius in meters when creating office locations"
+      },
+      allowWFHBypass: {
+        type: Boolean,
+        default: true,
+        description: "Allow Work From Home requests to bypass geofence"
+      }
     }
   },
 
@@ -271,7 +300,14 @@ settingsSchema.statics.getGlobalSettings = async function() {
       },
       general: {
         locationSetting: "na",
-        taskReportSetting: "na"
+        taskReportSetting: "na",
+        geofence: {
+          enabled: true,
+          enforceCheckIn: true,
+          enforceCheckOut: true,
+          defaultRadius: 100,
+          allowWFHBypass: true
+        }
       },
       lastUpdatedBy: null
     });

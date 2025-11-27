@@ -39,6 +39,19 @@ export const API_ENDPOINTS = {
     UPDATE_RECORD: (recordId) => `/attendance/update/${recordId}`
   },
   
+  OFFICE_LOCATIONS: {
+    BASE: "/office-locations",
+    ACTIVE: "/office-locations/active",
+    UPDATE: (id) => `/office-locations/${encodeURIComponent(id)}`,
+    DELETE: (id) => `/office-locations/${encodeURIComponent(id)}`
+  },
+
+  WFH_REQUESTS: {
+    BASE: "/wfh-requests",
+    MY: "/wfh-requests/my",
+    REVIEW: (id) => `/wfh-requests/${encodeURIComponent(id)}/status`
+  },
+  
   // Leave Management
   LEAVES: {
     BASE: "/leaves",
