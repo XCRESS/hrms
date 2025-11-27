@@ -81,7 +81,8 @@ class GeofenceService {
     }
 
     const effectiveRadius = radius ?? office.radius;
-    const isValid = distance <= effectiveRadius;
+    const GEOFENCE_TOLERANCE_METERS = 10; // Add a 10 meter buffer
+    const isValid = distance <= (effectiveRadius + GEOFENCE_TOLERANCE_METERS);
 
     return { isValid, nearestOffice: office, distance };
   }
