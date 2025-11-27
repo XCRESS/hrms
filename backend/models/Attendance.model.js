@@ -53,7 +53,60 @@ const attendanceSchema = new mongoose.Schema({
       type: Number,
       min: -180,
       max: 180
+    },
+    accuracy: {
+      type: Number,
+      min: 0
+    },
+    capturedAt: {
+      type: Date,
+      default: Date.now
     }
+  },
+  geofence: {
+    enforced: {
+      type: Boolean,
+      default: false
+    },
+    status: {
+      type: String,
+      enum: ['onsite', 'outside', 'wfh', 'skipped'],
+      default: 'skipped'
+    },
+    office: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OfficeLocation"
+    },
+    officeName: {
+      type: String,
+      trim: true,
+      maxlength: 120
+    },
+    distance: Number,
+    radius: Number,
+    validatedAt: Date,
+    wfhRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WFHRequest"
+    },
+    notes: String
+  },
+  checkoutLocation: {
+    latitude: {
+      type: Number,
+      min: -90,
+      max: 90
+    },
+    longitude: {
+      type: Number,
+      min: -180,
+      max: 180
+    },
+    accuracy: {
+      type: Number,
+      min: 0
+    },
+    capturedAt: Date
   }
 }, { timestamps: true });
 

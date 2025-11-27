@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key } from 'lucide-react';
+import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key, MapPin } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { useNavigate } from 'react-router-dom';
 import RequestDetailModal from './RequestDetailModal';
@@ -21,11 +21,18 @@ const AdminPendingRequests = () => {
     try {
       setIsLoading(true);
       
-      const [leaveResponse, helpResponse, regularizationResponse, passwordResetResponse] = await Promise.all([
+      const [
+        leaveResponse,
+        helpResponse,
+        regularizationResponse,
+        passwordResetResponse,
+        wfhResponse
+      ] = await Promise.all([
         apiClient.getAllLeaves().catch(() => ({ success: true, leaves: [] })),
         apiClient.getAllInquiries({ status: 'pending' }).catch(() => ({ success: true, data: { inquiries: [] } })),
         apiClient.getAllRegularizations().catch(() => ({ success: true, regs: [] })),
-        apiClient.getAllPasswordResetRequests().catch(() => ({ success: true, data: { requests: [] } }))
+        apiClient.getAllPasswordResetRequests().catch(() => ({ success: true, data: { requests: [] } })),
+        apiClient.getWFHRequests({ status: 'pending' }).catch(() => ({ success: true, data: { requests: [] } }))
       ]);
 
       const allRequests = [];
@@ -79,6 +86,19 @@ const AdminPendingRequests = () => {
           description: `User: ${req.email}`,
           employee: req.name || 'Unknown User',
           date: req.createdAt
+        })));
+      }
+
+      if (wfhResponse.success) {
+        const pendingWFH = wfhResponse.requests || wfhResponse.data?.requests || [];
+        allRequests.push(...pendingWFH.map(request => ({
+          ...request,
+          type: 'wfh',
+          icon: <MapPin className="w-5 h-5 text-green-500" />,
+          title: 'WFH Request',
+          description: request.reason,
+          employee: request.employeeName || request.employeeId || 'Unknown Employee',
+          date: request.createdAt
         })));
       }
 

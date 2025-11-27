@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast.jsx";
 import RegularizationModal from "./dashboard/RegularizationModal.jsx";
 import TaskReportModal from "./dashboard/TaskReportModal.jsx";
+import WFHRequestModal from "./dashboard/WFHRequestModal.jsx";
 import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
 import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
@@ -54,6 +55,7 @@ const dashboardInitialState = {
     showTaskReportModal: false,
     showAbsentEmployeesModal: false,
     showPresentEmployeesModal: false,
+    showWFHModal: false,
   },
   // Loading states
   loading: {
@@ -63,6 +65,7 @@ const dashboardInitialState = {
     locationLoading: false,
     loadingAdminData: true,
     loadingRequests: true,
+    wfhRequestLoading: false,
   },
   // Data states
   data: {
@@ -82,6 +85,8 @@ const dashboardInitialState = {
     dailyCycleComplete: false,
     regularizationPrefillData: null,
     taskReportSetting: 'na',
+    pendingWFHContext: null,
+    checkoutLocationRequired: false,
   }
 };
 
@@ -155,7 +160,8 @@ export default function HRMSDashboard() {
     showRegularizationModal,
     showTaskReportModal,
     showAbsentEmployeesModal,
-    showPresentEmployeesModal
+    showPresentEmployeesModal,
+    showWFHModal
   } = modals;
   
   const {
@@ -164,14 +170,17 @@ export default function HRMSDashboard() {
     checkOutLoading,
     locationLoading,
     loadingAdminData,
-    loadingRequests
+    loadingRequests,
+    wfhRequestLoading
   } = loading;
   
   const {
     isCheckedIn,
     dailyCycleComplete,
     regularizationPrefillData,
-    taskReportSetting
+    taskReportSetting,
+    pendingWFHContext,
+    checkoutLocationRequired
   } = app;
   
   const {
@@ -205,6 +214,70 @@ export default function HRMSDashboard() {
   const switchToHolidaysTab = useCallback(() => {
     setUpdatesActiveTab("holidays");
   }, []);
+
+  const getLocationCoordinates = useCallback(async ({ required = false, manageLoading = false } = {}) => {
+    if (!navigator.geolocation) {
+      if (required) {
+        throw new Error("Location is required but this device does not support geolocation.");
+      }
+      return null;
+    }
+
+    if (manageLoading) {
+      setLoading('locationLoading', true);
+    }
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
+          }
+        );
+      });
+
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        capturedAt: new Date(position.timestamp).toISOString()
+      };
+    } catch (error) {
+      let locationError = "Unable to capture location.";
+      if (error.code !== undefined) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            locationError = "Location permission denied.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            locationError = "Location unavailable.";
+            break;
+          case error.TIMEOUT:
+            locationError = "Location request timed out.";
+            break;
+          default:
+            locationError = error.message || locationError;
+        }
+      } else if (error.message) {
+        locationError = error.message;
+      }
+
+      if (required) {
+        throw new Error(locationError);
+      }
+
+      console.warn("Geolocation warning:", locationError);
+      return null;
+    } finally {
+      if (manageLoading) {
+        setLoading('locationLoading', false);
+      }
+    }
+  }, [setLoading]);
 
   // Handle absent employees modal
   const handleAbsentEmployeesClick = useCallback(() => {
@@ -495,72 +568,22 @@ export default function HRMSDashboard() {
 
   const handleCheckIn = async () => {
     setLoading('checkInLoading', true);
-    let locationData = {};
+    let locationData = null;
     
     try {
-      // Get location settings first
       const settingsResponse = await apiClient.getEffectiveSettings();
-      const locationSetting = settingsResponse?.data?.general?.locationSetting || 'na';
-      
-      if (locationSetting !== 'na') {
-        // Location is required or optional - try to get it
-        setLoading('locationLoading', true);
-        
-        if (navigator.geolocation) {
-          try {
-            locationData = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                (position) => {
-                  resolve({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                  });
-                },
-                (error) => {
-                  let locationError = "Location access failed";
-                  switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                      locationError = "Location permission denied";
-                      break;
-                    case error.POSITION_UNAVAILABLE:
-                      locationError = "Location unavailable";
-                      break;
-                    case error.TIMEOUT:
-                      locationError = "Location request timed out";
-                      break;
-                    default:
-                      locationError = `Location error: ${error.message}`;
-                  }
-                  
-                  if (locationSetting === 'mandatory') {
-                    reject(new Error(locationError));
-                  } else {
-                    // Optional setting - continue without location
-                    resolve({});
-                  }
-                },
-                {
-                  enableHighAccuracy: true,
-                  timeout: 20000,
-                  maximumAge: 0
-                }
-              );
-            });
-          } catch (error) {
-            if (locationSetting === 'mandatory') {
-              throw new Error(`Location is required for check-in: ${error.message}`);
-            }
-            console.warn("Geolocation error:", error);
-            // Continue with check-in for optional setting
-          }
-        } else if (locationSetting === 'mandatory') {
-          throw new Error("Location is required but geolocation is not supported by this browser");
-        }
-        
-        setLoading('locationLoading', false);
-      }
-      
-      // Proceed with check-in
+      const effectiveSettings = settingsResponse?.data || {};
+      const locationSetting = effectiveSettings.general?.locationSetting || 'na';
+      const geofenceSettings = effectiveSettings.general?.geofence || {};
+      const requireLocation =
+        locationSetting === 'mandatory' ||
+        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckIn !== false);
+
+      locationData = await getLocationCoordinates({
+        required: requireLocation,
+        manageLoading: requireLocation || locationSetting !== 'na'
+      }) || {};
+
       const response = await apiClient.checkIn(locationData);
       if (response.success) {
         toast({
@@ -569,7 +592,7 @@ export default function HRMSDashboard() {
           description: "You have successfully checked in for today."
         });
         await fetchTodayAttendance();
-        await loadAttendanceData(true); // Force refresh after check-in
+        await loadAttendanceData(true);
       }
     } catch (error) {
       console.error("Check-in error:", error);
@@ -577,40 +600,38 @@ export default function HRMSDashboard() {
       let title = "Check-in Issue";
       let description = "An unexpected error occurred.";
       let variant = "warning";
+
+      const geofenceDetails = error?.data?.errors?.geofence || error?.data?.details?.geofence;
+      if (geofenceDetails?.canRequestWFH && locationData) {
+        setAppState('pendingWFHContext', {
+          geofence: geofenceDetails,
+          location: locationData
+        });
+        setModal('showWFHModal', true);
+      }
       
-      // Handle network errors first
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
         title = "Network Error";
         description = "Unable to connect to server. Please check your internet connection and try again.";
         variant = "destructive";
-      } 
-      // Handle structured API errors from new backend
-      else if (error.data && error.data.message) {
+      } else if (error.data && error.data.message) {
         description = error.data.message;
-        
-        // Handle specific business logic errors
         if (description.includes("Already checked in")) {
           variant = "warning";
         } else if (description.includes("No linked employee")) {
           description = "Your user account is not linked to an employee profile. Please contact HR.";
           variant = "warning";
         } else if (error.status >= 400 && error.status < 500) {
-          variant = "warning"; // Client errors
+          variant = "warning";
         } else if (error.status >= 500) {
-          variant = "destructive"; // Server errors
+          variant = "destructive";
         }
-        
-        // Include additional details if available
         if (error.data.details && error.data.details.validation) {
           const validationErrors = Object.values(error.data.details.validation).join(", ");
           description += `. Details: ${validationErrors}`;
         }
-      } 
-      // Fallback to legacy error handling
-      else {
+      } else {
         description = error.message || "Please try again.";
-        
-        // Legacy specific error messages
         if (error.message === "No linked employee profile found for user") {
           description = "Your user account is not linked to an employee profile. Please contact HR.";
         } else if (error.message === "Already checked in for today") {
@@ -645,20 +666,22 @@ export default function HRMSDashboard() {
     
     try {
       // Get task report settings first
-      const settingsResponse = await apiClient.getGlobalSettings();
-      const taskReportSettingValue = settingsResponse?.data?.general?.taskReportSetting || 'na';
+      const settingsResponse = await apiClient.getEffectiveSettings();
+      const generalSettings = settingsResponse?.data?.general || {};
+      const taskReportSettingValue = generalSettings.taskReportSetting || 'na';
+      const locationSettingValue = generalSettings.locationSetting || 'na';
+      const geofenceSettings = generalSettings.geofence || {};
+      const requireLocationForCheckout =
+        locationSettingValue === 'mandatory' ||
+        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckOut !== false);
       
       // Store setting in state for modal
       setAppState('taskReportSetting', taskReportSettingValue);
+      setAppState('checkoutLocationRequired', requireLocationForCheckout);
       
       if (taskReportSettingValue === 'na') {
-        // Direct checkout - no task report needed
-        await handleDirectCheckOut();
-      } else if (taskReportSettingValue === 'optional') {
-        // Optional - show task report modal but allow skip
-        setModal('showTaskReportModal', true);
+        await handleDirectCheckOut({ requireLocation: requireLocationForCheckout });
       } else {
-        // Mandatory - show task report modal
         setModal('showTaskReportModal', true);
       }
     } catch (error) {
@@ -668,10 +691,18 @@ export default function HRMSDashboard() {
     }
   };
 
-  const handleDirectCheckOut = async () => {
+  const handleDirectCheckOut = async ({ requireLocation = checkoutLocationRequired } = {}) => {
     setLoading('checkOutLoading', true);
+    let locationData = null;
     try {
-      const result = await apiClient.checkOut([]);
+      locationData = await getLocationCoordinates({
+        required: requireLocation,
+        reason: 'checkout'
+      }) || {};
+      const result = await apiClient.checkOut({
+        tasks: [],
+        ...locationData
+      });
       if (result.success) {
         toast({
           title: "Checked Out Successfully",
@@ -711,8 +742,16 @@ export default function HRMSDashboard() {
 
   const handleTaskReportSubmit = async (tasks) => {
     setLoading('checkOutLoading', true);
+    let locationData = null;
     try {
-      const result = await apiClient.checkOut(tasks);
+      locationData = await getLocationCoordinates({
+        required: checkoutLocationRequired,
+        reason: 'checkout'
+      }) || {};
+      const result = await apiClient.checkOut({
+        tasks,
+        ...locationData
+      });
       if (result.success) {
         toast({
           title: "Checked Out Successfully",
@@ -772,8 +811,47 @@ export default function HRMSDashboard() {
 
   const handleTaskReportSkip = async () => {
     // For optional task reports, skip and directly check out
-    await handleDirectCheckOut();
+    await handleDirectCheckOut({ requireLocation: checkoutLocationRequired });
     setModal('showTaskReportModal', false);
+  };
+
+  const handleWFHModalClose = useCallback(() => {
+    setModal('showWFHModal', false);
+    setAppState('pendingWFHContext', null);
+  }, [setModal, setAppState]);
+
+  const handleWFHRequestSubmit = async (reason) => {
+    if (!pendingWFHContext) {
+      handleWFHModalClose();
+      return;
+    }
+
+    setLoading('wfhRequestLoading', true);
+    try {
+      const payload = {
+        reason,
+        ...(pendingWFHContext.location || {})
+      };
+      const response = await apiClient.requestWFH(payload);
+      if (response.success) {
+        toast({
+          variant: "success",
+          title: "WFH Request Submitted",
+          description: "HR has been notified about your work from home request."
+        });
+        handleWFHModalClose();
+      }
+    } catch (error) {
+      console.error("WFH request error:", error);
+      const description = error.data?.message || error.message || "Failed to submit WFH request. Please try again.";
+      toast({
+        variant: "destructive",
+        title: "WFH Request Failed",
+        description
+      });
+    } finally {
+      setLoading('wfhRequestLoading', false);
+    }
   };
 
   const handleLeaveRequestSubmit = async (data) => {
@@ -1168,6 +1246,14 @@ export default function HRMSDashboard() {
         onSkip={handleTaskReportSkip}
         isLoading={checkOutLoading}
         isOptional={taskReportSetting === 'optional'}
+      />
+
+      <WFHRequestModal
+        isOpen={showWFHModal}
+        onClose={handleWFHModalClose}
+        onSubmit={handleWFHRequestSubmit}
+        submitting={wfhRequestLoading}
+        context={pendingWFHContext}
       />
 
       <AbsentEmployeesModal
