@@ -1,5 +1,7 @@
+import moment from "moment-timezone";
 import WFHRequest from "../models/WFHRequest.model.js";
 import Employee from "../models/Employee.model.js";
+import Attendance from "../models/Attendance.model.js";
 import { formatResponse } from "../utils/attendance/attendanceHelpers.js";
 import {
   BusinessLogicError,
@@ -12,7 +14,7 @@ import {
 import {
   getEmployeeObjectId,
 } from "../utils/attendance/index.js";
-import { getISTDayBoundaries } from "../utils/timezoneUtils.js";
+import { getISTDayBoundaries, toIST } from "../utils/timezoneUtils.js";
 import GeofenceService from "../services/GeofenceService.js";
 
 const buildTodayFilter = (date = new Date()) => {
@@ -25,13 +27,17 @@ const buildTodayFilter = (date = new Date()) => {
 
 export const createWFHRequest = async (req, res) => {
   try {
-    const { reason, latitude, longitude } = req.body;
+    const { reason, latitude, longitude, capturedAt } = req.body;
 
     if (!reason || reason.trim().length < 10) {
       throw new BusinessLogicError(
         "Please provide a detailed reason (at least 10 characters)",
         { field: "reason" }
       );
+    }
+
+    if (!capturedAt || !Date.parse(capturedAt)) {
+      throw new BusinessLogicError("Valid check-in time (capturedAt) is required.");
     }
 
     const employeeObjId = await getEmployeeObjectId(req.user);
@@ -43,21 +49,23 @@ export const createWFHRequest = async (req, res) => {
     if (!employee) {
       throw new NotFoundError(ERROR_MESSAGES.EMPLOYEE_NOT_FOUND);
     }
-
+    const capturedAtDate = new Date(capturedAt);
     const existingRequest = await WFHRequest.findOne({
       employee: employeeObjId,
-      requestDate: buildTodayFilter(),
+      requestDate: buildTodayFilter(capturedAtDate),
       status: { $in: ["pending", "approved"] },
     });
 
     if (existingRequest) {
       throw new BusinessLogicError(
-        "A WFH request already exists for today",
+        "A WFH request already exists for this date",
         { requestId: existingRequest._id }
       );
     }
 
-    const requestDate = getISTDayBoundaries().startOfDay.toDate();
+
+    const istMoment = toIST(capturedAtDate);
+    const requestDate = moment.utc([istMoment.year(), istMoment.month(), istMoment.date()]).toDate();
     const lat = latitude !== undefined ? Number(latitude) : undefined;
     const lng = longitude !== undefined ? Number(longitude) : undefined;
 
@@ -80,6 +88,7 @@ export const createWFHRequest = async (req, res) => {
       employeeId: employee.employeeId,
       employeeName: `${employee.firstName} ${employee.lastName}`,
       requestDate,
+      requestedCheckInTime: capturedAtDate,
       reason: reason.trim(),
       attemptedLocation:
         lat !== undefined && lng !== undefined
@@ -88,7 +97,6 @@ export const createWFHRequest = async (req, res) => {
       nearestOffice,
       distanceFromOffice: distance,
     });
-
     res
       .status(HTTP_STATUS.CREATED)
       .json(
@@ -182,7 +190,9 @@ export const getWFHRequests = async (req, res) => {
 
 export const reviewWFHRequest = async (req, res) => {
   try {
+
     const { requestId } = req.params;
+
     const { status, reviewComment } = req.body;
 
     if (!["approved", "rejected"].includes(status)) {
@@ -202,6 +212,27 @@ export const reviewWFHRequest = async (req, res) => {
         "Only pending requests can be updated",
         { status: request.status }
       );
+    }
+
+    if (status === 'approved') {
+      const newAttendance = await Attendance.create({
+        employee: request.employee,
+        employeeName: request.employeeName,
+        date: request.requestDate,
+        checkIn: request.requestedCheckInTime,
+        status: 'present',
+        location: request.attemptedLocation,
+        geofence: {
+          status: 'wfh',
+          wfhRequest: request._id,
+          officeName: request.nearestOffice,
+          distance: request.distanceFromOffice,
+          notes: 'Work From Home - Approved'
+        }
+      });
+
+      request.consumedAt = new Date();
+      request.consumedAttendance = newAttendance._id;
     }
 
     request.status = status;
@@ -238,6 +269,7 @@ export default {
   getWFHRequests,
   reviewWFHRequest,
 };
+
 
 
 

@@ -21,6 +21,10 @@ const wfhRequestSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    requestedCheckInTime: {
+      type: Date,
+      required: true,
+    },
     reason: {
       type: String,
       required: true,

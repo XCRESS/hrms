@@ -5,6 +5,7 @@
  */
 
 // Service Layer Imports
+import moment from "moment-timezone";
 import { AttendanceServices } from '../services/attendance/index.js';
 import {
   formatResponse,
@@ -27,7 +28,7 @@ import {
   NotFoundError,
   validateRequiredFields
 } from '../utils/attendance/attendanceErrorHandler.js';
-import { getISTNow, getISTDayBoundaries } from '../utils/timezoneUtils.js';
+import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezoneUtils.js';
 import TaskReport from '../models/TaskReport.model.js';
 import GeofenceService from '../services/GeofenceService.js';
 import WFHRequest from '../models/WFHRequest.model.js';
@@ -234,11 +235,13 @@ export const checkIn = asyncErrorHandler(async (req, res) => {
   // Determine status and create attendance record using employee's department
   const statusResult = await Business.determineAttendanceStatus(now, null, employee.department);
 
+  const date = moment.utc([now.year(), now.month(), now.date()]).toDate();
+
   const attendanceData = {
     employee: employeeObjId,
     employeeName: `${employee.firstName} ${employee.lastName}`,
-    date: now,
-    checkIn: now,
+    date: date,
+    checkIn: now.toDate(),
     status: statusResult.status
   };
 
