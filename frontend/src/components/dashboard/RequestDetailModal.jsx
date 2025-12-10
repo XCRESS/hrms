@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck } from 'lucide-react';
+import { X, Calendar, Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck, MapPin } from 'lucide-react';
 import apiClient from '@/service/apiClient';
 import { formatDate } from '@/utils/istUtils';
 
@@ -60,6 +60,9 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
             throw new Error('Invalid status for password reset request');
           }
           break;
+      case 'wfh':
+        response = await apiClient.reviewWFHRequest(requestId, status, reviewComment);
+        break;
         default:
           throw new Error('Unknown request type');
       }
@@ -284,6 +287,57 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }) => {
                 </div>
               </div>
             </div> */}
+          </div>
+        );
+      }
+
+      case 'wfh': {
+        const formatCoord = (value) => {
+          if (typeof value !== 'number') return 'N/A';
+          return value.toFixed(5);
+        };
+        return (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-neutral-50 dark:bg-neutral-700/30 p-3 rounded-lg">
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Nearest Office
+                </label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-mono">
+                  {request.nearestOffice || 'Not detected'}
+                </p>
+              </div>
+              <div className="bg-neutral-50 dark:bg-neutral-700/30 p-3 rounded-lg">
+                <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Distance from Office
+                </label>
+                <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 font-mono">
+                  {request.distanceFromOffice !== undefined ? `${request.distanceFromOffice} m` : 'Unknown'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm text-neutral-600 dark:text-neutral-300">
+              <div>
+                <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Latitude</label>
+                <p className="mt-1 font-mono">
+                  {formatCoord(request.attemptedLocation?.latitude)}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Longitude</label>
+                <p className="mt-1 font-mono">
+                  {formatCoord(request.attemptedLocation?.longitude)}
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm font-medium text-neutral-600 dark:text-neutral-400">Reason</label>
+              <p className="text-sm sm:text-base text-neutral-900 dark:text-neutral-100 mt-1 leading-relaxed">
+                {request.reason}
+              </p>
+            </div>
           </div>
         );
       }
