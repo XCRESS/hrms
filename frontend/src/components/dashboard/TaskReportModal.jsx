@@ -150,7 +150,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             setPreLunchTasks(['']);
             setPostLunchTasks(['']);
           }
-        } catch (_e) {
+        } catch {
           // Error parsing, set defaults
           setTasks(['']);
           setPreLunchTasks(['']);

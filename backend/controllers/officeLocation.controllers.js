@@ -217,13 +217,7 @@ export const deleteOfficeLocation = async (req, res) => {
   }
 };
 
-export default {
-  getOfficeLocations,
-  getActiveOfficeLocations,
-  createOfficeLocation,
-  updateOfficeLocation,
-  deleteOfficeLocation,
-};
+// No default export - use named exports for consistency with other controllers
 
 
 

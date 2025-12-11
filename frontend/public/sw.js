@@ -2,7 +2,7 @@
 // Handles push notifications and background sync
 
 // Install event - skip waiting immediately
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   console.log('Service Worker installing...');
   self.skipWaiting();
 });

@@ -5,8 +5,9 @@ import useAuth from "../../hooks/authjwt";
 import { formatDate } from "../../utils/istUtils";
 
 // Enhanced Personal Attendance Analytics with Premium UX
-const AttendanceAnalytics = ({ attendance, statistics, dateRange, loading, attendancePercentage }) => {
+const AttendanceAnalytics = ({ attendance, statistics, loading, attendancePercentage }) => {
   // Use API statistics when available, calculate from data otherwise
+  // eslint-disable-next-line no-unused-vars
   const calculateStatsFromData = () => {
     if (!attendance || attendance.length === 0) return null;
 

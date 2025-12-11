@@ -2,6 +2,7 @@ import moment from "moment-timezone";
 import WFHRequest from "../models/WFHRequest.model.js";
 import Employee from "../models/Employee.model.js";
 import Attendance from "../models/Attendance.model.js";
+import User from "../models/User.model.js";
 import { formatResponse } from "../utils/attendance/attendanceHelpers.js";
 import {
   BusinessLogicError,
@@ -15,7 +16,9 @@ import {
   getEmployeeObjectId,
 } from "../utils/attendance/index.js";
 import { getISTDayBoundaries, toIST } from "../utils/timezoneUtils.js";
+import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 import GeofenceService from "../services/GeofenceService.js";
+import NotificationService from "../services/notificationService.js";
 
 const buildTodayFilter = (date = new Date()) => {
   const { startOfDay, endOfDay } = getISTDayBoundaries(date);
@@ -97,6 +100,15 @@ export const createWFHRequest = async (req, res) => {
       nearestOffice,
       distanceFromOffice: distance,
     });
+
+    // Notify HR about new WFH request (consistency with leave/regularization)
+    NotificationService.notifyHR('wfh_request', {
+      employee: employee.firstName + ' ' + employee.lastName,
+      employeeId: employee.employeeId,
+      requestDate: istMoment.format('DD-MM-YYYY'),
+      reason: reason.trim()
+    });
+
     res
       .status(HTTP_STATUS.CREATED)
       .json(
@@ -277,6 +289,12 @@ export const reviewWFHRequest = async (req, res) => {
     request.approvedBy = req.user._id;
     await request.save();
 
+    // Invalidate caches (consistency with regularization)
+    if (status === 'approved') {
+      invalidateAttendanceCache();
+      invalidateDashboardCache();
+    }
+
     res.json(
       formatResponse(true, "WFH request updated", {
         request,
@@ -299,12 +317,7 @@ export const reviewWFHRequest = async (req, res) => {
   }
 };
 
-export default {
-  createWFHRequest,
-  getMyWFHRequests,
-  getWFHRequests,
-  reviewWFHRequest,
-};
+// No default export - use named exports for consistency with other controllers
 
 
 
