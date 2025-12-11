@@ -571,7 +571,6 @@ export default function HRMSDashboard() {
   const handleCheckIn = async () => {
     setLoading('checkInLoading', true);
     let locationData = null;
-    let locationError = null;
 
     try {
       // Fetch settings first
@@ -590,7 +589,6 @@ export default function HRMSDashboard() {
           manageLoading: requireLocation || locationSetting !== 'na'
         }) || {};
       } catch (locError) {
-        locationError = locError;
         console.warn("Location fetch failed:", locError);
 
         // If location is required but failed, offer WFH alternative if enabled

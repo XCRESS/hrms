@@ -40,11 +40,22 @@ export const toIST = (date = null) => {
  */
 export const getISTDayBoundaries = (date = null) => {
   const istMoment = date ? toIST(date) : getISTNow();
-  
+
   return {
     startOfDay: istMoment.clone().startOf('day'),
     endOfDay: istMoment.clone().endOf('day')
   };
+};
+
+/**
+ * Normalize a date to IST start of day (UTC midnight)
+ * Use this for fields that need unique daily constraints
+ * @param {Date|string|moment.Moment} date - Date to normalize
+ * @returns {Date} - UTC Date object representing IST start of day
+ */
+export const normalizeToISTDate = (date = null) => {
+  const { startOfDay } = getISTDayBoundaries(date);
+  return startOfDay.toDate();
 };
 
 /**
@@ -306,6 +317,7 @@ export default {
   getISTNow,
   toIST,
   getISTDayBoundaries,
+  normalizeToISTDate,
   getISTRangeBoundaries,
   createISTDateTime,
   getBusinessHours,

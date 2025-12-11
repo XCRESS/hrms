@@ -8,7 +8,7 @@ import apiClient from "../service/apiClient.js";
 import { useState } from "react";
 
 
-export default function forgotPassword({ className, ...props }) {
+export default function ForgotPassword({ className, ...props }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
