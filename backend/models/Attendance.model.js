@@ -128,8 +128,9 @@ attendanceSchema.pre('save', async function(next) {
   if (this.date && this.isModified('date')) {
     try {
       // Import timezone utils dynamically to avoid circular deps
-      const { normalizeToISTDate } = await import('../utils/timezoneUtils.js');
-      this.date = normalizeToISTDate(this.date);
+      const { getISTDayBoundaries } = await import('../utils/timezoneUtils.js');
+      const { startOfDay } = getISTDayBoundaries(this.date);
+      this.date = startOfDay.toDate();
       next();
     } catch (error) {
       next(error);

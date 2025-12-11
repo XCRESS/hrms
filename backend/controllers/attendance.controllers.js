@@ -28,7 +28,7 @@ import {
   NotFoundError,
   validateRequiredFields
 } from '../utils/attendance/attendanceErrorHandler.js';
-import { getISTNow, getISTDayBoundaries, toIST, normalizeToISTDate } from '../utils/timezoneUtils.js';
+import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezoneUtils.js';
 import TaskReport from '../models/TaskReport.model.js';
 import GeofenceService from '../services/GeofenceService.js';
 import WFHRequest from '../models/WFHRequest.model.js';
@@ -332,7 +332,8 @@ export const checkOut = asyncErrorHandler(async (req, res) => {
 
   // Handle task report based on setting
   // Normalize date to prevent duplicate key errors (attendance.date might have timestamps)
-  const normalizedDate = normalizeToISTDate(attendance.date);
+  const { startOfDay } = getISTDayBoundaries(attendance.date);
+  const normalizedDate = startOfDay.toDate();
 
   if (taskReportSetting === 'mandatory') {
     // Task report is required for checkout

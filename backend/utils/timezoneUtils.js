@@ -48,17 +48,6 @@ export const getISTDayBoundaries = (date = null) => {
 };
 
 /**
- * Normalize a date to IST start of day (UTC midnight)
- * Use this for fields that need unique daily constraints
- * @param {Date|string|moment.Moment} date - Date to normalize
- * @returns {Date} - UTC Date object representing IST start of day
- */
-export const normalizeToISTDate = (date = null) => {
-  const { startOfDay } = getISTDayBoundaries(date);
-  return startOfDay.toDate();
-};
-
-/**
  * Get IST date boundaries for a date range
  * @param {Date|string|moment.Moment} startDate - Start date
  * @param {Date|string|moment.Moment} endDate - End date  
@@ -317,7 +306,6 @@ export default {
   getISTNow,
   toIST,
   getISTDayBoundaries,
-  normalizeToISTDate,
   getISTRangeBoundaries,
   createISTDateTime,
   getBusinessHours,
