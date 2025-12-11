@@ -571,8 +571,10 @@ export default function HRMSDashboard() {
   const handleCheckIn = async () => {
     setLoading('checkInLoading', true);
     let locationData = null;
+    let locationError = null;
 
     try {
+      // Fetch settings first
       const settingsResponse = await apiClient.getEffectiveSettings();
       const effectiveSettings = settingsResponse?.data || {};
       const locationSetting = effectiveSettings.general?.locationSetting || 'na';
@@ -581,11 +583,44 @@ export default function HRMSDashboard() {
         locationSetting === 'mandatory' ||
         (geofenceSettings?.enabled && geofenceSettings?.enforceCheckIn !== false);
 
-      locationData = await getLocationCoordinates({
-        required: requireLocation,
-        manageLoading: requireLocation || locationSetting !== 'na'
-      }) || {};
+      // Try to get location, but handle failures gracefully
+      try {
+        locationData = await getLocationCoordinates({
+          required: requireLocation,
+          manageLoading: requireLocation || locationSetting !== 'na'
+        }) || {};
+      } catch (locError) {
+        locationError = locError;
+        console.warn("Location fetch failed:", locError);
 
+        // If location is required but failed, offer WFH alternative if enabled
+        if (requireLocation && geofenceSettings?.allowWFHBypass) {
+          toast({
+            variant: "warning",
+            title: "Location Required",
+            description: "Unable to get your location. You can request Work From Home instead.",
+            duration: 5000
+          });
+
+          setAppState('pendingWFHContext', {
+            geofence: {
+              canRequestWFH: true,
+              reason: 'location_unavailable',
+              message: 'Location access failed or timed out'
+            },
+            location: null,
+            locationError: locError.message || 'Location unavailable'
+          });
+          setModal('showWFHModal', true);
+          return; // Exit early, let user submit WFH request
+        } else if (requireLocation) {
+          // Location is mandatory and no WFH bypass - must fail
+          throw locError;
+        }
+        // If location is not required, continue without it
+      }
+
+      // Attempt check-in with location data (or without if optional)
       const response = await apiClient.checkIn(locationData);
       if (response.success) {
         toast({
@@ -603,13 +638,23 @@ export default function HRMSDashboard() {
       let description = "An unexpected error occurred.";
       let variant = "warning";
 
+      // Check if this is a geofence violation error
       const geofenceDetails = error?.data?.errors?.geofence || error?.data?.details?.geofence;
       if (geofenceDetails?.canRequestWFH && locationData) {
+        // Show WFH modal for geofence violations
         setAppState('pendingWFHContext', {
           geofence: geofenceDetails,
           location: locationData
         });
         setModal('showWFHModal', true);
+
+        toast({
+          variant: "warning",
+          title: "Outside Office Location",
+          description: geofenceDetails.message || "You appear to be outside the office. Please submit a WFH request.",
+          duration: 5000
+        });
+        return; // Exit without showing generic error
       }
 
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {

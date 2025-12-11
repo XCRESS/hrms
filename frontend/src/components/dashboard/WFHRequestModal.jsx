@@ -20,9 +20,11 @@ const WFHRequestModal = ({
 
   const geofence = context.geofence || {};
   const location = context.location || {};
+  const locationError = context.locationError;
   const distance = geofence.distance ?? null;
   const radius = geofence.radius ?? 100;
   const nearestOffice = geofence.nearestOffice || "the office";
+  const isLocationUnavailable = geofence.reason === 'location_unavailable' || !location.latitude;
   const minReasonLength = 10;
   const canSubmit = reason.trim().length >= minReasonLength && !submitting;
 
@@ -50,32 +52,48 @@ const WFHRequestModal = ({
               Request Work From Home
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              You appear to be outside the allowed office radius. Submit a WFH request to proceed.
+              {isLocationUnavailable
+                ? "Unable to verify your location. Submit a WFH request to proceed."
+                : "You appear to be outside the allowed office radius. Submit a WFH request to proceed."}
             </p>
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 mb-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-            <MapPin className="w-4 h-4" />
-            <span className="font-medium">{nearestOffice}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Allowed Radius</p>
-              <p className="font-semibold">{radius} m</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Your Distance</p>
-              <p className={`font-semibold ${distance && distance > radius ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {distance !== null ? `${distance} m` : 'Unknown'}
-              </p>
+        {isLocationUnavailable ? (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Location Unavailable</p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                  {locationError || geofence.message || "We couldn't access your location. This could be due to permission denial, timeout, or GPS unavailability."}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Current location: {formatCoordinate(location.latitude)}, {formatCoordinate(location.longitude)}
+        ) : (
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 mb-4 flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+              <MapPin className="w-4 h-4" />
+              <span className="font-medium">{nearestOffice}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Allowed Radius</p>
+                <p className="font-semibold">{radius} m</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Your Distance</p>
+                <p className={`font-semibold ${distance && distance > radius ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                  {distance !== null ? `${Math.round(distance)} m` : 'Unknown'}
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Current location: {formatCoordinate(location.latitude)}, {formatCoordinate(location.longitude)}
+            </div>
           </div>
-        </div>
+        )}
 
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
           Reason for Work From Home

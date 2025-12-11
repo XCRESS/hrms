@@ -28,7 +28,7 @@ import {
   NotFoundError,
   validateRequiredFields
 } from '../utils/attendance/attendanceErrorHandler.js';
-import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezoneUtils.js';
+import { getISTNow, getISTDayBoundaries, toIST, normalizeToISTDate } from '../utils/timezoneUtils.js';
 import TaskReport from '../models/TaskReport.model.js';
 import GeofenceService from '../services/GeofenceService.js';
 import WFHRequest from '../models/WFHRequest.model.js';
@@ -79,13 +79,23 @@ const buildLocationPayload = (coordinates, { accuracy, capturedAt } = {}) => {
   return payload;
 };
 
+/**
+ * Determines if geofence should be enforced for a given operation
+ * @param {Object} geofenceSettings - Geofence configuration from settings
+ * @param {string} operation - Either "check-in" or "check-out"
+ * @returns {boolean} - True if geofence should be enforced
+ */
 const shouldEnforceGeofence = (geofenceSettings, operation) => {
-  if (!geofenceSettings?.enabled) {
+  // If geofence is disabled globally, don't enforce
+  if (!geofenceSettings || geofenceSettings.enabled !== true) {
     return false;
   }
-  return operation === "check-in"
-    ? geofenceSettings.enforceCheckIn !== false
-    : geofenceSettings.enforceCheckOut !== false;
+
+  // Check operation-specific enforcement
+  const enforcementKey = operation === "check-in" ? "enforceCheckIn" : "enforceCheckOut";
+
+  // Explicitly check for true (defensive against undefined/null)
+  return geofenceSettings[enforcementKey] === true;
 };
 
 const findTodayApprovedWFH = async (employeeObjId) => {
@@ -321,27 +331,42 @@ export const checkOut = asyncErrorHandler(async (req, res) => {
   const geofenceSettings = effectiveSettings.general?.geofence || {};
 
   // Handle task report based on setting
+  // Normalize date to prevent duplicate key errors (attendance.date might have timestamps)
+  const normalizedDate = normalizeToISTDate(attendance.date);
+
   if (taskReportSetting === 'mandatory') {
     // Task report is required for checkout
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
       throw new BusinessLogicError('Task report is required for check-out', { taskReportRequired: true });
     }
     const taskValidation = Business.validateTaskReport(tasks);
-    await TaskReport.create({
-      employee: employeeObjId,
-      employeeId: employee.employeeId,
-      date: attendance.date,
-      tasks: taskValidation.validTasks
-    });
+
+    // Use findOneAndUpdate with upsert to handle concurrent requests atomically
+    await TaskReport.findOneAndUpdate(
+      { employee: employeeObjId, date: normalizedDate },
+      {
+        employee: employeeObjId,
+        employeeId: employee.employeeId,
+        date: normalizedDate,
+        tasks: taskValidation.validTasks
+      },
+      { upsert: true, new: true }
+    );
   } else if (taskReportSetting === 'optional' && tasks && Array.isArray(tasks) && tasks.length > 0) {
     // Task report is optional but if provided, save it
     const taskValidation = Business.validateTaskReport(tasks);
-    await TaskReport.create({
-      employee: employeeObjId,
-      employeeId: employee.employeeId,
-      date: attendance.date,
-      tasks: taskValidation.validTasks
-    });
+
+    // Use findOneAndUpdate with upsert to handle concurrent requests atomically
+    await TaskReport.findOneAndUpdate(
+      { employee: employeeObjId, date: normalizedDate },
+      {
+        employee: employeeObjId,
+        employeeId: employee.employeeId,
+        date: normalizedDate,
+        tasks: taskValidation.validTasks
+      },
+      { upsert: true, new: true }
+    );
   }
   // For 'na' setting, we don't save task report at all
 

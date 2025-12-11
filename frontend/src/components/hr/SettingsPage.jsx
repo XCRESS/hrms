@@ -471,8 +471,8 @@ const SettingsPage = () => {
 
       setOfficeForm(prev => ({
         ...prev,
-        latitude: position.coords.latitude.toFixed(6),
-        longitude: position.coords.longitude.toFixed(6)
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
       }));
     } catch (error) {
       let message = error.message || "Unable to capture location.";
