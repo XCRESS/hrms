@@ -215,24 +215,60 @@ export const reviewWFHRequest = async (req, res) => {
     }
 
     if (status === 'approved') {
-      const newAttendance = await Attendance.create({
+      // Check for existing attendance record first (like regularization does)
+      const { startOfDay, endOfDay } = getISTDayBoundaries(request.requestDate);
+
+      let existingAttendance = await Attendance.findOne({
         employee: request.employee,
-        employeeName: request.employeeName,
-        date: request.requestDate,
-        checkIn: request.requestedCheckInTime,
-        status: 'present',
-        location: request.attemptedLocation,
-        geofence: {
+        date: {
+          $gte: startOfDay.toDate(),
+          $lte: endOfDay.toDate()
+        }
+      });
+
+      if (existingAttendance) {
+        // Update existing attendance to mark as WFH
+        existingAttendance.geofence = {
+          enforced: true,
           status: 'wfh',
           wfhRequest: request._id,
           officeName: request.nearestOffice,
           distance: request.distanceFromOffice,
-          notes: 'Work From Home - Approved'
-        }
-      });
+          validatedAt: new Date(),
+          notes: 'Work From Home - Approved after check-in'
+        };
 
-      request.consumedAt = new Date();
-      request.consumedAttendance = newAttendance._id;
+        // Update location if WFH request has location but attendance doesn't
+        if (request.attemptedLocation && !existingAttendance.location) {
+          existingAttendance.location = request.attemptedLocation;
+        }
+
+        await existingAttendance.save();
+        request.consumedAt = new Date();
+        request.consumedAttendance = existingAttendance._id;
+      } else {
+        // Create new attendance record
+        const newAttendance = await Attendance.create({
+          employee: request.employee,
+          employeeName: request.employeeName,
+          date: startOfDay.toDate(),
+          checkIn: request.requestedCheckInTime,
+          status: 'present',
+          location: request.attemptedLocation,
+          geofence: {
+            enforced: true,
+            status: 'wfh',
+            wfhRequest: request._id,
+            officeName: request.nearestOffice,
+            distance: request.distanceFromOffice,
+            validatedAt: new Date(),
+            notes: 'Work From Home - Approved'
+          }
+        });
+
+        request.consumedAt = new Date();
+        request.consumedAttendance = newAttendance._id;
+      }
     }
 
     request.status = status;

@@ -79,9 +79,23 @@ const wfhRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Unique compound index to prevent duplicate pending/approved WFH requests for same employee on same date
+wfhRequestSchema.index(
+  { employee: 1, requestDate: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ['pending', 'approved'] }
+    },
+    name: 'unique_active_wfh_per_employee_per_date'
+  }
+);
+
+// Query performance indexes
 wfhRequestSchema.index({ employee: 1, requestDate: 1 });
 wfhRequestSchema.index({ status: 1, requestDate: 1 });
 wfhRequestSchema.index({ employeeId: 1, status: 1 });
+wfhRequestSchema.index({ consumedAttendance: 1 }); // For reverse lookups
 
 const WFHRequest = mongoose.model("WFHRequest", wfhRequestSchema);
 
