@@ -88,24 +88,14 @@ const DepartmentManagement = ({
   };
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-            <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Department Management</h2>
-            <p className="text-slate-600 dark:text-slate-400">Manage departments and employee assignments</p>
-          </div>
-        </div>
-        
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end">
         <button
           onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-sm hover:shadow-md"
         >
           <Plus className="w-4 h-4" />
-          Add Department
+          <span>Add Department</span>
         </button>
       </div>
 
@@ -124,23 +114,21 @@ const DepartmentManagement = ({
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {departmentStats.map((dept) => (
-              <div key={dept.name} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{dept.name}</h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          {dept.employeeCount} employee{dept.employeeCount !== 1 ? 's' : ''}
-                        </p>
-                      </div>
+              <div key={dept.name} className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">{dept.name}</h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                        {dept.employeeCount} employee{dept.employeeCount !== 1 ? 's' : ''}
+                      </p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     <button
                       onClick={() => openEmployeeModal(dept)}
                       className="p-2 text-green-500 hover:text-green-700 transition-colors"
@@ -176,24 +164,24 @@ const DepartmentManagement = ({
                 
                 {/* Expanded Employee List */}
                 {expandedDept === dept.name && dept.employees.length > 0 && (
-                  <div className="mt-4 pl-13">
-                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4">
+                  <div className="mt-4 sm:pl-13">
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 sm:p-4">
                       <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
                         <UserCheck className="w-4 h-4" />
                         Department Employees
                       </h4>
                       <div className="grid gap-2">
                         {dept.employees.map((employee) => (
-                          <div key={employee._id} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-600">
-                            <div>
-                              <span className="font-medium text-slate-900 dark:text-slate-100">
+                          <div key={employee._id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 p-2 sm:p-3 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-600">
+                            <div className="min-w-0">
+                              <span className="font-medium text-sm text-slate-900 dark:text-slate-100">
                                 {employee.firstName} {employee.lastName}
                               </span>
-                              <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
                                 ({employee.employeeId})
                               </span>
                             </div>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
                               {employee.email}
                             </span>
                           </div>
@@ -356,18 +344,18 @@ const DepartmentManagement = ({
 
       {/* Employee Assignment Modal */}
       {showEmployeeModal && selectedDeptForEmployees && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                 Manage Employees - {selectedDeptForEmployees.name}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
                 Assign employees to this department
               </p>
             </div>
             
-            <div className="p-6 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+            <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)] overflow-y-auto">
               {loadingEmployees ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
@@ -487,7 +475,7 @@ const DepartmentManagement = ({
               )}
             </div>
             
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
+            <div className="p-3 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex gap-2 sm:gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => {
@@ -495,7 +483,7 @@ const DepartmentManagement = ({
                   setSelectedDeptForEmployees(null);
                   setAvailableEmployees(null);
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
+                className="px-3 sm:px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
               >
                 Close
               </button>
