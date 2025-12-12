@@ -116,8 +116,34 @@ const settingsSchema = new mongoose.Schema({
     milestoneAlertsEnabled: { type: Boolean, default: true },
     milestoneTypes: {
       threeMonths: { type: Boolean, default: true },
-      sixMonths: { type: Boolean, default: true }, 
+      sixMonths: { type: Boolean, default: true },
       oneYear: { type: Boolean, default: true }
+    },
+
+    // Daily HR Attendance Report Configuration
+    dailyHrAttendanceReport: {
+      enabled: {
+        type: Boolean,
+        default: false,
+        description: "Enable/disable daily attendance report to HR team"
+      },
+      sendTime: {
+        type: String,
+        default: "19:00",
+        match: /^([01]\d|2[0-3]):([0-5]\d)$/,
+        description: "Time to send daily HR attendance report (IST, 24-hour format)"
+      },
+      includeAbsentees: {
+        type: Boolean,
+        default: true,
+        description: "Include employees who did not check in"
+      },
+      subjectLine: {
+        type: String,
+        default: "Daily Attendance Report - {date}",
+        maxlength: 200,
+        description: "Email subject line template (use {date} placeholder)"
+      }
     }
   },
 
@@ -296,6 +322,12 @@ settingsSchema.statics.getGlobalSettings = async function() {
           threeMonths: true,
           sixMonths: true,
           oneYear: true
+        },
+        dailyHrAttendanceReport: {
+          enabled: false,
+          sendTime: "19:00",
+          includeAbsentees: true,
+          subjectLine: "Daily Attendance Report - {date}"
         }
       },
       general: {
