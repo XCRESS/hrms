@@ -580,7 +580,7 @@ export default function HRMSDashboard() {
       const geofenceSettings = effectiveSettings.general?.geofence || {};
       const requireLocation =
         locationSetting === 'mandatory' ||
-        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckIn !== false);
+        (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckIn === true);
 
       // Try to get location, but handle failures gracefully
       try {
@@ -718,7 +718,7 @@ export default function HRMSDashboard() {
       const geofenceSettings = generalSettings.geofence || {};
       const requireLocationForCheckout =
         locationSettingValue === 'mandatory' ||
-        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckOut !== false);
+        (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckOut === true);
 
       // Store setting in state for modal
       setAppState('taskReportSetting', taskReportSettingValue);
