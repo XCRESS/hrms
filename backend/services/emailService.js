@@ -763,6 +763,123 @@ class EmailService {
             </p>
           </div>
         `)
+      }),
+
+      daily_hr_attendance_report: () => ({
+        subject: data.subjectLine || `Daily Attendance Report - ${data.reportDateFormatted}`,
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              @media only screen and (max-width: 600px) {
+                .mobile-padding { padding: 12px !important; }
+                .mobile-text-small { font-size: 11px !important; }
+                .mobile-heading { font-size: 20px !important; }
+                .mobile-subheading { font-size: 14px !important; }
+                .mobile-stat { font-size: 24px !important; }
+                .mobile-table { font-size: 11px !important; }
+                .mobile-cell { padding: 6px !important; }
+              }
+            </style>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.4; color: #1f2937; max-width: 1000px; margin: 0 auto; padding: 8px; background-color: #f9fafb;">
+
+            <!-- Header -->
+            <div class="mobile-padding" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; text-align: center;">
+              <h1 class="mobile-heading" style="margin: 0; font-size: 24px; font-weight: 700;">📊 Attendance</h1>
+              <p class="mobile-text-small" style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">${data.reportDateFormatted}</p>
+            </div>
+
+            <!-- Summary -->
+            <div class="mobile-padding" style="background-color: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 8px;">
+                <div style="text-align: center; padding: 8px;">
+                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #1f2937;">${data.totalEmployees}</div>
+                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Total</div>
+                </div>
+                <div style="text-align: center; padding: 8px;">
+                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #10b981;">${data.totalPresent}</div>
+                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Present</div>
+                </div>
+                ${data.totalAbsent > 0 ? `
+                <div style="text-align: center; padding: 8px;">
+                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #ef4444;">${data.totalAbsent}</div>
+                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Absent</div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Office Groups -->
+            ${data.officeGroups.map(group => `
+              <div class="mobile-padding" style="background-color: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+
+                <!-- Office Header -->
+                <div class="mobile-padding" style="background-color: #3b82f6; color: white; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;">
+                  <h2 class="mobile-subheading" style="margin: 0; font-size: 15px; font-weight: 600;">📍 ${group.officeAddress.toUpperCase()}</h2>
+                </div>
+
+                <!-- Present Employees Table -->
+                ${group.presentEmployees.length > 0 ? `
+                  <h3 class="mobile-subheading" style="color: #1f2937; font-size: 14px; margin: 0 0 8px 0;">✅ Present (${group.presentEmployees.length})</h3>
+                  <div style="overflow-x: auto;">
+                    <table class="mobile-table" style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px;">
+                      <thead>
+                        <tr style="background-color: #f3f4f6;">
+                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">Name</th>
+                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">In</th>
+                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">Out</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${group.presentEmployees.map(emp => `
+                          <tr style="border-bottom: 1px solid #e5e7eb;">
+                            <td class="mobile-cell" style="padding: 8px 6px; font-weight: 500; font-size: 11px;">${emp.name}</td>
+                            <td class="mobile-cell" style="padding: 8px 6px; font-size: 11px;">${emp.checkIn || '-'}</td>
+                            <td class="mobile-cell" style="padding: 8px 6px; font-size: 11px; ${!emp.checkOut ? 'color: #f59e0b; font-weight: 600;' : ''}">${emp.checkOut || 'No'}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                ` : '<p class="mobile-text-small" style="color: #6b7280; font-style: italic; margin-bottom: 16px; font-size: 11px;">No employees present</p>'}
+
+                <!-- Absent Employees Table -->
+                ${group.absentEmployees.length > 0 ? `
+                  <h3 class="mobile-subheading" style="color: #ef4444; font-size: 14px; margin: 0 0 8px 0;">❌ Absent (${group.absentEmployees.length})</h3>
+                  <div style="overflow-x: auto;">
+                    <table class="mobile-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                      <thead>
+                        <tr style="background-color: #fef2f2;">
+                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #fecaca; font-size: 11px;">Name</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${group.absentEmployees.map(emp => `
+                          <tr style="border-bottom: 1px solid #fecaca;">
+                            <td class="mobile-cell" style="padding: 8px 6px; color: #991b1b; font-size: 11px;">${emp.name}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                ` : ''}
+
+              </div>
+            `).join('')}
+
+            <!-- Footer -->
+            <div class="mobile-text-small" style="text-align: center; margin-top: 16px; padding: 12px; color: #6b7280; font-size: 10px;">
+              <p style="margin: 4px 0;">Automated report by HRMS System</p>
+              <p style="margin: 4px 0;">Generated: ${data.generatedAt} IST</p>
+            </div>
+
+          </body>
+          </html>
+        `
       })
     };
 

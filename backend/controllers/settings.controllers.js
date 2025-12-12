@@ -1,6 +1,7 @@
 import Settings from "../models/Settings.model.js";
 import Employee from "../models/Employee.model.js";
 import Department from "../models/Department.model.js";
+import SchedulerService from "../services/schedulerService.js";
 import { formatResponse } from "../utils/response.js";
 
 // Helper function to escape regex special characters
@@ -459,6 +460,31 @@ export const getAvailableEmployees = async (req, res) => {
   }
 };
 
+// Reschedule daily HR attendance report
+export const rescheduleDailyHrAttendanceReport = async (req, res) => {
+  try {
+    await SchedulerService.scheduleDailyHrAttendanceReport();
+
+    res.json(formatResponse(true, "Daily HR attendance report job rescheduled successfully"));
+  } catch (error) {
+    console.error("❌ Error rescheduling daily HR attendance report:", error);
+    res.status(500).json(formatResponse(false, "Failed to reschedule daily HR attendance report", error.message));
+  }
+};
+
+// Test daily HR attendance report (send immediately)
+export const testDailyHrAttendanceReport = async (req, res) => {
+  try {
+    // Send report immediately to all configured HR emails
+    await SchedulerService.sendDailyHrAttendanceReport();
+
+    res.json(formatResponse(true, "Daily HR attendance report sent successfully. Check HR email inboxes."));
+  } catch (error) {
+    console.error("❌ Error testing daily HR attendance report:", error);
+    res.status(500).json(formatResponse(false, "Failed to send test report", error.message));
+  }
+};
+
 export default {
   getGlobalSettings,
   updateGlobalSettings,
@@ -472,5 +498,7 @@ export default {
   renameDepartment,
   deleteDepartment,
   assignEmployeeToDepartment,
-  getAvailableEmployees
+  getAvailableEmployees,
+  rescheduleDailyHrAttendanceReport,
+  testDailyHrAttendanceReport
 };

@@ -170,10 +170,13 @@ const initializeNotificationSystem = async () => {
     
     // Initialize notification services
     await NotificationService.initialize();
-    
+
     // Start scheduler for holiday reminders and milestone alerts
     SchedulerService.start();
-    
+
+    // Schedule daily HR attendance report
+    await SchedulerService.scheduleDailyHrAttendanceReport();
+
     console.log('✓ Notification system initialized successfully');
   } catch (error) {
     console.error('Failed to initialize notification system:', error);

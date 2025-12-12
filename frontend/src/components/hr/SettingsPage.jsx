@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
-import { AlertCircle, CheckCircle, XCircle, TestTube, Send, Save, MapPin, RotateCcw } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TestTube, Send, Save, MapPin, RotateCcw, Mail } from 'lucide-react';
 import { useToast } from '../ui/toast';
 
 import SettingsLayout from './settings/SettingsLayout';
@@ -12,13 +12,13 @@ const SettingsPage = () => {
   const user = useAuth();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('attendance');
-  const [settings, setSettings] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState({ type: '', content: '' });
+  const [isTestingHrReport, setIsTestingHrReport] = useState(false);
   const [testingNotification, setTestingNotification] = useState(false);
   
   // Department management state
@@ -71,6 +71,12 @@ const SettingsPage = () => {
         threeMonths: true,
         sixMonths: true,
         oneYear: true
+      },
+      dailyHrAttendanceReport: {
+        enabled: false,
+        sendTime: '19:00',
+        includeAbsentees: true,
+        subjectLine: 'Daily Attendance Report - {date}'
       }
     },
     general: {
@@ -103,8 +109,7 @@ const SettingsPage = () => {
       } else {
         response = await apiClient.getGlobalSettings();
       }
-      
-      setSettings(response.data);
+
       setFormData({
         attendance: {
           ...response.data.attendance,
@@ -125,6 +130,12 @@ const SettingsPage = () => {
             threeMonths: response.data.notifications?.milestoneTypes?.threeMonths ?? true,
             sixMonths: response.data.notifications?.milestoneTypes?.sixMonths ?? true,
             oneYear: response.data.notifications?.milestoneTypes?.oneYear ?? true
+          },
+          dailyHrAttendanceReport: {
+            enabled: response.data.notifications?.dailyHrAttendanceReport?.enabled ?? false,
+            sendTime: response.data.notifications?.dailyHrAttendanceReport?.sendTime ?? '19:00',
+            includeAbsentees: response.data.notifications?.dailyHrAttendanceReport?.includeAbsentees ?? true,
+            subjectLine: response.data.notifications?.dailyHrAttendanceReport?.subjectLine ?? 'Daily Attendance Report - {date}'
           }
         },
         general: {
@@ -145,7 +156,6 @@ const SettingsPage = () => {
       }));
     } catch (err) {
       setError(err.message || 'Failed to fetch settings.');
-      setSettings(null);
     } finally {
       setLoading(false);
     }
@@ -276,7 +286,7 @@ const SettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     resetMessages();
-    
+
     try {
       if (selectedDepartment) {
         await apiClient.updateDepartmentSettings(selectedDepartment, formData);
@@ -287,13 +297,19 @@ const SettingsPage = () => {
         });
       } else {
         await apiClient.updateGlobalSettings(formData);
+
+        // Reschedule cron job if daily HR attendance report settings changed
+        if (formData.notifications.dailyHrAttendanceReport?.enabled) {
+          await apiClient.rescheduleDailyHrAttendanceReport();
+        }
+
         toast({
-          variant: "success", 
+          variant: "success",
           title: "Settings Saved",
           description: "Global settings updated successfully!"
         });
       }
-      
+
       await fetchSettings();
     } catch (err) {
       toast({
@@ -320,14 +336,44 @@ const SettingsPage = () => {
     }
   };
 
+  const handleTestDailyHrAttendanceReport = async () => {
+    if (!formData.notifications.hrEmails || formData.notifications.hrEmails.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Configuration Required",
+        description: "Please configure HR emails first"
+      });
+      return;
+    }
+
+    setIsTestingHrReport(true);
+    try {
+      await apiClient.testDailyHrAttendanceReport();
+      toast({
+        variant: "success",
+        title: "Test Report Sent",
+        description: `Test report sent successfully to ${formData.notifications.hrEmails.length} HR email(s)!`
+      });
+    } catch (error) {
+      console.error('Failed to send test HR report:', error);
+      toast({
+        variant: "destructive",
+        title: "Test Failed",
+        description: "Failed to send test report. Please try again."
+      });
+    } finally {
+      setIsTestingHrReport(false);
+    }
+  };
+
   const handleTestNotification = async () => {
     setTestingNotification(true);
     resetMessages();
-    
+
     // Check if user is authenticated
     const token = localStorage.getItem('authToken');
     console.log('Testing notification with user:', user?.role, 'token exists:', !!token);
-    
+
     if (!token) {
       toast({
         variant: "destructive",
@@ -1056,6 +1102,157 @@ const SettingsPage = () => {
                       }))}
                       className="w-16 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
                     />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Daily HR Attendance Report */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Daily HR Attendance Report</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Automated attendance reports grouped by office location</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.dailyHrAttendanceReport?.enabled || false}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    notifications: {
+                      ...prev.notifications,
+                      dailyHrAttendanceReport: {
+                        ...prev.notifications.dailyHrAttendanceReport,
+                        enabled: e.target.checked
+                      }
+                    }
+                  }))}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                />
+              </div>
+
+              {formData.notifications.dailyHrAttendanceReport?.enabled && (
+                <div className="space-y-4 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
+
+                  {/* Send Time */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 min-w-[120px]">
+                      Send time:
+                    </label>
+                    <div className="flex-1">
+                      <input
+                        type="time"
+                        value={formData.notifications.dailyHrAttendanceReport?.sendTime || '19:00'}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            dailyHrAttendanceReport: {
+                              ...prev.notifications.dailyHrAttendanceReport,
+                              sendTime: e.target.value
+                            }
+                          }
+                        }))}
+                        className="w-32 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Best after work hours to capture full day attendance
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Include Absentees */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="includeAbsentees"
+                      checked={formData.notifications.dailyHrAttendanceReport?.includeAbsentees !== false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          dailyHrAttendanceReport: {
+                            ...prev.notifications.dailyHrAttendanceReport,
+                            includeAbsentees: e.target.checked
+                          }
+                        }
+                      }))}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 rounded"
+                    />
+                    <label htmlFor="includeAbsentees" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Include absent employees
+                    </label>
+                  </div>
+
+                  {/* Subject Line */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Email subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.notifications.dailyHrAttendanceReport?.subjectLine || 'Daily Attendance Report - {date}'}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          dailyHrAttendanceReport: {
+                            ...prev.notifications.dailyHrAttendanceReport,
+                            subjectLine: e.target.value
+                          }
+                        }
+                      }))}
+                      maxLength={200}
+                      placeholder="Daily Attendance Report - {date}"
+                      className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Use <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">{'{date}'}</code> for current date
+                    </p>
+                  </div>
+
+                  {/* Recipients Display */}
+                  <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Recipients</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.notifications.hrEmails && formData.notifications.hrEmails.length > 0 ? (
+                        formData.notifications.hrEmails.map((email, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                            {email}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-red-600 dark:text-red-400">⚠️ Configure HR emails above first</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Test Button */}
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={handleTestDailyHrAttendanceReport}
+                      disabled={isTestingHrReport || !formData.notifications.hrEmails || formData.notifications.hrEmails.length === 0}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isTestingHrReport ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>Send Test Report</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      Sends report to all HR emails immediately for testing
+                    </p>
                   </div>
                 </div>
               )}

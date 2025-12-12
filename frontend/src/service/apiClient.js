@@ -819,6 +819,14 @@ class ApiClient {
     return this.get(API_ENDPOINTS.SETTINGS.DEPARTMENT_STATS);
   }
 
+  async rescheduleDailyHrAttendanceReport() {
+    return this.post('/settings/daily-hr-attendance-report/reschedule');
+  }
+
+  async testDailyHrAttendanceReport() {
+    return this.post('/settings/daily-hr-attendance-report/test');
+  }
+
   async addDepartment(departmentData) {
     return this.post(API_ENDPOINTS.SETTINGS.ADD_DEPARTMENT, departmentData);
   }
