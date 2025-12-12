@@ -1,58 +1,47 @@
 import React from 'react';
-import { Clock, Save, RefreshCw } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
 
-const AttendanceSettings = ({ 
-  formData, 
-  selectedDepartment, 
-  departments, 
-  loading, 
-  saving, 
-  onInputChange, 
-  onWorkingDayChange, 
+const AttendanceSettings = ({
+  formData,
+  selectedDepartment,
+  departments,
+  loading,
+  saving,
+  onInputChange,
+  onWorkingDayChange,
   onSaturdayHolidayChange,
-  onSave, 
-  onRefresh,
-  onDepartmentChange 
+  onSave,
+  onReset,
+  onDepartmentChange
 }) => {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-            <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Attendance Settings</h2>
-            <p className="text-slate-600 dark:text-slate-400">Configure work hours and attendance policies</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button
-            onClick={onSave}
-            disabled={saving || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={onReset}
+          disabled={loading || saving}
+          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Discard changes and reload"
+        >
+          <RotateCcw className="w-4 h-4" />
+          <span className="hidden sm:inline">Reset</span>
+        </button>
+        <button
+          onClick={onSave}
+          disabled={saving || loading}
+          className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+        >
+          <Save className="w-4 h-4" />
+          <span>{saving ? 'Saving...' : 'Save'}</span>
+        </button>
       </div>
 
       {/* Settings Scope */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Settings Scope</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Settings Scope</h3>
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
             Apply settings to:
@@ -71,8 +60,8 @@ const AttendanceSettings = ({
       </div>
 
       {/* Work Hours */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Work Hours</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Work Hours</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -129,8 +118,8 @@ const AttendanceSettings = ({
       </div>
 
       {/* Work Hour Thresholds */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Work Hour Thresholds</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Work Hour Thresholds</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -167,8 +156,8 @@ const AttendanceSettings = ({
       </div>
 
       {/* Working Days */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Working Days</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Working Days</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           {dayNames.map((dayName, index) => {
             const isWorking = formData.attendance.workingDays.includes(index);
@@ -193,8 +182,8 @@ const AttendanceSettings = ({
       {formData.attendance.workingDays.includes(6) && (
         <>
           {/* Saturday Work Type */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Saturday Work Policy</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Saturday Work Policy</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Configure whether Saturdays are full working days or half days.
             </p>
@@ -236,8 +225,8 @@ const AttendanceSettings = ({
           </div>
 
           {/* Saturday Holiday Configuration */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Saturday Holidays</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Saturday Holidays</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Select which Saturdays of the month should be holidays. Unselected Saturdays will be working days.
             </p>

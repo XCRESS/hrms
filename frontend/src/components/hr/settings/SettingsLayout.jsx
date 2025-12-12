@@ -12,39 +12,48 @@ const SettingsLayout = ({ activeSection, onSectionChange, children }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-screen">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Configure your HRMS</p>
+      <div className="max-w-7xl mx-auto">
+        {/* Sticky Tab Bar */}
+        <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="px-4 sm:px-6">
+            <div className="flex items-center gap-4 sm:gap-6 py-3 sm:py-4">
+              {/* Settings Title - Hidden on mobile for space */}
+              <h1 className="hidden sm:block text-lg font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0">
+                Settings
+              </h1>
+
+              {/* Vertical Divider - Hidden on mobile */}
+              <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-600" />
+
+              {/* Horizontal Tab Navigation */}
+              <nav className="flex-1 flex overflow-x-auto scrollbar-hide gap-1">
+                {settingsNav.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onSectionChange(item.id)}
+                      className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
+                        isActive
+                          ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
+                          : 'text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">{item.label}</span>
+                      <span className="sm:hidden text-xs">{item.label.split(' ')[0]}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
-          
-          <nav className="p-4 space-y-2">
-            {settingsNav.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.id;
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onSectionChange(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    isActive 
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' 
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="px-4 sm:px-6 py-6">
           {children}
         </div>
       </div>

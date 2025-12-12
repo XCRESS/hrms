@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
-import { AlertCircle, CheckCircle, XCircle, TestTube, Send, RefreshCw, Save, MapPin } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TestTube, Send, Save, MapPin, RotateCcw } from 'lucide-react';
 import { useToast } from '../ui/toast';
 
 import SettingsLayout from './settings/SettingsLayout';
@@ -311,10 +311,12 @@ const SettingsPage = () => {
     resetMessages();
   };
 
-  const handleRefresh = () => {
-    fetchSettings();
-    if (activeSection === 'departments') {
-      fetchDepartmentStats();
+  const handleReset = () => {
+    if (window.confirm('Discard all unsaved changes and reload settings?')) {
+      fetchSettings();
+      if (activeSection === 'departments') {
+        fetchDepartmentStats();
+      }
     }
   };
 
@@ -715,7 +717,7 @@ const SettingsPage = () => {
             onWorkingDayChange={handleWorkingDayChange}
             onSaturdayHolidayChange={handleSaturdayHolidayChange}
             onSave={handleSave}
-            onRefresh={handleRefresh}
+            onReset={handleReset}
             onDepartmentChange={handleDepartmentChange}
           />
         );
@@ -750,41 +752,31 @@ const SettingsPage = () => {
       case 'notifications':
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notification Settings</h2>
-                  <p className="text-slate-600 dark:text-slate-400">Configure notification channels and preferences</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
 
             {/* HR Contact Information */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">HR Contact Information</h3>
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">HR Contact Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     HR Email Addresses
@@ -815,9 +807,10 @@ const SettingsPage = () => {
                               notifications: { ...prev.notifications, hrEmails: newEmails }
                             }));
                           }}
-                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors text-sm"
                         >
-                          Remove
+                          <span className="hidden sm:inline">Remove</span>
+                          <span className="sm:hidden">×</span>
                         </button>
                       </div>
                     ))}
@@ -865,9 +858,10 @@ const SettingsPage = () => {
                               notifications: { ...prev.notifications, hrPhones: newPhones }
                             }));
                           }}
-                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors text-sm"
                         >
-                          Remove
+                          <span className="hidden sm:inline">Remove</span>
+                          <span className="sm:hidden">×</span>
                         </button>
                       </div>
                     ))}
@@ -889,24 +883,24 @@ const SettingsPage = () => {
             </div>
 
             {/* Notification Channels */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notification Channels</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Notification Channels</h3>
                 <button
                   type="button"
                   onClick={handleTestNotification}
                   disabled={testingNotification}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   {testingNotification ? (
                     <>
                       <TestTube className="w-4 h-4 animate-pulse" />
-                      Testing...
+                      <span>Testing...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Test All
+                      <span>Test All</span>
                     </>
                   )}
                 </button>
@@ -961,10 +955,10 @@ const SettingsPage = () => {
             </div>
 
             {/* Employee Milestone Alerts */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Milestone Alerts</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Milestone Alerts</h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400">Get notified about employee anniversaries</p>
                 </div>
                 <input
@@ -1029,10 +1023,10 @@ const SettingsPage = () => {
             </div>
 
             {/* Holiday Reminders */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holiday Reminders</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Holiday Reminders</h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400">Notify employees about upcoming holidays</p>
                 </div>
                 <input
@@ -1071,40 +1065,30 @@ const SettingsPage = () => {
       case 'general':
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">General Settings</h2>
-                  <p className="text-slate-600 dark:text-slate-400">System preferences and configurations</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
             
             {/* Location Settings */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-in Location Settings</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-in Location Settings</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <input
@@ -1155,8 +1139,8 @@ const SettingsPage = () => {
             </div>
 
             {/* Task Report Settings */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-out Task Report Settings</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-out Task Report Settings</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <input
@@ -1210,33 +1194,29 @@ const SettingsPage = () => {
       case 'geofence':
         return (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Geo-Fence & Office Locations</h2>
-                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">Manage geo-fenced attendance policies and office coordinates</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Geo-Fence Enforcement</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Geo-Fence Enforcement</h3>
               <div className="space-y-4">
                 <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1">
