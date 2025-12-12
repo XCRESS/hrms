@@ -370,24 +370,48 @@ settingsSchema.statics.getEffectiveSettings = async function(department = null) 
   return effectiveSettings;
 };
 
-// Helper method to merge settings objects
+// Helper method to deep merge settings objects
+// Department settings override global settings, but missing keys fall back to global
 settingsSchema.statics.mergeSettings = function(base, override) {
-  const result = { ...base };
-  
-  Object.keys(override).forEach(key => {
-    if (key === '_id' || key === 'createdAt' || key === 'updatedAt' || key === '__v') {
-      return; // Skip metadata fields
-    }
-    
-    if (override[key] !== null && override[key] !== undefined) {
-      if (typeof override[key] === 'object' && !Array.isArray(override[key])) {
-        result[key] = this.mergeSettings(result[key] || {}, override[key]);
-      } else {
-        result[key] = override[key];
+  // Start with a deep copy of base to preserve all global settings
+  const result = JSON.parse(JSON.stringify(base));
+
+  // Recursively merge override into result
+  const deepMerge = (target, source) => {
+    Object.keys(source).forEach(key => {
+      // Skip metadata fields
+      if (key === '_id' || key === 'createdAt' || key === 'updatedAt' || key === '__v' || key === 'scope' || key === 'department') {
+        return;
       }
-    }
-  });
-  
+
+      const sourceValue = source[key];
+
+      // Skip null/undefined values - keep base value
+      if (sourceValue === null || sourceValue === undefined) {
+        return;
+      }
+
+      // Handle arrays - replace entirely (don't merge individual elements)
+      if (Array.isArray(sourceValue)) {
+        target[key] = [...sourceValue];
+        return;
+      }
+
+      // Handle objects - recursively merge
+      if (typeof sourceValue === 'object') {
+        // If target doesn't have this key yet, initialize it
+        if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) {
+          target[key] = {};
+        }
+        deepMerge(target[key], sourceValue);
+      } else {
+        // Primitive value - override
+        target[key] = sourceValue;
+      }
+    });
+  };
+
+  deepMerge(result, override);
   return result;
 };
 
