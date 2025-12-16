@@ -11,6 +11,7 @@ import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 import WFHRequestModal from "./dashboard/WFHRequestModal.jsx";
 import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
 import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
+import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 import { formatDate } from '../utils/istUtils';
 
@@ -56,6 +57,7 @@ const dashboardInitialState = {
     showAbsentEmployeesModal: false,
     showPresentEmployeesModal: false,
     showWFHModal: false,
+    showNonWorkingDayWarning: false,
   },
   // Loading states
   loading: {
@@ -88,6 +90,8 @@ const dashboardInitialState = {
     pendingWFHContext: null,
     checkoutLocationRequired: false,
     wfhRequestPending: false, // New state for WFH request pending
+    nonWorkingDayWarningData: null, // Data for non-working day warning
+    pendingCheckInData: null, // Store location data while waiting for confirmation
   }
 };
 
@@ -162,7 +166,8 @@ export default function HRMSDashboard() {
     showTaskReportModal,
     showAbsentEmployeesModal,
     showPresentEmployeesModal,
-    showWFHModal
+    showWFHModal,
+    showNonWorkingDayWarning
   } = modals;
 
   const {
@@ -182,7 +187,8 @@ export default function HRMSDashboard() {
     taskReportSetting,
     pendingWFHContext,
     checkoutLocationRequired,
-    wfhRequestPending
+    wfhRequestPending,
+    nonWorkingDayWarningData
   } = app;
 
   const {
@@ -568,7 +574,47 @@ export default function HRMSDashboard() {
   };
 
 
-  const handleCheckIn = async () => {
+  // Helper function to check if today is a non-working day
+  const checkNonWorkingDay = (effectiveSettings, holidaysData) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // Check if it's a non-working day (weekend)
+    const nonWorkingDays = effectiveSettings.attendance?.nonWorkingDays || [0];
+    if (nonWorkingDays.includes(dayOfWeek)) {
+      return {
+        isNonWorkingDay: true,
+        reason: 'weekend',
+        dayName: dayNames[dayOfWeek],
+        message: `Today is ${dayNames[dayOfWeek]}, which is configured as a non-working day. Are you sure you want to check in?`
+      };
+    }
+
+    // Check if it's a holiday (only if holidaysData is available)
+    if (holidaysData && Array.isArray(holidaysData) && holidaysData.length > 0) {
+      const todayString = today.toISOString().split('T')[0];
+      const todayHoliday = holidaysData.find(holiday => {
+        if (!holiday.date) return false;
+        const holidayDate = new Date(holiday.date).toISOString().split('T')[0];
+        return holidayDate === todayString;
+      });
+
+      if (todayHoliday) {
+        return {
+          isNonWorkingDay: true,
+          reason: 'holiday',
+          holidayTitle: todayHoliday.title || todayHoliday.name,
+          holidayType: todayHoliday.isOptional ? 'optional' : 'public',
+          message: `Today is ${todayHoliday.title || todayHoliday.name}${todayHoliday.isOptional ? ' (Optional Holiday)' : ''}. Are you sure you want to check in?`
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const handleCheckIn = async (skipNonWorkingDayCheck = false) => {
     setLoading('checkInLoading', true);
     let locationData = null;
 
@@ -581,6 +627,17 @@ export default function HRMSDashboard() {
       const requireLocation =
         locationSetting === 'mandatory' ||
         (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckIn === true);
+
+      // Check if today is a non-working day (before getting location)
+      if (!skipNonWorkingDayCheck) {
+        const nonWorkingDayWarning = checkNonWorkingDay(effectiveSettings, dashboardState.data.holidaysData);
+        if (nonWorkingDayWarning) {
+          setAppState('nonWorkingDayWarningData', nonWorkingDayWarning);
+          setModal('showNonWorkingDayWarning', true);
+          setLoading('checkInLoading', false);
+          return; // Exit early, wait for user confirmation
+        }
+      }
 
       // Try to get location, but handle failures gracefully
       try {
@@ -1299,6 +1356,16 @@ export default function HRMSDashboard() {
         onSubmit={handleWFHRequestSubmit}
         submitting={wfhRequestLoading}
         context={pendingWFHContext}
+      />
+
+      <NonWorkingDayWarningModal
+        isOpen={showNonWorkingDayWarning}
+        onClose={() => {
+          setModal('showNonWorkingDayWarning', false);
+          setAppState('nonWorkingDayWarningData', null);
+        }}
+        onConfirm={() => handleCheckIn(true)}
+        warningData={nonWorkingDayWarningData}
       />
 
       <AbsentEmployeesModal
