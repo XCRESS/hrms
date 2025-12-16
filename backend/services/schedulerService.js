@@ -308,6 +308,26 @@ class SchedulerService {
       const today = getISTNow().startOf('day').toDate();
       const reportDateFormatted = toIST(today).format('MMMM D, YYYY');
 
+      // Check if today is a non-working day (weekend based on settings)
+      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+      if (settings.attendance.nonWorkingDays.includes(dayOfWeek)) {
+        console.log(`[Scheduler] Skipping daily HR attendance report - today is a non-working day (day ${dayOfWeek})`);
+        return;
+      }
+
+      // Check if today is a holiday
+      const todayHoliday = await Holiday.findOne({
+        date: {
+          $gte: today,
+          $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        }
+      });
+
+      if (todayHoliday) {
+        console.log(`[Scheduler] Skipping daily HR attendance report - today is a holiday: ${todayHoliday.title}`);
+        return;
+      }
+
       // Fetch all active employees
       const employees = await Employee.find({ isActive: true })
         .select('firstName lastName officeAddress')
