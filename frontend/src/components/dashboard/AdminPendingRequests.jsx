@@ -141,11 +141,11 @@ const AdminPendingRequests = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
+      <div className="bg-card rounded-xl shadow-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Pending Requests</h3>
         <div className="animate-pulse space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+            <div key={i} className="h-16 bg-muted rounded"></div>
           ))}
         </div>
       </div>
@@ -153,13 +153,13 @@ const AdminPendingRequests = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-card rounded-xl shadow-lg border border-border 50 dark:border-border 50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <div>
-          <h3 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-1">
+          <h3 className="text-xl font-bold text-foreground mb-1">
             Pending Requests
           </h3>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-sm text-muted-foreground">
             Recent requests awaiting your review (showing latest 10)
           </p>
         </div>
@@ -172,7 +172,7 @@ const AdminPendingRequests = () => {
           </div>
           <button 
             onClick={fetchPendingRequests}
-            className="p-1.5 sm:p-2 text-neutral-600 dark:text-neutral-300 hover:text-cyan-600 dark:hover:text-cyan-400 bg-neutral-50 dark:bg-neutral-700 rounded-lg shadow-sm hover:shadow-md border border-neutral-200 dark:border-neutral-600 transition-all duration-200 hover:scale-105"
+            className="p-1.5 sm:p-2 text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 bg-muted rounded-lg shadow-sm hover:shadow-md border border-border dark:border-border transition-all duration-200 hover:scale-105"
             title="Refresh pending requests"
           >
             <RefreshCw size={14} className="sm:w-4 sm:h-4" />
@@ -185,33 +185,33 @@ const AdminPendingRequests = () => {
           <div 
             key={index} 
             onClick={() => handleRequestClick(request)}
-            className="group border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 sm:p-4 hover:bg-gradient-to-r hover:from-neutral-50 hover:to-neutral-100 dark:hover:from-neutral-700/30 dark:hover:to-neutral-800/30 hover:border-cyan-300 dark:hover:border-cyan-600 transition-all duration-200 hover:shadow-md cursor-pointer"
+            className="group border border-border rounded-lg p-3 sm:p-4 hover:bg-muted hover:border-cyan-300 dark:hover:border-cyan-600 transition-all duration-200 hover:shadow-md cursor-pointer"
           >
             <div className="flex items-start gap-3 mb-3">
-              <div className="flex-shrink-0 p-1.5 sm:p-2 bg-neutral-50 dark:bg-neutral-700 rounded-lg group-hover:bg-white dark:group-hover:bg-neutral-600 transition-colors">
+              <div className="flex-shrink-0 p-1.5 sm:p-2 bg-muted rounded-lg group-hover:bg-card transition-colors">
                 {React.cloneElement(request.icon, { className: "w-4 h-4 sm:w-5 sm:h-5" })}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-3">
-                  <h4 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm leading-tight">
+                  <h4 className="font-semibold text-foreground text-sm leading-tight">
                     {request.title}
                   </h4>
-                  <span className="flex-shrink-0 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">
+                  <span className="flex-shrink-0 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
                     {formatDate(request.date, false, 'DD MMM YYYY')}
                   </span>
                 </div>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 font-medium">
+                <p className="text-sm text-muted-foreground mt-1 font-medium">
                   {request.employee}
                 </p>
               </div>
             </div>
-            <p className="text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2 leading-relaxed ml-10 sm:ml-14">
+            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed ml-10 sm:ml-14">
               {request.description}
             </p>
           </div>
         )) : (
-          <div className="text-center text-neutral-500 dark:text-neutral-400 py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-neutral-100 dark:bg-neutral-700 rounded-full flex items-center justify-center">
+          <div className="text-center text-muted-foreground py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
               <FileText className="w-8 h-8 sm:w-10 sm:h-10 opacity-30" />
             </div>
             <p className="text-lg font-medium mb-1">No pending requests</p>
@@ -221,7 +221,7 @@ const AdminPendingRequests = () => {
       </div>
       
       {requests.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+        <div className="mt-6 pt-4 border-t border-border">
           <div className="text-center">
             <button className="inline-flex items-center gap-2 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition-colors hover:underline">
               <span onClick={() => navigate("/admin/requests")}>View All Requests</span>

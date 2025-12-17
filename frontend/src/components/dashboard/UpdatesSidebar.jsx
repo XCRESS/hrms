@@ -54,7 +54,7 @@ const UpdatesSidebar = ({
 
   const getPriorityColor = (priority) => {
     const colors = {
-      'Low': 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+      'Low': 'bg-muted text-muted-foreground',
       'Medium': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
       'High': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
       'Critical': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
@@ -63,13 +63,13 @@ const UpdatesSidebar = ({
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl h-full flex flex-col overflow-hidden min-w-80">
-      <div className="p-3 sm:p-5 border-b border-gray-200 dark:border-neutral-700 sticky top-0 bg-white dark:bg-neutral-800 z-10">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-neutral-100">Updates</h2>
+    <div className="bg-card rounded-xl shadow-xl h-full flex flex-col overflow-hidden min-w-80">
+      <div className="p-3 sm:p-5 border-b border-border sticky top-0 bg-card z-10">
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground">Updates</h2>
       </div>
       
-      <div className="p-2 sm:p-3 sticky top-16 bg-white dark:bg-neutral-800 z-10 shadow-sm">
-        <div className="flex rounded-lg bg-gray-100 dark:bg-neutral-700 p-1">
+      <div className="p-2 sm:p-3 sticky top-16 bg-card z-10 shadow-sm">
+        <div className="flex rounded-lg bg-muted p-1">
           {[
             {id: 'policies', label: 'Policies'}, 
             {id: 'holidays', label: 'Holidays'}, 
@@ -79,8 +79,8 @@ const UpdatesSidebar = ({
               key={tab.id}
               className={`flex-1 px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 rounded-md ${
                 activeTab === tab.id 
-                  ? 'bg-white dark:bg-neutral-600 text-cyan-600 dark:text-cyan-400 shadow-sm' 
-                  : 'text-gray-600 dark:text-neutral-300 hover:text-gray-800 dark:hover:text-neutral-100 hover:bg-white/50 dark:hover:bg-neutral-600/50'
+                  ? 'bg-card text-cyan-600 dark:text-cyan-400 shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
               onClick={() => {
                 setActiveTab(tab.id);
@@ -100,30 +100,30 @@ const UpdatesSidebar = ({
               {policiesLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-neutral-400">Loading policies...</span>
+                  <span className="ml-2 text-xs text-muted-foreground">Loading policies...</span>
                 </div>
               ) : policies.length > 0 ? (
                 policies.map((policy, index) => (
-                  <div 
-                    key={policy._id || `policy-${index}`} 
-                    className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-neutral-700/60 rounded-lg transition-colors duration-200 cursor-pointer shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-neutral-700"
+                  <div
+                    key={policy._id || `policy-${index}`}
+                    className="p-2.5 sm:p-3.5 hover:bg-muted rounded-lg transition-colors duration-200 cursor-pointer shadow-sm border border-transparent hover:border-border"
                     onClick={() => handlePolicyClick(policy._id)}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <div className="flex items-start gap-2">
                         <FileText className="h-3 w-3 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                        <h4 className="font-semibold text-gray-700 dark:text-neutral-100 text-xs sm:text-sm leading-snug">{policy.title}</h4>
+                        <h4 className="font-semibold text-foreground text-xs sm:text-sm leading-snug">{policy.title}</h4>
                       </div>
                       <span className={`ml-2 flex-shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(policy.priority)}`}>
                         {policy.priority}
                       </span>
                     </div>
-                    <p className="text-[10px] sm:text-xs text-gray-600 dark:text-neutral-400 mb-2 leading-relaxed line-clamp-2">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 leading-relaxed line-clamp-2">
                       {policy.content.substring(0, 100)}...
                     </p>
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-muted text-slate-600 dark:bg-card dark:text-slate-300">
                           {policy.category}
                         </span>
                         {policy.acknowledgmentRequired && (
@@ -135,7 +135,7 @@ const UpdatesSidebar = ({
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-gray-500 dark:text-neutral-400">No policies available</div>
+                <div className="py-8 text-center text-muted-foreground">No policies available</div>
               )}
             </div>
           )}
@@ -154,10 +154,10 @@ const UpdatesSidebar = ({
                 
                 return upcomingHolidays.length > 0 ? (
                   upcomingHolidays.map((holiday, index) => (
-                    <div key={holiday.id || `holiday-${index}`} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
+                    <div key={holiday.id || `holiday-${index}`} className="p-2.5 sm:p-3.5 flex justify-between items-center hover:bg-muted rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-border">
                       <div>
-                        <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm">{holiday.name}</h4>
-                        <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">{holiday.date}</p>
+                        <h4 className="font-semibold text-foreground text-xs sm:text-sm">{holiday.name}</h4>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">{holiday.date}</p>
                       </div>
                       <div className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 p-2 sm:p-2.5 rounded-full shadow-sm">
                         <Calendar size={16} />
@@ -165,7 +165,7 @@ const UpdatesSidebar = ({
                     </div>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-gray-500 dark:text-slate-400">No upcoming holidays</div>
+                  <div className="py-8 text-center text-muted-foreground">No upcoming holidays</div>
                 );
               })()}
             </div>
@@ -177,7 +177,7 @@ const UpdatesSidebar = ({
                 announcements.map((announcement, index) => (
                   <div
                     key={announcement.id || `announcement-${index}`}
-                    className="p-2.5 sm:p-3.5 hover:bg-gray-100/70 dark:hover:bg-slate-700/60 rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-700 cursor-pointer"
+                    className="p-2.5 sm:p-3.5 hover:bg-muted rounded-lg transition-colors duration-200 shadow-sm border border-transparent hover:border-border cursor-pointer"
                     onClick={() => handleAnnouncementClick(announcement)}
                   >
                     <div className="flex items-start gap-2 sm:gap-3.5">
@@ -186,22 +186,22 @@ const UpdatesSidebar = ({
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-gray-700 dark:text-slate-100 text-xs sm:text-sm leading-snug">{announcement.title}</h4>
+                          <h4 className="font-semibold text-foreground text-xs sm:text-sm leading-snug">{announcement.title}</h4>
                           {announcement.priority && (
                             <span className={`ml-2 flex-shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(announcement.priority)}`}>
                               {announcement.priority}
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] sm:text-xs text-gray-600 dark:text-slate-400 mb-2 leading-relaxed line-clamp-3">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 leading-relaxed line-clamp-3">
                           {announcement.content}
                         </p>
                         <div className="flex justify-between items-center">
-                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             {new Date(announcement.createdAt || announcement.date).toLocaleDateString()}
                           </p>
                           {(announcement.authorName || announcement.author?.name) && (
-                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
                               by {announcement.authorName || announcement.author?.name}
                             </span>
                           )}
@@ -211,7 +211,7 @@ const UpdatesSidebar = ({
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-gray-500 dark:text-slate-400">No announcements</div>
+                <div className="py-8 text-center text-muted-foreground">No announcements</div>
               )}
             </div>
           )}

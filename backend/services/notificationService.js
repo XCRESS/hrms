@@ -31,21 +31,39 @@ class NotificationService {
   async notifyHR(type, data) {
     try {
       const settings = await Settings.getGlobalSettings();
-      const { hrEmails, hrPhones } = settings.notifications;
+      const { hrEmails, hrPhones, hrEmailTypes } = settings.notifications;
 
       if (hrEmails.length === 0 && hrPhones.length === 0) {
         console.log('No HR contacts configured for notifications');
         return;
       }
 
+      // Check if this email type is enabled for HR
+      const emailTypeMap = {
+        'leave_request': 'leaveRequests',
+        'wfh_request': 'wfhRequests',
+        'regularization_request': 'regularizationRequests',
+        'help_request': 'helpRequests',
+        'employee_milestone': 'employeeMilestones'
+      };
+
+      const emailTypeKey = emailTypeMap[type];
+      // If type is mapped and preferences exist, check the preference
+      // Otherwise default to true for backward compatibility
+      const shouldSendEmail = emailTypeKey && hrEmailTypes
+        ? (hrEmailTypes[emailTypeKey] ?? true)
+        : true;
+
       const promises = [];
 
-      // Send email notifications
-      if (settings.notifications.emailEnabled && hrEmails.length > 0) {
+      // Send email notifications only if enabled for this type
+      if (settings.notifications.emailEnabled && hrEmails.length > 0 && shouldSendEmail) {
         promises.push(
           EmailService.sendNotification(type, data, hrEmails)
             .catch(error => console.error('Email notification failed:', error))
         );
+      } else if (!shouldSendEmail) {
+        console.log(`HR email notifications disabled for type: ${type}`);
       }
 
       // Send WhatsApp notifications

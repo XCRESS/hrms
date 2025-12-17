@@ -35,10 +35,10 @@ const WFHRequestModal = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4 py-6">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative border border-border">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-slate-700 dark:text-muted-foreground dark:hover:text-slate-200"
         >
           <X className="w-5 h-5" />
         </button>
@@ -48,10 +48,10 @@ const WFHRequestModal = ({
             <AlertCircle className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-xl font-semibold text-foreground">
               Request Work From Home
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-muted-foreground">
               {isLocationUnavailable
                 ? "Unable to verify your location. Submit a WFH request to proceed."
                 : "You appear to be outside the allowed office radius. Submit a WFH request to proceed."}
@@ -72,47 +72,47 @@ const WFHRequestModal = ({
             </div>
           </div>
         ) : (
-          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 mb-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+          <div className="bg-slate-50 dark:bg-card 60 rounded-xl p-4 mb-4 flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <MapPin className="w-4 h-4" />
               <span className="font-medium">{nearestOffice}</span>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+            <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Allowed Radius</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Allowed Radius</p>
                 <p className="font-semibold">{radius} m</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Your Distance</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Your Distance</p>
                 <p className={`font-semibold ${distance && distance > radius ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                   {distance !== null ? `${Math.round(distance)} m` : 'Unknown'}
                 </p>
               </div>
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="text-xs text-muted-foreground">
               Current location: {formatCoordinate(location.latitude)}, {formatCoordinate(location.longitude)}
             </div>
           </div>
         )}
 
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           Reason for Work From Home
         </label>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={4}
-          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400"
+          className="w-full rounded-xl border border-border bg-white dark:bg-slate-900 text-foreground px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400"
           placeholder="Share a brief reason (e.g., client visit, internet outage, commute disruption)..."
         />
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Minimum {minReasonLength} characters. Provide enough detail for HR to make a decision quickly.
         </p>
 
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className="px-4 py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted dark:hover:bg-card transition"
             disabled={submitting}
           >
             Cancel

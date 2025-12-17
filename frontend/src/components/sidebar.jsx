@@ -66,7 +66,7 @@ export default function SidebarDemo() {
     }, 0);
   };
 
-  const iconClass = "h-5 w-5 shrink-0 text-neutral-600 dark:text-neutral-300 transition-colors duration-200";
+  const iconClass = "h-5 w-5 shrink-0 text-sidebar-foreground transition-colors duration-200";
 
   const links = [
     {

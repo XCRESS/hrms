@@ -189,21 +189,21 @@ const WeeklySummary = ({ attendanceReport }) => {
   const MetricCard = ({ icon, title, value, subtitle, color = "blue", trend }) => {
     const Icon = icon;
     return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="bg-card rounded-xl p-4 border border-border shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-center justify-between mb-3">
         <div className={`p-2.5 rounded-lg ${
           color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
           color === 'green' ? 'bg-green-100 dark:bg-green-900/30' :
           color === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' :
           color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30' :
-          'bg-gray-100 dark:bg-gray-900/30'
+          'bg-muted dark:bg-gray-900/30'
         }`}>
           <Icon size={20} className={`${
             color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
             color === 'green' ? 'text-green-600 dark:text-green-400' :
             color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
             color === 'amber' ? 'text-amber-600 dark:text-amber-400' :
-            'text-gray-600 dark:text-gray-400'
+            'text-muted-foreground'
           }`} />
         </div>
         {trend && (
@@ -214,10 +214,10 @@ const WeeklySummary = ({ attendanceReport }) => {
         )}
       </div>
       <div className="space-y-1">
-        <p className="text-2xl font-bold text-neutral-900 dark:text-white">{value}</p>
-        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{title}</p>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
         {subtitle && (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">{subtitle}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
         )}
       </div>
     </div>
@@ -227,8 +227,8 @@ const WeeklySummary = ({ attendanceReport }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-neutral-800 p-3 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700">
-          <p className="font-medium text-neutral-900 dark:text-white mb-1">{label}</p>
+        <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
+          <p className="font-medium text-foreground mb-1">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {`${entry.dataKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: ${entry.value}${entry.dataKey.includes('Hours') || entry.dataKey.includes('hours') ? 'h' : entry.dataKey.includes('productivity') || entry.dataKey.includes('Productivity') ? '%' : ''}`}
@@ -246,10 +246,10 @@ const WeeklySummary = ({ attendanceReport }) => {
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+            <h2 className="text-2xl font-bold text-foreground mb-2">
               Monthly Performance Summary
             </h2>
-            <p className="text-neutral-600 dark:text-neutral-300">
+            <p className="text-muted-foreground">
               Comprehensive analysis of your work patterns and productivity this month
             </p>
           </div>
@@ -257,7 +257,7 @@ const WeeklySummary = ({ attendanceReport }) => {
             <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               {monthlyMetrics.attendanceRate}%
             </div>
-            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            <div className="text-sm text-muted-foreground">
               Attendance Rate
             </div>
           </div>
@@ -299,8 +299,8 @@ const WeeklySummary = ({ attendanceReport }) => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Hours & Productivity Trend */}
-        <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Daily Performance Trend
           </h3>
           <ResponsiveContainer width="100%" height={280}>
@@ -359,8 +359,8 @@ const WeeklySummary = ({ attendanceReport }) => {
         </div>
 
         {/* Attendance Status Distribution */}
-        <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Attendance Distribution
           </h3>
           <div className="flex items-center justify-between h-64">
@@ -394,10 +394,10 @@ const WeeklySummary = ({ attendanceReport }) => {
                         style={{ backgroundColor: item.color }}
                       />
                       <div>
-                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        <span className="text-sm font-medium text-foreground">
                           {item.name}
                         </span>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        <p className="text-xs text-muted-foreground">
                           {item.value} day{item.value !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -406,7 +406,7 @@ const WeeklySummary = ({ attendanceReport }) => {
                 </div>
               </>
             ) : (
-              <div className="text-center w-full text-neutral-500 dark:text-neutral-400">
+              <div className="text-center w-full text-muted-foreground">
                 <Calendar size={48} className="mx-auto mb-2 opacity-50" />
                 <p>No attendance data available</p>
               </div>
@@ -415,8 +415,8 @@ const WeeklySummary = ({ attendanceReport }) => {
         </div>
 
         {/* Check-in Pattern Analysis */}
-        <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Check-in Pattern Analysis
           </h3>
           {monthlyMetrics.checkInPattern.length > 0 ? (
@@ -455,7 +455,7 @@ const WeeklySummary = ({ attendanceReport }) => {
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-neutral-600 dark:text-neutral-300">
+                <span className="text-muted-foreground">
                   Average: {Math.floor(monthlyMetrics.avgCheckInTime)}:{String(Math.round((monthlyMetrics.avgCheckInTime % 1) * 60)).padStart(2, '0')}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -468,7 +468,7 @@ const WeeklySummary = ({ attendanceReport }) => {
               </div>
             </>
           ) : (
-            <div className="text-center text-neutral-500 dark:text-neutral-400 py-12">
+            <div className="text-center text-muted-foreground py-12">
               <Clock size={48} className="mx-auto mb-2 opacity-50" />
               <p>No check-in data available</p>
             </div>
@@ -476,22 +476,22 @@ const WeeklySummary = ({ attendanceReport }) => {
         </div>
 
         {/* Monthly Goals & Achievements */}
-        <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-sm">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Monthly Goals & Achievements
           </h3>
           <div className="space-y-6">
             {/* Attendance Goal */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                <span className="text-sm font-medium text-foreground">
                   Attendance Target
                 </span>
-                <span className="text-sm font-bold text-neutral-900 dark:text-white">
+                <span className="text-sm font-bold text-foreground">
                   {monthlyMetrics.attendanceRate}% / 95%
                 </span>
               </div>
-              <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2.5">
+              <div className="w-full bg-muted rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full transition-all duration-700 ${
                     monthlyMetrics.attendanceRate >= 95 ? 'bg-green-500' : 'bg-blue-500'
@@ -504,14 +504,14 @@ const WeeklySummary = ({ attendanceReport }) => {
             {/* Hours Goal */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                <span className="text-sm font-medium text-foreground">
                   Hours Target
                 </span>
-                <span className="text-sm font-bold text-neutral-900 dark:text-white">
+                <span className="text-sm font-bold text-foreground">
                   {monthlyMetrics.totalHoursWorked}h / {monthlyMetrics.expectedHours}h
                 </span>
               </div>
-              <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2.5">
+              <div className="w-full bg-muted rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full transition-all duration-700 ${
                     monthlyMetrics.totalHoursWorked >= monthlyMetrics.expectedHours ? 'bg-green-500' : 'bg-blue-500'
@@ -525,7 +525,7 @@ const WeeklySummary = ({ attendanceReport }) => {
 
             {/* Achievement Badges */}
             <div className="pt-2">
-              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+              <p className="text-sm font-medium text-foreground mb-3">
                 This Month's Achievements
               </p>
               <div className="flex flex-wrap gap-2">
@@ -554,7 +554,7 @@ const WeeklySummary = ({ attendanceReport }) => {
                   </span>
                 )}
                 {(monthlyMetrics.attendanceRate < 100 && monthlyMetrics.avgProductivity < 90 && monthlyMetrics.overtimeHours <= 10 && monthlyMetrics.avgCheckInTime > 8.5) && (
-                  <span className="px-3 py-1.5 bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400 text-xs rounded-full flex items-center font-medium">
+                  <span className="px-3 py-1.5 bg-muted text-gray-600 dark:bg-gray-900/30 dark:text-muted-foreground text-xs rounded-full flex items-center font-medium">
                     <Target size={12} className="mr-1.5" />
                     Keep Going!
                   </span>

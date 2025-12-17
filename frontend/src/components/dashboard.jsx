@@ -32,15 +32,15 @@ const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
 // Component loading skeleton
 const ComponentSkeleton = () => (
-  <div className="animate-pulse bg-white dark:bg-neutral-900 rounded-xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm">
+  <div className="animate-pulse bg-card rounded-xl p-6 border border-border shadow-sm">
     <div className="flex items-center justify-between mb-4">
-      <div className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded w-1/3"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-16"></div>
+      <div className="h-6 bg-muted rounded w-1/3"></div>
+      <div className="h-4 bg-muted rounded w-16"></div>
     </div>
     <div className="space-y-3">
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-full"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2"></div>
+      <div className="h-4 bg-muted rounded w-full"></div>
+      <div className="h-4 bg-muted rounded w-3/4"></div>
+      <div className="h-4 bg-muted rounded w-1/2"></div>
     </div>
   </div>
 );
@@ -1168,7 +1168,7 @@ export default function HRMSDashboard() {
   };
 
   return (
-    <div className="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 min-h-screen">
+    <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-full">
         <Header
           username={username}
@@ -1213,7 +1213,7 @@ export default function HRMSDashboard() {
                   <div className="space-y-8">
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Work Queue</h2>
+                        <h2 className="text-base font-semibold text-foreground">Work Queue</h2>
                       </div>
                       <Suspense fallback={<ComponentSkeleton />}>
                         <div ref={pendingRequestsRef}>
@@ -1223,7 +1223,7 @@ export default function HRMSDashboard() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Team Attendance</h2>
+                        <h2 className="text-base font-semibold text-foreground">Team Attendance</h2>
                       </div>
                       <Suspense fallback={<ComponentSkeleton />}>
                         <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
@@ -1243,7 +1243,7 @@ export default function HRMSDashboard() {
                   </Suspense>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Overview</h2>
+                      <h2 className="text-base font-semibold text-foreground">Overview</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <AttendanceStats
@@ -1255,7 +1255,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">My Attendance</h2>
+                      <h2 className="text-base font-semibold text-foreground">My Attendance</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <EmployeeAttendanceTable
@@ -1265,7 +1265,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Requests</h2>
+                      <h2 className="text-base font-semibold text-foreground">Requests</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <LeaveRequestsTable
@@ -1280,7 +1280,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">This Month</h2>
+                      <h2 className="text-base font-semibold text-foreground">This Month</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <WeeklySummary

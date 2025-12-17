@@ -64,13 +64,13 @@ const AttendanceStats = ({ attendanceReport, isLoading = false, missingCheckouts
     return (
       <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
         {[...Array(5)].map((_, index) => (
-          <div key={index} className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5 animate-pulse">
+          <div key={index} className="bg-card rounded-xl shadow-xl p-3 sm:p-5 animate-pulse">
             <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-16"></div>
-              <div className="w-5 h-5 bg-neutral-200 dark:bg-neutral-700 rounded-full"></div>
+              <div className="h-3 bg-muted rounded w-16"></div>
+              <div className="w-5 h-5 bg-muted rounded-full"></div>
             </div>
-            <div className="h-8 bg-neutral-200 dark:bg-neutral-700 rounded w-12 mb-2"></div>
-            <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full"></div>
+            <div className="h-8 bg-muted rounded w-12 mb-2"></div>
+            <div className="h-2 bg-muted rounded-full"></div>
           </div>
         ))}
       </div>
@@ -110,17 +110,17 @@ const AttendanceStats = ({ attendanceReport, isLoading = false, missingCheckouts
         return (
           <div 
             key={card.title} 
-            className={`bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5 ${card.breakdown ? 'relative group cursor-help' : ''}`}
+            className={`bg-card rounded-xl shadow-xl p-3 sm:p-5 transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-1.5 ${card.breakdown ? 'relative group cursor-help' : ''}`}
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400">{card.title}</p>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">{card.title}</p>
               <Icon size={20} className={`${iconClasses[card.color]}`} />
             </div>
             <p className={`text-xl sm:text-3xl font-bold ${textClasses[card.color]}`}>{card.value}</p>
-            <div className="mt-2 sm:mt-3.5 h-2 w-full bg-gray-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+            <div className="mt-2 sm:mt-3.5 h-2 w-full bg-muted rounded-full overflow-hidden">
               <div className={`h-2 ${barClasses[card.color]} rounded-full transition-all duration-500`} style={{ width: card.barWidth }}></div>
             </div>
-            {card.subText && <p className="text-xs text-gray-500 dark:text-neutral-400 mt-2">{card.subText}</p>}
+            {card.subText && <p className="text-xs text-muted-foreground mt-2">{card.subText}</p>}
             
             {/* Custom Tooltip for Working Days */}
             {card.breakdown && (
