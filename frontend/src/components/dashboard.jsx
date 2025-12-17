@@ -14,6 +14,7 @@ import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
 import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 import { formatDate } from '../utils/istUtils';
+import ChristmasBanner from './ui/ChristmasBanner';
 
 // Lazy load dashboard components for better performance
 import { lazy, Suspense } from 'react';
@@ -1170,6 +1171,7 @@ export default function HRMSDashboard() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-full">
+        <ChristmasBanner username={username} />
         <Header
           username={username}
           isCheckedIn={isCheckedIn}
