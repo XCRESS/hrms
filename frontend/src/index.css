@@ -139,7 +139,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
   }
+}
+
+/* Christmas Festive Fonts */
+.font-christmas {
+  font-family: 'Mountains of Christmas', cursive;
+}
+
+.font-script {
+  font-family: 'Great Vibes', cursive;
 }
 
 /* Custom Scrollbar Styles */
@@ -279,5 +289,111 @@
   --sidebar-accent-foreground: oklch(0.95 0.01 70);
   --sidebar-border: oklch(0.28 0.03 155);
   --sidebar-ring: oklch(0.78 0.14 85);
+}
+
+/* ========================================
+   CHRISTMAS BANNER ANIMATIONS
+   Professional, enterprise-grade animations
+   ======================================== */
+
+/* Gentle snowfall animation - for emoji fallback only */
+@keyframes snowfall-gentle {
+  0% {
+    transform: translateY(-10px) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(20px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-snowfall-gentle {
+  animation: snowfall-gentle 12s linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Subtle twinkle for sparkles */
+@keyframes twinkle-subtle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-twinkle-subtle {
+  animation: twinkle-subtle 3s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Fade in from bottom - for announcement text */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+/* Slide out up - for banner dismissal */
+@keyframes slide-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+.animate-slide-out-up {
+  animation: slide-out-up 0.3s ease-in forwards;
+}
+
+/* Slide in down - for banner entrance */
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.4s ease-out forwards;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-snowfall-gentle,
+  .animate-twinkle-subtle,
+  .animate-fade-in-up,
+  .animate-slide-out-up,
+  .animate-slide-in-down {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
