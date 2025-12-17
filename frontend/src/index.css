@@ -185,3 +185,99 @@
   scrollbar-color: oklch(0.556 0 0 / 0.4) transparent;
 }
 
+/* ========================================
+   CHRISTMAS THEME - Cozy Holiday Warmth
+   Deep Forest Green + Cranberry Red + Gold
+   ======================================== */
+[data-theme="christmas"] {
+  /* Warm cream background instead of stark white */
+  --background: oklch(0.97 0.008 65);
+  /* Deep forest green for text */
+  --foreground: oklch(0.25 0.06 155);
+  /* Soft ivory cards with warmth */
+  --card: oklch(0.985 0.006 60);
+  --card-foreground: oklch(0.25 0.06 155);
+  --popover: oklch(0.985 0.006 60);
+  --popover-foreground: oklch(0.25 0.06 155);
+  /* Rich cranberry red - primary */
+  --primary: oklch(0.48 0.165 15);
+  --primary-foreground: oklch(0.98 0.005 60);
+  /* Deep forest green - secondary */
+  --secondary: oklch(0.42 0.08 155);
+  --secondary-foreground: oklch(0.98 0.005 60);
+  /* Warm beige muted areas */
+  --muted: oklch(0.94 0.012 65);
+  --muted-foreground: oklch(0.48 0.05 155);
+  /* Festive gold accent */
+  --accent: oklch(0.72 0.12 80);
+  --accent-foreground: oklch(0.25 0.06 155);
+  --destructive: oklch(0.52 0.19 20);
+  /* Warm borders */
+  --border: oklch(0.88 0.015 65);
+  --input: oklch(0.93 0.012 65);
+  --ring: oklch(0.48 0.165 15);
+  /* Chart colors - festive palette */
+  --chart-1: oklch(0.48 0.165 15);
+  --chart-2: oklch(0.42 0.08 155);
+  --chart-3: oklch(0.72 0.12 80);
+  --chart-4: oklch(0.52 0.1 35);
+  --chart-5: oklch(0.58 0.09 140);
+  /* Deep forest green sidebar */
+  --sidebar: oklch(0.35 0.08 155);
+  --sidebar-foreground: oklch(0.97 0.008 65);
+  /* Cranberry active state */
+  --sidebar-primary: oklch(0.48 0.165 15);
+  --sidebar-primary-foreground: oklch(0.98 0.005 60);
+  /* Gold hover accent */
+  --sidebar-accent: oklch(0.42 0.09 155);
+  --sidebar-accent-foreground: oklch(0.95 0.01 70);
+  --sidebar-border: oklch(0.3 0.06 155);
+  --sidebar-ring: oklch(0.72 0.12 80);
+}
+
+/* Christmas Dark Mode - Cozy Evening */
+[data-theme="christmas"].dark {
+  /* Deep warm charcoal */
+  --background: oklch(0.18 0.015 25);
+  /* Soft cream text */
+  --foreground: oklch(0.94 0.01 65);
+  /* Slightly lighter cards */
+  --card: oklch(0.23 0.02 30);
+  --card-foreground: oklch(0.94 0.01 65);
+  --popover: oklch(0.23 0.02 30);
+  --popover-foreground: oklch(0.94 0.01 65);
+  /* Brighter cranberry for dark mode */
+  --primary: oklch(0.58 0.19 15);
+  --primary-foreground: oklch(0.98 0.005 60);
+  /* Muted sage green */
+  --secondary: oklch(0.52 0.09 155);
+  --secondary-foreground: oklch(0.98 0.005 60);
+  /* Warm dark muted */
+  --muted: oklch(0.26 0.02 35);
+  --muted-foreground: oklch(0.68 0.04 155);
+  /* Bright gold for contrast */
+  --accent: oklch(0.78 0.14 85);
+  --accent-foreground: oklch(0.2 0.02 30);
+  --destructive: oklch(0.62 0.21 20);
+  --border: oklch(0.32 0.025 30);
+  --input: oklch(0.28 0.02 30);
+  --ring: oklch(0.58 0.19 15);
+  /* Chart colors adjusted for dark */
+  --chart-1: oklch(0.58 0.19 15);
+  --chart-2: oklch(0.52 0.09 155);
+  --chart-3: oklch(0.78 0.14 85);
+  --chart-4: oklch(0.62 0.12 35);
+  --chart-5: oklch(0.65 0.1 140);
+  /* Very dark green sidebar */
+  --sidebar: oklch(0.2 0.025 155);
+  --sidebar-foreground: oklch(0.94 0.01 65);
+  /* Cranberry active */
+  --sidebar-primary: oklch(0.58 0.19 15);
+  --sidebar-primary-foreground: oklch(0.98 0.005 60);
+  /* Slightly lighter hover */
+  --sidebar-accent: oklch(0.28 0.03 155);
+  --sidebar-accent-foreground: oklch(0.95 0.01 70);
+  --sidebar-border: oklch(0.28 0.03 155);
+  --sidebar-ring: oklch(0.78 0.14 85);
+}
+

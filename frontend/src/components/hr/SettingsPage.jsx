@@ -7,6 +7,7 @@ import { useToast } from '../ui/toast';
 import SettingsLayout from './settings/SettingsLayout';
 import AttendanceSettings from './settings/AttendanceSettings';
 import DepartmentManagement from './settings/DepartmentManagement';
+import AppearanceSettings from './settings/AppearanceSettings';
 
 const SettingsPage = () => {
   const user = useAuth();
@@ -77,6 +78,13 @@ const SettingsPage = () => {
         sendTime: '19:00',
         includeAbsentees: true,
         subjectLine: 'Daily Attendance Report - {date}'
+      },
+      hrEmailTypes: {
+        leaveRequests: true,
+        wfhRequests: true,
+        regularizationRequests: true,
+        helpRequests: true,
+        employeeMilestones: true
       }
     },
     general: {
@@ -136,6 +144,13 @@ const SettingsPage = () => {
             sendTime: response.data.notifications?.dailyHrAttendanceReport?.sendTime ?? '19:00',
             includeAbsentees: response.data.notifications?.dailyHrAttendanceReport?.includeAbsentees ?? true,
             subjectLine: response.data.notifications?.dailyHrAttendanceReport?.subjectLine ?? 'Daily Attendance Report - {date}'
+          },
+          hrEmailTypes: {
+            leaveRequests: response.data.notifications?.hrEmailTypes?.leaveRequests ?? true,
+            wfhRequests: response.data.notifications?.hrEmailTypes?.wfhRequests ?? true,
+            regularizationRequests: response.data.notifications?.hrEmailTypes?.regularizationRequests ?? true,
+            helpRequests: response.data.notifications?.hrEmailTypes?.helpRequests ?? true,
+            employeeMilestones: response.data.notifications?.hrEmailTypes?.employeeMilestones ?? true
           }
         },
         general: {
@@ -1107,6 +1122,106 @@ const SettingsPage = () => {
               )}
             </div>
 
+            {/* HR Email Type Preferences */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">HR Email Preferences</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Choose which email notifications HR team should receive</p>
+              </div>
+              <div className="space-y-3 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Leave Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees submit leave requests</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.leaveRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, leaveRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Work From Home Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees request to work from home</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.wfhRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, wfhRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Regularization Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications for attendance regularization requests</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.regularizationRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, regularizationRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Help Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees need assistance</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.helpRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, helpRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Employee Milestones</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Work anniversary notifications</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.employeeMilestones ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, employeeMilestones: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Daily HR Attendance Report */}
             <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
@@ -1388,6 +1503,8 @@ const SettingsPage = () => {
             </div>
           </div>
         );
+      case 'appearance':
+        return <AppearanceSettings />;
       case 'geofence':
         return (
           <div className="space-y-6">

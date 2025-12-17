@@ -110,8 +110,8 @@ const LeaveRequestsTable = memo(({
       <div className="flex justify-center mb-3">
         <AlertCircle size={48} className="text-amber-500/70 dark:text-amber-400/70" />
       </div>
-      <h3 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">No requests found</h3>
-      <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+      <h3 className="text-lg font-semibold text-foreground mb-2">No requests found</h3>
+      <p className="text-sm text-muted-foreground mb-4">
         {loadingLeaveRequests 
           ? "Loading your requests..." 
           : "You haven't submitted any leave requests or help inquiries yet"}
@@ -145,11 +145,11 @@ const LeaveRequestsTable = memo(({
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl transition-colors duration-200">
-      <div className="p-3 sm:p-5 border-b border-gray-200 dark:border-slate-700 flex flex-wrap sm:flex-nowrap justify-between items-center">
+    <div className="bg-card rounded-xl shadow-xl transition-colors duration-200">
+      <div className="p-3 sm:p-5 border-b border-border flex flex-wrap sm:flex-nowrap justify-between items-center">
         <div className="w-full sm:w-auto mb-2 sm:mb-0">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-slate-100">Your Requests</h2>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
+          <h2 className="text-lg sm:text-xl font-semibold text-foreground">Your Requests</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Recent leave, help desk, and regularization requests
             {pendingRequests.length > 0 && 
               <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
@@ -179,7 +179,7 @@ const LeaveRequestsTable = memo(({
       </div>
       <div className="p-3">
         {loadingLeaveRequests ? (
-          <div className="py-8 text-center text-gray-500 dark:text-slate-400">
+          <div className="py-8 text-center text-muted-foreground">
             <div className="animate-spin h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-3"></div>
             <p>Loading requests...</p>
           </div>
@@ -187,7 +187,7 @@ const LeaveRequestsTable = memo(({
           <div className="w-full">
             {/* Table Headers for Desktop */}
             <div className="hidden md:table-header-group w-full">
-              <div className="md:table-row text-left text-xs text-gray-500 dark:text-slate-400 border-b-2 border-gray-200 dark:border-slate-700">
+              <div className="md:table-row text-left text-xs text-muted-foreground border-b-2 border-border">
                 <div className="md:table-cell py-3.5 px-3 font-semibold">Type</div>
                 <div className="md:table-cell py-3.5 px-3 font-semibold">Date</div>
                 <div className="md:table-cell py-3.5 px-3 font-semibold">Status</div>
@@ -206,31 +206,31 @@ const LeaveRequestsTable = memo(({
                   key={`${request.type}-${request.id || index}`} 
                   className={`
                     md:table-row 
-                    block p-4 mb-3 md:mb-0 border md:border-b md:border-x-0 border-gray-200 dark:border-slate-700 
+                    block p-4 mb-3 md:mb-0 border md:border-b md:border-x-0 border-border 
                     rounded-lg md:rounded-none 
-                    hover:bg-gray-50 dark:hover:bg-slate-700/40 
+                    hover:bg-muted dark:hover:bg-muted 40 
                     transition-colors text-sm
-                    ${request.status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/10' : 'bg-white dark:bg-slate-800/50'}
+                    ${request.status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/10' : 'bg-white dark:bg-card 50'}
                   `}
                 >
                   {/* Type */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                     <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Type</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Type</span>
                       {request.type === 'help' && (
-                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                        <div className="flex items-center font-medium text-foreground">
                           <HelpCircle size={14} className="mr-2 text-purple-500 dark:text-purple-400" />
                           <span>Help Inquiry</span>
                         </div>
                       )}
                       {request.type === 'leave' && (
-                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                        <div className="flex items-center font-medium text-foreground">
                           <Paperclip size={14} className="mr-2 text-cyan-500 dark:text-cyan-400" />
                           {getRequestTypeLabel(request)}
                         </div>
                       )}
                       {request.type === 'regularization' && (
-                        <div className="flex items-center font-medium text-gray-800 dark:text-slate-100">
+                        <div className="flex items-center font-medium text-foreground">
                           <CheckCircle size={14} className="mr-2 text-green-500 dark:text-green-400" />
                           <span>Regularization</span>
                         </div>
@@ -241,8 +241,8 @@ const LeaveRequestsTable = memo(({
                   {/* Date */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                     <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Date</span>
-                      <span className="text-gray-700 dark:text-slate-300">
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Date</span>
+                      <span className="text-foreground">
                         {isValidDate(request.displayDate)
                           ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(request.displayDate))
                           : '—'}
@@ -253,7 +253,7 @@ const LeaveRequestsTable = memo(({
                   {/* Status */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                     <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Status</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Status</span>
                       {renderStatusBadge(request.status)}
                     </div>
                   </div>
@@ -261,8 +261,8 @@ const LeaveRequestsTable = memo(({
                   {/* Requested Date */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                      <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Requested</span>
-                      <span className="text-gray-600 dark:text-slate-300">
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Requested</span>
+                      <span className="text-muted-foreground">
                         {isValidDate(request.createdAt)
                           ? new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short' }).format(new Date(request.createdAt))
                           : '—'}
@@ -273,8 +273,8 @@ const LeaveRequestsTable = memo(({
                   {/* Details */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle md:max-w-[200px]">
                     <div className="flex justify-between items-start md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden mt-1">Details</span>
-                      <p className="text-gray-600 dark:text-slate-300 whitespace-normal break-words text-right md:text-left" title={request.displayReason}>
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden mt-1">Details</span>
+                      <p className="text-muted-foreground whitespace-normal break-words text-right md:text-left" title={request.displayReason}>
                         {request.type === 'help' ? (request.title || request.displayReason) : (request.displayReason)}
                       </p>
                     </div>
@@ -283,8 +283,8 @@ const LeaveRequestsTable = memo(({
                   {/* Check In */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                     <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check In</span>
-                      <span className="text-gray-600 dark:text-slate-300">
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Check In</span>
+                      <span className="text-muted-foreground">
                         {request.type === 'regularization' && isValidDate(request.requestedCheckIn)
                           ? new Date(request.requestedCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : '—'}
@@ -295,8 +295,8 @@ const LeaveRequestsTable = memo(({
                   {/* Check Out */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle">
                     <div className="flex justify-between items-center md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden">Check Out</span>
-                      <span className="text-gray-600 dark:text-slate-300">
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden">Check Out</span>
+                      <span className="text-muted-foreground">
                         {request.type === 'regularization' && isValidDate(request.requestedCheckOut)
                           ? new Date(request.requestedCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : '—'}
@@ -307,8 +307,8 @@ const LeaveRequestsTable = memo(({
                   {/* Review Comment */}
                   <div className="md:table-cell py-2 md:py-3.5 px-0 md:px-3 align-middle md:max-w-[200px]">
                      <div className="flex justify-between items-start md:block">
-                      <span className="text-xs font-bold text-gray-500 uppercase md:hidden mt-1">Review</span>
-                      <p className="text-gray-600 dark:text-slate-300 whitespace-normal break-words text-right md:text-left" title={request.reviewComment}>
+                      <span className="text-xs font-bold text-muted-foreground uppercase md:hidden mt-1">Review</span>
+                      <p className="text-muted-foreground whitespace-normal break-words text-right md:text-left" title={request.reviewComment}>
                         {request.reviewComment || '—'}
                       </p>
                     </div>

@@ -413,6 +413,34 @@ class EmailService {
         `)
       }),
 
+      wfh_request: () => ({
+        subject: `Work From Home Request - ${data.employee}`,
+        htmlContent: this.getBaseEmailTemplate(`
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 24px;">🏠</span>
+            </div>
+            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Work From Home Request</h2>
+            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Requires your attention</p>
+          </div>
+
+          ${this.getInfoCard([
+            { label: 'Employee', value: data.employee },
+            { label: 'Employee ID', value: data.employeeId },
+            { label: 'Request Date', value: data.requestDate },
+            { label: 'Reason', value: data.reason }
+          ])}
+
+          <div style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+            <p style="margin: 0; color: #1e40af; font-size: 14px; font-weight: 500;">
+              ℹ️ This employee is requesting to work from home outside the office geofence.
+            </p>
+          </div>
+
+          ${this.getActionButton('Review Request', '#3b82f6')}
+        `)
+      }),
+
       help_request: () => ({
         subject: `New Help Request - ${data.employee}`,
         htmlContent: this.getBaseEmailTemplate(`

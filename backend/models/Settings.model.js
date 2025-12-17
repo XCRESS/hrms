@@ -81,7 +81,7 @@ const settingsSchema = new mongoose.Schema({
 
   // Notification Configuration
   notifications: {
-    // HR Contact Information  
+    // HR Contact Information
     hrEmails: {
       type: [String],
       default: [],
@@ -93,7 +93,7 @@ const settingsSchema = new mongoose.Schema({
       }
     },
     hrPhones: {
-      type: [String], 
+      type: [String],
       default: [],
       validate: {
         validator: function(arr) {
@@ -102,11 +102,20 @@ const settingsSchema = new mongoose.Schema({
         message: "All HR phones must be valid Indian numbers (+91xxxxxxxxxx)"
       }
     },
-    
+
     // Channel Toggle Settings
     emailEnabled: { type: Boolean, default: true },
     whatsappEnabled: { type: Boolean, default: false },
     pushEnabled: { type: Boolean, default: true },
+
+    // Email Type Preferences for HR
+    hrEmailTypes: {
+      leaveRequests: { type: Boolean, default: true },
+      wfhRequests: { type: Boolean, default: true },
+      regularizationRequests: { type: Boolean, default: true },
+      helpRequests: { type: Boolean, default: true },
+      employeeMilestones: { type: Boolean, default: true }
+    },
     
     // Holiday Reminder Configuration
     holidayReminderEnabled: { type: Boolean, default: true },
@@ -328,6 +337,13 @@ settingsSchema.statics.getGlobalSettings = async function() {
           sendTime: "19:00",
           includeAbsentees: true,
           subjectLine: "Daily Attendance Report - {date}"
+        },
+        hrEmailTypes: {
+          leaveRequests: true,
+          wfhRequests: true,
+          regularizationRequests: true,
+          helpRequests: true,
+          employeeMilestones: true
         }
       },
       general: {

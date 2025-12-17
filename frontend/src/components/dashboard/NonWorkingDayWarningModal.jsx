@@ -8,20 +8,20 @@ const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }) 
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full border border-neutral-200 dark:border-neutral-700 animate-in fade-in duration-200">
+      <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full border border-border animate-in fade-in duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 dark:bg-amber-900/30 p-2.5 rounded-xl">
               <AlertTriangle className="text-amber-600 dark:text-amber-400" size={24} />
             </div>
-            <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">
+            <h2 className="text-xl font-bold text-foreground">
               Non-Working Day
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted"
           >
             <X size={20} />
           </button>
@@ -53,8 +53,8 @@ const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }) 
           </div>
 
           {/* Information Box */}
-          <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded-lg p-4 border border-neutral-200 dark:border-neutral-700">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded-lg p-4 border border-border">
+            <p className="text-sm text-muted-foreground">
               Some employees work on non-working days, but many check in by mistake.
               Please verify before continuing.
             </p>
@@ -64,7 +64,7 @@ const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }) 
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 border border-neutral-300 dark:border-neutral-600"
+              className="flex-1 px-4 py-3 rounded-xl font-semibold text-foreground bg-muted hover:bg-muted transition-all duration-200 border border-border"
             >
               Cancel
             </button>
