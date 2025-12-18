@@ -94,6 +94,12 @@ import chatRoutes from "./routes/chat.routes.js";
 import officeLocationRoutes from "./routes/officeLocation.js";
 import wfhRequestRoutes from "./routes/wfhRequest.js";
 
+// ============================================================================
+// CHRISTMAS FEATURE - Tetris Game Routes
+// TODO: Remove after holiday season
+// ============================================================================
+import tetrisRoutes from "./features/tetris/tetris.routes.js";
+
 // Notification Services
 import NotificationService from "./services/notificationService.js";
 import SchedulerService from "./services/schedulerService.js";
@@ -153,6 +159,12 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/office-locations", officeLocationRoutes);
 app.use("/api/wfh-requests", wfhRequestRoutes);
 app.use("/health", healthRoutes);
+
+// ============================================================================
+// CHRISTMAS FEATURE - Tetris Game API
+// TODO: Remove after holiday season
+// ============================================================================
+app.use("/api/tetris", tetrisRoutes);
 
 app.get('/', (req, res) => {
   res.send('HRMS API is working!')
