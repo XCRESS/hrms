@@ -10,7 +10,8 @@ import { ValidationError, NotFoundError } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 
 /**
- * Save a new tetris score for the authenticated employee
+ * Save a tetris score for the authenticated employee
+ * Uses upsert to maintain only best score per employee
  * POST /api/tetris/scores
  */
 export const saveScore = asyncHandler(async (req, res) => {
@@ -37,22 +38,42 @@ export const saveScore = asyncHandler(async (req, res) => {
     throw new NotFoundError("Employee not found");
   }
 
-  // Create score record with MongoDB ObjectId reference
-  const tetrisScore = await TetrisScore.create({
-    employee: employee._id, // Use MongoDB ObjectId, not employeeId string
-    playerName: employee.firstName, // Use only first name to keep leaderboard clean
-    score: score,
-    level: level || 1,
-    linesCleared: linesCleared || 0,
-    gameDate: new Date(),
-    department: employee.department,
-    position: employee.position,
-  });
+  // Get existing record to check if this is a personal best
+  const existingRecord = await TetrisScore.findOne({ employee: employee._id });
+  const isPersonalBest = !existingRecord || score > existingRecord.bestScore;
+  const isNewPlayer = !existingRecord;
 
-  res.status(201).json(
+  // Upsert: Update if score is better, or create new record
+  const updateData = {
+    $inc: { totalGames: 1 }, // Always increment games played
+    $set: {
+      playerName: employee.firstName,
+      lastPlayed: new Date(),
+    },
+  };
+
+  // Only update best score if this game beats the previous best
+  if (isPersonalBest) {
+    updateData.$set.bestScore = score;
+    updateData.$set.bestLevel = level;
+    updateData.$set.bestLinesCleared = linesCleared || 0;
+  }
+
+  const tetrisScore = await TetrisScore.findOneAndUpdate(
+    { employee: employee._id },
+    updateData,
+    {
+      new: true, // Return updated document
+      upsert: true, // Create if doesn't exist
+      runValidators: true,
+    }
+  );
+
+  res.status(isNewPlayer ? 201 : 200).json(
     formatResponse(true, "Score saved successfully", {
       score: tetrisScore,
-      isPersonalBest: await isPersonalBest(employee._id, score)
+      isPersonalBest,
+      message: isPersonalBest ? "New personal best!" : "Keep trying to beat your best score!"
     })
   );
 });
@@ -86,69 +107,27 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
     }
 
     if (startDate) {
-      dateFilter = { gameDate: { $gte: startDate } };
+      dateFilter = { lastPlayed: { $gte: startDate } };
     }
   }
 
-  // Get top scores - one best score per employee
-  const leaderboard = await TetrisScore.aggregate([
-    { $match: dateFilter },
-    // Group by employee and get their best score
-    {
-      $group: {
-        _id: "$employee",
-        playerName: { $first: "$playerName" },
-        score: { $max: "$score" },
-        level: { $first: "$level" },
-        linesCleared: { $first: "$linesCleared" },
-        department: { $first: "$department" },
-        position: { $first: "$position" },
-        gameDate: { $first: "$gameDate" },
-      }
-    },
-    // Sort by score descending
-    { $sort: { score: -1 } },
-    // Limit results
-    { $limit: limit },
-    // Add rank field
-    {
-      $group: {
-        _id: null,
-        scores: { $push: "$$ROOT" }
-      }
-    },
-    {
-      $unwind: {
-        path: "$scores",
-        includeArrayIndex: "rank"
-      }
-    },
-    {
-      $replaceRoot: {
-        newRoot: {
-          $mergeObjects: [
-            "$scores",
-            { rank: { $add: ["$rank", 1] } }
-          ]
-        }
-      }
-    },
-    // Clean up fields
-    {
-      $project: {
-        _id: 0,
-        employeeId: "$_id",
-        playerName: 1,
-        score: 1,
-        level: 1,
-        linesCleared: 1,
-        department: 1,
-        position: 1,
-        gameDate: 1,
-        rank: 1
-      }
-    }
-  ]);
+  // Simple query - no aggregation needed!
+  const scores = await TetrisScore.find(dateFilter)
+    .sort({ bestScore: -1, lastPlayed: -1 }) // Sort by best score descending
+    .limit(limit)
+    .select('playerName bestScore bestLevel bestLinesCleared totalGames lastPlayed')
+    .lean();
+
+  // Add rank to each entry
+  const leaderboard = scores.map((entry, index) => ({
+    rank: index + 1,
+    playerName: entry.playerName,
+    score: entry.bestScore,
+    level: entry.bestLevel,
+    linesCleared: entry.bestLinesCleared,
+    totalGames: entry.totalGames,
+    lastPlayed: entry.lastPlayed,
+  }));
 
   res.json(
     formatResponse(true, "Leaderboard retrieved successfully", {
@@ -160,11 +139,10 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
 });
 
 /**
- * Get current employee's personal scores
- * GET /api/tetris/my-scores?limit=5
+ * Get current employee's personal stats
+ * GET /api/tetris/my-scores
  */
 export const getMyScores = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 5;
   const employeeId = req.user.employeeId;
 
   if (!employeeId) {
@@ -177,43 +155,39 @@ export const getMyScores = asyncHandler(async (req, res) => {
     throw new NotFoundError("Employee not found");
   }
 
-  const myScores = await TetrisScore.find({ employee: employee._id })
-    .sort({ score: -1, gameDate: -1 })
-    .limit(limit)
-    .select("-__v");
+  // Get employee's record
+  const myRecord = await TetrisScore.findOne({ employee: employee._id })
+    .select('-__v')
+    .lean();
 
-  // Get personal best
-  const personalBest = myScores.length > 0 ? myScores[0] : null;
-
-  // Get rank in global leaderboard
-  let globalRank = null;
-  if (personalBest) {
-    const betterScores = await TetrisScore.aggregate([
-      {
-        $group: {
-          _id: "$employee",
-          maxScore: { $max: "$score" }
-        }
-      },
-      {
-        $match: {
-          maxScore: { $gt: personalBest.score }
-        }
-      },
-      {
-        $count: "count"
-      }
-    ]);
-
-    globalRank = betterScores.length > 0 ? betterScores[0].count + 1 : 1;
+  if (!myRecord) {
+    return res.json(
+      formatResponse(true, "No games played yet", {
+        personalBest: null,
+        globalRank: null,
+        totalGames: 0,
+        hasPlayed: false
+      })
+    );
   }
 
+  // Get rank in global leaderboard (count how many have better scores)
+  const betterScoresCount = await TetrisScore.countDocuments({
+    bestScore: { $gt: myRecord.bestScore }
+  });
+  const globalRank = betterScoresCount + 1;
+
   res.json(
-    formatResponse(true, "Personal scores retrieved successfully", {
-      scores: myScores,
-      personalBest,
+    formatResponse(true, "Personal stats retrieved successfully", {
+      personalBest: {
+        score: myRecord.bestScore,
+        level: myRecord.bestLevel,
+        linesCleared: myRecord.bestLinesCleared,
+      },
       globalRank,
-      totalGames: myScores.length
+      totalGames: myRecord.totalGames,
+      lastPlayed: myRecord.lastPlayed,
+      hasPlayed: true
     })
   );
 });
@@ -235,12 +209,12 @@ export const getMyRank = asyncHandler(async (req, res) => {
     throw new NotFoundError("Employee not found");
   }
 
-  // Get employee's best score
-  const myBestScore = await TetrisScore.findOne({ employee: employee._id })
-    .sort({ score: -1 })
-    .select("score level playerName");
+  // Get employee's record
+  const myRecord = await TetrisScore.findOne({ employee: employee._id })
+    .select('playerName bestScore bestLevel')
+    .lean();
 
-  if (!myBestScore) {
+  if (!myRecord) {
     return res.json(
       formatResponse(true, "No scores found", {
         rank: null,
@@ -250,31 +224,17 @@ export const getMyRank = asyncHandler(async (req, res) => {
   }
 
   // Count employees with better scores
-  const betterScores = await TetrisScore.aggregate([
-    {
-      $group: {
-        _id: "$employee",
-        maxScore: { $max: "$score" }
-      }
-    },
-    {
-      $match: {
-        maxScore: { $gt: myBestScore.score }
-      }
-    },
-    {
-      $count: "count"
-    }
-  ]);
-
-  const rank = betterScores.length > 0 ? betterScores[0].count + 1 : 1;
+  const betterScoresCount = await TetrisScore.countDocuments({
+    bestScore: { $gt: myRecord.bestScore }
+  });
+  const rank = betterScoresCount + 1;
 
   res.json(
     formatResponse(true, "Rank retrieved successfully", {
       rank,
-      score: myBestScore.score,
-      level: myBestScore.level,
-      playerName: myBestScore.playerName,
+      score: myRecord.bestScore,
+      level: myRecord.bestLevel,
+      playerName: myRecord.playerName,
       hasPlayed: true
     })
   );
@@ -285,23 +245,24 @@ export const getMyRank = asyncHandler(async (req, res) => {
  * GET /api/tetris/stats
  */
 export const getStats = asyncHandler(async (req, res) => {
+  // Simple aggregation on the single-record-per-player model
   const stats = await TetrisScore.aggregate([
     {
       $group: {
         _id: null,
-        totalGames: { $sum: 1 },
-        totalPlayers: { $addToSet: "$employee" },
-        highestScore: { $max: "$score" },
-        averageScore: { $avg: "$score" },
-        highestLevel: { $max: "$level" },
-        totalLinesCleared: { $sum: "$linesCleared" }
+        totalGames: { $sum: "$totalGames" }, // Sum all games played
+        totalPlayers: { $sum: 1 }, // Count documents = count players
+        highestScore: { $max: "$bestScore" },
+        averageScore: { $avg: "$bestScore" },
+        highestLevel: { $max: "$bestLevel" },
+        totalLinesCleared: { $sum: "$bestLinesCleared" }
       }
     },
     {
       $project: {
         _id: 0,
         totalGames: 1,
-        totalPlayers: { $size: "$totalPlayers" },
+        totalPlayers: 1,
         highestScore: 1,
         averageScore: { $round: ["$averageScore", 0] },
         highestLevel: 1,
@@ -323,14 +284,3 @@ export const getStats = asyncHandler(async (req, res) => {
     formatResponse(true, "Statistics retrieved successfully", { stats: statistics })
   );
 });
-
-// Helper function to check if score is personal best
-// Note: employeeObjectId should be MongoDB ObjectId (_id), not employeeId string
-async function isPersonalBest(employeeObjectId, newScore) {
-  const previousBest = await TetrisScore.findOne({ employee: employeeObjectId })
-    .sort({ score: -1 })
-    .select("score");
-
-  if (!previousBest) return true;
-  return newScore > previousBest.score;
-}
