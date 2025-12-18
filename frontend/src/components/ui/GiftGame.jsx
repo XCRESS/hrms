@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Play, RotateCcw, Pause, Star, ChevronUp, X } from 'lucide-react';
+import apiClient from '../../service/apiClient';
 
 // Game Constants
 const ROWS = 20;
@@ -31,11 +32,9 @@ const generateBag = () => {
   return bag;
 };
 
-const INITIAL_LEADERBOARD = [
-  { name: 'Santa', score: 15000, level: 8 },
-  { name: 'Rudolph', score: 8500, level: 5 },
-  { name: 'Elf Buddy', score: 4200, level: 3 },
-];
+// ============================================================================
+// CHRISTMAS FEATURE - Removed hardcoded leaderboard, now using backend API
+// ============================================================================
 
 const GiftGame = ({ username = 'Player' }) => {
   // Game State
@@ -63,13 +62,12 @@ const GiftGame = ({ username = 'Player' }) => {
   const isTapRef = useRef(false);
   const gameAreaRef = useRef(null);
 
-  // Leaderboard
-  const [leaderboard, setLeaderboard] = useState(() => {
-    const saved = localStorage.getItem('christmas_tetris_arcade_scores');
-    return saved ? JSON.parse(saved) : INITIAL_LEADERBOARD;
-  });
+  // Leaderboard - now fetched from backend
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
   const [playerName, setPlayerName] = useState(username || 'Player');
   const [hasSavedScore, setHasSavedScore] = useState(false);
+  const [savingScore, setSavingScore] = useState(false);
 
   // Update player name when username prop changes
   useEffect(() => {
@@ -77,6 +75,36 @@ const GiftGame = ({ username = 'Player' }) => {
       setPlayerName(username);
     }
   }, [username]);
+
+  // ============================================================================
+  // CHRISTMAS FEATURE - Fetch leaderboard from backend on mount
+  // ============================================================================
+  useEffect(() => {
+    fetchLeaderboard();
+  }, []);
+
+  const fetchLeaderboard = async () => {
+    try {
+      setLoadingLeaderboard(true);
+      const response = await apiClient.getTetrisLeaderboard({ limit: 5, period: 'all-time' });
+      if (response.success && response.data?.leaderboard) {
+        // Map backend response to match component's expected format
+        const formattedLeaderboard = response.data.leaderboard.map(entry => ({
+          name: entry.playerName,
+          score: entry.score,
+          level: entry.level,
+          rank: entry.rank
+        }));
+        setLeaderboard(formattedLeaderboard);
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+      // Keep empty leaderboard on error
+      setLeaderboard([]);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
 
   // Loop Refs
   const requestRef = useRef(0);
@@ -357,16 +385,37 @@ const GiftGame = ({ username = 'Player' }) => {
     setNextQueue(q);
   };
 
-  const saveScore = () => {
-    if (!playerName.trim()) return;
-    const newEntry = { name: playerName, score: score, level: level };
-    const newLeaderboard = [...leaderboard, newEntry]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+  // ============================================================================
+  // CHRISTMAS FEATURE - Save score to backend instead of localStorage
+  // ============================================================================
+  const saveScore = async () => {
+    if (!playerName.trim() || savingScore) return;
 
-    setLeaderboard(newLeaderboard);
-    localStorage.setItem('christmas_tetris_arcade_scores', JSON.stringify(newLeaderboard));
-    setHasSavedScore(true);
+    try {
+      setSavingScore(true);
+      const response = await apiClient.saveTetrisScore({
+        score: score,
+        level: level,
+        linesCleared: lines
+      });
+
+      if (response.success) {
+        setHasSavedScore(true);
+
+        // Show personal best message if applicable
+        if (response.data?.isPersonalBest) {
+          console.log('🎉 New personal best!');
+        }
+
+        // Refresh leaderboard to show updated rankings
+        await fetchLeaderboard();
+      }
+    } catch (error) {
+      console.error('Failed to save score:', error);
+      alert('Failed to save score. Please try again.');
+    } finally {
+      setSavingScore(false);
+    }
   };
 
   // Render Helpers
@@ -520,22 +569,16 @@ const GiftGame = ({ username = 'Player' }) => {
 
               {!hasSavedScore ? (
                 <div className="w-full mb-6">
-                  <label className="block text-xs text-slate-400 mb-2 text-center">Save your highscore</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value)}
-                      className="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm flex-grow focus:outline-none focus:border-yellow-400"
-                      placeholder="Your Name"
-                    />
-                    <button
-                      onClick={saveScore}
-                      className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold"
-                    >
-                      Save
-                    </button>
-                  </div>
+                  <label className="block text-xs text-slate-400 mb-2 text-center">
+                    {savingScore ? 'Saving your score...' : 'Save your highscore as ' + playerName}
+                  </label>
+                  <button
+                    onClick={saveScore}
+                    disabled={savingScore}
+                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-bold"
+                  >
+                    {savingScore ? 'Saving...' : 'Save to Leaderboard'}
+                  </button>
                 </div>
               ) : (
                 <div className="text-green-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
@@ -578,20 +621,32 @@ const GiftGame = ({ username = 'Player' }) => {
                   </button>
                 </div>
                 <div className="space-y-2 overflow-y-auto max-h-[40vh]">
-                  {leaderboard.map((entry, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <span className={`font-mono font-bold text-lg w-6 text-center ${idx===0?'text-yellow-400':idx===1?'text-slate-300':'text-orange-400'}`}>
-                          {idx+1}
-                        </span>
-                        <div>
-                          <div className="text-white font-semibold truncate max-w-[150px]">{entry.name}</div>
-                          <div className="text-xs text-slate-400">Level {entry.level}</div>
-                        </div>
-                      </div>
-                      <span className="font-mono text-yellow-400 font-bold text-lg">{entry.score}</span>
+                  {loadingLeaderboard ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-yellow-500 border-t-transparent mb-3"></div>
+                      <span className="text-sm">Loading leaderboard...</span>
                     </div>
-                  ))}
+                  ) : leaderboard.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                      <Trophy className="w-12 h-12 mb-3 opacity-30" />
+                      <span className="text-sm text-center">No scores yet.<br />Be the first to play!</span>
+                    </div>
+                  ) : (
+                    leaderboard.map((entry, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className={`font-mono font-bold text-lg w-6 text-center ${idx===0?'text-yellow-400':idx===1?'text-slate-300':'text-orange-400'}`}>
+                            {idx+1}
+                          </span>
+                          <div>
+                            <div className="text-white font-semibold truncate max-w-[150px]">{entry.name}</div>
+                            <div className="text-xs text-slate-400">Level {entry.level}</div>
+                          </div>
+                        </div>
+                        <span className="font-mono text-yellow-400 font-bold text-lg">{entry.score}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -687,22 +742,16 @@ const GiftGame = ({ username = 'Player' }) => {
 
                 {!hasSavedScore ? (
                   <div className="w-full mb-6">
-                    <label className="block text-xs text-slate-400 mb-2 text-center">Save your highscore</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        className="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm flex-grow focus:outline-none focus:border-yellow-400"
-                        placeholder="Your Name"
-                      />
-                      <button
-                        onClick={saveScore}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold"
-                      >
-                        Save
-                      </button>
-                    </div>
+                    <label className="block text-xs text-slate-400 mb-2 text-center">
+                      {savingScore ? 'Saving your score...' : 'Save your highscore as ' + playerName}
+                    </label>
+                    <button
+                      onClick={saveScore}
+                      disabled={savingScore}
+                      className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-bold"
+                    >
+                      {savingScore ? 'Saving...' : 'Save to Leaderboard'}
+                    </button>
                   </div>
                 ) : (
                   <div className="text-green-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
@@ -772,15 +821,27 @@ const GiftGame = ({ username = 'Player' }) => {
               <span className="text-sm font-bold text-white">Top Players</span>
             </div>
             <div className="p-2 space-y-1 overflow-y-auto">
-              {leaderboard.map((entry, idx) => (
-                <div key={idx} className="flex justify-between items-center p-2 rounded bg-white/5 hover:bg-white/10 transition-colors text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className={`font-mono font-bold w-4 text-center ${idx===0?'text-yellow-400':idx===1?'text-slate-300':'text-orange-400'}`}>{idx+1}</span>
-                    <span className="text-slate-200 truncate max-w-[80px]">{entry.name}</span>
-                  </div>
-                  <span className="font-mono text-yellow-100/80">{entry.score}</span>
+              {loadingLeaderboard ? (
+                <div className="flex flex-col items-center justify-center py-4 text-slate-400">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-500 border-t-transparent mb-2"></div>
+                  <span className="text-xs">Loading leaderboard...</span>
                 </div>
-              ))}
+              ) : leaderboard.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-4 text-slate-400">
+                  <Trophy className="w-8 h-8 mb-2 opacity-30" />
+                  <span className="text-xs text-center">No scores yet.<br />Be the first to play!</span>
+                </div>
+              ) : (
+                leaderboard.map((entry, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2 rounded bg-white/5 hover:bg-white/10 transition-colors text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className={`font-mono font-bold w-4 text-center ${idx===0?'text-yellow-400':idx===1?'text-slate-300':'text-orange-400'}`}>{idx+1}</span>
+                      <span className="text-slate-200 truncate max-w-[80px]">{entry.name}</span>
+                    </div>
+                    <span className="font-mono text-yellow-100/80">{entry.score}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

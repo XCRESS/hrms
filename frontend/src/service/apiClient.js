@@ -867,6 +867,55 @@ class ApiClient {
   async getVapidKey() {
     return this.get(API_ENDPOINTS.NOTIFICATIONS.VAPID_KEY);
   }
+
+  // ============================================================================
+  // CHRISTMAS FEATURE - Tetris Game API Methods
+  // TODO: Remove after holiday season
+  // ============================================================================
+
+  /**
+   * Save a tetris game score
+   * @param {Object} scoreData - { score, level, linesCleared }
+   * @returns {Promise<Object>} Response with saved score and personal best info
+   */
+  async saveTetrisScore(scoreData) {
+    return this.post('/tetris/scores', scoreData);
+  }
+
+  /**
+   * Get global tetris leaderboard
+   * @param {Object} params - { limit: number, period: 'all-time'|'today'|'week'|'month' }
+   * @returns {Promise<Object>} Response with leaderboard array
+   */
+  async getTetrisLeaderboard(params = { limit: 10, period: 'all-time' }) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.get(`/tetris/leaderboard?${queryString}`);
+  }
+
+  /**
+   * Get current user's personal tetris scores
+   * @param {number} limit - Number of scores to retrieve
+   * @returns {Promise<Object>} Response with personal scores
+   */
+  async getMyTetrisScores(limit = 5) {
+    return this.get(`/tetris/my-scores?limit=${limit}`);
+  }
+
+  /**
+   * Get current user's rank in leaderboard
+   * @returns {Promise<Object>} Response with rank and score info
+   */
+  async getMyTetrisRank() {
+    return this.get('/tetris/my-rank');
+  }
+
+  /**
+   * Get tetris game statistics
+   * @returns {Promise<Object>} Response with game statistics
+   */
+  async getTetrisStats() {
+    return this.get('/tetris/stats');
+  }
 }
 
 // Export the instance

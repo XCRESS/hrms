@@ -310,6 +310,32 @@ export default function HRMSDashboard() {
   const username = user?.name || "User";
   const isAdmin = user?.role === 'admin' || user?.role === 'hr';
 
+  // ============================================================================
+  // CHRISTMAS FEATURE - Fetch employee first name for Tetris game
+  // ============================================================================
+  const [employeeFirstName, setEmployeeFirstName] = useState(username);
+
+  useEffect(() => {
+    const fetchEmployeeFirstName = async () => {
+      if (!user?.employeeId) {
+        setEmployeeFirstName(username);
+        return;
+      }
+
+      try {
+        const response = await apiClient.getProfile();
+        if (response.data) {
+          setEmployeeFirstName(response.data.firstName);
+        }
+      } catch (error) {
+        console.error('Failed to fetch employee first name:', error);
+        setEmployeeFirstName(username);
+      }
+    };
+
+    fetchEmployeeFirstName();
+  }, [user?.employeeId, username]);
+
   // Update time every second
   // Initialize data on mount
   useEffect(() => {
@@ -1171,7 +1197,7 @@ export default function HRMSDashboard() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-full">
-        <ChristmasBanner username={username} />
+        <ChristmasBanner username={employeeFirstName} />
         <Header
           username={username}
           isCheckedIn={isCheckedIn}
