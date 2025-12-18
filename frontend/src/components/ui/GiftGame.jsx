@@ -36,7 +36,7 @@ const generateBag = () => {
 // CHRISTMAS FEATURE - Removed hardcoded leaderboard, now using backend API
 // ============================================================================
 
-const GiftGame = ({ username = 'Player' }) => {
+const GiftGame = () => {
   // Game State
   const [grid, setGrid] = useState(createEmptyGrid());
   const [activePiece, setActivePiece] = useState(null);
@@ -55,7 +55,6 @@ const GiftGame = ({ username = 'Player' }) => {
   const [isPaused, setIsPaused] = useState(false);
 
   // Mobile controls - Enhanced gesture tracking
-  const [showMobileControls, setShowMobileControls] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const touchStartRef = useRef(null);
   const lastTouchRef = useRef(null);
@@ -65,25 +64,13 @@ const GiftGame = ({ username = 'Player' }) => {
   // Leaderboard - now fetched from backend
   const [leaderboard, setLeaderboard] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
-  const [playerName, setPlayerName] = useState(username || 'Player');
   const [hasSavedScore, setHasSavedScore] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
 
-  // Update player name when username prop changes
-  useEffect(() => {
-    if (username) {
-      setPlayerName(username);
-    }
-  }, [username]);
-
   // ============================================================================
-  // CHRISTMAS FEATURE - Fetch leaderboard from backend on mount
+  // CHRISTMAS FEATURE - Fetch leaderboard from backend
   // ============================================================================
-  useEffect(() => {
-    fetchLeaderboard();
-  }, []);
-
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       setLoadingLeaderboard(true);
       const response = await apiClient.getTetrisLeaderboard({ limit: 5, period: 'all-time' });
@@ -104,17 +91,52 @@ const GiftGame = ({ username = 'Player' }) => {
     } finally {
       setLoadingLeaderboard(false);
     }
-  };
+  }, []);
+
+  // Fetch leaderboard on mount
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  // Auto-save score when game ends
+  useEffect(() => {
+    if (gameOver && !hasSavedScore && score > 0) {
+      // Auto-save the score
+      const autoSave = async () => {
+        try {
+          setSavingScore(true);
+          const response = await apiClient.saveTetrisScore({
+            score: score,
+            level: level,
+            linesCleared: lines
+          });
+
+          if (response.success) {
+            setHasSavedScore(true);
+
+            // Show personal best message if applicable
+            if (response.data?.isPersonalBest) {
+              console.log('🎉 New personal best!');
+            }
+
+            // Refresh leaderboard to show updated rankings
+            await fetchLeaderboard();
+          }
+        } catch (error) {
+          console.error('Failed to auto-save score:', error);
+          // Don't show alert for auto-save failure, just log it
+        } finally {
+          setSavingScore(false);
+        }
+      };
+
+      autoSave();
+    }
+  }, [gameOver, hasSavedScore, score, level, lines, fetchLeaderboard]);
 
   // Loop Refs
   const requestRef = useRef(0);
   const lastTimeRef = useRef(0);
-
-  // Detect mobile on mount
-  useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
-    setShowMobileControls(isMobile);
-  }, []);
 
   // Helper Functions
   const getNewPiece = (currentBag, currentQueue) => {
@@ -157,7 +179,7 @@ const GiftGame = ({ username = 'Player' }) => {
     return false;
   };
 
-  const tryRotate = () => {
+  const tryRotate = useCallback(() => {
     if (!activePiece) return;
     const newShape = activePiece.shape[0].map((_, index) =>
       activePiece.shape.map(row => row[index]).reverse()
@@ -174,7 +196,7 @@ const GiftGame = ({ username = 'Player' }) => {
     if (!checkCollision(activePiece, grid, -1, 0, newShape)) {
       setActivePiece({ ...activePiece, x: activePiece.x - 1, shape: newShape });
     }
-  };
+  }, [activePiece, grid]);
 
   const getGhostY = () => {
     if (!activePiece) return 0;
@@ -185,16 +207,17 @@ const GiftGame = ({ username = 'Player' }) => {
     return ghostY;
   };
 
-  const lockPiece = () => {
+  const lockPiece = useCallback(() => {
     if (!activePiece) return;
 
     const newGrid = grid.map(row => [...row]);
+    let isGameOver = false;
+
     activePiece.shape.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value !== 0) {
           if (activePiece.y + y < 0) {
-            setGameOver(true);
-            setIsPlaying(false);
+            isGameOver = true;
             return;
           }
           if (activePiece.y + y < ROWS) {
@@ -232,7 +255,7 @@ const GiftGame = ({ username = 'Player' }) => {
 
     setGrid(newGrid);
 
-    if (activePiece.y < 0) {
+    if (isGameOver || activePiece.y < 0) {
       setGameOver(true);
       setIsPlaying(false);
     } else {
@@ -246,7 +269,7 @@ const GiftGame = ({ username = 'Player' }) => {
         setNextQueue(newQueue);
       }
     }
-  };
+  }, [activePiece, grid, level, lines, bag, nextQueue]);
 
   const move = useCallback((dirX, dirY) => {
     if (!activePiece || gameOver || isPaused) return;
@@ -261,7 +284,7 @@ const GiftGame = ({ username = 'Player' }) => {
       return false;
     }
     return false;
-  }, [activePiece, grid, gameOver, isPaused]);
+  }, [activePiece, grid, gameOver, isPaused, lockPiece]);
 
   // Enhanced Touch Controls for Mobile - Continuous tracking
   const handleTouchStart = (e) => {
@@ -355,7 +378,6 @@ const GiftGame = ({ username = 'Player' }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, isPaused, gameOver, move, tryRotate]);
 
   const startGame = () => {
@@ -385,38 +407,6 @@ const GiftGame = ({ username = 'Player' }) => {
     setNextQueue(q);
   };
 
-  // ============================================================================
-  // CHRISTMAS FEATURE - Save score to backend instead of localStorage
-  // ============================================================================
-  const saveScore = async () => {
-    if (!playerName.trim() || savingScore) return;
-
-    try {
-      setSavingScore(true);
-      const response = await apiClient.saveTetrisScore({
-        score: score,
-        level: level,
-        linesCleared: lines
-      });
-
-      if (response.success) {
-        setHasSavedScore(true);
-
-        // Show personal best message if applicable
-        if (response.data?.isPersonalBest) {
-          console.log('🎉 New personal best!');
-        }
-
-        // Refresh leaderboard to show updated rankings
-        await fetchLeaderboard();
-      }
-    } catch (error) {
-      console.error('Failed to save score:', error);
-      alert('Failed to save score. Please try again.');
-    } finally {
-      setSavingScore(false);
-    }
-  };
 
   // Render Helpers
   const renderMiniPiece = (type) => {
@@ -567,24 +557,16 @@ const GiftGame = ({ username = 'Player' }) => {
                 <div className="text-3xl font-bold text-yellow-400">{score}</div>
               </div>
 
-              {!hasSavedScore ? (
-                <div className="w-full mb-6">
-                  <label className="block text-xs text-slate-400 mb-2 text-center">
-                    {savingScore ? 'Saving your score...' : 'Save your highscore as ' + playerName}
-                  </label>
-                  <button
-                    onClick={saveScore}
-                    disabled={savingScore}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-bold"
-                  >
-                    {savingScore ? 'Saving...' : 'Save to Leaderboard'}
-                  </button>
+              {savingScore ? (
+                <div className="text-blue-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                  Saving your score...
                 </div>
-              ) : (
+              ) : hasSavedScore ? (
                 <div className="text-green-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
-                  <Trophy className="w-4 h-4" /> Saved to Leaderboard
+                  <Trophy className="w-4 h-4" /> Score Saved!
                 </div>
-              )}
+              ) : null}
 
               <div className="flex flex-col gap-3 w-full">
                 <button
@@ -740,24 +722,16 @@ const GiftGame = ({ username = 'Player' }) => {
                   <div className="text-3xl font-bold text-yellow-400">{score}</div>
                 </div>
 
-                {!hasSavedScore ? (
-                  <div className="w-full mb-6">
-                    <label className="block text-xs text-slate-400 mb-2 text-center">
-                      {savingScore ? 'Saving your score...' : 'Save your highscore as ' + playerName}
-                    </label>
-                    <button
-                      onClick={saveScore}
-                      disabled={savingScore}
-                      className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-bold"
-                    >
-                      {savingScore ? 'Saving...' : 'Save to Leaderboard'}
-                    </button>
+                {savingScore ? (
+                  <div className="text-blue-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                    Saving your score...
                   </div>
-                ) : (
+                ) : hasSavedScore ? (
                   <div className="text-green-400 text-sm mb-6 font-bold flex items-center gap-2 justify-center">
-                    <Trophy className="w-4 h-4" /> Saved to Leaderboard
+                    <Trophy className="w-4 h-4" /> Score Saved!
                   </div>
-                )}
+                ) : null}
 
                 <button
                   onClick={startGame}

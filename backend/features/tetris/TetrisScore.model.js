@@ -1,5 +1,5 @@
 // ============================================================================
-// CHRISTMAS FEATURE - TETRIS GAME
+// CHRISTMAS FEATURE - TETRIS LEADERBOARD
 // This file can be safely deleted after the holiday season
 // ============================================================================
 
@@ -11,6 +11,7 @@ const tetrisScoreSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
       required: true,
+      unique: true, // One entry per employee
       index: true,
     },
     playerName: {
@@ -18,56 +19,41 @@ const tetrisScoreSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    score: {
+    bestScore: {
       type: Number,
       required: true,
+      default: 0,
       min: 0,
-      index: true,
+      index: true, // For leaderboard sorting
     },
-    level: {
+    bestLevel: {
       type: Number,
       required: true,
-      min: 1,
       default: 1,
+      min: 1,
     },
-    linesCleared: {
+    bestLinesCleared: {
       type: Number,
       default: 0,
       min: 0,
     },
-    gameDate: {
+    totalGames: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lastPlayed: {
       type: Date,
       default: Date.now,
-      index: true,
-    },
-    department: {
-      type: String,
-      trim: true,
-    },
-    position: {
-      type: String,
-      trim: true,
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt = first game, updatedAt = last improvement
   }
 );
 
-// Index for leaderboard queries (sorted by score descending)
-tetrisScoreSchema.index({ score: -1, gameDate: -1 });
-
-// Index for employee-specific queries
-tetrisScoreSchema.index({ employee: 1, score: -1 });
-
-// Virtual for rank (calculated at query time)
-tetrisScoreSchema.virtual("rank").get(function () {
-  return this._rank || null;
-});
-
-// Ensure virtuals are included in JSON
-tetrisScoreSchema.set("toJSON", { virtuals: true });
-tetrisScoreSchema.set("toObject", { virtuals: true });
+// Compound index for efficient leaderboard queries (sorted by score descending)
+tetrisScoreSchema.index({ bestScore: -1, lastPlayed: -1 });
 
 const TetrisScore = mongoose.model("TetrisScore", tetrisScoreSchema);
 
