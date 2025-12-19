@@ -50,7 +50,7 @@ const ChristmasBanner = ({ username = 'Team' }) => {
           <div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-green-700 hover:bg-green-600 text-white text-sm sm:text-base font-bold py-1.5 px-4 rounded-full border border-green-400 shadow-[0_0_15px_rgba(22,163,74,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 whitespace-nowrap"
+              className="bg-green-700 hover:bg-green-600 text-white text-sm sm:text-base font-bold py-1.5 px-4 rounded-full border border-green-400 shadow-[0_0_15px_rgba(22,163,74,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 whitespace-nowrap animate-pulse"
             >
               <Gamepad2 className="w-4 h-4" />
               <span>Holiday Surprise</span>
