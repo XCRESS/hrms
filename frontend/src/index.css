@@ -8,8 +8,15 @@
 
 /* Modal animations */
 @keyframes modal-pop-in {
-  0% { transform: scale(0.95); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .animate-modal-pop-in {
@@ -18,8 +25,15 @@
 
 /* Chat animations */
 @keyframes fade-in {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -137,6 +151,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -185,3 +200,84 @@
   scrollbar-color: oklch(0.556 0 0 / 0.4) transparent;
 }
 
+
+
+
+/* landing page styles */
+
+/* futuristic features global styles */
+.holo-bg {
+  background: radial-gradient(ellipse at center, rgba(10, 12, 20, 0.6) 0%, rgba(8, 10, 14, 0.35) 40%, transparent 100%);
+  background-blend-mode: overlay;
+}
+
+/* glass / hologram card */
+.holo-card {
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: visible;
+}
+
+/* soft neon ring */
+.neon-ring {
+  position: absolute;
+  inset: -60px -40px auto -40px;
+  height: 120px;
+  border-radius: 24px;
+  filter: blur(40px);
+  opacity: 0.35;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* grid background */
+.cyber-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mix-blend-mode: overlay;
+  opacity: 0.08;
+}
+
+/* tilt helper for 3d transform */
+.tilt {
+  transform-style: preserve-3d;
+  perspective: 1400px;
+}
+
+/* hologram title effect */
+.holo-title {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(200, 255, 255, 0.7));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* image sheen on hover */
+.card-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.0));
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity .45s, transform .6s;
+}
+
+.card-image:hover::after {
+  opacity: 1;
+  transform: translateX(6%);
+}
+
+/* tiny particle overlay (subtle) */
+.particles {
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 2px);
+  background-size: 24px 24px;
+  opacity: 0.06;
+}
