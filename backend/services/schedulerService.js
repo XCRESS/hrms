@@ -305,11 +305,13 @@ class SchedulerService {
       }
 
       // Get today's date in IST
-      const today = getISTNow().startOf('day').toDate();
-      const reportDateFormatted = toIST(today).format('MMMM D, YYYY');
+      const todayIST = getISTNow().startOf('day');
+      const today = todayIST.toDate();
+      const reportDateFormatted = todayIST.format('MMMM D, YYYY');
 
       // Check if today is a non-working day (weekend based on settings)
-      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+      // Use moment's .day() method to get day of week in IST timezone
+      const dayOfWeek = todayIST.day(); // 0=Sunday, 1=Monday, etc. in IST
       if (settings.attendance.nonWorkingDays.includes(dayOfWeek)) {
         console.log(`[Scheduler] Skipping daily HR attendance report - today is a non-working day (day ${dayOfWeek})`);
         return;
