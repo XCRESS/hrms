@@ -519,10 +519,27 @@ const GiftGame = () => {
                   <Play className="w-8 h-8 text-white ml-1" />
                 </div>
               </div>
-              <h3 className="text-3xl font-christmas text-yellow-300 drop-shadow-md mb-2">Block Party</h3>
-              <div className="text-xs text-slate-300 mb-6 max-w-[200px]">
-                Drag to move • Tap to rotate • Drag down to drop
+              <h3 className="text-3xl font-christmas text-yellow-300 drop-shadow-md mb-4">Block Party</h3>
+
+              {/* Controls - Compact design */}
+              <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-xl p-4 mb-6 max-w-[240px]">
+                <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2 font-semibold">Controls</div>
+                <div className="text-xs text-slate-200 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🔄</span>
+                    <span><span className="text-yellow-300 font-semibold">Tap</span> to rotate</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">↔️</span>
+                    <span><span className="text-yellow-300 font-semibold">Swipe</span> to move</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⬇️</span>
+                    <span><span className="text-yellow-300 font-semibold">Drag down</span> to drop</span>
+                  </div>
+                </div>
               </div>
+
               <button
                 onClick={startGame}
                 className="bg-red-600 hover:bg-red-500 active:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-[0_4px_0_rgb(153,27,27)] active:shadow-none active:translate-y-1 transition-all"
@@ -696,7 +713,27 @@ const GiftGame = () => {
                     <Play className="w-8 h-8 text-white ml-1" />
                   </div>
                 </div>
-                <h3 className="text-3xl font-christmas text-yellow-300 drop-shadow-md mb-2">Block Party</h3>
+                <h3 className="text-3xl font-christmas text-yellow-300 drop-shadow-md mb-4">Block Party</h3>
+
+                {/* Controls - Compact design */}
+                <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-xl p-4 mb-6 max-w-[200px]">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2 font-semibold">Controls</div>
+                  <div className="text-xs text-slate-200 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⬆️</span>
+                      <span><span className="text-yellow-300 font-semibold">Up</span> to rotate</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⬅️➡️</span>
+                      <span><span className="text-yellow-300 font-semibold">Left/Right</span> to move</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⬇️</span>
+                      <span><span className="text-yellow-300 font-semibold">Down</span> to drop</span>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   onClick={startGame}
                   className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-[0_4px_0_rgb(153,27,27)] active:shadow-none active:translate-y-1 transition-all"

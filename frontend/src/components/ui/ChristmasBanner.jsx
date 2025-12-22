@@ -20,7 +20,7 @@ const ChristmasBanner = ({ username = 'Team' }) => {
 
   return (
     <>
-      <div className="relative w-full bg-gradient-to-r from-red-900 via-red-700 to-red-900 border-b-4 border-yellow-500/50 text-white overflow-hidden shadow-lg z-50">
+      <div className="relative w-full bg-gradient-to-r from-red-900 via-red-700 to-red-900 border-b-4 border-yellow-500/50 text-white overflow-hidden shadow-lg z-40">
         {/* Confined Snowfall */}
         <Snowfall className="absolute inset-0 z-0 pointer-events-none opacity-50" />
 
