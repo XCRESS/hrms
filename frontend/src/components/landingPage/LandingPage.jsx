@@ -63,7 +63,7 @@ const LandingPage = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-          ? 'bg-white/90 backdrop-blur-lg border-b border-gray-200/50 shadow-sm'
+          ? 'bg-black/15 backdrop-blur-md backdrop-saturate-150 border-b-2 border-gray-200/50 shadow-lg'
           : 'bg-transparent'
           }`}
       >
@@ -78,10 +78,10 @@ const LandingPage = () => {
                 <img
                   src="/Logos/HRMS.webp"
                   alt="Logo"
-                  className="w-full h-full"
+                  className="w-full h-full border rounded-md"
                 />
               </div>
-              <span className="text-xl font-bold text-blue-600">HRMS</span>
+              <span className="text-xl font-bold text-white hover:text-blue-600">HRMS</span>
             </motion.div>
 
             <div className="hidden md:flex items-center space-x-8">
@@ -92,7 +92,7 @@ const LandingPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                   onClick={() => handleNavItemClick(item.href)}
-                  className={`${isScrolled ? 'text-black hover:text-blue-600' : 'text-white hover:text-blue-600'} font-medium transition-colors duration-300`}
+                  className={`${isScrolled ? 'text-white hover:text-blue-600' : 'text-white hover:text-blue-600'} font-medium transition-colors duration-300`}
 
                 >
                   {item.name}
@@ -103,7 +103,7 @@ const LandingPage = () => {
             <div className="hidden md:flex items-center space-x-4">
               <button
                 onClick={handleLogin}
-                className={`${isScrolled ? 'text-black hover:text-blue-600' : 'text-white hover:text-blue-600'} font-medium transition-colors duration-300`}
+                className={`${isScrolled ? 'text-white hover:text-blue-600' : 'text-white hover:text-blue-600'} font-medium transition-colors duration-300`}
               >
                 Login
               </button>
@@ -682,28 +682,18 @@ const LandingPage = () => {
         <div className="relative max-w-7xl mx-auto px-6">
 
           {/* ============ Futuristic Title ============ */}
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center text-5xl sm:text-6xl font-extrabold tracking-tight mb-16"
+          <h2
+            className="text-center text-5xl sm:text-6xl font-extrabold tracking-tight mb-26"
           >
             HRMS Pricing <span className="text-cyan-400">Reimagined</span>
-          </motion.h2>
+          </h2>
 
           {/* ============ Pricing “hologram” Panels ============ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-10">
 
             {plans.map((plan, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: i * 0.1 }}
-                whileHover={{ scale: 1.03, rotateX: 0, rotateY: 0 }}
-                className="relative group cursor-pointer"
+              <div
+                className={`relative group cursor-pointer ${plan.popular ? 'transform -translate-y-8' : ''} hover:scale-105 transition-all duration-300`}
               >
 
                 {/* 🔥 Holographic Glow Behind Card */}
@@ -770,7 +760,7 @@ const LandingPage = () => {
                     </div>
                   }
                 </div>
-              </motion.div>
+              </div>
             ))}
 
           </div>
@@ -900,7 +890,11 @@ const LandingPage = () => {
             >
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-blue-600 flex items-center justify-center rounded-xl text-white font-bold text-2xl">
-                  H
+                  <img
+                    src="/Logos/HRMS.webp"
+                    alt="Logo"
+                    className="w-full h-full border rounded-md"
+                  />
                 </div>
                 <span className="ml-4 text-2xl font-extrabold text-white">HRMS</span>
               </div>
