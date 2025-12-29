@@ -1,6 +1,7 @@
 import Settings from "../models/Settings.model.js";
 import Employee from "../models/Employee.model.js";
 import Department from "../models/Department.model.js";
+import SchedulerService from "../services/schedulerService.js";
 import { formatResponse } from "../utils/response.js";
 
 // Helper function to escape regex special characters
@@ -23,44 +24,66 @@ export const getGlobalSettings = async (req, res) => {
   }
 };
 
+// Helper function to deep merge objects
+const deepMerge = (target, source) => {
+  const output = { ...target };
+
+  for (const key in source) {
+    if (source.hasOwnProperty(key)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        // Recursively merge nested objects
+        output[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        // Replace primitives and arrays entirely
+        output[key] = source[key];
+      }
+    }
+  }
+
+  return output;
+};
+
 // Update global settings
 export const updateGlobalSettings = async (req, res) => {
   try {
     const { attendance, notifications, general } = req.body;
-    
+
     // Validate that at least one setting type is provided
     if (!attendance && !notifications && !general) {
       return res.status(400).json(formatResponse(false, "At least one settings section is required"));
     }
-    
+
     let settings = await Settings.findOne({ scope: "global" });
-    
+
     if (!settings) {
       // Create new global settings
       const newSettings = {
         scope: "global",
         lastUpdatedBy: req.user && req.user._id ? req.user._id : null
       };
-      
+
       if (attendance) newSettings.attendance = attendance;
       if (notifications) newSettings.notifications = notifications;
       if (general) newSettings.general = general;
-      
+
       settings = new Settings(newSettings);
     } else {
-      // Update existing global settings
+      // Update existing global settings with deep merge
       if (attendance) {
-        settings.attendance = { ...settings.attendance, ...attendance };
+        settings.attendance = deepMerge(settings.attendance.toObject ? settings.attendance.toObject() : settings.attendance, attendance);
+        settings.markModified('attendance');
       }
       if (notifications) {
-        settings.notifications = { ...settings.notifications, ...notifications };
+        settings.notifications = deepMerge(settings.notifications.toObject ? settings.notifications.toObject() : settings.notifications, notifications);
+        settings.markModified('notifications');
       }
       if (general) {
-        settings.general = { ...settings.general, ...general };
+        settings.general = deepMerge(settings.general.toObject ? settings.general.toObject() : settings.general, general);
+        settings.markModified('general');
       }
       settings.lastUpdatedBy = req.user && req.user._id ? req.user._id : settings.lastUpdatedBy;
     }
-    
+
     const savedSettings = await settings.save();
     
     // Send 24-hour format for consistency
@@ -109,15 +132,15 @@ export const updateDepartmentSettings = async (req, res) => {
   try {
     const { department } = req.params;
     const { attendance, general } = req.body;
-    
+
     if (!department) {
       return res.status(400).json(formatResponse(false, "Department parameter is required"));
     }
-    
+
     // Frontend sends 24-hour format already, no conversion needed
-    
+
     let settings = await Settings.findOne({ scope: "department", department });
-    
+
     if (!settings) {
       // Create new department settings
       const newSettings = {
@@ -127,19 +150,21 @@ export const updateDepartmentSettings = async (req, res) => {
       };
       if (attendance) newSettings.attendance = attendance;
       if (general) newSettings.general = general;
-      
+
       settings = new Settings(newSettings);
     } else {
-      // Update existing department settings
+      // Update existing department settings with deep merge
       if (attendance) {
-        settings.attendance = { ...settings.attendance, ...attendance };
+        settings.attendance = deepMerge(settings.attendance.toObject ? settings.attendance.toObject() : settings.attendance, attendance);
+        settings.markModified('attendance');
       }
       if (general) {
-        settings.general = { ...settings.general, ...general };
+        settings.general = deepMerge(settings.general.toObject ? settings.general.toObject() : settings.general, general);
+        settings.markModified('general');
       }
       settings.lastUpdatedBy = req.user && req.user._id ? req.user._id : settings.lastUpdatedBy;
     }
-    
+
     await settings.save();
     
     // Send 24-hour format for consistency
@@ -459,6 +484,31 @@ export const getAvailableEmployees = async (req, res) => {
   }
 };
 
+// Reschedule daily HR attendance report
+export const rescheduleDailyHrAttendanceReport = async (req, res) => {
+  try {
+    await SchedulerService.scheduleDailyHrAttendanceReport();
+
+    res.json(formatResponse(true, "Daily HR attendance report job rescheduled successfully"));
+  } catch (error) {
+    console.error("❌ Error rescheduling daily HR attendance report:", error);
+    res.status(500).json(formatResponse(false, "Failed to reschedule daily HR attendance report", error.message));
+  }
+};
+
+// Test daily HR attendance report (send immediately)
+export const testDailyHrAttendanceReport = async (req, res) => {
+  try {
+    // Send report immediately to all configured HR emails
+    await SchedulerService.sendDailyHrAttendanceReport();
+
+    res.json(formatResponse(true, "Daily HR attendance report sent successfully. Check HR email inboxes."));
+  } catch (error) {
+    console.error("❌ Error testing daily HR attendance report:", error);
+    res.status(500).json(formatResponse(false, "Failed to send test report", error.message));
+  }
+};
+
 export default {
   getGlobalSettings,
   updateGlobalSettings,
@@ -472,5 +522,7 @@ export default {
   renameDepartment,
   deleteDepartment,
   assignEmployeeToDepartment,
-  getAvailableEmployees
+  getAvailableEmployees,
+  rescheduleDailyHrAttendanceReport,
+  testDailyHrAttendanceReport
 };

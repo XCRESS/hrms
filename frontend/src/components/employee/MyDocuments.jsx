@@ -60,7 +60,7 @@ const MyDocuments = () => {
         description: "Document uploaded successfully",
         variant: "default"
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to upload document",
@@ -81,7 +81,7 @@ const MyDocuments = () => {
         description: "Document deleted successfully",
         variant: "default"
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to delete document",

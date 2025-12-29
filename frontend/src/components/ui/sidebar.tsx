@@ -91,10 +91,10 @@ export const DesktopSidebar = ({
     <>
       <motion.div
         className={cn(
-          "h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 fixed left-0 top-0 z-50 shadow-lg",
+          "h-full px-4 py-4 hidden md:flex md:flex-col bg-sidebar border-r border-sidebar-border fixed left-0 top-0 z-50 shadow-lg",
           className
         )}
-        style={{ 
+        style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitScrollbar: { display: 'none' }
@@ -122,13 +122,13 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
+          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-sidebar border-b border-sidebar-border w-full"
         )}
         {...props}
       >
         <div className="flex justify-end z-20 w-full">
           <IconMenu2
-            className="text-neutral-800 dark:text-neutral-200"
+            className="text-sidebar-foreground"
             onClick={() => setOpen(!open)}
           />
         </div>
@@ -143,12 +143,12 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 bg-sidebar p-10 z-[100] flex flex-col justify-between",
                 className
               )}
             >
               <div
-                className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200"
+                className="absolute right-10 top-10 z-50 text-sidebar-foreground"
                 onClick={() => setOpen(!open)}
               >
                 <IconX />
@@ -190,7 +190,7 @@ export const SidebarLink = ({
           display: open ? "inline-block" : "none",
           opacity: open ? 1 : 0,
         }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
       >
         {link.label}
       </motion.span>
@@ -199,10 +199,10 @@ export const SidebarLink = ({
 
   const linkClasses = (isActive: boolean) =>
     cn(
-      "flex items-center justify-start gap-3 group/sidebar py-3 rounded-xl transition-all duration-200 hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60",
+      "flex items-center justify-start gap-3 group/sidebar py-3 rounded-xl transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       open ? "px-3" : "px-4",
       {
-        "bg-neutral-200 dark:bg-neutral-700 shadow-sm": isActive,
+        "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm": isActive,
       },
       className
     );

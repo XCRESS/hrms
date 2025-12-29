@@ -237,7 +237,7 @@ const LandingPage = () => {
                   onClick={handleLogin}
                   className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:shadow-2xl hover:from-blue-700 hover:to-indigo-700 transform hover:translate-y-[-2px]"
                 >
-                  Start 14-Day Free Trial
+                  Start 30-Day Free Trial
                   <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
 
@@ -685,8 +685,14 @@ const LandingPage = () => {
           <h2
             className="text-center text-5xl sm:text-6xl font-extrabold tracking-tight mb-26"
           >
-            HRMS Pricing <span className="text-cyan-400">Reimagined</span>
-          </h2>
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+              Simple Pricing That
+              <span className="block text-blue-600">Scales With You</span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Fixed monthly pricing. No per-employee charges. 30-day free trial with all features.
+            </p>
+          </motion.div>
 
           {/* ============ Pricing “hologram” Panels ============ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-10">
@@ -803,63 +809,13 @@ const LandingPage = () => {
             {/* Content */}
             <div className="text-center max-w-3xl mx-auto">
 
-              <h2 className="text-4xl md:text-5xl font-extrabold leading-tight">
-                The Future of HR
-                <span className="block mt-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Starts With One Decision
-                </span>
-              </h2>
-
-              <p className="mt-6 text-lg text-white/75 leading-relaxed">
-                Modern HRMS built for Indian businesses that care about speed,
-                compliance, automation, and employee experience.
-                <br className="hidden md:block" />
-                No chaos. No spreadsheets. Just clarity.
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="mt-10 flex flex-col sm:flex-row gap-5 justify-center items-center">
-
-                {/* Primary */}
-                <button
-                  onClick={handleLogin}
-                  className="group relative inline-flex items-center justify-center
-                  px-8 py-4 rounded-xl font-semibold text-lg
-                  bg-gradient-to-r from-blue-500 to-blue-600
-                  hover:transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  Start Free Trial
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                {/* Secondary */}
-                <button
-                  className="text-white/80 hover:text-white
-                  text-lg font-medium transition-colors"
-                >
-                  Talk to Sales →
-                </button>
-              </div>
-
-              {/* Trust bullets */}
-              <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-white/80">
-                {[
-                  "No setup fees",
-                  "14-day free trial",
-                  "Cancel anytime",
-                  "Guided migration"
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              {/* Enterprise note */}
-              <p className="mt-8 text-xs text-white/50">
-                Trusted by fast-growing startups & enterprises across India
-              </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto opacity-90">
+              {['No Setup Fees', '30-day Free Trial', 'Cancel Anytime', 'Migration Support'].map((benefit, index) => (
+                <div key={index} className="flex items-center justify-center text-sm">
+                  <Check className="w-4 h-4 mr-2 text-green-300" />
+                  {benefit}
+                </div>
+              ))}
             </div>
           </motion.div>
         </div>

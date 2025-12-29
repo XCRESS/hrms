@@ -11,8 +11,10 @@ import TaskReportModal from "./dashboard/TaskReportModal.jsx";
 import WFHRequestModal from "./dashboard/WFHRequestModal.jsx";
 import AbsentEmployeesModal from "./AbsentEmployeesModal.jsx";
 import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
+import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 import { formatDate } from '../utils/istUtils';
+import ChristmasBanner from './ui/ChristmasBanner';
 
 // Lazy load dashboard components for better performance
 import { lazy, Suspense } from 'react';
@@ -31,15 +33,15 @@ const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
 // Component loading skeleton
 const ComponentSkeleton = () => (
-  <div className="animate-pulse bg-white dark:bg-neutral-900 rounded-xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm">
+  <div className="animate-pulse bg-card rounded-xl p-6 border border-border shadow-sm">
     <div className="flex items-center justify-between mb-4">
-      <div className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded w-1/3"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-16"></div>
+      <div className="h-6 bg-muted rounded w-1/3"></div>
+      <div className="h-4 bg-muted rounded w-16"></div>
     </div>
     <div className="space-y-3">
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-full"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
-      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2"></div>
+      <div className="h-4 bg-muted rounded w-full"></div>
+      <div className="h-4 bg-muted rounded w-3/4"></div>
+      <div className="h-4 bg-muted rounded w-1/2"></div>
     </div>
   </div>
 );
@@ -56,6 +58,7 @@ const dashboardInitialState = {
     showAbsentEmployeesModal: false,
     showPresentEmployeesModal: false,
     showWFHModal: false,
+    showNonWorkingDayWarning: false,
   },
   // Loading states
   loading: {
@@ -88,6 +91,8 @@ const dashboardInitialState = {
     pendingWFHContext: null,
     checkoutLocationRequired: false,
     wfhRequestPending: false, // New state for WFH request pending
+    nonWorkingDayWarningData: null, // Data for non-working day warning
+    pendingCheckInData: null, // Store location data while waiting for confirmation
   }
 };
 
@@ -162,7 +167,8 @@ export default function HRMSDashboard() {
     showTaskReportModal,
     showAbsentEmployeesModal,
     showPresentEmployeesModal,
-    showWFHModal
+    showWFHModal,
+    showNonWorkingDayWarning
   } = modals;
 
   const {
@@ -182,7 +188,8 @@ export default function HRMSDashboard() {
     taskReportSetting,
     pendingWFHContext,
     checkoutLocationRequired,
-    wfhRequestPending
+    wfhRequestPending,
+    nonWorkingDayWarningData
   } = app;
 
   const {
@@ -302,6 +309,32 @@ export default function HRMSDashboard() {
 
   const username = user?.name || "User";
   const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+
+  // ============================================================================
+  // CHRISTMAS FEATURE - Fetch employee first name for Tetris game
+  // ============================================================================
+  const [employeeFirstName, setEmployeeFirstName] = useState(username);
+
+  useEffect(() => {
+    const fetchEmployeeFirstName = async () => {
+      if (!user?.employeeId) {
+        setEmployeeFirstName(username);
+        return;
+      }
+
+      try {
+        const response = await apiClient.getProfile();
+        if (response.data) {
+          setEmployeeFirstName(response.data.firstName);
+        }
+      } catch (error) {
+        console.error('Failed to fetch employee first name:', error);
+        setEmployeeFirstName(username);
+      }
+    };
+
+    fetchEmployeeFirstName();
+  }, [user?.employeeId, username]);
 
   // Update time every second
   // Initialize data on mount
@@ -568,24 +601,108 @@ export default function HRMSDashboard() {
   };
 
 
-  const handleCheckIn = async () => {
+  // Helper function to check if today is a non-working day
+  const checkNonWorkingDay = (effectiveSettings, holidaysData) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // Check if it's a non-working day (weekend)
+    const nonWorkingDays = effectiveSettings.attendance?.nonWorkingDays || [0];
+    if (nonWorkingDays.includes(dayOfWeek)) {
+      return {
+        isNonWorkingDay: true,
+        reason: 'weekend',
+        dayName: dayNames[dayOfWeek],
+        message: `Today is ${dayNames[dayOfWeek]}, which is configured as a non-working day. Are you sure you want to check in?`
+      };
+    }
+
+    // Check if it's a holiday (only if holidaysData is available)
+    if (holidaysData && Array.isArray(holidaysData) && holidaysData.length > 0) {
+      const todayString = today.toISOString().split('T')[0];
+      const todayHoliday = holidaysData.find(holiday => {
+        if (!holiday.date) return false;
+        const holidayDate = new Date(holiday.date).toISOString().split('T')[0];
+        return holidayDate === todayString;
+      });
+
+      if (todayHoliday) {
+        return {
+          isNonWorkingDay: true,
+          reason: 'holiday',
+          holidayTitle: todayHoliday.title || todayHoliday.name,
+          holidayType: todayHoliday.isOptional ? 'optional' : 'public',
+          message: `Today is ${todayHoliday.title || todayHoliday.name}${todayHoliday.isOptional ? ' (Optional Holiday)' : ''}. Are you sure you want to check in?`
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const handleCheckIn = async (skipNonWorkingDayCheck = false) => {
     setLoading('checkInLoading', true);
     let locationData = null;
 
     try {
+      // Fetch settings first
       const settingsResponse = await apiClient.getEffectiveSettings();
       const effectiveSettings = settingsResponse?.data || {};
       const locationSetting = effectiveSettings.general?.locationSetting || 'na';
       const geofenceSettings = effectiveSettings.general?.geofence || {};
       const requireLocation =
         locationSetting === 'mandatory' ||
-        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckIn !== false);
+        (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckIn === true);
 
-      locationData = await getLocationCoordinates({
-        required: requireLocation,
-        manageLoading: requireLocation || locationSetting !== 'na'
-      }) || {};
+      // Check if today is a non-working day (before getting location)
+      if (!skipNonWorkingDayCheck) {
+        const nonWorkingDayWarning = checkNonWorkingDay(effectiveSettings, dashboardState.data.holidaysData);
+        if (nonWorkingDayWarning) {
+          setAppState('nonWorkingDayWarningData', nonWorkingDayWarning);
+          setModal('showNonWorkingDayWarning', true);
+          setLoading('checkInLoading', false);
+          return; // Exit early, wait for user confirmation
+        }
+      }
 
+      // Try to get location, but handle failures gracefully
+      try {
+        locationData = await getLocationCoordinates({
+          required: requireLocation,
+          manageLoading: requireLocation || locationSetting !== 'na'
+        }) || {};
+      } catch (locError) {
+        console.warn("Location fetch failed:", locError);
+
+        // If location is required but failed, offer WFH alternative if enabled
+        if (requireLocation && geofenceSettings?.allowWFHBypass) {
+          toast({
+            variant: "warning",
+            title: "Location Required",
+            description: "Unable to get your location. You can request Work From Home instead.",
+            duration: 5000
+          });
+
+          setAppState('pendingWFHContext', {
+            geofence: {
+              canRequestWFH: true,
+              reason: 'location_unavailable',
+              message: 'Location access failed or timed out'
+            },
+            location: null,
+            locationError: locError.message || 'Location unavailable'
+          });
+          setModal('showWFHModal', true);
+          return; // Exit early, let user submit WFH request
+        } else if (requireLocation) {
+          // Location is mandatory and no WFH bypass - must fail
+          throw locError;
+        }
+        // If location is not required, continue without it
+      }
+
+      // Attempt check-in with location data (or without if optional)
       const response = await apiClient.checkIn(locationData);
       if (response.success) {
         toast({
@@ -603,13 +720,23 @@ export default function HRMSDashboard() {
       let description = "An unexpected error occurred.";
       let variant = "warning";
 
+      // Check if this is a geofence violation error
       const geofenceDetails = error?.data?.errors?.geofence || error?.data?.details?.geofence;
       if (geofenceDetails?.canRequestWFH && locationData) {
+        // Show WFH modal for geofence violations
         setAppState('pendingWFHContext', {
           geofence: geofenceDetails,
           location: locationData
         });
         setModal('showWFHModal', true);
+
+        toast({
+          variant: "warning",
+          title: "Outside Office Location",
+          description: geofenceDetails.message || "You appear to be outside the office. Please submit a WFH request.",
+          duration: 5000
+        });
+        return; // Exit without showing generic error
       }
 
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
@@ -675,7 +802,7 @@ export default function HRMSDashboard() {
       const geofenceSettings = generalSettings.geofence || {};
       const requireLocationForCheckout =
         locationSettingValue === 'mandatory' ||
-        (geofenceSettings?.enabled && geofenceSettings?.enforceCheckOut !== false);
+        (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckOut === true);
 
       // Store setting in state for modal
       setAppState('taskReportSetting', taskReportSettingValue);
@@ -1068,8 +1195,9 @@ export default function HRMSDashboard() {
   };
 
   return (
-    <div className="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 min-h-screen">
+    <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-full">
+        <ChristmasBanner username={employeeFirstName} />
         <Header
           username={username}
           isCheckedIn={isCheckedIn}
@@ -1113,7 +1241,7 @@ export default function HRMSDashboard() {
                   <div className="space-y-8">
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Work Queue</h2>
+                        <h2 className="text-base font-semibold text-foreground">Work Queue</h2>
                       </div>
                       <Suspense fallback={<ComponentSkeleton />}>
                         <div ref={pendingRequestsRef}>
@@ -1123,7 +1251,7 @@ export default function HRMSDashboard() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Team Attendance</h2>
+                        <h2 className="text-base font-semibold text-foreground">Team Attendance</h2>
                       </div>
                       <Suspense fallback={<ComponentSkeleton />}>
                         <AdminAttendanceTable onRefresh={refreshAdminDashboard} />
@@ -1143,7 +1271,7 @@ export default function HRMSDashboard() {
                   </Suspense>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Overview</h2>
+                      <h2 className="text-base font-semibold text-foreground">Overview</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <AttendanceStats
@@ -1155,7 +1283,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">My Attendance</h2>
+                      <h2 className="text-base font-semibold text-foreground">My Attendance</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <EmployeeAttendanceTable
@@ -1165,7 +1293,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">Requests</h2>
+                      <h2 className="text-base font-semibold text-foreground">Requests</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <LeaveRequestsTable
@@ -1180,7 +1308,7 @@ export default function HRMSDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-200">This Month</h2>
+                      <h2 className="text-base font-semibold text-foreground">This Month</h2>
                     </div>
                     <Suspense fallback={<ComponentSkeleton />}>
                       <WeeklySummary
@@ -1197,8 +1325,6 @@ export default function HRMSDashboard() {
                 <UpdatesSidebar
                   announcements={data.announcements || []}
                   holidays={data.holidaysData || []}
-                  username={username}
-                  activityData={data.activityData || []}
                   initialActiveTab={updatesActiveTab}
                   onTabChange={handleUpdatesTabChange}
                 />
@@ -1258,6 +1384,16 @@ export default function HRMSDashboard() {
         onSubmit={handleWFHRequestSubmit}
         submitting={wfhRequestLoading}
         context={pendingWFHContext}
+      />
+
+      <NonWorkingDayWarningModal
+        isOpen={showNonWorkingDayWarning}
+        onClose={() => {
+          setModal('showNonWorkingDayWarning', false);
+          setAppState('nonWorkingDayWarningData', null);
+        }}
+        onConfirm={() => handleCheckIn(true)}
+        warningData={nonWorkingDayWarningData}
       />
 
       <AbsentEmployeesModal

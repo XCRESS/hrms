@@ -14,7 +14,6 @@ export default function SignupForm({ className, ...props }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
 //for navigation
 const navigate = useNavigate();
@@ -22,18 +21,16 @@ const navigate = useNavigate();
 const handleSubmit = async (e) => {
   e.preventDefault();
   setLoading(true);
-  setError("");
-  
+
   try {
     console.log(`Trying to do a singup`);
     const data = await apiClient.signup(name, email, password);
     console.log("Signup response: ", data);
     if (data.success) {
       navigate("/dashboard");
-    } else {
-      setError(data.message || "Signup failed");
     }
   } catch (error) {
+    console.error("Signup error:", error);
   } finally {
     setLoading(false);
   }

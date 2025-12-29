@@ -154,7 +154,17 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
   }
+}
+
+/* Christmas Festive Fonts */
+.font-christmas {
+  font-family: 'Mountains of Christmas', cursive;
+}
+
+.font-script {
+  font-family: 'Great Vibes', cursive;
 }
 
 /* Custom Scrollbar Styles */

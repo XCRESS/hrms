@@ -98,12 +98,12 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
+      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Regularize Attendance</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Regularize Attendance</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
+            className="text-muted-foreground hover:text-red-500 dark:text-muted-foreground dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-muted"
             aria-label="Close"
           >
             <X size={24} />
@@ -112,22 +112,22 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-              Attendance Date <span className="text-xs text-gray-500 dark:text-slate-400">(Date for which you want to regularize attendance)</span>
+            <label htmlFor="date" className="block text-sm font-medium text-foreground mb-1">
+              Attendance Date <span className="text-xs text-muted-foreground">(Date for which you want to regularize attendance)</span>
             </label>
             <input
               id="date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              <label htmlFor="checkIn" className="block text-sm font-medium text-foreground mb-1">
                 <div className="flex items-center gap-2">
                   <Clock size={16} />
                   Check In Time (optional)
@@ -138,12 +138,12 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
                 type="time"
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+                className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               />
             </div>
             
             <div>
-              <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              <label htmlFor="checkOut" className="block text-sm font-medium text-foreground mb-1">
                 <div className="flex items-center gap-2">
                   <Clock size={16} />
                   Check Out Time (optional)
@@ -154,20 +154,20 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
                 type="time"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+                className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason for Regularization</label>
+            <label htmlFor="reason" className="block text-sm font-medium text-foreground mb-1">Reason for Regularization</label>
             <textarea
               id="reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Please provide a detailed reason for this attendance regularization request..."
               rows="4"
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+              className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
               data-gramm="false"
             />
@@ -188,7 +188,7 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700/80 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 text-sm font-medium text-foreground bg-white dark:bg-card 80 border border-border rounded-lg hover:bg-muted dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

@@ -2,6 +2,7 @@ import moment from "moment-timezone";
 import WFHRequest from "../models/WFHRequest.model.js";
 import Employee from "../models/Employee.model.js";
 import Attendance from "../models/Attendance.model.js";
+import User from "../models/User.model.js";
 import { formatResponse } from "../utils/attendance/attendanceHelpers.js";
 import {
   BusinessLogicError,
@@ -15,7 +16,9 @@ import {
   getEmployeeObjectId,
 } from "../utils/attendance/index.js";
 import { getISTDayBoundaries, toIST } from "../utils/timezoneUtils.js";
+import { invalidateAttendanceCache, invalidateDashboardCache } from "../utils/cacheInvalidation.js";
 import GeofenceService from "../services/GeofenceService.js";
+import NotificationService from "../services/notificationService.js";
 
 const buildTodayFilter = (date = new Date()) => {
   const { startOfDay, endOfDay } = getISTDayBoundaries(date);
@@ -97,6 +100,15 @@ export const createWFHRequest = async (req, res) => {
       nearestOffice,
       distanceFromOffice: distance,
     });
+
+    // Notify HR about new WFH request (consistency with leave/regularization)
+    NotificationService.notifyHR('wfh_request', {
+      employee: employee.firstName + ' ' + employee.lastName,
+      employeeId: employee.employeeId,
+      requestDate: istMoment.format('DD-MM-YYYY'),
+      reason: reason.trim()
+    });
+
     res
       .status(HTTP_STATUS.CREATED)
       .json(
@@ -215,24 +227,60 @@ export const reviewWFHRequest = async (req, res) => {
     }
 
     if (status === 'approved') {
-      const newAttendance = await Attendance.create({
+      // Check for existing attendance record first (like regularization does)
+      const { startOfDay, endOfDay } = getISTDayBoundaries(request.requestDate);
+
+      let existingAttendance = await Attendance.findOne({
         employee: request.employee,
-        employeeName: request.employeeName,
-        date: request.requestDate,
-        checkIn: request.requestedCheckInTime,
-        status: 'present',
-        location: request.attemptedLocation,
-        geofence: {
+        date: {
+          $gte: startOfDay.toDate(),
+          $lte: endOfDay.toDate()
+        }
+      });
+
+      if (existingAttendance) {
+        // Update existing attendance to mark as WFH
+        existingAttendance.geofence = {
+          enforced: true,
           status: 'wfh',
           wfhRequest: request._id,
           officeName: request.nearestOffice,
           distance: request.distanceFromOffice,
-          notes: 'Work From Home - Approved'
-        }
-      });
+          validatedAt: new Date(),
+          notes: 'Work From Home - Approved after check-in'
+        };
 
-      request.consumedAt = new Date();
-      request.consumedAttendance = newAttendance._id;
+        // Update location if WFH request has location but attendance doesn't
+        if (request.attemptedLocation && !existingAttendance.location) {
+          existingAttendance.location = request.attemptedLocation;
+        }
+
+        await existingAttendance.save();
+        request.consumedAt = new Date();
+        request.consumedAttendance = existingAttendance._id;
+      } else {
+        // Create new attendance record
+        const newAttendance = await Attendance.create({
+          employee: request.employee,
+          employeeName: request.employeeName,
+          date: startOfDay.toDate(),
+          checkIn: request.requestedCheckInTime,
+          status: 'present',
+          location: request.attemptedLocation,
+          geofence: {
+            enforced: true,
+            status: 'wfh',
+            wfhRequest: request._id,
+            officeName: request.nearestOffice,
+            distance: request.distanceFromOffice,
+            validatedAt: new Date(),
+            notes: 'Work From Home - Approved'
+          }
+        });
+
+        request.consumedAt = new Date();
+        request.consumedAttendance = newAttendance._id;
+      }
     }
 
     request.status = status;
@@ -240,6 +288,12 @@ export const reviewWFHRequest = async (req, res) => {
     request.reviewedAt = new Date();
     request.approvedBy = req.user._id;
     await request.save();
+
+    // Invalidate caches (consistency with regularization)
+    if (status === 'approved') {
+      invalidateAttendanceCache();
+      invalidateDashboardCache();
+    }
 
     res.json(
       formatResponse(true, "WFH request updated", {
@@ -263,12 +317,7 @@ export const reviewWFHRequest = async (req, res) => {
   }
 };
 
-export default {
-  createWFHRequest,
-  getMyWFHRequests,
-  getWFHRequests,
-  reviewWFHRequest,
-};
+// No default export - use named exports for consistency with other controllers
 
 
 

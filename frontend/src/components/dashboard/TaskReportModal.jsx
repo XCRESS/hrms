@@ -150,7 +150,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             setPreLunchTasks(['']);
             setPostLunchTasks(['']);
           }
-        } catch (_e) {
+        } catch {
           // Error parsing, set defaults
           setTasks(['']);
           setPreLunchTasks(['']);
@@ -342,7 +342,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER - Fixed at top, never scrolls */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex-shrink-0 px-6 py-5 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className={`p-3 rounded-full ${
@@ -362,10 +362,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
               </div>
               
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <h2 className="text-xl font-semibold text-foreground">
                   {isHalfDay ? 'Half Day Checkout' : 'Daily Task Report'}
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {isHalfDay 
                     ? 'Summarize your half-day accomplishments' 
                     : 'Record your daily accomplishments before checkout'
@@ -376,7 +376,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             
             <button 
               onClick={handleClose}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <XCircle className="h-5 w-5" />
             </button>
@@ -388,12 +388,12 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
           <div className="flex-shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <span className="text-gray-600 dark:text-gray-400 truncate">{user?.name}</span>
+                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground truncate">{user?.name}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <span className="text-gray-600 dark:text-gray-400">
+                <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground">
                   {currentTime.toLocaleDateString('en-US', { 
                     month: 'short', 
                     day: 'numeric' 
@@ -401,13 +401,13 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <span className="text-gray-600 dark:text-gray-400">
+                <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground">
                   In: {formatTime(checkInTime)}
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <Timer className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <Timer className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className={`font-medium ${
                   isHalfDay ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                 }`}>
@@ -435,10 +435,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             {/* Tasks Section Header */}
             <div className="flex-shrink-0 px-6 pt-6 pb-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                <h3 className="text-lg font-medium text-foreground">
                   {isHalfDay ? 'Tasks Completed Today' : 'Tasks & Accomplishments'}
                 </h3>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-muted-foreground">
                   {isHalfDay ? (
                     `${tasks.filter(t => t.trim()).length} task${tasks.filter(t => t.trim()).length !== 1 ? 's' : ''}`
                   ) : (
@@ -465,7 +465,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                             placeholder={`Task ${index + 1}: What did you accomplish?`}
                             value={task}
                             onChange={(e) => handleTaskChange(index, e.target.value)}
-                            className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                            className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
                             rows="2"
                             style={{ 
                               minHeight: '48px',
@@ -496,7 +496,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                       type="button" 
                       variant="outline" 
                       onClick={handleAddTask}
-                      className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                      className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                     >
                       <PlusCircle className="h-5 w-5 mr-2" />
                       Add Another Task
@@ -509,10 +509,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                     <div>
                       <div className="flex items-center space-x-2 mb-4">
                         <Coffee className="h-5 w-5 text-green-600 dark:text-green-400" />
-                        <h4 className="text-md font-semibold text-gray-900 dark:text-gray-100">
+                        <h4 className="text-md font-semibold text-foreground">
                           Pre-lunch Tasks (Morning)
                         </h4>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-muted-foreground">
                           {preLunchTasks.filter(t => t.trim()).length} task{preLunchTasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
                         </div>
                       </div>
@@ -529,7 +529,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                                 placeholder={`Morning Task ${index + 1}: What did you accomplish before lunch?`}
                                 value={task}
                                 onChange={(e) => handlePreLunchTaskChange(index, e.target.value)}
-                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
                                 rows="2"
                                 style={{ 
                                   minHeight: '48px',
@@ -570,10 +570,10 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                     <div>
                       <div className="flex items-center space-x-2 mb-4">
                         <Sunset className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <h4 className="text-md font-semibold text-gray-900 dark:text-gray-100">
+                        <h4 className="text-md font-semibold text-foreground">
                           Post-lunch Tasks (Afternoon)
                         </h4>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-muted-foreground">
                           {postLunchTasks.filter(t => t.trim()).length} task{postLunchTasks.filter(t => t.trim()).length !== 1 ? 's' : ''}
                         </div>
                       </div>
@@ -590,7 +590,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                                 placeholder={`Afternoon Task ${index + 1}: What did you accomplish after lunch?`}
                                 value={task}
                                 onChange={(e) => handlePostLunchTaskChange(index, e.target.value)}
-                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 font-medium leading-relaxed"
+                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
                                 rows="2"
                                 style={{ 
                                   minHeight: '48px',
@@ -644,7 +644,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         </div>
 
         {/* FOOTER - Fixed at bottom, never scrolls, always accessible */}
-        <div className="flex-shrink-0 px-6 py-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+        <div className="flex-shrink-0 px-6 py-5 border-t border-border bg-muted/50 rounded-b-2xl">
           <div className={`flex gap-3 ${isMobile ? 'flex-col-reverse' : 'flex-row justify-end'}`}>
             <Button 
               type="button" 
@@ -662,7 +662,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                 variant="outline"
                 onClick={onSkip}
                 disabled={isLoading}
-                className={`text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${isMobile ? 'w-full h-12' : ''}`}
+                className={`text-muted-foreground hover:text-foreground dark:hover:text-gray-200 ${isMobile ? 'w-full h-12' : ''}`}
               >
                 Skip & Check Out
               </Button>
@@ -695,7 +695,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             ? tasks.filter(t => t.trim()).length > 0 
             : (preLunchTasks.filter(t => t.trim()).length + postLunchTasks.filter(t => t.trim()).length) > 0
           ) && (
-            <div className="flex items-center justify-center space-x-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center justify-center space-x-2 mt-3 text-xs text-muted-foreground">
               <CheckCircle className="h-3 w-3" />
               <span>Tasks auto-saved locally</span>
             </div>

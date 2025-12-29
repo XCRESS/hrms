@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
 import notificationService from '../../service/notificationService';
@@ -48,7 +48,6 @@ const AnnouncementsPage = () => {
   }, [fetchAnnouncements, userObject]);
 
   if (!userObject) return <div>Loading user data...</div>;
-  const user = userObject;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -187,7 +186,7 @@ const AnnouncementsPage = () => {
               <h3 className="text-xl font-semibold text-cyan-600 dark:text-cyan-400 mb-2">{ann.title}</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 whitespace-pre-wrap">{ann.content}</p>
               <div className="text-xs text-slate-500 dark:text-slate-500 space-y-1 md:space-y-0 md:flex md:items-center md:space-x-4 mb-3">
-                <span className="flex items-center"><CalendarDays size={14} className="mr-1.5 opacity-70" /> Published: {new Date(ann.createdAt).toLocaleDateString()} by {ann.authorName || ann.author?.name || 'System'}</span>
+                <span className="flex items-center"><CalendarDays size={14} className="mr-1.5 opacity-70" /> Published: {new Date(ann.createdAt).toLocaleDateString()} by {ann.authorName || (ann.author?.name) || 'System'}</span>
                 <span className="flex items-center capitalize"><Users size={14} className="mr-1.5 opacity-70" /> Audience: {ann.targetAudience}</span>
                 {canManageAnnouncements && (
                     <span className={`flex items-center capitalize ${ann.status === 'published' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
