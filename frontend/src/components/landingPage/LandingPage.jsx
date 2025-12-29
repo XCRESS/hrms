@@ -682,17 +682,15 @@ const LandingPage = () => {
         <div className="relative max-w-7xl mx-auto px-6">
 
           {/* ============ Futuristic Title ============ */}
-          <h2
-            className="text-center text-5xl sm:text-6xl font-extrabold tracking-tight mb-26"
-          >
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
               Simple Pricing That
               <span className="block text-blue-600">Scales With You</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Fixed monthly pricing. No per-employee charges. 30-day free trial with all features.
             </p>
-          </motion.div>
+          </div>
 
           {/* ============ Pricing “hologram” Panels ============ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-10">
@@ -760,11 +758,11 @@ const LandingPage = () => {
                       </li>
                     ))}
                   </ul>
-                  if(plan.note){
+                  {plan.note && (
                     <div className="mt-6 text-sm text-blue-400 italic">
                       {plan.note}
                     </div>
-                  }
+                  )}
                 </div>
               </div>
             ))}
@@ -808,14 +806,14 @@ const LandingPage = () => {
 
             {/* Content */}
             <div className="text-center max-w-3xl mx-auto">
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto opacity-90">
-              {['No Setup Fees', '30-day Free Trial', 'Cancel Anytime', 'Migration Support'].map((benefit, index) => (
-                <div key={index} className="flex items-center justify-center text-sm">
-                  <Check className="w-4 h-4 mr-2 text-green-300" />
-                  {benefit}
-                </div>
-              ))}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto opacity-90">
+                {['No Setup Fees', '30-day Free Trial', 'Cancel Anytime', 'Migration Support'].map((benefit, index) => (
+                  <div key={index} className="flex items-center justify-center text-sm">
+                    <Check className="w-4 h-4 mr-2 text-green-300" />
+                    {benefit}
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
         </div>
