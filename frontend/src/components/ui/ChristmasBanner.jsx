@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sparkles, Gamepad2 } from 'lucide-react';
 import Snowfall from './Snowfall';
 import Countdown from './Countdown';
@@ -14,9 +14,23 @@ import HolidayModal from './HolidayModal';
  * - Proper festive fonts (Great Vibes, Mountains of Christmas)
  * - Employee name personalization
  * - Fully responsive design
+ * - Only shows during Christmas week (December 22-28)
  */
 const ChristmasBanner = ({ username = 'Team' }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Check if we're in Christmas week (December 22-28)
+  const isChristmasWeek = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth(); // 0-11 (11 is December)
+    const date = now.getDate(); // 1-31
+    return month === 11 && date >= 22 && date <= 28;
+  }, []);
+
+  // Don't render anything outside Christmas week
+  if (!isChristmasWeek) {
+    return null;
+  }
 
   return (
     <>
