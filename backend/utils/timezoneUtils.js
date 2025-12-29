@@ -40,7 +40,7 @@ export const toIST = (date = null) => {
  */
 export const getISTDayBoundaries = (date = null) => {
   const istMoment = date ? toIST(date) : getISTNow();
-  
+
   return {
     startOfDay: istMoment.clone().startOf('day'),
     endOfDay: istMoment.clone().endOf('day')

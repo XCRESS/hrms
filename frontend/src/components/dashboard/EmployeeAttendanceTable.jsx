@@ -318,7 +318,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
 
   const getAttendanceIcon = (attendance) => {
     if (attendance.status === 'weekend') {
-      return <XCircle className="w-4 h-4 text-gray-400" />;
+      return <XCircle className="w-4 h-4 text-muted-foreground" />;
     }
     if (attendance.status === 'holiday') {
       return <Calendar className="w-4 h-4 text-orange-500" />;
@@ -335,14 +335,14 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
     if (attendance.checkIn && !attendance.checkOut) {
       return <Clock className="w-4 h-4 text-yellow-500" />;
     }
-    return <XCircle className="w-4 h-4 text-gray-400" />;
+    return <XCircle className="w-4 h-4 text-muted-foreground" />;
   };
 
   const getAttendanceBadgeClass = (attendance) => {
     const baseClasses = "w-full max-w-[85px] sm:max-w-[95px] px-2 sm:px-3 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[75px] sm:min-h-[85px] cursor-pointer hover:opacity-80 transition-opacity";
     
     if (attendance.status === 'weekend') {
-      return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
+      return `${baseClasses} bg-muted text-muted-foreground`;
     }
     if (attendance.status === 'holiday') {
       return `${baseClasses} bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300`;
@@ -359,7 +359,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
     if (attendance.checkIn && !attendance.checkOut) {
       return `${baseClasses} bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300`;
     }
-    return `${baseClasses} bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300`;
+    return `${baseClasses} bg-muted text-foreground`;
   };
 
   // formatTime function is now imported from istUtils
@@ -471,18 +471,18 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           Attendance Overview
         </h3>
         <div className="animate-pulse space-y-3">
-          <div className="h-8 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
+          <div className="h-8 bg-muted rounded w-3/4"></div>
           <div className="flex gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex-1 h-16 bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+              <div key={i} className="flex-1 h-16 bg-muted rounded"></div>
             ))}
           </div>
-          <div className="h-12 bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+          <div className="h-12 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -490,8 +490,8 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           My Attendance Overview
         </h3>
         <div className="text-center text-red-500 py-4">
@@ -509,11 +509,11 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
 
   if (attendanceData.length === 0) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           My Attendance Overview
         </h3>
-        <div className="text-center text-neutral-500 py-8">
+        <div className="text-center text-muted-foreground py-8">
           <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">No attendance data found</p>
           <p className="text-sm">Your attendance records will appear here</p>
@@ -525,23 +525,23 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
   const record = attendanceData[0]; // Since we only have one employee record
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-card rounded-xl shadow-lg border border-border 50 dark:border-border 50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
       {/* Navigation Controls */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Attendance</h3>
+        <h3 className="text-lg font-semibold text-foreground">Attendance</h3>
         <div className="flex items-center gap-3">
         <button
           onClick={() => navigateWindow(1)}
-          className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          className="p-2 rounded-lg bg-muted hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           title="Previous 4 days"
           disabled={currentWindowIndex >= Math.max(0, allWorkingDays.length - 4)}
         >
-          <ChevronLeft className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+          <ChevronLeft className="w-4 h-4 text-muted-foreground" />
         </button>
         <select 
           value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
           onChange={handleMonthChange}
-          className="text-sm bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium shadow-sm min-w-[90px]"
+          className="text-sm bg-muted text-foreground border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium shadow-sm min-w-[90px]"
         >
           {(() => {
             const options = [];
@@ -564,35 +564,35 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
         </select>
         <button
           onClick={() => navigateWindow(-1)}
-          className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          className="p-2 rounded-lg bg-muted hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           title="Next 4 days"
           disabled={currentWindowIndex <= 0}
         >
-          <ChevronRight className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </button>
         </div>
       </div>
       
       {/* Table Layout */}
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
-              <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-xs sm:text-sm">Date</th>
+            <tr className="bg-muted border-b border-border dark:border-border">
+              <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-foreground text-xs sm:text-sm">Date</th>
               {workingDays.map((day, index) => {
                 const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                 return (
                   <th key={index} className={`text-center py-2 sm:py-4 px-1 sm:px-2 font-semibold text-xs sm:text-sm min-w-[75px] sm:min-w-[95px] ${
                     isWeekend 
-                      ? 'text-neutral-500 dark:text-neutral-400' 
-                      : 'text-neutral-700 dark:text-neutral-300'
+                      ? 'text-muted-foreground' 
+                      : 'text-foreground'
                   }`}>
                     <div className="flex flex-col items-center">
-                      <span className={isWeekend ? 'text-neutral-400 dark:text-neutral-500' : ''}>{dayName}</span>
+                      <span className={isWeekend ? 'text-muted-foreground' : ''}>{dayName}</span>
                       <span className={`text-xs ${
                         isWeekend 
-                          ? 'text-neutral-400 dark:text-neutral-500' 
-                          : 'text-neutral-500 dark:text-neutral-400'
+                          ? 'text-muted-foreground' 
+                          : 'text-muted-foreground'
                       }`}>{dateStr}</span>
                     </div>
                   </th>
@@ -601,9 +601,9 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-            <tr className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800">
+            <tr className="hover:bg-muted dark:hover:bg-muted 30 transition-colors bg-card">
               <td className="py-2 sm:py-4 px-2 sm:px-4">
-                <div className="font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100">
+                <div className="font-medium text-sm sm:text-base text-foreground">
                   {record.employeeName ? record.employeeName.split(' ')[0] : 'Attendance'}
                 </div>
               </td>
@@ -612,7 +612,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }) => {
                 return (
                   <td key={dayIndex} className="py-2 sm:py-4 px-1 sm:px-2">
                     <div 
-                      className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-1 sm:p-2"
+                      className="flex justify-center cursor-pointer hover:bg-muted dark:hover:bg-muted rounded-lg p-1 sm:p-2"
                       onClick={() => handleAttendanceClick(record, day)}
                     >
                       <div className={getAttendanceBadgeClass(dayAttendance)}>

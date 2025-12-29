@@ -68,18 +68,18 @@ const TimeInput = memo(({ value, onChange, className }) => {
       <select
         value={timeState.hour}
         onChange={(e) => handleTimeChange('hour', e.target.value)}
-        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+        className="flex-1 px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
       >
         <option value="">HH</option>
         {hours.map(hour => (
           <option key={hour} value={hour}>{hour}</option>
         ))}
       </select>
-      <span className="flex items-center text-slate-500">:</span>
+      <span className="flex items-center text-muted-foreground">:</span>
       <select
         value={timeState.minute}
         onChange={(e) => handleTimeChange('minute', e.target.value)}
-        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+        className="flex-1 px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
       >
         <option value="">MM</option>
         {minutes.map(minute => (
@@ -89,7 +89,7 @@ const TimeInput = memo(({ value, onChange, className }) => {
       <select
         value={timeState.period}
         onChange={(e) => handleTimeChange('period', e.target.value)}
-        className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+        className="px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
       >
         <option value="AM">AM</option>
         <option value="PM">PM</option>
@@ -101,7 +101,7 @@ const TimeInput = memo(({ value, onChange, className }) => {
             setTimeState({ hour: '', minute: '', period: 'AM' });
             onChange('');
           }}
-          className="px-2 py-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          className="px-2 py-2 text-muted-foreground hover:text-foreground transition-colors"
           title="Clear time"
         >
           <X className="w-4 h-4" />
@@ -281,15 +281,15 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Edit3 className="w-5 h-5 text-cyan-600" />
             Edit Attendance
           </h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -303,22 +303,22 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
           )}
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-foreground">
               Date: {record ? formatDate(record.date, true) : ''}
             </label>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-foreground">
               Employee: {employeeProfile?.firstName} {employeeProfile?.lastName}
             </label>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-foreground">
               Status
             </label>
             <select
               value={formData.status}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
               required
             >
               <option value="present">Present</option>
@@ -330,7 +330,7 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
           {formData.status !== 'absent' && (
             <>
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-medium text-foreground">
                   Check In Time
                 </label>
                 <TimeInput
@@ -342,7 +342,7 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-medium text-foreground">
                   Check Out Time
                 </label>
                 <TimeInput
@@ -359,7 +359,7 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile, on
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              className="flex-1 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
             >
               Cancel
             </button>
@@ -734,7 +734,7 @@ const AdminAttendanceTable = () => {
 
   const getAttendanceIcon = (attendance) => {
     if (attendance.status === 'weekend') {
-      return <XCircle className="w-4 h-4 text-gray-400" />;
+      return <XCircle className="w-4 h-4 text-muted-foreground" />;
     }
     if (attendance.status === 'holiday') {
       return <Calendar className="w-4 h-4 text-orange-500" />;
@@ -751,14 +751,14 @@ const AdminAttendanceTable = () => {
     if (attendance.checkIn && !attendance.checkOut) {
       return <Clock className="w-4 h-4 text-yellow-500" />;
     }
-    return <XCircle className="w-4 h-4 text-gray-400" />;
+    return <XCircle className="w-4 h-4 text-muted-foreground" />;
   };
 
   const getAttendanceBadgeClass = (attendance) => {
     const baseClasses = "w-full max-w-[85px] sm:max-w-[95px] px-2 sm:px-3 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[75px] sm:min-h-[85px] cursor-pointer hover:opacity-80 transition-opacity";
     
     if (attendance.status === 'weekend') {
-      return `${baseClasses} bg-slate-100 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400`;
+      return `${baseClasses} bg-muted text-muted-foreground`;
     }
     if (attendance.status === 'holiday') {
       return `${baseClasses} bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300`;
@@ -775,7 +775,7 @@ const AdminAttendanceTable = () => {
     if (attendance.checkIn && !attendance.checkOut) {
       return `${baseClasses} bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300`;
     }
-    return `${baseClasses} bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300`;
+    return `${baseClasses} bg-muted text-foreground`;
   };
 
   // formatTime function is now imported from istUtils
@@ -882,13 +882,13 @@ const AdminAttendanceTable = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           Attendance Overview
         </h3>
         <div className="animate-pulse space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-12 bg-neutral-200 dark:bg-neutral-700 rounded"></div>
+            <div key={i} className="h-12 bg-muted rounded"></div>
           ))}
         </div>
       </div>
@@ -897,8 +897,8 @@ const AdminAttendanceTable = () => {
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           Attendance Overview
         </h3>
         <div className="text-center text-red-500 py-4">
@@ -915,17 +915,17 @@ const AdminAttendanceTable = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-200/50 dark:border-neutral-700/50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-card rounded-xl shadow-lg border border-border 50 dark:border-border 50 p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <div>
-          <h3 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-1">
+          <h3 className="text-xl font-bold text-foreground mb-1">
             Attendance Overview
           </h3>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
-          <div className="flex items-center gap-1 bg-neutral-50 dark:bg-neutral-700/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-neutral-500" />
-            <span className="text-neutral-500 dark:text-neutral-400 font-medium text-xs sm:text-sm">{stats.total} total</span>
+          <div className="flex items-center gap-1 bg-muted/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
+            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+            <span className="text-muted-foreground font-medium text-xs sm:text-sm">{stats.total} total</span>
           </div>
           <div className="flex items-center gap-1 bg-green-50 dark:bg-green-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
             <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
@@ -950,16 +950,16 @@ const AdminAttendanceTable = () => {
           <div className="flex items-center gap-2 ml-2">
             <button
               onClick={() => navigateWindow(1)}
-              className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg bg-muted hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Previous 4 days"
               disabled={currentWindowIndex >= Math.max(0, allWorkingDays.length - 4)}
             >
-              <ChevronLeft className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
             <select 
               value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
               onChange={handleMonthChange}
-              className="text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
+              className="text-xs bg-muted text-foreground border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-20"
             >
               {getMonthOptions(12).map(option => (
                 <option key={option.value} value={option.value}>
@@ -969,37 +969,37 @@ const AdminAttendanceTable = () => {
             </select>
             <button
               onClick={() => navigateWindow(-1)}
-              className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg bg-muted hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Next 4 days"
               disabled={currentWindowIndex <= 0}
             >
-              <ChevronRight className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
         </div>
       </div>
       
       {/* Table Layout */}
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-700 dark:to-neutral-800 border-b border-neutral-200 dark:border-neutral-600">
-                <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-neutral-700 dark:text-neutral-300 text-xs sm:text-sm">Employee</th>
+              <tr className="bg-muted border-b border-border dark:border-border">
+                <th className="text-left py-2 sm:py-4 px-2 sm:px-4 font-semibold text-foreground text-xs sm:text-sm">Employee</th>
                 {workingDays.map((day, index) => {
                   const { day: dayName, dateStr, isWeekend } = formatDayDate(day);
                   return (
                     <th key={index} className={`text-center py-2 sm:py-4 px-1 sm:px-2 font-semibold text-xs sm:text-sm min-w-[75px] sm:min-w-[95px] ${
                       isWeekend 
-                        ? 'text-neutral-500 dark:text-neutral-400' 
-                        : 'text-neutral-700 dark:text-neutral-300'
+                        ? 'text-muted-foreground' 
+                        : 'text-foreground'
                     }`}>
                       <div className="flex flex-col items-center">
-                        <span className={isWeekend ? 'text-neutral-400 dark:text-neutral-500' : ''}>{dayName}</span>
+                        <span className={isWeekend ? 'text-muted-foreground' : ''}>{dayName}</span>
                         <span className={`text-xs ${
                           isWeekend 
-                            ? 'text-neutral-400 dark:text-neutral-500' 
-                            : 'text-neutral-500 dark:text-neutral-400'
+                            ? 'text-muted-foreground' 
+                            : 'text-muted-foreground'
                         }`}>{dateStr}</span>
                       </div>
                     </th>
@@ -1011,15 +1011,15 @@ const AdminAttendanceTable = () => {
               {attendanceData.length > 0 ? attendanceData.map((record, index) => (
                 <tr 
                   key={record.employee._id || index} 
-                  className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors bg-white dark:bg-neutral-800"
+                  className="hover:bg-muted dark:hover:bg-muted 30 transition-colors bg-card"
                 >
                   <td className="py-2 sm:py-4 px-2 sm:px-4">
                     <div>
-                      <div className="font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 leading-tight">
+                      <div className="font-medium text-sm sm:text-base text-foreground leading-tight">
                         {record.employeeName || 'Unknown Employee'}
                       </div>
                       {record.employee?.employeeId && (
-                        <div className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 leading-tight mt-0.5">
+                        <div className="text-xs sm:text-sm text-muted-foreground leading-tight mt-0.5">
                           ID: {record.employee.employeeId}
                         </div>
                       )}
@@ -1030,7 +1030,7 @@ const AdminAttendanceTable = () => {
                     return (
                       <td key={dayIndex} className="py-2 sm:py-4 px-1 sm:px-2">
                         <div 
-                          className="flex justify-center cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg p-1 sm:p-2"
+                          className="flex justify-center cursor-pointer hover:bg-muted dark:hover:bg-muted rounded-lg p-1 sm:p-2"
                           onClick={() => handleEditClick(record, day)}
                         >
                           <div className={getAttendanceBadgeClass(dayAttendance)}>
@@ -1054,7 +1054,7 @@ const AdminAttendanceTable = () => {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={workingDays.length + 1} className="py-12 text-center text-neutral-500 dark:text-neutral-400">
+                  <td colSpan={workingDays.length + 1} className="py-12 text-center text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p className="text-lg font-medium">No employees found</p>
                     <p className="text-sm">Check your employee database</p>

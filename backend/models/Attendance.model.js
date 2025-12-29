@@ -123,6 +123,23 @@ attendanceSchema.pre('save', async function (next) {
   }
 });
 
+// Normalize date to IST start of day to ensure unique constraint works correctly
+attendanceSchema.pre('save', async function(next) {
+  if (this.date && this.isModified('date')) {
+    try {
+      // Import timezone utils dynamically to avoid circular deps
+      const { getISTDayBoundaries } = await import('../utils/timezoneUtils.js');
+      const { startOfDay } = getISTDayBoundaries(this.date);
+      this.date = startOfDay.toDate();
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else {
+    next();
+  }
+});
+
 // Prevent duplicate attendance records per employee per day
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 

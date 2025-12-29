@@ -1,24 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../service/apiClient';
 import useAuth from '../../hooks/authjwt';
-import { AlertCircle, CheckCircle, XCircle, TestTube, Send, RefreshCw, Save, MapPin } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TestTube, Send, Save, MapPin, RotateCcw, Mail } from 'lucide-react';
 import { useToast } from '../ui/toast';
 
 import SettingsLayout from './settings/SettingsLayout';
 import AttendanceSettings from './settings/AttendanceSettings';
 import DepartmentManagement from './settings/DepartmentManagement';
+import AppearanceSettings from './settings/AppearanceSettings';
 
 const SettingsPage = () => {
   const user = useAuth();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('attendance');
-  const [settings, setSettings] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState({ type: '', content: '' });
+  const [isTestingHrReport, setIsTestingHrReport] = useState(false);
   const [testingNotification, setTestingNotification] = useState(false);
   
   // Department management state
@@ -71,6 +72,19 @@ const SettingsPage = () => {
         threeMonths: true,
         sixMonths: true,
         oneYear: true
+      },
+      dailyHrAttendanceReport: {
+        enabled: false,
+        sendTime: '19:00',
+        includeAbsentees: true,
+        subjectLine: 'Daily Attendance Report - {date}'
+      },
+      hrEmailTypes: {
+        leaveRequests: true,
+        wfhRequests: true,
+        regularizationRequests: true,
+        helpRequests: true,
+        employeeMilestones: true
       }
     },
     general: {
@@ -103,8 +117,7 @@ const SettingsPage = () => {
       } else {
         response = await apiClient.getGlobalSettings();
       }
-      
-      setSettings(response.data);
+
       setFormData({
         attendance: {
           ...response.data.attendance,
@@ -125,6 +138,19 @@ const SettingsPage = () => {
             threeMonths: response.data.notifications?.milestoneTypes?.threeMonths ?? true,
             sixMonths: response.data.notifications?.milestoneTypes?.sixMonths ?? true,
             oneYear: response.data.notifications?.milestoneTypes?.oneYear ?? true
+          },
+          dailyHrAttendanceReport: {
+            enabled: response.data.notifications?.dailyHrAttendanceReport?.enabled ?? false,
+            sendTime: response.data.notifications?.dailyHrAttendanceReport?.sendTime ?? '19:00',
+            includeAbsentees: response.data.notifications?.dailyHrAttendanceReport?.includeAbsentees ?? true,
+            subjectLine: response.data.notifications?.dailyHrAttendanceReport?.subjectLine ?? 'Daily Attendance Report - {date}'
+          },
+          hrEmailTypes: {
+            leaveRequests: response.data.notifications?.hrEmailTypes?.leaveRequests ?? true,
+            wfhRequests: response.data.notifications?.hrEmailTypes?.wfhRequests ?? true,
+            regularizationRequests: response.data.notifications?.hrEmailTypes?.regularizationRequests ?? true,
+            helpRequests: response.data.notifications?.hrEmailTypes?.helpRequests ?? true,
+            employeeMilestones: response.data.notifications?.hrEmailTypes?.employeeMilestones ?? true
           }
         },
         general: {
@@ -145,7 +171,6 @@ const SettingsPage = () => {
       }));
     } catch (err) {
       setError(err.message || 'Failed to fetch settings.');
-      setSettings(null);
     } finally {
       setLoading(false);
     }
@@ -276,7 +301,7 @@ const SettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     resetMessages();
-    
+
     try {
       if (selectedDepartment) {
         await apiClient.updateDepartmentSettings(selectedDepartment, formData);
@@ -287,13 +312,19 @@ const SettingsPage = () => {
         });
       } else {
         await apiClient.updateGlobalSettings(formData);
+
+        // Reschedule cron job if daily HR attendance report settings changed
+        if (formData.notifications.dailyHrAttendanceReport?.enabled) {
+          await apiClient.rescheduleDailyHrAttendanceReport();
+        }
+
         toast({
-          variant: "success", 
+          variant: "success",
           title: "Settings Saved",
           description: "Global settings updated successfully!"
         });
       }
-      
+
       await fetchSettings();
     } catch (err) {
       toast({
@@ -311,21 +342,53 @@ const SettingsPage = () => {
     resetMessages();
   };
 
-  const handleRefresh = () => {
-    fetchSettings();
-    if (activeSection === 'departments') {
-      fetchDepartmentStats();
+  const handleReset = () => {
+    if (window.confirm('Discard all unsaved changes and reload settings?')) {
+      fetchSettings();
+      if (activeSection === 'departments') {
+        fetchDepartmentStats();
+      }
+    }
+  };
+
+  const handleTestDailyHrAttendanceReport = async () => {
+    if (!formData.notifications.hrEmails || formData.notifications.hrEmails.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Configuration Required",
+        description: "Please configure HR emails first"
+      });
+      return;
+    }
+
+    setIsTestingHrReport(true);
+    try {
+      await apiClient.testDailyHrAttendanceReport();
+      toast({
+        variant: "success",
+        title: "Test Report Sent",
+        description: `Test report sent successfully to ${formData.notifications.hrEmails.length} HR email(s)!`
+      });
+    } catch (error) {
+      console.error('Failed to send test HR report:', error);
+      toast({
+        variant: "destructive",
+        title: "Test Failed",
+        description: "Failed to send test report. Please try again."
+      });
+    } finally {
+      setIsTestingHrReport(false);
     }
   };
 
   const handleTestNotification = async () => {
     setTestingNotification(true);
     resetMessages();
-    
+
     // Check if user is authenticated
     const token = localStorage.getItem('authToken');
     console.log('Testing notification with user:', user?.role, 'token exists:', !!token);
-    
+
     if (!token) {
       toast({
         variant: "destructive",
@@ -471,8 +534,8 @@ const SettingsPage = () => {
 
       setOfficeForm(prev => ({
         ...prev,
-        latitude: position.coords.latitude.toFixed(6),
-        longitude: position.coords.longitude.toFixed(6)
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
       }));
     } catch (error) {
       let message = error.message || "Unable to capture location.";
@@ -715,7 +778,7 @@ const SettingsPage = () => {
             onWorkingDayChange={handleWorkingDayChange}
             onSaturdayHolidayChange={handleSaturdayHolidayChange}
             onSave={handleSave}
-            onRefresh={handleRefresh}
+            onReset={handleReset}
             onDepartmentChange={handleDepartmentChange}
           />
         );
@@ -750,41 +813,31 @@ const SettingsPage = () => {
       case 'notifications':
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notification Settings</h2>
-                  <p className="text-slate-600 dark:text-slate-400">Configure notification channels and preferences</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
 
             {/* HR Contact Information */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">HR Contact Information</h3>
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">HR Contact Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     HR Email Addresses
@@ -815,9 +868,10 @@ const SettingsPage = () => {
                               notifications: { ...prev.notifications, hrEmails: newEmails }
                             }));
                           }}
-                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors text-sm"
                         >
-                          Remove
+                          <span className="hidden sm:inline">Remove</span>
+                          <span className="sm:hidden">×</span>
                         </button>
                       </div>
                     ))}
@@ -865,9 +919,10 @@ const SettingsPage = () => {
                               notifications: { ...prev.notifications, hrPhones: newPhones }
                             }));
                           }}
-                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors text-sm"
                         >
-                          Remove
+                          <span className="hidden sm:inline">Remove</span>
+                          <span className="sm:hidden">×</span>
                         </button>
                       </div>
                     ))}
@@ -889,24 +944,24 @@ const SettingsPage = () => {
             </div>
 
             {/* Notification Channels */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notification Channels</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Notification Channels</h3>
                 <button
                   type="button"
                   onClick={handleTestNotification}
                   disabled={testingNotification}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   {testingNotification ? (
                     <>
                       <TestTube className="w-4 h-4 animate-pulse" />
-                      Testing...
+                      <span>Testing...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Test All
+                      <span>Test All</span>
                     </>
                   )}
                 </button>
@@ -961,10 +1016,10 @@ const SettingsPage = () => {
             </div>
 
             {/* Employee Milestone Alerts */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Milestone Alerts</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Milestone Alerts</h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400">Get notified about employee anniversaries</p>
                 </div>
                 <input
@@ -1029,10 +1084,10 @@ const SettingsPage = () => {
             </div>
 
             {/* Holiday Reminders */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holiday Reminders</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Holiday Reminders</h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400">Notify employees about upcoming holidays</p>
                 </div>
                 <input
@@ -1066,45 +1121,286 @@ const SettingsPage = () => {
                 </div>
               )}
             </div>
+
+            {/* HR Email Type Preferences */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">HR Email Preferences</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Choose which email notifications HR team should receive</p>
+              </div>
+              <div className="space-y-3 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Leave Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees submit leave requests</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.leaveRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, leaveRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Work From Home Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees request to work from home</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.wfhRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, wfhRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Regularization Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications for attendance regularization requests</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.regularizationRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, regularizationRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Help Requests</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Notifications when employees need assistance</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.helpRequests ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, helpRequests: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Employee Milestones</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Work anniversary notifications</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.notifications.hrEmailTypes?.employeeMilestones ?? true}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        hrEmailTypes: { ...prev.notifications.hrEmailTypes, employeeMilestones: e.target.checked }
+                      }
+                    }))}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Daily HR Attendance Report */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Daily HR Attendance Report</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Automated attendance reports grouped by office location</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.dailyHrAttendanceReport?.enabled || false}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    notifications: {
+                      ...prev.notifications,
+                      dailyHrAttendanceReport: {
+                        ...prev.notifications.dailyHrAttendanceReport,
+                        enabled: e.target.checked
+                      }
+                    }
+                  }))}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                />
+              </div>
+
+              {formData.notifications.dailyHrAttendanceReport?.enabled && (
+                <div className="space-y-4 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
+
+                  {/* Send Time */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 min-w-[120px]">
+                      Send time:
+                    </label>
+                    <div className="flex-1">
+                      <input
+                        type="time"
+                        value={formData.notifications.dailyHrAttendanceReport?.sendTime || '19:00'}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            dailyHrAttendanceReport: {
+                              ...prev.notifications.dailyHrAttendanceReport,
+                              sendTime: e.target.value
+                            }
+                          }
+                        }))}
+                        className="w-32 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Best after work hours to capture full day attendance
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Include Absentees */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="includeAbsentees"
+                      checked={formData.notifications.dailyHrAttendanceReport?.includeAbsentees !== false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          dailyHrAttendanceReport: {
+                            ...prev.notifications.dailyHrAttendanceReport,
+                            includeAbsentees: e.target.checked
+                          }
+                        }
+                      }))}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 rounded"
+                    />
+                    <label htmlFor="includeAbsentees" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Include absent employees
+                    </label>
+                  </div>
+
+                  {/* Subject Line */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Email subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.notifications.dailyHrAttendanceReport?.subjectLine || 'Daily Attendance Report - {date}'}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          dailyHrAttendanceReport: {
+                            ...prev.notifications.dailyHrAttendanceReport,
+                            subjectLine: e.target.value
+                          }
+                        }
+                      }))}
+                      maxLength={200}
+                      placeholder="Daily Attendance Report - {date}"
+                      className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Use <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">{'{date}'}</code> for current date
+                    </p>
+                  </div>
+
+                  {/* Recipients Display */}
+                  <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Recipients</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.notifications.hrEmails && formData.notifications.hrEmails.length > 0 ? (
+                        formData.notifications.hrEmails.map((email, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                            {email}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-red-600 dark:text-red-400">⚠️ Configure HR emails above first</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Test Button */}
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={handleTestDailyHrAttendanceReport}
+                      disabled={isTestingHrReport || !formData.notifications.hrEmails || formData.notifications.hrEmails.length === 0}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isTestingHrReport ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>Send Test Report</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      Sends report to all HR emails immediately for testing
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
       case 'general':
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">General Settings</h2>
-                  <p className="text-slate-600 dark:text-slate-400">System preferences and configurations</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
             
             {/* Location Settings */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-in Location Settings</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-in Location Settings</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <input
@@ -1155,8 +1451,8 @@ const SettingsPage = () => {
             </div>
 
             {/* Task Report Settings */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-out Task Report Settings</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Check-out Task Report Settings</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <input
@@ -1207,39 +1503,37 @@ const SettingsPage = () => {
             </div>
           </div>
         );
+      case 'appearance':
+        return <AppearanceSettings />;
       case 'geofence':
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Geo-Fence & Office Locations</h2>
-                <p className="text-slate-600 dark:text-slate-400">Manage geo-fenced attendance policies and office coordinates</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleReset}
+                disabled={loading || saving}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Discard changes and reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Geo-Fence Enforcement</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Geo-Fence Enforcement</h3>
               <div className="space-y-4">
-                <label className="flex items-center justify-between">
-                  <div>
+                <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1">
                     <p className="font-medium text-slate-800 dark:text-slate-200">Enable Geo-Fenced Attendance</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Require employees to be within office radius to check in/out</p>
                   </div>
@@ -1247,11 +1541,11 @@ const SettingsPage = () => {
                     type="checkbox"
                     checked={formData.general.geofence.enabled}
                     onChange={(e) => handleGeofenceSettingChange('enabled', e.target.checked)}
-                    className="h-5 w-5"
+                    className="h-5 w-5 flex-shrink-0"
                   />
                 </label>
-                <label className="flex items-center justify-between">
-                  <div>
+                <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1">
                     <p className="font-medium text-slate-800 dark:text-slate-200">Enforce On Check-in</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Block check-in attempts outside the configured radius</p>
                   </div>
@@ -1259,11 +1553,11 @@ const SettingsPage = () => {
                     type="checkbox"
                     checked={formData.general.geofence.enforceCheckIn}
                     onChange={(e) => handleGeofenceSettingChange('enforceCheckIn', e.target.checked)}
-                    className="h-5 w-5"
+                    className="h-5 w-5 flex-shrink-0"
                   />
                 </label>
-                <label className="flex items-center justify-between">
-                  <div>
+                <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1">
                     <p className="font-medium text-slate-800 dark:text-slate-200">Enforce On Check-out</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Require location validation for check-outs as well</p>
                   </div>
@@ -1271,11 +1565,11 @@ const SettingsPage = () => {
                     type="checkbox"
                     checked={formData.general.geofence.enforceCheckOut}
                     onChange={(e) => handleGeofenceSettingChange('enforceCheckOut', e.target.checked)}
-                    className="h-5 w-5"
+                    className="h-5 w-5 flex-shrink-0"
                   />
                 </label>
-                <label className="flex items-center justify-between">
-                  <div>
+                <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1">
                     <p className="font-medium text-slate-800 dark:text-slate-200">Allow WFH Requests</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Employees outside the radius can submit WFH requests</p>
                   </div>
@@ -1283,7 +1577,7 @@ const SettingsPage = () => {
                     type="checkbox"
                     checked={formData.general.geofence.allowWFHBypass}
                     onChange={(e) => handleGeofenceSettingChange('allowWFHBypass', e.target.checked)}
-                    className="h-5 w-5"
+                    className="h-5 w-5 flex-shrink-0"
                   />
                 </label>
                 <div className="flex flex-col">
@@ -1300,9 +1594,9 @@ const SettingsPage = () => {
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Add Office Location</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Add Office Location</h3>
                 <form className="space-y-4" onSubmit={handleCreateOfficeLocation}>
                   <div>
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Office Name</label>
@@ -1311,7 +1605,7 @@ const SettingsPage = () => {
                       required
                       value={officeForm.name}
                       onChange={(e) => handleOfficeInputChange('name', e.target.value)}
-                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
@@ -1320,10 +1614,10 @@ const SettingsPage = () => {
                       value={officeForm.address}
                       onChange={(e) => handleOfficeInputChange('address', e.target.value)}
                       rows={2}
-                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                      className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Latitude</label>
                       <input
@@ -1332,7 +1626,7 @@ const SettingsPage = () => {
                         required
                         value={officeForm.latitude}
                         onChange={(e) => handleOfficeInputChange('latitude', e.target.value)}
-                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -1343,11 +1637,11 @@ const SettingsPage = () => {
                         required
                         value={officeForm.longitude}
                         onChange={(e) => handleOfficeInputChange('longitude', e.target.value)}
-                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                        className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Radius (m)</label>
                       <input
@@ -1388,57 +1682,57 @@ const SettingsPage = () => {
                   </div>
                 </form>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Saved Office Locations</h3>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{officeLocations.length} locations</span>
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Saved Office Locations</h3>
+                  <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{officeLocations.length} location{officeLocations.length !== 1 ? 's' : ''}</span>
                 </div>
                 {officeLoading ? (
-                  <p className="text-slate-500 dark:text-slate-400">Loading office locations...</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Loading office locations...</p>
                 ) : officeLocations.length === 0 ? (
-                  <p className="text-slate-500 dark:text-slate-400">No office locations configured yet.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No office locations configured yet.</p>
                 ) : (
                   <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
                     {officeLocations.map(location => (
-                      <div key={location._id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-slate-900 dark:text-slate-100">{location.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{location.address || 'No address provided'}</p>
+                      <div key={location._id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">{location.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{location.address || 'No address provided'}</p>
                           </div>
-                          <span className={`px-3 py-1 text-xs rounded-full ${location.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`px-2 sm:px-3 py-1 text-xs rounded-full self-start sm:self-auto ${location.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
                             {location.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300 mt-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-3">
                           <div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Latitude</p>
-                            <p className="font-mono">{location.coordinates?.latitude}</p>
+                            <p className="font-mono text-xs sm:text-sm truncate">{location.coordinates?.latitude}</p>
                           </div>
                           <div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Longitude</p>
-                            <p className="font-mono">{location.coordinates?.longitude}</p>
+                            <p className="font-mono text-xs sm:text-sm truncate">{location.coordinates?.longitude}</p>
                           </div>
-                          <div>
+                          <div className="col-span-2 sm:col-span-1">
                             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Radius</p>
-                            <p>{location.radius} m</p>
+                            <p className="text-xs sm:text-sm">{location.radius} m</p>
                           </div>
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleOfficeStatus(location)}
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              {location.isActive ? 'Disable' : 'Enable'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteOfficeLocation(location._id)}
-                              className="text-sm text-red-600 hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleOfficeStatus(location)}
+                            className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {location.isActive ? 'Disable' : 'Enable'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOfficeLocation(location._id)}
+                            className="text-xs sm:text-sm text-red-600 dark:text-red-400 hover:underline"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
                     ))}

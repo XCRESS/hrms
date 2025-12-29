@@ -12,7 +12,9 @@ import {
   renameDepartment,
   deleteDepartment,
   assignEmployeeToDepartment,
-  getAvailableEmployees
+  getAvailableEmployees,
+  rescheduleDailyHrAttendanceReport,
+  testDailyHrAttendanceReport
 } from "../controllers/settings.controllers.js";
 import authMiddleware from "../middlewares/auth.middlewares.js";
 
@@ -42,5 +44,9 @@ router.delete("/departments/:name", authMiddleware(["admin", "hr"]), deleteDepar
 // Employee-department assignment routes (HR/Admin only)
 router.get("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), getAvailableEmployees);
 router.post("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), assignEmployeeToDepartment);
+
+// Daily HR Attendance Report routes (HR/Admin only)
+router.post("/daily-hr-attendance-report/reschedule", authMiddleware(["admin", "hr"]), rescheduleDailyHrAttendanceReport);
+router.post("/daily-hr-attendance-report/test", authMiddleware(["admin", "hr"]), testDailyHrAttendanceReport);
 
 export default router;

@@ -55,12 +55,12 @@ const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidays
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-3 sm:p-5 animate-pulse">
+          <div key={index} className="bg-card rounded-xl shadow-lg p-3 sm:p-5 animate-pulse">
             <div className="flex justify-between items-center">
-              <div className="h-3 sm:h-4 bg-gray-200 dark:bg-neutral-700 rounded w-3/4"></div>
-              <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gray-200 dark:bg-neutral-700 rounded-full"></div>
+              <div className="h-3 sm:h-4 bg-muted rounded w-3/4"></div>
+              <div className="h-6 w-6 sm:h-8 sm:w-8 bg-muted rounded-full"></div>
             </div>
-            <div className="h-6 sm:h-8 bg-gray-200 dark:bg-neutral-700 rounded w-1/2 mt-3 sm:mt-4"></div>
+            <div className="h-6 sm:h-8 bg-muted rounded w-1/2 mt-3 sm:mt-4"></div>
           </div>
         ))}
       </div>
@@ -76,8 +76,8 @@ const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidays
         return (
           <Element
             key={stat.title}
-            className={`bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
-              stat.clickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 w-full text-left' : ''
+            className={`bg-card rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+              stat.clickable ? 'cursor-pointer hover:bg-muted dark:hover:bg-muted focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 w-full text-left' : ''
             }`}
             onClick={stat.clickable ? stat.onClick : undefined}
             aria-label={stat.clickable ? `View ${stat.title}: ${stat.value} ${stat.title.toLowerCase()}` : undefined}
@@ -91,7 +91,7 @@ const AdminStats = ({ summaryData, isLoading, onPendingRequestsClick, onHolidays
             } : undefined}
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-neutral-400 leading-tight">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
                 <span className="sr-only">{stat.title}: </span>
                 {stat.title}
               </p>

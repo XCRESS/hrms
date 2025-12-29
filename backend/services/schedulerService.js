@@ -1,14 +1,18 @@
 import cron from 'node-cron';
 import Holiday from '../models/Holiday.model.js';
 import Employee from '../models/Employee.model.js';
+import Attendance from '../models/Attendance.model.js';
 import Settings from '../models/Settings.model.js';
 import NotificationService from './notificationService.js';
+import EmailService from './emailService.js';
 import { getISTNow, toIST } from '../utils/timezoneUtils.js';
 
 class SchedulerService {
   constructor() {
     this.holidayReminderJob = null;
     this.milestoneJob = null;
+    this.birthdayJob = null;
+    this.dailyHrAttendanceReportJob = null;
     this.isRunning = false;
   }
 
@@ -61,6 +65,11 @@ class SchedulerService {
     if (this.birthdayJob) {
       this.birthdayJob.stop();
       this.birthdayJob = null;
+    }
+
+    if (this.dailyHrAttendanceReportJob) {
+      this.dailyHrAttendanceReportJob.stop();
+      this.dailyHrAttendanceReportJob = null;
     }
 
     this.isRunning = false;
@@ -240,12 +249,206 @@ class SchedulerService {
     await this.checkBirthdayWishes();
   }
 
+  async scheduleDailyHrAttendanceReport() {
+    try {
+      // Stop existing job if running
+      if (this.dailyHrAttendanceReportJob) {
+        this.dailyHrAttendanceReportJob.stop();
+        this.dailyHrAttendanceReportJob = null;
+      }
+
+      // Get settings
+      const settings = await Settings.getGlobalSettings();
+
+      if (!settings.notifications.dailyHrAttendanceReport.enabled) {
+        console.log('[Scheduler] Daily HR attendance report is disabled');
+        return;
+      }
+
+      const sendTime = settings.notifications.dailyHrAttendanceReport.sendTime; // e.g., "19:00"
+      const [hour, minute] = sendTime.split(':');
+
+      // Create cron expression: "minute hour * * *"
+      const cronExpression = `${minute} ${hour} * * *`;
+
+      this.dailyHrAttendanceReportJob = cron.schedule(
+        cronExpression,
+        async () => {
+          console.log(`[Scheduler] Running daily HR attendance report at ${sendTime} IST`);
+          await this.sendDailyHrAttendanceReport();
+        },
+        {
+          scheduled: true,
+          timezone: 'Asia/Kolkata'
+        }
+      );
+
+      console.log(`[Scheduler] Daily HR attendance report scheduled at ${sendTime} IST`);
+    } catch (error) {
+      console.error('[Scheduler] Failed to schedule daily HR attendance report:', error);
+    }
+  }
+
+  async sendDailyHrAttendanceReport() {
+    try {
+      const settings = await Settings.getGlobalSettings();
+
+      if (!settings.notifications.emailEnabled) {
+        console.log('[Scheduler] Email notifications are disabled');
+        return;
+      }
+
+      const hrEmails = settings.notifications.hrEmails;
+      if (!hrEmails || hrEmails.length === 0) {
+        console.log('[Scheduler] No HR emails configured');
+        return;
+      }
+
+      // Get today's date in IST
+      const todayIST = getISTNow().startOf('day');
+      const today = todayIST.toDate();
+      const reportDateFormatted = todayIST.format('MMMM D, YYYY');
+
+      // Check if today is a non-working day (weekend based on settings)
+      // Use moment's .day() method to get day of week in IST timezone
+      const dayOfWeek = todayIST.day(); // 0=Sunday, 1=Monday, etc. in IST
+      if (settings.attendance.nonWorkingDays.includes(dayOfWeek)) {
+        console.log(`[Scheduler] Skipping daily HR attendance report - today is a non-working day (day ${dayOfWeek})`);
+        return;
+      }
+
+      // Check if today is a holiday
+      const todayHoliday = await Holiday.findOne({
+        date: {
+          $gte: today,
+          $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        }
+      });
+
+      if (todayHoliday) {
+        console.log(`[Scheduler] Skipping daily HR attendance report - today is a holiday: ${todayHoliday.title}`);
+        return;
+      }
+
+      // Fetch all active employees
+      const employees = await Employee.find({ isActive: true })
+        .select('firstName lastName officeAddress')
+        .lean();
+
+      // Fetch all attendance records for today
+      const attendanceRecords = await Attendance.find({ date: today })
+        .lean();
+
+      // Create attendance map: employeeId -> attendance record
+      const attendanceMap = new Map();
+      attendanceRecords.forEach(record => {
+        attendanceMap.set(record.employee.toString(), record);
+      });
+
+      // Group by office
+      const officeGroups = {};
+
+      for (const employee of employees) {
+        const officeAddress = employee.officeAddress || 'Unassigned';
+
+        if (!officeGroups[officeAddress]) {
+          officeGroups[officeAddress] = {
+            officeAddress: officeAddress,
+            presentEmployees: [],
+            absentEmployees: []
+          };
+        }
+
+        const group = officeGroups[officeAddress];
+        const attendance = attendanceMap.get(employee._id.toString());
+        const employeeName = `${employee.firstName} ${employee.lastName}`;
+
+        if (attendance) {
+          // Employee checked in
+          group.presentEmployees.push({
+            name: employeeName,
+            checkIn: attendance.checkIn ? toIST(attendance.checkIn).format('hh:mm A') : null,
+            checkOut: attendance.checkOut ? toIST(attendance.checkOut).format('hh:mm A') : null
+          });
+        } else if (settings.notifications.dailyHrAttendanceReport.includeAbsentees) {
+          // Employee absent
+          group.absentEmployees.push({
+            name: employeeName
+          });
+        }
+      }
+
+      // Sort employees by name within each group
+      Object.values(officeGroups).forEach(group => {
+        group.presentEmployees.sort((a, b) => a.name.localeCompare(b.name));
+        group.absentEmployees.sort((a, b) => a.name.localeCompare(b.name));
+      });
+
+      // Convert to array and sort by office name
+      const officeGroupsArray = Object.values(officeGroups)
+        .sort((a, b) => {
+          if (a.officeAddress === 'Unassigned') return 1;
+          if (b.officeAddress === 'Unassigned') return -1;
+          return a.officeAddress.localeCompare(b.officeAddress);
+        });
+
+      // Calculate totals
+      let totalPresent = 0;
+      let totalAbsent = 0;
+      officeGroupsArray.forEach(group => {
+        totalPresent += group.presentEmployees.length;
+        totalAbsent += group.absentEmployees.length;
+      });
+
+      // Prepare email data
+      const subjectLine = settings.notifications.dailyHrAttendanceReport.subjectLine.replace('{date}', reportDateFormatted);
+
+      const emailData = {
+        reportDateFormatted,
+        officeGroups: officeGroupsArray,
+        totalEmployees: employees.length,
+        totalPresent,
+        totalAbsent,
+        generatedAt: getISTNow().format('hh:mm A'),
+        subjectLine
+      };
+
+      // Get email template
+      const { subject, htmlContent } = EmailService.getTemplate('daily_hr_attendance_report', emailData);
+
+      // Send to all HR emails
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const hrEmail of hrEmails) {
+        try {
+          await EmailService.send(hrEmail, subject, htmlContent);
+          sentCount++;
+          console.log(`[Scheduler] Sent daily HR attendance report to ${hrEmail}`);
+        } catch (error) {
+          console.error(`[Scheduler] Failed to send report to ${hrEmail}:`, error);
+          failedCount++;
+        }
+
+        // Rate limiting: 600ms between emails
+        if (sentCount + failedCount < hrEmails.length) {
+          await new Promise(resolve => setTimeout(resolve, 600));
+        }
+      }
+
+      console.log(`[Scheduler] Daily HR attendance report sent: ${sentCount} successful, ${failedCount} failed`);
+    } catch (error) {
+      console.error('[Scheduler] Error in sendDailyHrAttendanceReport:', error);
+    }
+  }
+
   getStatus() {
     return {
       isRunning: this.isRunning,
       holidayReminderActive: this.holidayReminderJob ? this.holidayReminderJob.getStatus() === 'scheduled' : false,
       milestoneJobActive: this.milestoneJob ? this.milestoneJob.getStatus() === 'scheduled' : false,
-      birthdayJobActive: this.birthdayJob ? this.birthdayJob.getStatus() === 'scheduled' : false
+      birthdayJobActive: this.birthdayJob ? this.birthdayJob.getStatus() === 'scheduled' : false,
+      dailyHrAttendanceReportActive: this.dailyHrAttendanceReportJob ? this.dailyHrAttendanceReportJob.getStatus() === 'scheduled' : false
     };
   }
 }

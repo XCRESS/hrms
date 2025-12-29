@@ -96,15 +96,15 @@ const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss
         {missingCheckouts.map((attendance, index) => (
           <div
             key={attendance._id || index}
-            className="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 border border-amber-100 dark:border-amber-800"
+            className="bg-white dark:bg-card rounded-lg p-3 sm:p-4 border border-amber-100 dark:border-amber-800"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-300">
+                <div className="flex items-center space-x-2 text-muted-foreground">
                   <Calendar className="w-4 h-4 flex-shrink-0" />
                   <span className="font-medium text-sm sm:text-base">{formatDate(attendance.date)}</span>
                 </div>
-                <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-300">
+                <div className="flex items-center space-x-2 text-muted-foreground">
                   <Clock className="w-4 h-4 flex-shrink-0" />
                   <span className="text-sm sm:text-base">Check-in: {formatTime(attendance.checkIn)}</span>
                 </div>

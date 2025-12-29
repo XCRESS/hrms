@@ -81,7 +81,7 @@ const settingsSchema = new mongoose.Schema({
 
   // Notification Configuration
   notifications: {
-    // HR Contact Information  
+    // HR Contact Information
     hrEmails: {
       type: [String],
       default: [],
@@ -93,7 +93,7 @@ const settingsSchema = new mongoose.Schema({
       }
     },
     hrPhones: {
-      type: [String], 
+      type: [String],
       default: [],
       validate: {
         validator: function(arr) {
@@ -102,11 +102,20 @@ const settingsSchema = new mongoose.Schema({
         message: "All HR phones must be valid Indian numbers (+91xxxxxxxxxx)"
       }
     },
-    
+
     // Channel Toggle Settings
     emailEnabled: { type: Boolean, default: true },
     whatsappEnabled: { type: Boolean, default: false },
     pushEnabled: { type: Boolean, default: true },
+
+    // Email Type Preferences for HR
+    hrEmailTypes: {
+      leaveRequests: { type: Boolean, default: true },
+      wfhRequests: { type: Boolean, default: true },
+      regularizationRequests: { type: Boolean, default: true },
+      helpRequests: { type: Boolean, default: true },
+      employeeMilestones: { type: Boolean, default: true }
+    },
     
     // Holiday Reminder Configuration
     holidayReminderEnabled: { type: Boolean, default: true },
@@ -116,8 +125,34 @@ const settingsSchema = new mongoose.Schema({
     milestoneAlertsEnabled: { type: Boolean, default: true },
     milestoneTypes: {
       threeMonths: { type: Boolean, default: true },
-      sixMonths: { type: Boolean, default: true }, 
+      sixMonths: { type: Boolean, default: true },
       oneYear: { type: Boolean, default: true }
+    },
+
+    // Daily HR Attendance Report Configuration
+    dailyHrAttendanceReport: {
+      enabled: {
+        type: Boolean,
+        default: false,
+        description: "Enable/disable daily attendance report to HR team"
+      },
+      sendTime: {
+        type: String,
+        default: "19:00",
+        match: /^([01]\d|2[0-3]):([0-5]\d)$/,
+        description: "Time to send daily HR attendance report (IST, 24-hour format)"
+      },
+      includeAbsentees: {
+        type: Boolean,
+        default: true,
+        description: "Include employees who did not check in"
+      },
+      subjectLine: {
+        type: String,
+        default: "Daily Attendance Report - {date}",
+        maxlength: 200,
+        description: "Email subject line template (use {date} placeholder)"
+      }
     }
   },
 
@@ -296,6 +331,19 @@ settingsSchema.statics.getGlobalSettings = async function() {
           threeMonths: true,
           sixMonths: true,
           oneYear: true
+        },
+        dailyHrAttendanceReport: {
+          enabled: false,
+          sendTime: "19:00",
+          includeAbsentees: true,
+          subjectLine: "Daily Attendance Report - {date}"
+        },
+        hrEmailTypes: {
+          leaveRequests: true,
+          wfhRequests: true,
+          regularizationRequests: true,
+          helpRequests: true,
+          employeeMilestones: true
         }
       },
       general: {
@@ -338,24 +386,48 @@ settingsSchema.statics.getEffectiveSettings = async function(department = null) 
   return effectiveSettings;
 };
 
-// Helper method to merge settings objects
+// Helper method to deep merge settings objects
+// Department settings override global settings, but missing keys fall back to global
 settingsSchema.statics.mergeSettings = function(base, override) {
-  const result = { ...base };
-  
-  Object.keys(override).forEach(key => {
-    if (key === '_id' || key === 'createdAt' || key === 'updatedAt' || key === '__v') {
-      return; // Skip metadata fields
-    }
-    
-    if (override[key] !== null && override[key] !== undefined) {
-      if (typeof override[key] === 'object' && !Array.isArray(override[key])) {
-        result[key] = this.mergeSettings(result[key] || {}, override[key]);
-      } else {
-        result[key] = override[key];
+  // Start with a deep copy of base to preserve all global settings
+  const result = JSON.parse(JSON.stringify(base));
+
+  // Recursively merge override into result
+  const deepMerge = (target, source) => {
+    Object.keys(source).forEach(key => {
+      // Skip metadata fields
+      if (key === '_id' || key === 'createdAt' || key === 'updatedAt' || key === '__v' || key === 'scope' || key === 'department') {
+        return;
       }
-    }
-  });
-  
+
+      const sourceValue = source[key];
+
+      // Skip null/undefined values - keep base value
+      if (sourceValue === null || sourceValue === undefined) {
+        return;
+      }
+
+      // Handle arrays - replace entirely (don't merge individual elements)
+      if (Array.isArray(sourceValue)) {
+        target[key] = [...sourceValue];
+        return;
+      }
+
+      // Handle objects - recursively merge
+      if (typeof sourceValue === 'object') {
+        // If target doesn't have this key yet, initialize it
+        if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) {
+          target[key] = {};
+        }
+        deepMerge(target[key], sourceValue);
+      } else {
+        // Primitive value - override
+        target[key] = sourceValue;
+      }
+    });
+  };
+
+  deepMerge(result, override);
   return result;
 };
 
