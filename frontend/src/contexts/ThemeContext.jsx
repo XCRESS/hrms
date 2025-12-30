@@ -12,7 +12,7 @@ export const ThemeProvider = ({ children }) => {
   // Initialize themes from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem(THEME_MODE_KEY) || 'system';
-    const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY) || 'christmas';
+    const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY) || 'default';
 
     setThemeMode(savedMode);
     setCustomTheme(savedCustom);
@@ -78,15 +78,36 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     const now = new Date();
     const month = now.getMonth(); // 0-11
+    const day = now.getDate();
 
-    // Auto-enable Christmas theme in December if user hasn't set a custom theme
-    if (month === 11 && customTheme === 'default') {
+    // Check if we should auto-apply seasonal themes
+    // We act if the current theme is 'default' OR if it was previously auto-set to 'christmas'
+    const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY);
+    
+    // allow overriding 'christmas' during New Year period since it might have been auto-set
+    const isDefaultOrChristmas = !savedCustom || savedCustom === 'default' || savedCustom === 'christmas';
+    const shouldAutoApply = customTheme === 'default' || (customTheme === 'christmas' && isDefaultOrChristmas);
+
+    if (shouldAutoApply) {
       const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
       if (autoSeasonalEnabled) {
-        updateCustomTheme('christmas');
+        // December: Christmas (1-25) -> New Year (26-31)
+        if (month === 11) {
+          if (day > 25) {
+             // If we are in New Year period, only override if current is not already newyear (and is default/christmas)
+             if (customTheme !== 'newyear') updateCustomTheme('newyear');
+          } else {
+             // Before Dec 25, ensure it matches christmas if it was default
+             if (savedCustom === 'default' && customTheme !== 'christmas') updateCustomTheme('christmas');
+          }
+        } 
+        // January: New Year
+        else if (month === 0) {
+           if (customTheme !== 'newyear') updateCustomTheme('newyear');
+        }
       }
     }
-  }, []); // Only run once on mount
+  }, [customTheme]); // Run when customTheme changes to ensure proper override check, guards prevent loops
 
   return (
     <ThemeContext.Provider value={{

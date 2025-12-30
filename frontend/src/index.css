@@ -399,6 +399,91 @@ html[data-theme='forest'] body {
   color: var(--foreground);
 }
 
+/* =========================================
+   NEW YEAR / WINTER FROST THEME
+   Light: Ice White, Glacial Blue, Silver (Glassy/Frosty)
+   Dark: Midnight Frost, Neon Cyan, Cold Steel
+   ========================================= */
+html[data-theme='newyear'] {
+  --background: #F0F9FF;
+  /* Sky 50 - Very light ice blue */
+  --foreground: #1E293B;
+  /* Slate 800 */
+  --card: #FFFFFF;
+  /* White */
+  --card-foreground: #1E293B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --primary: #06B6D4;
+  /* Cyan 500 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #E2E8F0;
+  /* Slate 200 - Silver/Ice */
+  --secondary-foreground: #0F172A;
+  --accent: #D1FAFF;
+  /* Cyan 100 - Frosty highlight */
+  --accent-foreground: #0E7490;
+  --muted: #F1F5F9;
+  /* Slate 100 */
+  --muted-foreground: #64748B;
+  --border: #BAE6FD;
+  /* Sky 200 */
+  --input: #BAE6FD;
+  --ring: #06B6D4;
+
+  --sidebar: #F0F9FF;
+  /* Ice background */
+  --sidebar-foreground: #1E293B;
+  --sidebar-primary: #06B6D4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #D1FAFF;
+  --sidebar-accent-foreground: #0E7490;
+  --sidebar-border: #BAE6FD;
+  --sidebar-ring: #06B6D4;
+}
+
+html.dark[data-theme='newyear'] {
+  --background: #0B1121;
+  /* Deepest icy blue/black */
+  --foreground: #F0F9FF;
+  /* Ice White */
+  --card: #162032;
+  /* Dark glass-like blue */
+  --card-foreground: #F0F9FF;
+  --popover: #162032;
+  --popover-foreground: #F0F9FF;
+  --primary: #22D3EE;
+  /* Cyan 400 - Neon Ice */
+  --primary-foreground: #083344;
+  --secondary: #334155;
+  /* Slate 700 */
+  --secondary-foreground: #F0F9FF;
+  --accent: #164E63;
+  /* Cyan 900 */
+  --accent-foreground: #22D3EE;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --border: #1E293B;
+  /* Subtle dark border */
+  --input: #1E293B;
+  --ring: #22D3EE;
+
+  --sidebar: #080D1A;
+  /* Dark Ice */
+  --sidebar-foreground: #F0F9FF;
+  --sidebar-primary: #22D3EE;
+  --sidebar-primary-foreground: #083344;
+  --sidebar-accent: #162032;
+  --sidebar-accent-foreground: #F0F9FF;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #22D3EE;
+}
+
+html[data-theme='newyear'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
