@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 const THEME_MODE_KEY = 'hrms_theme_mode';
 const CUSTOM_THEME_KEY = 'hrms_custom_theme';
@@ -10,6 +10,48 @@ export const ThemeProvider = ({ children }) => {
   const [customTheme, setCustomTheme] = useState('default'); // 'default', 'christmas', 'ocean', 'forest'
 
   // Initialize themes from localStorage
+  // 1. applyTheme - Memoized
+  const applyTheme = useCallback((mode, custom) => {
+    const root = window.document.documentElement;
+    root.classList.remove('dark', 'light');
+
+    const isDark = mode === 'dark' ||
+                   (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    root.classList.add(isDark ? 'dark' : 'light');
+
+    if (custom && custom !== 'default') {
+      root.setAttribute('data-theme', custom);
+    } else {
+      root.removeAttribute('data-theme');
+    }
+  }, []);
+
+  // 2. State Updaters - Memoized
+  const updateThemeMode = useCallback((newMode) => {
+    setThemeMode(newMode);
+    localStorage.setItem(THEME_MODE_KEY, newMode);
+    applyTheme(newMode, customTheme);
+  }, [customTheme, applyTheme]);
+
+  const updateCustomTheme = useCallback((newCustom) => {
+    setCustomTheme(newCustom);
+    localStorage.setItem(CUSTOM_THEME_KEY, newCustom);
+    applyTheme(themeMode, newCustom);
+  }, [themeMode, applyTheme]);
+
+  const toggleTheme = useCallback(() => {
+    // If currently 'system', we switch to explicit 'dark' or 'light'
+    // based on what it currently looks like? Or just default behavior.
+    // Original logic: themeMode === 'dark' ? 'light' : 'dark'
+    // If system (effectively light), we go dark.
+    // If system (effectively dark), we go dark (since themeMode != dark). 
+    // This seems biased to dark, but keeping original logic for consistency.
+    const newMode = themeMode === 'dark' ? 'light' : 'dark';
+    updateThemeMode(newMode);
+  }, [themeMode, updateThemeMode]);
+
+  // 3. Init Effect
   useEffect(() => {
     const savedMode = localStorage.getItem(THEME_MODE_KEY) || 'system';
     const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY) || 'default';
@@ -17,97 +59,44 @@ export const ThemeProvider = ({ children }) => {
     setThemeMode(savedMode);
     setCustomTheme(savedCustom);
     applyTheme(savedMode, savedCustom);
-  }, []);
+  }, [applyTheme]);
 
-  const applyTheme = (mode, custom) => {
-    const root = window.document.documentElement;
-
-    // Remove existing dark/light classes
-    root.classList.remove('dark', 'light');
-
-    // Determine if dark mode should be active
-    const isDark = mode === 'dark' ||
-                   (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    // Apply dark/light class
-    root.classList.add(isDark ? 'dark' : 'light');
-
-    // Apply custom theme data attribute
-    if (custom && custom !== 'default') {
-      root.setAttribute('data-theme', custom);
-    } else {
-      root.removeAttribute('data-theme');
-    }
-  };
-
-  // Update theme mode (light/dark/system)
-  const updateThemeMode = (newMode) => {
-    setThemeMode(newMode);
-    localStorage.setItem(THEME_MODE_KEY, newMode);
-    applyTheme(newMode, customTheme);
-  };
-
-  // Update custom theme (default/christmas/ocean/forest)
-  const updateCustomTheme = (newCustom) => {
-    setCustomTheme(newCustom);
-    localStorage.setItem(CUSTOM_THEME_KEY, newCustom);
-    applyTheme(themeMode, newCustom);
-  };
-
-  // Toggle between light and dark (keeping custom theme)
-  const toggleTheme = () => {
-    const newMode = themeMode === 'dark' ? 'light' : 'dark';
-    updateThemeMode(newMode);
-  };
-
-  // Listen for system theme changes
+  // 4. System Theme Listener
   useEffect(() => {
     if (themeMode !== 'system') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handleChange = () => {
-      applyTheme('system', customTheme);
-    };
+    const handleChange = () => applyTheme('system', customTheme);
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [themeMode, customTheme]);
+  }, [themeMode, customTheme, applyTheme]);
 
-  // Auto-detect seasonal themes (optional feature)
+  // 5. Auto Seasonal Theme
   useEffect(() => {
     const now = new Date();
-    const month = now.getMonth(); // 0-11
+    const month = now.getMonth();
     const day = now.getDate();
 
-    // Check if we should auto-apply seasonal themes
-    // We act if the current theme is 'default' OR if it was previously auto-set to 'christmas'
     const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY);
-    
-    // allow overriding 'christmas' during New Year period since it might have been auto-set
     const isDefaultOrChristmas = !savedCustom || savedCustom === 'default' || savedCustom === 'christmas';
     const shouldAutoApply = customTheme === 'default' || (customTheme === 'christmas' && isDefaultOrChristmas);
 
     if (shouldAutoApply) {
       const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
       if (autoSeasonalEnabled) {
-        // December: Christmas (1-25) -> New Year (26-31)
-        if (month === 11) {
+        if (month === 11) { // December
           if (day > 25) {
-             // If we are in New Year period, only override if current is not already newyear (and is default/christmas)
              if (customTheme !== 'newyear') updateCustomTheme('newyear');
           } else {
-             // Before Dec 25, ensure it matches christmas if it was default
              if (savedCustom === 'default' && customTheme !== 'christmas') updateCustomTheme('christmas');
           }
-        } 
-        // January: New Year
-        else if (month === 0) {
+        } else if (month === 0) { // January
            if (customTheme !== 'newyear') updateCustomTheme('newyear');
         }
       }
     }
-  }, [customTheme]); // Run when customTheme changes to ensure proper override check, guards prevent loops
+  }, [customTheme, updateCustomTheme]);
 
   return (
     <ThemeContext.Provider value={{
