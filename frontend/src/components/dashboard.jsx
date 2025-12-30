@@ -14,6 +14,8 @@ import PresentEmployeesModal from "./PresentEmployeesModal.jsx";
 import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal.jsx";
 import DebugUtils from "../utils/debugUtils.js";
 import { formatDate } from '../utils/istUtils';
+import NewYearBanner from './ui/NewYearBanner';
+
 import ChristmasBanner from './ui/ChristmasBanner';
 
 // Lazy load dashboard components for better performance
@@ -1198,6 +1200,7 @@ export default function HRMSDashboard() {
     <div className="bg-background text-foreground min-h-screen">
       <div className="flex flex-col h-full">
         <ChristmasBanner username={employeeFirstName} />
+        <NewYearBanner username={employeeFirstName} />
         <Header
           username={username}
           isCheckedIn={isCheckedIn}

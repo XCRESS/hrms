@@ -154,3 +154,28 @@ export const generateEmployeeGreeting = async (name) => {
   }
   */
 };
+
+const NEW_YEAR_RESOLUTIONS = [
+  "This year, I will master a new coding language and drink 20% more water! 💧💻",
+  "My goal: Fix more bugs than I create, and take more scenic walks. 🐛🚶",
+  "To optimize my workflow and finally organize my desktop icons! 📂✨",
+  "I resolve to comment my code better and automate the boring stuff. 🤖📝",
+  "This year, I'll balance high-performance coding with high-quality sleep! 😴⚡"
+];
+
+/**
+ * Generate a New Year Resolution
+ */
+export const generateNewYearResolution = async (name) => {
+  const resolution = NEW_YEAR_RESOLUTIONS[Math.floor(Math.random() * NEW_YEAR_RESOLUTIONS.length)];
+
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  return resolution;
+  
+  /* 
+   * Real AI Integration Placeholder:
+   * Prompt: Write a witty, tech-themed New Year resolution for ${name}. Keep it short, fun, and motivating.
+   */
+};
