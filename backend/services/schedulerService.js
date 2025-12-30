@@ -439,9 +439,9 @@ class SchedulerService {
           failedCount++;
         }
 
-        // Rate limiting: 600ms between emails
+        // Rate limiting: 1000ms between emails (Resend limit: 2 req/sec)
         if (sentCount + failedCount < hrEmails.length) {
-          await new Promise(resolve => setTimeout(resolve, 600));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
