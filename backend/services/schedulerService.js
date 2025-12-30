@@ -78,18 +78,18 @@ class SchedulerService {
 
   async checkHolidayReminders() {
     try {
-      console.log('Checking for holiday reminders...');
+      const nowIST = getISTNow();
+      console.log(`[Scheduler] Holiday reminder check started | Time: ${nowIST.format('YYYY-MM-DD HH:mm:ss Z')}`);
 
       const settings = await Settings.getGlobalSettings();
       if (!settings.notifications.holidayReminderEnabled) {
-        console.log('Holiday reminders are disabled');
+        console.log('[Scheduler] Holiday reminders disabled');
         return;
       }
 
       const reminderDays = settings.notifications.holidayReminderDays;
 
       // Use IST timezone utilities
-      const nowIST = getISTNow();
       const reminderDateIST = nowIST.clone().add(reminderDays, 'days').startOf('day');
       const nextDayIST = reminderDateIST.clone().add(1, 'day');
 
@@ -97,7 +97,7 @@ class SchedulerService {
       const reminderDate = reminderDateIST.toDate();
       const nextDay = nextDayIST.toDate();
 
-      console.log(`Looking for holidays on ${reminderDateIST.format('YYYY-MM-DD')} (IST)`);
+      console.log(`[Scheduler] Query: date >= ${reminderDate.toISOString()} AND date < ${nextDay.toISOString()} | reminderDays: ${reminderDays}`);
 
       const holidays = await Holiday.find({
         date: {
@@ -106,12 +106,13 @@ class SchedulerService {
         }
       });
 
-      for (const holiday of holidays) {
-        console.log(`Sending holiday reminder for: ${holiday.title}`);
+      console.log(`[Scheduler] Found ${holidays.length} holiday(s) for ${reminderDateIST.format('YYYY-MM-DD')}`);
 
-        // Format date properly in IST
+      for (const holiday of holidays) {
         const holidayDateIST = toIST(holiday.date);
         const formattedDate = holidayDateIST.format('dddd, MMMM D, YYYY');
+
+        console.log(`[Scheduler] Sending: ${holiday.title} | Date: ${holiday.date.toISOString()} | Formatted: ${formattedDate}`);
 
         await NotificationService.notifyAllEmployees('holiday_reminder', {
           title: holiday.title,
@@ -122,10 +123,10 @@ class SchedulerService {
       }
 
       if (holidays.length > 0) {
-        console.log(`Sent ${holidays.length} holiday reminder(s)`);
+        console.log(`[Scheduler] Holiday reminders sent: ${holidays.length}`);
       }
     } catch (error) {
-      console.error('Error checking holiday reminders:', error);
+      console.error('[Scheduler] Holiday reminder error:', error.message);
     }
   }
 
