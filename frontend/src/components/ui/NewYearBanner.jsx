@@ -15,7 +15,7 @@ const NEW_YEAR_WISHES = [
  * Premium New Year Banner
  * Design: "Midnight Gala" - Deep Blue/Gold/Cyan aesthetics with elegant particles.
  */
-const NewYearBanner = ({ username = 'Team' }) => {
+const NewYearBanner = () => {
   const canvasRef = useRef(null);
   const [wishIndex, setWishIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -172,8 +172,9 @@ const NewYearBanner = ({ username = 'Team' }) => {
              </h2>
              
              {/* Rotating Wish - Fixed Height container to prevent jumping */}
-             <div className="h-6 mt-2 flex items-center justify-center md:justify-start overflow-hidden">
-                <p key={wishIndex} className="text-cyan-100/90 text-sm md:text-base font-medium animate-fade-in truncate">
+             {/* Rotating Wish - Adaptive height to prevent jumping but allow wrapping */}
+             <div className="min-h-[3.5rem] md:min-h-[1.75rem] mt-2 flex items-center justify-center md:justify-start">
+                <p key={wishIndex} className="text-cyan-100/90 text-sm md:text-base font-medium animate-fade-in leading-snug md:leading-normal max-w-[90%] md:max-w-none mx-auto md:mx-0">
                   {NEW_YEAR_WISHES[wishIndex]}
                 </p>
              </div>
