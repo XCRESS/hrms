@@ -79,7 +79,7 @@ class SchedulerService {
   async checkHolidayReminders() {
     try {
       console.log('Checking for holiday reminders...');
-      
+
       const settings = await Settings.getGlobalSettings();
       if (!settings.notifications.holidayReminderEnabled) {
         console.log('Holiday reminders are disabled');
@@ -87,13 +87,17 @@ class SchedulerService {
       }
 
       const reminderDays = settings.notifications.holidayReminderDays;
-      const reminderDate = new Date();
-      reminderDate.setDate(reminderDate.getDate() + reminderDays);
 
-      // Reset time to start of day for accurate comparison
-      reminderDate.setHours(0, 0, 0, 0);
-      const nextDay = new Date(reminderDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+      // Use IST timezone utilities
+      const nowIST = getISTNow();
+      const reminderDateIST = nowIST.clone().add(reminderDays, 'days').startOf('day');
+      const nextDayIST = reminderDateIST.clone().add(1, 'day');
+
+      // Convert to JavaScript Date for MongoDB query
+      const reminderDate = reminderDateIST.toDate();
+      const nextDay = nextDayIST.toDate();
+
+      console.log(`Looking for holidays on ${reminderDateIST.format('YYYY-MM-DD')} (IST)`);
 
       const holidays = await Holiday.find({
         date: {
@@ -104,10 +108,14 @@ class SchedulerService {
 
       for (const holiday of holidays) {
         console.log(`Sending holiday reminder for: ${holiday.title}`);
-        
+
+        // Format date properly in IST
+        const holidayDateIST = toIST(holiday.date);
+        const formattedDate = holidayDateIST.format('dddd, MMMM D, YYYY');
+
         await NotificationService.notifyAllEmployees('holiday_reminder', {
           title: holiday.title,
-          date: holiday.date.toDateString(),
+          date: formattedDate,
           isOptional: holiday.isOptional,
           description: holiday.description
         });
