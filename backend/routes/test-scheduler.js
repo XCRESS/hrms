@@ -8,12 +8,12 @@ import Holiday from '../models/Holiday.model.js';
 import Settings from '../models/Settings.model.js';
 import schedulerService from '../services/schedulerService.js';
 import { parseISTDateString, getISTDayBoundaries, momentToDate, getISTNow } from '../utils/timezoneUtils.js';
-import { authenticate, authorizeRoles } from '../middlewares/auth.middlewares.js';
+import authMiddleware from '../middlewares/auth.middlewares.js';
 
 const router = express.Router();
 
 // ADMIN ONLY - Test scheduler endpoint
-router.post('/trigger-holiday-test', authenticate, authorizeRoles('admin'), async (req, res) => {
+router.post('/trigger-holiday-test', authMiddleware(['admin']), async (req, res) => {
   let testHolidayId = null;
   let originalHrEmails = null;
 
