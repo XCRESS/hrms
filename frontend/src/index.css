@@ -147,6 +147,258 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Custom Themes - Refined Premium Palettes with Dark Mode Support */
+
+/* =========================================
+   CHRISTMAS THEME
+   Light: Snow White, Cardinal Red, Pine Green (High Key)
+   Dark: Soft Cocoa, Ruby, Gold (Low Key)
+   ========================================= */
+html[data-theme='christmas'] {
+  --background: #FFFAFA;
+  /* Snow White */
+  --foreground: #2D2A26;
+  /* Warm Charcoal */
+  --card: #FFFFFF;
+  /* Pure White */
+  --card-foreground: #2D2A26;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D2A26;
+  --primary: #DC2626;
+  /* Red 600 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #15803D;
+  /* Green 700 */
+  --secondary-foreground: #FFFFFF;
+  --accent: #F59E0B;
+  /* Amber 500 */
+  --accent-foreground: #2D2A26;
+  --muted: #FEF2F2;
+  /* Red 50 */
+  --muted-foreground: #7F1D1D;
+  --border: #FECACA;
+  /* Red 200 */
+  --input: #FECACA;
+  --ring: #DC2626;
+
+  --sidebar: #FEF2F2;
+  /* Pale Red sidebar (Light) */
+  --sidebar-foreground: #7F1D1D;
+  --sidebar-primary: #DC2626;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FEE2E2;
+  --sidebar-accent-foreground: #7F1D1D;
+  --sidebar-border: #FEE2E2;
+  --sidebar-ring: #DC2626;
+}
+
+html.dark[data-theme='christmas'] {
+  --background: #2C1810;
+  /* Dark Warm Cocoa (Softer than black) */
+  --foreground: #FDE8E8;
+  /* Weak Red White */
+  --card: #452821;
+  /* Lighter Cocoa */
+  --card-foreground: #FDE8E8;
+  --popover: #452821;
+  --popover-foreground: #FDE8E8;
+  --primary: #EF4444;
+  /* Red 500 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #22C55E;
+  /* Green 500 */
+  --secondary-foreground: #FFFFFF;
+  --accent: #FBBF24;
+  /* Amber 400 */
+  --accent-foreground: #000000;
+  --muted: #452821;
+  --muted-foreground: #D1A0A0;
+  --border: #5C3A32;
+  --input: #5C3A32;
+  --ring: #EF4444;
+
+  --sidebar: #1F100B;
+  /* Darker Cocoa */
+  --sidebar-foreground: #FDE8E8;
+  --sidebar-primary: #EF4444;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #452821;
+  --sidebar-accent-foreground: #FDE8E8;
+  --sidebar-border: #452821;
+  --sidebar-ring: #EF4444;
+}
+
+/* =========================================
+   OCEAN THEME
+   Light: White, Sky Blue, Cyan (High Key)
+   Dark: Slate, Electric Blue, Indigo (Low Key)
+   ========================================= */
+html[data-theme='ocean'] {
+  --background: #FFFFFF;
+  /* Pure White */
+  --foreground: #0F172A;
+  /* Slate 900 */
+  --card: #F0F9FF;
+  /* Alice Blue Card */
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #0EA5E9;
+  /* Sky 500 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #06B6D4;
+  /* Cyan 500 */
+  --secondary-foreground: #FFFFFF;
+  --accent: #E0F2FE;
+  /* Sky 100 */
+  --accent-foreground: #0F172A;
+  --muted: #F1F5F9;
+  /* Slate 100 */
+  --muted-foreground: #64748B;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0EA5E9;
+
+  --sidebar: #F8FAFC;
+  /* Light Blue-Grey sidebar */
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #0EA5E9;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E2E8F0;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #0EA5E9;
+}
+
+html.dark[data-theme='ocean'] {
+  --background: #0F172A;
+  /* Slate 900 (Standard Dark) */
+  --foreground: #F1F5F9;
+  /* Slate 100 */
+  --card: #1E293B;
+  /* Slate 800 */
+  --card-foreground: #F1F5F9;
+  --popover: #1E293B;
+  --popover-foreground: #F1F5F9;
+  --primary: #38BDF8;
+  /* Sky 400 */
+  --primary-foreground: #0F172A;
+  --secondary: #22D3EE;
+  /* Cyan 400 */
+  --secondary-foreground: #0F172A;
+  --accent: #1E293B;
+  --accent-foreground: #38BDF8;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --border: #334155;
+  /* Slate 700 */
+  --input: #334155;
+  --ring: #38BDF8;
+
+  --sidebar: #020617;
+  /* Slate 950 */
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #38BDF8;
+  --sidebar-primary-foreground: #0F172A;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #38BDF8;
+}
+
+/* =========================================
+   FOREST THEME
+   Light: Mint White, Emerald, Sage (High Key)
+   Dark: Deep Moss, Vivid Green, Earth (Low Key)
+   ========================================= */
+html[data-theme='forest'] {
+  --background: #F2FDF4;
+  /* Very Light Mint */
+  --foreground: #022C22;
+  /* Darkest Green (Main Text) - Fixed readability */
+  --card: #FFFFFF;
+  --card-foreground: #022C22;
+  --popover: #FFFFFF;
+  --popover-foreground: #022C22;
+  --primary: #16A34A;
+  /* Green 600 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #CA8A04;
+  /* Yellow 600 */
+  --secondary-foreground: #FFFFFF;
+  --accent: #DCFCE7;
+  /* Green 100 */
+  --accent-foreground: #022C22;
+  --muted: #F0FDF4;
+  --muted-foreground: #3F6212;
+  /* Dark Olive (Secondary Text) - Fixed too light issue */
+  --border: #BBF7D0;
+  /* Green 200 */
+  --input: #BBF7D0;
+  --ring: #16A34A;
+
+  --sidebar: #FFFFFF;
+  /* White sidebar with green tint border */
+  --sidebar-foreground: #022C22;
+  --sidebar-primary: #16A34A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F0FDF4;
+  --sidebar-accent-foreground: #166534;
+  --sidebar-border: #DCFCE7;
+  --sidebar-ring: #16A34A;
+}
+
+html.dark[data-theme='forest'] {
+  --background: #101610;
+  /* Deep Dark Moss (Not black) */
+  --foreground: #ECFCCB;
+  /* Pale Lime */
+  --card: #1A221A;
+  /* Lighter Moss */
+  --card-foreground: #ECFCCB;
+  --popover: #1A221A;
+  --popover-foreground: #ECFCCB;
+  --primary: #4ADE80;
+  /* Green 400 */
+  --primary-foreground: #022C22;
+  --secondary: #FACC15;
+  /* Yellow 400 */
+  --secondary-foreground: #022C22;
+  --accent: #1A221A;
+  --accent-foreground: #4ADE80;
+  --muted: #1A221A;
+  --muted-foreground: #86EFAC;
+  --border: #263c26;
+  --input: #263c26;
+  --ring: #4ADE80;
+
+  --sidebar: #0B120B;
+  /* Darkest Moss */
+  --sidebar-foreground: #ECFCCB;
+  --sidebar-primary: #4ADE80;
+  --sidebar-primary-foreground: #022C22;
+  --sidebar-accent: #1A221A;
+  --sidebar-accent-foreground: #ECFCCB;
+  --sidebar-border: #1A221A;
+  --sidebar-ring: #4ADE80;
+}
+
+/* Force body background application for custom themes to resolve specificity issues */
+html[data-theme='christmas'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+html[data-theme='ocean'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+html[data-theme='forest'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
