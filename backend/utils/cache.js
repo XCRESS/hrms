@@ -145,12 +145,10 @@ class SimpleCache {
     // Try to get from cache first
     const cached = this.get(key);
     if (cached !== null) {
-      console.log(`🎯 Cache HIT: ${key}`);
       return cached;
     }
 
     // Cache miss - execute function and cache result
-    console.log(`❌ Cache MISS: ${key}`);
     try {
       const result = await asyncFn();
       this.set(key, result, ttl);
