@@ -1,0 +1,217 @@
+/**
+ * Simple In-Memory Cache
+ * Type-safe caching for API responses with TTL support
+ *
+ * Usage:
+ * - Holiday data (changes infrequently) - 1 hour TTL
+ * - Employee basic info - 10 minutes TTL
+ * - Working day calculations - 1 hour TTL
+ */
+
+import logger from './logger.js';
+
+interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+  ttl: number;
+}
+
+/**
+ * Simple cache class with TTL support
+ */
+class SimpleCache {
+  private cache: Map<string, CacheEntry<unknown>>;
+  private timers: Map<string, NodeJS.Timeout>;
+  private cleanupInterval: NodeJS.Timeout;
+
+  constructor() {
+    this.cache = new Map();
+    this.timers = new Map();
+
+    // Clean up expired entries every 10 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, 10 * 60 * 1000);
+  }
+
+  /**
+   * Set a cache entry with TTL (time to live)
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param ttl - Time to live in milliseconds (default: 5 minutes)
+   */
+  set<T>(key: string, value: T, ttl: number = 5 * 60 * 1000): void {
+    // Clear existing timer if it exists
+    const existingTimer = this.timers.get(key);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Set the cache entry
+    this.cache.set(key, {
+      value,
+      timestamp: Date.now(),
+      ttl,
+    });
+
+    // Set expiration timer
+    const timer = setTimeout(() => {
+      this.cache.delete(key);
+      this.timers.delete(key);
+    }, ttl);
+
+    this.timers.set(key, timer);
+  }
+
+  /**
+   * Get a cache entry
+   * @param key - Cache key
+   * @returns Cached value or null if expired/not found
+   */
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+
+    if (!entry) {
+      return null;
+    }
+
+    // Check if entry has expired
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.delete(key);
+      return null;
+    }
+
+    return entry.value as T;
+  }
+
+  /**
+   * Check if a key exists and is not expired
+   * @param key - Cache key
+   * @returns True if key exists and is valid
+   */
+  has(key: string): boolean {
+    return this.get(key) !== null;
+  }
+
+  /**
+   * Delete a cache entry
+   * @param key - Cache key
+   */
+  delete(key: string): void {
+    const timer = this.timers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(key);
+    }
+    this.cache.delete(key);
+  }
+
+  /**
+   * Clear all cache entries
+   */
+  clear(): void {
+    // Clear all timers
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+
+    this.cache.clear();
+    this.timers.clear();
+  }
+
+  /**
+   * Get cache statistics
+   * @returns Cache statistics object
+   */
+  getStats(): {
+    size: number;
+    keys: string[];
+    memory: number;
+  } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys()),
+      memory: this.cache.size * 1024, // Rough estimate in bytes
+    };
+  }
+
+  /**
+   * Clean up expired entries
+   */
+  cleanup(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        expiredKeys.push(key);
+      }
+    }
+
+    expiredKeys.forEach((key) => this.delete(key));
+
+    if (expiredKeys.length > 0) {
+      logger.info(`🧹 Cache cleanup: removed ${expiredKeys.length} expired entries`);
+    }
+  }
+
+  /**
+   * Wrapper for async functions with caching
+   * @param key - Cache key
+   * @param asyncFn - Async function to cache
+   * @param ttl - Time to live in milliseconds (default: 5 minutes)
+   * @returns Cached or fresh result
+   */
+  async getOrSet<T>(
+    key: string,
+    asyncFn: () => Promise<T>,
+    ttl: number = 5 * 60 * 1000
+  ): Promise<T> {
+    // Try to get from cache first
+    const cached = this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Cache miss - execute function and cache result
+    try {
+      const result = await asyncFn();
+      this.set(key, result, ttl);
+      return result;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Unknown error');
+      logger.error({ err, key }, `Cache error for key ${key}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup on shutdown
+   */
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+    this.clear();
+  }
+}
+
+// Create singleton instance
+const cache = new SimpleCache();
+
+/**
+ * Cache TTL constants for different data types
+ */
+export const TTL = {
+  HOLIDAYS: 60 * 60 * 1000, // 1 hour (holidays change infrequently)
+  EMPLOYEES: 10 * 60 * 1000, // 10 minutes (reasonable balance)
+  WORKING_DAYS: 60 * 60 * 1000, // 1 hour (working day calculation)
+  ATTENDANCE_SUMMARY: 2 * 60 * 1000, // 2 minutes (frequent but not excessive)
+  USER_PROFILE: 30 * 60 * 1000, // 30 minutes (user profile changes occasionally)
+  DASHBOARD_STATS: 2 * 60 * 1000, // 2 minutes (dashboard data changes frequently)
+} as const;
+
+/**
+ * Type for cache TTL keys
+ */
+export type CacheTTLKey = keyof typeof TTL;
+
+export default cache;
