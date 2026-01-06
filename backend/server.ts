@@ -10,6 +10,9 @@ import logger from "./utils/logger.js";
 dotenv.config();
 const app = express();
 
+// Trust proxy - Required when behind reverse proxy (Railway, Render, nginx, etc.)
+app.set('trust proxy', 1);
+
 // Security middleware - Helmet
 app.use(helmet({
   contentSecurityPolicy: {
