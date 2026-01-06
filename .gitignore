@@ -27,3 +27,5 @@ test_output.txt
 docs/_build/
 # Ignore configuration files
 config.yaml
+# Ignore nul files
+nul
