@@ -53,7 +53,7 @@ export const createOrUpdateSalarySlip = async (req: IAuthRequest, res: Response)
       },
       taxRegime,
       enableTaxDeduction,
-      createdBy: req.user._id
+      createdBy: req.user.userId
     };
 
     const existingSalarySlip = await SalarySlip.findOne({ employee: employee._id, month, year });

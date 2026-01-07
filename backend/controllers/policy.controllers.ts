@@ -51,8 +51,8 @@ export const createPolicy = async (req: IAuthRequest, res: Response): Promise<vo
       acknowledgmentRequired: acknowledgmentRequired || false,
       targetAudience: targetAudience || 'All Employees',
       attachments: attachments || [],
-      createdBy: req.user._id,
-      lastUpdatedBy: req.user._id
+      createdBy: req.user.userId,
+      lastUpdatedBy: req.user.userId
     };
 
     const policy = new Policy(policyData);
@@ -200,7 +200,7 @@ export const updatePolicy = async (req: IAuthRequest, res: Response): Promise<vo
       return;
     }
 
-    updateData.lastUpdatedBy = req.user._id;
+    updateData.lastUpdatedBy = req.user.userId;
 
     const existingPolicy = await Policy.findById(id);
     if (!existingPolicy) {
@@ -248,7 +248,7 @@ export const deletePolicy = async (req: IAuthRequest, res: Response): Promise<vo
       id,
       {
         isActive: false,
-        lastUpdatedBy: req.user._id
+        lastUpdatedBy: req.user.userId
       },
       { new: true }
     );

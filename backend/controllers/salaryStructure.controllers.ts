@@ -50,7 +50,7 @@ export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Resp
         mobileAllowance: earnings.mobileAllowance || 0
       },
       isActive: true,
-      lastUpdatedBy: req.user._id
+      lastUpdatedBy: req.user.userId
     };
 
     logger.info({
@@ -73,7 +73,7 @@ export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Resp
       logger.info('createOrUpdateSalaryStructure: Creating new structure');
       const newStructureData = {
         ...structureData,
-        createdBy: req.user._id
+        createdBy: req.user.userId
       };
       salaryStructure = new SalaryStructure(newStructureData);
       await salaryStructure.save();
@@ -258,7 +258,7 @@ export const deleteSalaryStructure = async (req: IAuthRequest, res: Response): P
       { employee: employee._id },
       {
         isActive: false,
-        lastUpdatedBy: req.user._id
+        lastUpdatedBy: req.user.userId
       },
       { new: true }
     );

@@ -35,11 +35,11 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
       return;
     }
 
-    logger.info({ userId: req.user._id, email: req.user.email, role: req.user.role }, 'submitTaskReport: User found');
+    logger.info({ userId: req.user.userId, email: req.user.email, role: req.user.role }, 'submitTaskReport: User found');
 
     const employeeObjId = await getEmployeeObjectId(req.user);
     if (!employeeObjId) {
-      logger.error({ userId: req.user._id, employeeId: req.user.employeeId, employee: req.user.employee }, 'submitTaskReport: No employee ObjectId found for user');
+      logger.error({ userId: req.user.userId, employeeId: req.user.employeeId }, 'submitTaskReport: No employee ObjectId found for user');
       res.status(400).json(formatResponse(false, 'No linked employee profile found for user'));
       return;
     }

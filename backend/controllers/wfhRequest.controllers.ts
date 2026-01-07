@@ -295,7 +295,7 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
     request.status = status as WFHStatus;
     request.reviewComment = reviewComment;
     request.reviewedAt = new Date();
-    request.approvedBy = req.user._id;
+    request.approvedBy = req.user.userId;
     await request.save();
 
     if (status === 'approved') {

@@ -43,8 +43,8 @@ export const submitInquiry = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const inquiry = await Help.create({
-      userId: req.user._id,
-      employee: req.user._id,
+      userId: req.user.userId,
+      employee: req.user.userId,
       employeeName: req.user.name,
       subject,
       description,
@@ -53,7 +53,7 @@ export const submitInquiry = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     // Get user information for notification
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.userId);
 
     // Trigger notification to HR
     NotificationService.notifyHR('help_request', {
@@ -90,7 +90,7 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const inquiries = await Help.find({ userId: req.user.userId }).sort({ createdAt: -1 });
 
     res.json(formatResponse(true, 'Inquiries retrieved successfully', { inquiries }));
   } catch (err) {
@@ -150,7 +150,7 @@ export const updateInquiry = async (req: AuthRequest, res: Response): Promise<vo
     if (status) inquiry.status = status;
     if (response && req.user) {
       inquiry.response = response;
-      inquiry.respondedBy = req.user._id;
+      inquiry.respondedBy = req.user.userId;
     }
 
     await inquiry.save();

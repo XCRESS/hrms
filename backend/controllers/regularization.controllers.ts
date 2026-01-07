@@ -111,14 +111,14 @@ export const requestRegularization = async (req: IAuthRequest, res: Response): P
 
     const reg = await RegularizationRequest.create({
       employeeId: user.employeeId,
-      user: user._id,
+      user: user.userId,
       date: dateIST,
       requestedCheckIn: requestedCheckInIST,
       requestedCheckOut: requestedCheckOutIST,
       reason
     });
 
-    const userInfo = await User.findById(user._id);
+    const userInfo = await User.findById(user.userId);
 
     NotificationService.notifyHR('regularization_request', {
       employee: userInfo ? userInfo.name : 'Unknown User',
@@ -211,7 +211,7 @@ export const reviewRegularization = async (req: IAuthRequest, res: Response): Pr
     }
 
     reg.status = status as RegularizationStatus;
-    reg.reviewedBy = req.user._id;
+    reg.reviewedBy = req.user.userId;
     reg.reviewComment = reviewComment || '';
     await reg.save();
 

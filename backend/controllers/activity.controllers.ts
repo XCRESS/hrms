@@ -83,7 +83,7 @@ export const getActivityFeed = async (req: AuthRequest, res: Response): Promise<
     // 3. User's approved/rejected regularization requests
     activityPromises.push(
       Regularization.find({
-        user: user._id,
+        user: user.userId,
         status: { $in: ['approved', 'rejected'] },
       })
         .sort({ updatedAt: -1 })
