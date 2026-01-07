@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import type { Types } from 'mongoose';
 import type { IJWTPayload, IPaginationQuery } from '../types/index.js';
 import Employee from '../models/Employee.model.js';
@@ -18,8 +19,8 @@ export async function getEmployeeObjectId(
   user: IJWTPayload
 ): Promise<Types.ObjectId | null> {
   if (user.employee) {
-    // If employee is already an ObjectId, return it
-    return user.employee as Types.ObjectId;
+    // Employee in JWT is stored as string, convert to ObjectId
+    return new mongoose.Types.ObjectId(user.employee);
   }
 
   if (user.employeeId) {

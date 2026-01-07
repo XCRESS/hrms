@@ -123,3 +123,52 @@ export function isTokenExpired(token: string): boolean {
     return true;
   }
 }
+
+/**
+ * Generate token from User document
+ * @param user - User document from database
+ * @param expiresIn - Token expiration time (default: "7d")
+ * @returns Signed JWT token with user data
+ */
+export function generateTokenFromUser(
+  user: {
+    _id: { toString(): string };
+    name: string;
+    email: string;
+    role: string;
+    employee?: { toString(): string } | null;
+    employeeId?: string;
+  },
+  expiresIn: string = '7d'
+): string {
+  const payload: Omit<IJWTPayload, 'iat' | 'exp'> = {
+    userId: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role as any,
+    employee: user.employee?.toString(),
+    employeeId: user.employeeId,
+  };
+
+  return generateToken(payload, expiresIn);
+}
+
+/**
+ * Regenerate token with updated user data
+ * Used when user profile is updated (name, email, role, etc.)
+ * @param userId - User ID to fetch fresh data for
+ * @returns New JWT token with fresh user data
+ */
+export async function regenerateTokenForUser(userId: string): Promise<string> {
+  const User = (await import('../models/User.model.js')).default;
+  
+  const user = await User.findById(userId)
+    .select('_id name email role employee employeeId')
+    .lean();
+
+  if (!user) {
+    throw new AuthenticationError('User not found');
+  }
+
+  return generateTokenFromUser(user);
+}

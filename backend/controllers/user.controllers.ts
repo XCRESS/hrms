@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
-import { generateToken } from '../utils/jwt.js';
+import { generateTokenFromUser } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import type { IAuthRequest } from '../types/index.js';
@@ -68,28 +68,9 @@ export const login = asyncHandler(async (req: IAuthRequest, res: Response) => {
     throw new ValidationError('Invalid credentials');
   }
 
-  const tokenPayload: {
-    id: unknown;
-    role: string;
-    name: string;
-    email: string;
-    employee?: unknown;
-    employeeId?: string;
-  } = {
-    id: user._id,
-    role: user.role,
-    name: user.name,
-    email: user.email
-  };
+  // Generate token with all user data
+  const token = generateTokenFromUser(user);
 
-  if (user.employee) {
-    tokenPayload.employee = user.employee;
-  }
-  if (user.employeeId) {
-    tokenPayload.employeeId = user.employeeId;
-  }
-
-  const token = generateToken(tokenPayload);
   res.json({ success: true, message: 'Login successful', token });
 });
 
