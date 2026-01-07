@@ -1,13 +1,11 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import Announcement from '../models/Announcement.model.js';
 import Leave from '../models/Leave.model.js';
 import Regularization from '../models/Regularization.model.js';
-import type { IUser } from '../types/index.js';
+import type { IAuthRequest } from '../types/index.js';
 import logger from '../utils/logger.js';
 
-interface AuthRequest extends Request {
-  user?: IUser;
-}
+type AuthRequest = IAuthRequest;
 
 interface Activity {
   id: string;
@@ -83,7 +81,7 @@ export const getActivityFeed = async (req: AuthRequest, res: Response): Promise<
     // 3. User's approved/rejected regularization requests
     activityPromises.push(
       Regularization.find({
-        user: user.userId,
+        user: user._id,
         status: { $in: ['approved', 'rejected'] },
       })
         .sort({ updatedAt: -1 })

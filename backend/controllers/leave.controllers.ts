@@ -21,17 +21,11 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
     throw new ValidationError('Authentication required');
   }
 
-  const user = await User.findById(req.user.id);
-
-  if (!user) {
-    throw new NotFoundError('User not found');
-  }
-
-  if (!user.employeeId || typeof user.employeeId !== 'string' || user.employeeId.trim() === '') {
+  if (!req.user.employeeId || typeof req.user.employeeId !== 'string' || req.user.employeeId.trim() === '') {
     throw new ValidationError('You must be linked to an employee profile to request leave. Please contact HR.');
   }
 
-  const employee = await Employee.findOne({ employeeId: user.employeeId });
+  const employee = await Employee.findOne({ employeeId: req.user.employeeId });
   if (!employee) {
     throw new NotFoundError('Employee profile not found');
   }
@@ -46,8 +40,8 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
   });
 
   NotificationService.notifyHR('leave_request', {
-    employee: user.name,
-    employeeId: user.employeeId,
+    employee: req.user.name,
+    employeeId: req.user.employeeId,
     type: leaveType,
     date: startDate,
     reason
@@ -68,17 +62,11 @@ export const getMyLeaves = asyncHandler(async (req: IAuthRequest, res: Response)
     throw new ValidationError('Authentication required');
   }
 
-  const user = await User.findById(req.user.id);
-
-  if (!user) {
-    throw new NotFoundError('User not found');
-  }
-
-  if (!user.employeeId) {
+  if (!req.user.employeeId) {
     throw new ValidationError('No employee profile linked');
   }
 
-  const employee = await Employee.findOne({ employeeId: user.employeeId });
+  const employee = await Employee.findOne({ employeeId: req.user.employeeId });
   if (!employee) {
     throw new NotFoundError('Employee profile not found');
   }
@@ -140,7 +128,7 @@ export const updateLeaveStatus = asyncHandler(async (req: IAuthRequest, res: Res
   }
 
   leave.status = status as LeaveStatus;
-  leave.approvedBy = req.user.id;
+  leave.approvedBy = req.user._id;
   await leave.save();
 
   const employee = await Employee.findById(leave.employee);

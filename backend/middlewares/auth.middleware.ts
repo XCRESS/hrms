@@ -7,6 +7,7 @@ import type { Response, NextFunction } from 'express';
 import type { IAuthRequest, UserRole, IJWTPayload } from '../types/index.js';
 import { verifyToken } from '../utils/jwt.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
+import { RequestContext } from '../utils/requestContext.js';
 import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import logger from '../utils/logger.js';
@@ -63,7 +64,7 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         );
       }
 
-      // 3. Fetch user from database with isActive check
+      // 3. Fetch user from database - optimized to select only needed fields
       const userId = decoded.userId || decoded.id || (decoded as Record<string, unknown>)._id;
       if (!userId) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
@@ -72,7 +73,9 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
       const user = await User.findOne({
         _id: userId,
         isActive: true,
-      });
+      })
+        .select('_id name email role employee employeeId isActive')
+        .lean();
 
       if (!user) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
@@ -80,11 +83,16 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
 
       // 4. Attach user to request object
       req.user = {
-        userId: user._id.toString(),
+        _id: user._id,
+        name: user.name,
         email: user.email,
         role: user.role,
+        employee: user.employee,
         employeeId: user.employeeId,
       };
+
+      // 4a. Create request context for convenient access
+      req.context = new RequestContext(req.user);
 
       // 5. Role-based access control
       if (allowedRoles.length > 0) {

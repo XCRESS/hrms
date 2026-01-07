@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import RegularizationRequest from '../models/Regularization.model.js';
 import User from '../models/User.model.js';
 import Attendance from '../models/Attendance.model.js';
@@ -111,17 +112,15 @@ export const requestRegularization = async (req: IAuthRequest, res: Response): P
 
     const reg = await RegularizationRequest.create({
       employeeId: user.employeeId,
-      user: user.userId,
+      user: user._id,
       date: dateIST,
       requestedCheckIn: requestedCheckInIST,
       requestedCheckOut: requestedCheckOutIST,
       reason
     });
 
-    const userInfo = await User.findById(user.userId);
-
     NotificationService.notifyHR('regularization_request', {
-      employee: userInfo ? userInfo.name : 'Unknown User',
+      employee: user.name,
       employeeId: user.employeeId,
       date,
       checkIn: requestedCheckIn || 'Not specified',
@@ -211,7 +210,7 @@ export const reviewRegularization = async (req: IAuthRequest, res: Response): Pr
     }
 
     reg.status = status as RegularizationStatus;
-    reg.reviewedBy = req.user.userId;
+    reg.reviewedBy = req.user._id;
     reg.reviewComment = reviewComment || '';
     await reg.save();
 
@@ -324,7 +323,6 @@ export const reviewRegularization = async (req: IAuthRequest, res: Response): Pr
       }
 
       try {
-        logger.info({ employeeId: employeeDoc.employeeId }, 'Invalidating cache');
         invalidateAttendanceCache(employeeDoc.employeeId);
         invalidateDashboardCache();
       } catch (cacheError) {

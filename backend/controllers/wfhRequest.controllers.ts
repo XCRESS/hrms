@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import WFHRequest from '../models/WFHRequest.model.js';
 import Employee from '../models/Employee.model.js';
 import Attendance from '../models/Attendance.model.js';
@@ -295,7 +296,7 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
     request.status = status as WFHStatus;
     request.reviewComment = reviewComment;
     request.reviewedAt = new Date();
-    request.approvedBy = req.user.userId;
+    request.approvedBy = req.user._id;
     await request.save();
 
     if (status === 'approved') {

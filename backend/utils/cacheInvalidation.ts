@@ -80,7 +80,6 @@ export function invalidatePattern(pattern: string): number {
  * Call this when employee data changes
  */
 export function invalidateEmployeeCache(): void {
-  logger.info('Invalidating employee cache');
   invalidatePattern(CACHE_PATTERNS.EMPLOYEES.ALL);
 }
 
@@ -89,7 +88,6 @@ export function invalidateEmployeeCache(): void {
  * Call this when holiday data changes
  */
 export function invalidateHolidayCache(): void {
-  logger.info('Invalidating holiday cache');
   invalidatePattern(CACHE_PATTERNS.HOLIDAYS.ALL);
 }
 
@@ -99,8 +97,6 @@ export function invalidateHolidayCache(): void {
  * @param employeeId - Optional employee ID to invalidate specific employee's cache
  */
 export function invalidateAttendanceCache(employeeId?: string | null): void {
-  logger.info({ employeeId }, 'Invalidating attendance cache');
-
   if (employeeId) {
     invalidatePattern(`attendance:employee:${employeeId}:*`);
     invalidatePattern(`hr:attendance:employee:${employeeId}:*`);
@@ -116,8 +112,6 @@ export function invalidateAttendanceCache(employeeId?: string | null): void {
  * @param employeeId - Optional employee ID to invalidate specific employee's cache
  */
 export function invalidateTaskReportsCache(employeeId?: string | null): void {
-  logger.info({ employeeId }, 'Invalidating task reports cache');
-
   if (employeeId) {
     invalidatePattern(`task-reports:employee:${employeeId}:*`);
     invalidatePattern(`hr:task-reports:employee:${employeeId}:*`);
@@ -132,7 +126,6 @@ export function invalidateTaskReportsCache(employeeId?: string | null): void {
  * Call this when dashboard data needs refresh
  */
 export function invalidateDashboardCache(): void {
-  logger.info('Invalidating dashboard cache');
   invalidatePattern(CACHE_PATTERNS.DASHBOARD.ALL);
 }
 

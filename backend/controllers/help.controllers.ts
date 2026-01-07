@@ -1,13 +1,11 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import Help from '../models/Help.model.js';
 import User from '../models/User.model.js';
 import NotificationService from '../services/notificationService.js';
-import type { IUser } from '../types/index.js';
+import type { IAuthRequest } from '../types/index.js';
 import logger from '../utils/logger.js';
 
-interface AuthRequest extends Request {
-  user?: IUser;
-}
+type AuthRequest = IAuthRequest;
 
 // Standard response formatter for consistency
 const formatResponse = (success: boolean, message: string, data: unknown = null, errors: unknown = null) => {
@@ -43,8 +41,8 @@ export const submitInquiry = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const inquiry = await Help.create({
-      userId: req.user.userId,
-      employee: req.user.userId,
+      userId: req.user._id,
+      employee: req.user._id,
       employeeName: req.user.name,
       subject,
       description,
@@ -52,13 +50,10 @@ export const submitInquiry = async (req: AuthRequest, res: Response): Promise<vo
       priority: priority || 'medium',
     });
 
-    // Get user information for notification
-    const user = await User.findById(req.user.userId);
-
     // Trigger notification to HR
     NotificationService.notifyHR('help_request', {
-      employee: user ? user.name : 'Unknown User',
-      employeeId: user?.employeeId || 'N/A',
+      employee: req.user.name,
+      employeeId: req.user.employeeId || 'N/A',
       subject: subject,
       description: description,
       category: category || 'other',
@@ -90,7 +85,7 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const inquiries = await Help.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 });
 
     res.json(formatResponse(true, 'Inquiries retrieved successfully', { inquiries }));
   } catch (err) {
@@ -107,9 +102,13 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
 /**
  * Get all inquiries (admin/HR)
  */
-export const getAllInquiries = async (req: Request, res: Response): Promise<void> => {
+export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { status, priority, category } = req.query;
+    const { status, priority, category } = req.query as {
+      status?: string;
+      priority?: string;
+      category?: string;
+    };
     const filter: Record<string, unknown> = {};
 
     // Apply filters if provided
@@ -150,7 +149,7 @@ export const updateInquiry = async (req: AuthRequest, res: Response): Promise<vo
     if (status) inquiry.status = status;
     if (response && req.user) {
       inquiry.response = response;
-      inquiry.respondedBy = req.user.userId;
+      inquiry.respondedBy = req.user._id;
     }
 
     await inquiry.save();
