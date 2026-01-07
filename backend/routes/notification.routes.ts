@@ -105,9 +105,9 @@ router.get('/status', authMiddleware(['admin', 'hr']), async (req: IAuthRequest,
 router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { subscription } = req.body as { subscription?: { endpoint: string; keys: { p256dh: string; auth: string } } };
-    const userId = req.user?.id;
+    const userId = req.user?._id?.toString();
 
-    if (!subscription || !subscription.endpoint) {
+    if (!subscription || !subscription.endpoint || !userId) {
       res.status(400).json({
         success: false,
         message: 'Invalid subscription data'
@@ -137,8 +137,16 @@ router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), async (re
 // Unsubscribe from push notifications
 router.post('/unsubscribe', authMiddleware(['admin', 'hr', 'employee']), async (req: IAuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
-    
+    const userId = req.user?._id?.toString();
+
+    if (!userId) {
+      res.status(400).json({
+        success: false,
+        message: 'User ID not found'
+      });
+      return;
+    }
+
     PushService.removeSubscription(userId);
     
     res.json({

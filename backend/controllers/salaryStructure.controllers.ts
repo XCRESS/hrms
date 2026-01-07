@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import SalaryStructure from '../models/SalaryStructure.model.js';
 import SalarySlip from '../models/SalarySlip.model.js';
 import Employee from '../models/Employee.model.js';
@@ -50,7 +51,7 @@ export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Resp
         mobileAllowance: earnings.mobileAllowance || 0
       },
       isActive: true,
-      lastUpdatedBy: req.user.userId
+      lastUpdatedBy: req.user._id
     };
 
     logger.info({
@@ -73,7 +74,7 @@ export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Resp
       logger.info('createOrUpdateSalaryStructure: Creating new structure');
       const newStructureData = {
         ...structureData,
-        createdBy: req.user.userId
+        createdBy: req.user._id
       };
       salaryStructure = new SalaryStructure(newStructureData);
       await salaryStructure.save();
@@ -258,7 +259,7 @@ export const deleteSalaryStructure = async (req: IAuthRequest, res: Response): P
       { employee: employee._id },
       {
         isActive: false,
-        lastUpdatedBy: req.user.userId
+        lastUpdatedBy: req.user._id
       },
       { new: true }
     );

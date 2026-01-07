@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import SalarySlip from '../models/SalarySlip.model.js';
 import Employee from '../models/Employee.model.js';
 import { formatResponse } from '../utils/response.js';
@@ -53,7 +54,7 @@ export const createOrUpdateSalarySlip = async (req: IAuthRequest, res: Response)
       },
       taxRegime,
       enableTaxDeduction,
-      createdBy: req.user.userId
+      createdBy: req.user._id
     };
 
     const existingSalarySlip = await SalarySlip.findOne({ employee: employee._id, month, year });

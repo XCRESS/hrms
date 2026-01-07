@@ -37,8 +37,17 @@ export interface IJWTPayload extends JwtPayload {
   employeeId?: string;
 }
 
+export interface IAuthUser {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  role: UserRole;
+  employee?: Types.ObjectId;
+  employeeId?: string;
+}
+
 export interface IAuthRequest extends Request {
-  user?: IJWTPayload;
+  user?: IAuthUser;
 }
 
 // ============================================================================

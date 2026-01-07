@@ -36,11 +36,12 @@ const authMiddleware = (allowedRoles: UserRole[] = []) => {
 
       // Set user data in request for controllers to use
       req.user = {
-        userId: user._id.toString(),
+        _id: user._id,
+        name: user.name,
         email: user.email,
         role: user.role,
-        employeeId: user.employeeId,
-        employee: user.employee
+        employee: user.employee,
+        employeeId: user.employeeId
       };
 
       // If allowedRoles is specified, check user permissions

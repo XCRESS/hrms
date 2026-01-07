@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import Policy from '../models/Policy.model.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
@@ -51,8 +52,8 @@ export const createPolicy = async (req: IAuthRequest, res: Response): Promise<vo
       acknowledgmentRequired: acknowledgmentRequired || false,
       targetAudience: targetAudience || 'All Employees',
       attachments: attachments || [],
-      createdBy: req.user.userId,
-      lastUpdatedBy: req.user.userId
+      createdBy: req.user._id,
+      lastUpdatedBy: req.user._id
     };
 
     const policy = new Policy(policyData);
@@ -200,7 +201,7 @@ export const updatePolicy = async (req: IAuthRequest, res: Response): Promise<vo
       return;
     }
 
-    updateData.lastUpdatedBy = req.user.userId;
+    updateData.lastUpdatedBy = req.user._id;
 
     const existingPolicy = await Policy.findById(id);
     if (!existingPolicy) {
@@ -248,7 +249,7 @@ export const deletePolicy = async (req: IAuthRequest, res: Response): Promise<vo
       id,
       {
         isActive: false,
-        lastUpdatedBy: req.user.userId
+        lastUpdatedBy: req.user._id
       },
       { new: true }
     );
