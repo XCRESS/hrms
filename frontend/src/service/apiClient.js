@@ -8,6 +8,23 @@ class ApiClient {
       Accept: "application/json",
     };
   }
+
+  /**
+   * Handle token refresh from API responses
+   * Backend sends newToken when user data changes
+   */
+  handleTokenRefresh(data) {
+    if (data && data.newToken) {
+      console.log('🔄 Refreshing auth token with updated user data');
+      localStorage.setItem('authToken', data.newToken);
+
+      // Dispatch event so auth hook and other components can update
+      window.dispatchEvent(new CustomEvent('tokenRefreshed', {
+        detail: { token: data.newToken }
+      }));
+    }
+    return data;
+  }
   async customFetch(endpoint, options = {}) {
     const maxRetries = options.retries || 2;
     const retryDelay = options.retryDelay || 1000;
@@ -56,6 +73,9 @@ class ApiClient {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
+
+          // Check for token refresh (backend sends newToken when user data changes)
+          this.handleTokenRefresh(data);
 
           // Only log important responses
           if (isImportantEndpoint) {

@@ -4,6 +4,7 @@
  */
 
 import type { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import type { IAuthRequest, UserRole, IJWTPayload } from '../types/index.js';
 import { verifyToken } from '../utils/jwt.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
@@ -64,31 +65,26 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         );
       }
 
-      // 3. Fetch user from database - optimized to select only needed fields
+      // 3. Extract user data from JWT (no DB query!)
       const userId = decoded.userId || decoded.id || (decoded as Record<string, unknown>)._id;
       if (!userId) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
       }
 
-      const user = await User.findOne({
-        _id: userId,
-        isActive: true,
-      })
-        .select('_id name email role employee employeeId isActive')
-        .lean();
-
-      if (!user) {
+      // Validate user is still active (minimal DB query - only checks isActive field)
+      const userStatus = await User.findById(userId).select('isActive').lean();
+      if (!userStatus || !userStatus.isActive) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
       }
 
-      // 4. Attach user to request object
+      // 4. Use JWT data directly (much faster than full document fetch!)
       req.user = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        employee: user.employee,
-        employeeId: user.employeeId,
+        _id: new mongoose.Types.ObjectId(userId),
+        name: decoded.name,
+        email: decoded.email,
+        role: decoded.role,
+        employee: decoded.employee ? new mongoose.Types.ObjectId(decoded.employee) : undefined,
+        employeeId: decoded.employeeId,
       };
 
       // 4a. Create request context for convenient access
@@ -96,7 +92,7 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
 
       // 5. Role-based access control
       if (allowedRoles.length > 0) {
-        if (!allowedRoles.includes(user.role)) {
+        if (!allowedRoles.includes(req.user.role)) {
           throw new AuthorizationError(
             `Access Forbidden: This endpoint requires one of the following roles: ${allowedRoles.join(', ')}`
           );
@@ -104,11 +100,11 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
       }
 
       // 6. Additional check for employee role
-      if (user.role === 'employee') {
-        if (user.employeeId) {
+      if (req.user.role === 'employee') {
+        if (req.user.employeeId) {
           // Verify employee profile is active
           const employee = await Employee.findOne({
-            employeeId: user.employeeId,
+            employeeId: req.user.employeeId,
             isActive: true,
           });
 
@@ -120,7 +116,7 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         } else {
           // Warning: Employee user without employeeId
           req.missingEmployeeId = true;
-          logger.warn(`⚠️  User ${user._id} has role 'employee' but no employeeId assigned`);
+          logger.warn(`⚠️  User ${req.user._id} has role 'employee' but no employeeId assigned`);
         }
       }
 

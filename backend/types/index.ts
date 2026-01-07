@@ -32,8 +32,10 @@ export interface IUser extends Document {
 
 export interface IJWTPayload extends JwtPayload {
   userId: string;
+  name: string;
   email: string;
   role: UserRole;
+  employee?: string;  // ObjectId as string
   employeeId?: string;
 }
 
