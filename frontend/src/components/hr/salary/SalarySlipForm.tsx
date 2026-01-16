@@ -577,12 +577,17 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Bank Name</p>
-                                                <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.bankDetails?.bankName || 'N/A'}</p>
+                                                <p className="font-medium text-slate-900 dark:text-slate-100">
+                                                    {employeeDetails.bankName || employeeDetails.bankDetails?.bankName || 'N/A'}
+                                                </p>
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Joining Date</p>
                                                 <p className="font-medium text-slate-900 dark:text-slate-100">
-                                                    {employeeDetails.dateOfJoining ? new Date(employeeDetails.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'}
+                                                    {(() => {
+                                                        const joiningDate = employeeDetails.joiningDate || employeeDetails.dateOfJoining;
+                                                        return joiningDate ? new Date(joiningDate).toLocaleDateString('en-IN') : 'N/A';
+                                                    })()}
                                                 </p>
                                             </div>
                                         </div>
