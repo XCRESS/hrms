@@ -1,22 +1,42 @@
-// Service Worker for HRMS PWA  
+// Service Worker for HRMS PWA
 // Handles push notifications and background sync
+
+// Cache version - increment this to invalidate old caches
+const CACHE_VERSION = 'hrms-v1';
+const CACHE_NAMES = {
+  static: `${CACHE_VERSION}-static`,
+  dynamic: `${CACHE_VERSION}-dynamic`
+};
+
+// Environment-aware logging for service worker
+// In production builds, only errors are logged
+const IS_PRODUCTION = self.location.hostname !== 'localhost' && !self.location.hostname.includes('127.0.0.1');
+const swLogger = {
+  log: (...args) => !IS_PRODUCTION && console.log('[SW]', ...args),
+  error: (...args) => console.error('[SW Error]', ...args),
+  warn: (...args) => !IS_PRODUCTION && console.warn('[SW]', ...args)
+};
 
 // Install event - skip waiting immediately
 self.addEventListener('install', () => {
-  console.log('Service Worker installing...');
+  swLogger.log('Service Worker installing...');
   self.skipWaiting();
 });
 
 // Activate event - take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
+  swLogger.log('Service Worker activating...');
   event.waitUntil(
-    // Clean up any existing caches
+    // Clean up OLD caches only (keep current version caches)
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          console.log('Deleting cache:', cacheName);
-          return caches.delete(cacheName);
+          // Only delete caches that don't match current version
+          if (!Object.values(CACHE_NAMES).includes(cacheName)) {
+            swLogger.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+          return Promise.resolve();
         })
       );
     }).then(() => self.clients.claim()).then(() => {
@@ -28,7 +48,7 @@ self.addEventListener('activate', (event) => {
 
 // Push notification handler
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
+  swLogger.log('Push notification received:', event);
   
   let notificationData = {
     title: 'HRMS Notification',
@@ -48,7 +68,7 @@ self.addEventListener('push', (event) => {
         actions: data.actions || []
       };
     } catch (e) {
-      console.error('Error parsing push data:', e);
+      swLogger.error('Error parsing push data:', e);
       notificationData.body = event.data.text();
     }
   }
@@ -60,7 +80,7 @@ self.addEventListener('push', (event) => {
 
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  swLogger.log('Notification clicked:', event);
   
   event.notification.close();
   
@@ -133,13 +153,13 @@ function scheduleCheckInReminder() {
 
 // Handle background sync
 self.addEventListener('sync', (event) => {
-  console.log('Background sync triggered:', event.tag);
+  swLogger.log('Background sync triggered:', event.tag);
   
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Perform background tasks here
       fetch('/api/sync-data').catch(() => {
-        console.log('Background sync failed, will retry later');
+        swLogger.log('Background sync failed, will retry later');
       })
     );
   }
@@ -147,7 +167,7 @@ self.addEventListener('sync', (event) => {
 
 // Message handler for communication with main app
 self.addEventListener('message', (event) => {
-  console.log('Service Worker received message:', event.data);
+  swLogger.log('Service Worker received message:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
