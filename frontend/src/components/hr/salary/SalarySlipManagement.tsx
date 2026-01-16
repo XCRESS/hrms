@@ -149,16 +149,16 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
                 employeeId: slip.employeeId,
                 month: slip.month,
                 year: slip.year,
-                status: newStatus
+                status: newStatus as 'draft' | 'finalized'
             });
             toast({
                 title: "Success",
-                description: `Salary slip ${newStatus === 'published' ? 'published' : 'unpublished'} successfully`
+                description: `Salary slip ${newStatus === 'finalized' ? 'published' : 'unpublished'} successfully`
             });
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.message || `Failed to ${newStatus === 'published' ? 'publish' : 'unpublish'} salary slip`,
+                description: error.message || `Failed to ${newStatus === 'finalized' ? 'publish' : 'unpublish'} salary slip`,
                 variant: "destructive"
             });
         }
