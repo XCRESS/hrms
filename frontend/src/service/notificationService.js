@@ -3,6 +3,9 @@
  * Handles sending notifications through service worker and managing notification permissions
  */
 
+import { axiosInstance } from '../lib/axios';
+import { logger } from '../utils/logger';
+
 class NotificationService {
   constructor() {
     this.registration = null;
@@ -15,12 +18,12 @@ class NotificationService {
     if ('serviceWorker' in navigator) {
       try {
         this.registration = await navigator.serviceWorker.ready;
-        console.log('Notification service initialized');
+        logger.log('Notification service initialized');
         
         // Get VAPID key from backend
         await this.loadVapidKey();
       } catch (error) {
-        console.error('Failed to initialize notification service:', error);
+        logger.error('Failed to initialize notification service:', error);
       }
     }
   }
@@ -30,33 +33,39 @@ class NotificationService {
    */
   async loadVapidKey() {
     try {
-      const apiClient = await import('./apiClient.js').then(m => m.default);
-      const response = await apiClient.getVapidKey();
-      
-      // Handle different response formats - the API returns { success: true, vapidKey: "..." }
-      this.vapidKey = response.vapidKey;
-      
+      const { data } = await axiosInstance.get('/notifications/vapid-key');
+
+      // Handle different response formats - the API returns { success: true, data: { publicKey: "..." } }
+      this.vapidKey = data.data?.publicKey || data.vapidKey;
+
       if (this.vapidKey) {
-        console.log('VAPID key loaded successfully');
+        logger.log('VAPID key loaded successfully');
       } else {
-        console.warn('VAPID key not found in response:', response);
+        logger.warn('VAPID key not found in response:', data);
       }
     } catch (error) {
-      console.error('Failed to load VAPID key:', error);
+      logger.error('Failed to load VAPID key:', error);
     }
   }
 
   /**
-   * Auto-subscribe user to push notifications (called after login)
+   * Auto-subscribe user to push notifications (only if permission already granted)
+   * This respects user choice and GDPR compliance
    */
   async autoSubscribe() {
     try {
+      // IMPORTANT: Only auto-subscribe if user has already granted permission
+      if (Notification.permission !== 'granted') {
+        logger.log('Skipping auto-subscribe: User has not granted notification permission');
+        return false;
+      }
+
       if (!this.vapidKey) {
         await this.loadVapidKey();
       }
 
       if (!this.vapidKey) {
-        console.warn('Cannot auto-subscribe: VAPID key not available');
+        logger.warn('Cannot auto-subscribe: VAPID key not available');
         return false;
       }
 
@@ -65,7 +74,7 @@ class NotificationService {
       this.isSubscribed = !!subscription;
       return this.isSubscribed;
     } catch (error) {
-      console.error('Auto-subscribe failed:', error);
+      logger.error('Auto-subscribe failed:', error);
       return false;
     }
   }
@@ -83,7 +92,7 @@ class NotificationService {
       const existingSubscription = await this.registration.pushManager.getSubscription();
       if (existingSubscription) {
         await existingSubscription.unsubscribe();
-        console.log('Unsubscribed from previous subscription');
+        logger.log('Unsubscribed from previous subscription');
       }
 
       // Create new subscription
@@ -93,14 +102,14 @@ class NotificationService {
       };
 
       const newSubscription = await this.registration.pushManager.subscribe(subscriptionOptions);
-      console.log('New push subscription created:', newSubscription);
+      logger.log('New push subscription created:', newSubscription);
 
       // Send new subscription to backend
       await this.sendSubscriptionToBackend(newSubscription);
       
       return newSubscription;
     } catch (error) {
-      console.error('Failed to refresh subscription:', error);
+      logger.error('Failed to refresh subscription:', error);
       return null;
     }
   }
@@ -146,12 +155,12 @@ class NotificationService {
     }
 
     if (!this.registration) {
-      console.error('Service worker not available');
+      logger.error('Service worker not available');
       return false;
     }
 
     if (Notification.permission !== 'granted') {
-      console.warn('Notification permission not granted');
+      logger.warn('Notification permission not granted');
       return false;
     }
 
@@ -164,10 +173,10 @@ class NotificationService {
         data: options.data || {}
       });
 
-      console.log('Notification sent:', title);
+      logger.log('Notification sent:', title);
       return true;
     } catch (error) {
-      console.error('Failed to send notification:', error);
+      logger.error('Failed to send notification:', error);
       return false;
     }
   }
@@ -271,14 +280,14 @@ class NotificationService {
       // Request permission first
       const permission = await this.requestPermission();
       if (permission !== 'granted') {
-        console.warn('Notification permission not granted');
+        logger.warn('Notification permission not granted');
         return null;
       }
 
       // Check if already subscribed
       const existingSubscription = await this.registration.pushManager.getSubscription();
       if (existingSubscription) {
-        console.log('Already subscribed to push notifications');
+        logger.log('Already subscribed to push notifications');
         // Send existing subscription to backend
         await this.sendSubscriptionToBackend(existingSubscription);
         return existingSubscription;
@@ -295,14 +304,14 @@ class NotificationService {
 
       const subscription = await this.registration.pushManager.subscribe(subscriptionOptions);
       
-      console.log('Push subscription created:', subscription);
+      logger.log('Push subscription created:', subscription);
       
       // Send subscription to backend
       await this.sendSubscriptionToBackend(subscription);
       
       return subscription;
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
+      logger.error('Failed to subscribe to push notifications:', error);
       return null;
     }
   }
@@ -312,11 +321,10 @@ class NotificationService {
    */
   async sendSubscriptionToBackend(subscription) {
     try {
-      const apiClient = await import('./apiClient.js').then(m => m.default);
-      await apiClient.subscribeToPushNotifications(subscription);
-      console.log('Subscription sent to backend successfully');
+      await axiosInstance.post('/notifications/subscribe', subscription);
+      logger.log('Subscription sent to backend successfully');
     } catch (error) {
-      console.error('Failed to send subscription to backend:', error);
+      logger.error('Failed to send subscription to backend:', error);
     }
   }
 
@@ -350,12 +358,12 @@ class NotificationService {
       const subscription = await this.registration.pushManager.getSubscription();
       if (subscription) {
         await subscription.unsubscribe();
-        console.log('Unsubscribed from push notifications');
+        logger.log('Unsubscribed from push notifications');
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Failed to unsubscribe from push notifications:', error);
+      logger.error('Failed to unsubscribe from push notifications:', error);
       return false;
     }
   }

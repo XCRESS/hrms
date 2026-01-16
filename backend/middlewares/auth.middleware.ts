@@ -123,11 +123,18 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
       // 7. Success - proceed to next middleware
       next();
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      logger.error({ err: error }, '🔒 Auth middleware error');
-
       // Handle our custom errors
       if (err instanceof AuthenticationError || err instanceof AuthorizationError) {
+        // Log as warning, not error, to avoid alerting on expected operational issues
+        logger.warn(
+          {
+            err: { message: err.message, code: err.code },
+            ip: req.ip,
+            path: req.path
+          },
+          `🔒 Auth denied: ${err.message}`
+        );
+
         return res.status(err.statusCode).json({
           success: false,
           message: err.message,
@@ -136,7 +143,10 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         });
       }
 
-      // Handle unexpected errors
+      // Unexpected errors - log as error
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      logger.error({ err: error }, '🔒 Auth middleware critical error');
+
       return res.status(401).json({
         success: false,
         message: err instanceof Error ? err.message : 'Authentication failed',

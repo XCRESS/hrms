@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/src/assets/login.png" />
+    <link rel="icon" type="image/png" href="/login.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- Preconnect to external domains for faster loading -->
@@ -41,14 +41,14 @@
     <meta property="og:url" content="https://hr.intakesense.com/" />
     <meta property="og:title" content="HRMS - Modern HR Management System" />
     <meta property="og:description" content="A modern HR management system for employee management, attendance, leave, and more. Secure, fast, and easy to use." />
-    <meta property="og:image" content="https://hr.intakesense.com/src/assets/login.png" />
+    <meta property="og:image" content="https://hr.intakesense.com/login.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://hr.intakesense.com/" />
     <meta name="twitter:title" content="HRMS - Modern HR Management System" />
     <meta name="twitter:description" content="A modern HR management system for employee management, attendance, leave, and more. Secure, fast, and easy to use." />
-    <meta name="twitter:image" content="https://hr.intakesense.com/src/assets/login.png" />
+    <meta name="twitter:image" content="https://hr.intakesense.com/login.png" />
   </head>
   <body>
     <div id="root"></div>
@@ -68,18 +68,10 @@
             navigator.serviceWorker.register('/sw.js')
               .then(function(registration) {
                 console.log('ServiceWorker registration successful');
-                
-                // Request notification permission for PWA notifications
-                if ('Notification' in window && Notification.permission === 'default') {
-                  Notification.requestPermission().then(permission => {
-                    console.log('Notification permission:', permission);
-                    if (permission === 'granted') {
-                      // Store permission state
-                      localStorage.setItem('notificationPermission', 'granted');
-                    }
-                  });
-                }
-                
+
+                // DO NOT auto-request notification permission here
+                // User consent will be requested through the app UI when appropriate
+
                 // Listen for messages from service worker
                 navigator.serviceWorker.addEventListener('message', (event) => {
                   if (event.data && event.data.type === 'NAVIGATE') {

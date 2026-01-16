@@ -2,6 +2,7 @@
 // This file helps validate API endpoint consistency and catch issues early
 
 import { API_ENDPOINTS } from './apiEndpoints.js';
+import { logger } from '../utils/logger';
 
 // Validation utilities
 export const validateApiEndpoints = () => {
@@ -40,23 +41,25 @@ export const validateApiEndpoints = () => {
   };
 };
 
-// Helper to log endpoint mapping for debugging
+// Helper to log endpoint mapping for debugging (development only)
 export const logEndpointMappings = () => {
+  if (!import.meta.env.DEV) return;
+
   console.group('📡 API Endpoint Mappings');
-  
+
   Object.entries(API_ENDPOINTS).forEach(([category, endpoints]) => {
     if (typeof endpoints === 'object' && endpoints !== null && category !== 'BASE_URL') {
       console.group(`🔗 ${category}`);
       Object.entries(endpoints).forEach(([name, endpoint]) => {
-        const displayEndpoint = typeof endpoint === 'function' 
-          ? `${endpoint('ID')} (function)` 
+        const displayEndpoint = typeof endpoint === 'function'
+          ? `${endpoint('ID')} (function)`
           : endpoint;
-        console.log(`${name}: ${displayEndpoint}`);
+        logger.log(`${name}: ${displayEndpoint}`);
       });
       console.groupEnd();
     }
   });
-  
+
   console.groupEnd();
 };
 
@@ -102,19 +105,21 @@ export const testEndpointReachability = async (baseUrl = API_ENDPOINTS.BASE_URL)
 
 // Console helper for development
 export const debugApiSetup = () => {
+  if (!import.meta.env.DEV) return;
+
   console.group('🚀 API Configuration Debug');
-  
-  console.log('Base URL:', API_ENDPOINTS.BASE_URL);
-  
+
+  logger.log('Base URL:', API_ENDPOINTS.BASE_URL);
+
   const validation = validateApiEndpoints();
   if (validation.isValid) {
-    console.log('✅ All endpoints are valid');
+    logger.log('✅ All endpoints are valid');
   } else {
-    console.error('❌ Endpoint validation issues:', validation.issues);
+    logger.error('❌ Endpoint validation issues:', validation.issues);
   }
-  
+
   logEndpointMappings();
-  
+
   console.groupEnd();
 };
 
