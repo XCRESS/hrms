@@ -77,10 +77,10 @@ export const useReviewRegularization = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ requestId, status }: { requestId: string; status: RegularizationStatus }) => {
-      const { data } = await axiosInstance.put<ApiResponse<RegularizationRequest>>(
+    mutationFn: async ({ requestId, status, comment }: { requestId: string; status: RegularizationStatus; comment?: string }) => {
+      const { data } = await axiosInstance.post<ApiResponse<RegularizationRequest>>(
         API_ENDPOINTS.REGULARIZATIONS.REVIEW(requestId),
-        { status }
+        { status, reviewComment: comment }
       );
       return data.data;
     },
