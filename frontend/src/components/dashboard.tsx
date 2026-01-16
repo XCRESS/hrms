@@ -45,7 +45,7 @@ const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert
 const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
 // Types
-import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location } from "@/types";
+import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto } from "@/types";
 
 
 interface DashboardModals {
@@ -473,6 +473,7 @@ const HRMSDashboard: React.FC = () => {
             }
 
             await checkInMutation.mutateAsync(locationData);
+            setAppState('isCheckedIn', true);
             toast({
                 variant: "success",
                 title: "Checked In",
@@ -597,6 +598,7 @@ const HRMSDashboard: React.FC = () => {
                 title: "Checked Out Successfully",
                 description: "You have successfully checked out."
             });
+            setAppState('isCheckedIn', false);
             setAppState('dailyCycleComplete', true);
         } catch (error: any) {
             console.error("Check-out error:", error);
@@ -642,6 +644,7 @@ const HRMSDashboard: React.FC = () => {
                 title: "Checked Out Successfully",
                 description: "Your work report has been submitted."
             });
+            setAppState('isCheckedIn', false);
             setAppState('dailyCycleComplete', true);
             setModal('showTaskReportModal', false);
         } catch (error: any) {
@@ -729,7 +732,7 @@ const HRMSDashboard: React.FC = () => {
         }
     };
 
-    const handleLeaveRequestSubmit = async (data: any) => {
+    const handleLeaveRequestSubmit = async (data: LeaveRequestDto) => {
         try {
             await requestLeaveMutation.mutateAsync(data);
             toast({
@@ -738,22 +741,22 @@ const HRMSDashboard: React.FC = () => {
                 description: "Your leave request has been submitted successfully."
             });
             setModal('showLeaveModal', false);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Leave request error:", error);
 
-            let title = "Leave Request Failed";
+            const title = "Leave Request Failed";
             let description = "Failed to submit leave request.";
 
-            if (error.data && error.data.message) {
-                description = error.data.message;
+            const apiError = error as { message?: string; validationDetails?: Array<{ field: string; message: string }> };
 
-                if (error.data.details && error.data.details.validation) {
-                    const validationErrors = Object.values(error.data.details.validation).join(", ");
-                    description += `. Details: ${validationErrors}`;
-                }
+            if (apiError.message) {
+                description = apiError.message;
             }
-            else {
-                description = error.message || description;
+
+            // Show validation details if available
+            if (apiError.validationDetails && apiError.validationDetails.length > 0) {
+                const validationMessages = apiError.validationDetails.map(d => d.message).join(", ");
+                description = validationMessages;
             }
 
             toast({

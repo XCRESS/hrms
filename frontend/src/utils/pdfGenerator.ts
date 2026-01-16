@@ -67,7 +67,9 @@ export const downloadSalarySlipPDF = (
     return;
   }
 
-  const companyLogo = '/cfg-logo.jpg'; // Logo from public folder
+  // Get base URL for assets (absolute path for blob context)
+  const baseUrl = window.location.origin;
+  const companyLogo = `${baseUrl}/cfg-logo.jpg`; // Logo from public folder with absolute path
 
   // Get company name and address
   const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Services Limited';
@@ -90,6 +92,8 @@ export const downloadSalarySlipPDF = (
     <!DOCTYPE html>
     <html>
     <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
       <title>Salary Slip - ${safeEmployeeName}</title>
       <style>
         body {
@@ -316,7 +320,7 @@ export const downloadSalarySlipPDF = (
             </div>
             <div class="employee-field">
               <span class="field-label">Joining Date:</span>
-              <span class="field-value">${(employeeData?.joiningDate || slip.employee?.joiningDate) ? new Date(employeeData?.joiningDate || slip.employee?.joiningDate).toLocaleDateString('en-IN') : 'N/A'}</span>
+              <span class="field-value">${(() => { const joiningDate = employeeData?.joiningDate || slip.employee?.joiningDate; return joiningDate ? new Date(joiningDate).toLocaleDateString('en-IN') : 'N/A'; })()}</span>
             </div>
             <div class="employee-field">
               <span class="field-label">PAN Number:</span>

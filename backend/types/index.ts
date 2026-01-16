@@ -150,7 +150,7 @@ export interface IAttendance extends Document {
 // LEAVE TYPES
 // ============================================================================
 
-export type LeaveType = 'sick' | 'casual' | 'earned' | 'maternity' | 'paternity';
+export type LeaveType = 'full-day' | 'half-day';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ILeave extends Document {
