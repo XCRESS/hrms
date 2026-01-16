@@ -82,17 +82,17 @@ const AdminPendingRequests = () => {
   const requests = useMemo<UnifiedRequest[]>(() => {
     const allRequests: UnifiedRequest[] = [];
 
-    // Process leaves
-    if (leavesData?.leaves) {
-      const pendingLeaves = leavesData.leaves.filter((leave: any) => leave.status === 'pending');
+    // Process leaves - leavesData is an array directly from useAllLeaves
+    if (leavesData && Array.isArray(leavesData)) {
+      const pendingLeaves = leavesData.filter((leave: any) => leave.status === 'pending');
       allRequests.push(...pendingLeaves.map((leave: any): LeaveRequest => ({
         ...leave,
         type: 'leave',
         icon: <Calendar className="w-5 h-5 text-blue-500" />,
-        title: `${leave.leaveType} Leave Request`,
-        description: leave.leaveReason,
-        employee: leave.employeeName || leave.employeeId || 'Unknown Employee',
-        date: leave.leaveDate
+        title: `${leave.leaveType === 'full-day' ? 'Full Day' : 'Half Day'} Leave Request`,
+        description: leave.reason,
+        employee: leave.employeeName || 'Unknown Employee',
+        date: leave.startDate || leave.createdAt
       })));
     }
 
