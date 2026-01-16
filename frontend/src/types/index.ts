@@ -25,7 +25,7 @@ export type LeaveStatus = ApprovalStatus;
 export type WFHStatus = ApprovalStatus;
 export type RegularizationStatus = ApprovalStatus;
 
-export type LeaveType = 'sick' | 'casual' | 'earned' | 'unpaid';
+export type LeaveType = 'full-day' | 'half-day';
 
 // Salary
 export type SalarySlipStatus = 'draft' | 'finalized';
@@ -63,6 +63,7 @@ export interface Employee {
   motherName?: string;
   dateOfBirth?: string;
   dateOfJoining: string;
+  joiningDate?: string; // Backend uses this field name
   department?: string;
   designation?: string;
   position?: string;
@@ -71,6 +72,13 @@ export interface Employee {
   isActive?: boolean; // Backend uses this field for active status
   companyName?: string;
   employmentType?: string;
+  // Direct bank fields from backend
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIFSCCode?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  // Nested bank details (legacy/alternative format)
   bankDetails?: {
     accountNumber?: string;
     ifscCode?: string;
@@ -155,16 +163,17 @@ export interface AttendanceQueryParams {
 
 export interface Leave {
   _id: string;
-  userId: string;
-  employeeId: string;
+  employee: string;
+  employeeName: string;
   leaveType: LeaveType;
   startDate: string;
   endDate: string;
   reason: string;
   status: LeaveStatus;
-  reviewedBy?: string;
-  reviewComment?: string;
-  reviewedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  numberOfDays: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -725,6 +734,7 @@ export interface ApiError {
   isServerUnavailable?: boolean;
   isDNSError?: boolean;
   userFriendlyMessage?: string;
+  validationDetails?: Array<{ field: string; message: string }>;
 }
 
 export interface PaginatedResponse<T> {
@@ -833,8 +843,7 @@ export interface UpdateEmployeeDto extends Partial<Omit<CreateEmployeeDto, 'addr
 
 export interface LeaveRequestDto {
   leaveType: LeaveType;
-  startDate: string;
-  endDate: string;
+  date: string;
   reason: string;
 }
 

@@ -1,10 +1,11 @@
 import { useState, FormEvent, ChangeEvent } from "react";
 import { X, ChevronDown } from "lucide-react";
+import type { LeaveType } from "@/types";
 
 interface LeaveRequestData {
-  leaveType: string;
-  leaveDate: string;
-  leaveReason: string;
+  leaveType: LeaveType;
+  date: string;
+  reason: string;
 }
 
 interface LeaveRequestModalProps {
@@ -15,15 +16,15 @@ interface LeaveRequestModalProps {
 }
 
 const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveRequestModalProps) => {
-  const [leaveType, setLeaveType] = useState("full-day");
-  const [leaveDate, setLeaveDate] = useState("");
-  const [leaveReason, setLeaveReason] = useState("");
+  const [leaveType, setLeaveType] = useState<LeaveType>("full-day");
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("");
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSubmit({ leaveType, leaveDate, leaveReason });
+    onSubmit({ leaveType, date, reason });
   };
 
   return (
@@ -47,43 +48,43 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
               <select
                 id="leaveType"
                 value={leaveType}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setLeaveType(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setLeaveType(e.target.value as LeaveType)}
                 className="w-full appearance-none bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 pr-8"
               >
                 <option value="full-day">Full Day</option>
                 <option value="half-day">Half Day</option>
-                <option value="sick-leave">Sick Leave</option>
-                <option value="vacation">Vacation</option>
-                <option value="personal">Personal Leave</option>
               </select>
               <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
             </div>
           </div>
 
           <div>
-            <label htmlFor="leaveDate" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date</label>
+            <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date</label>
             <input
-              id="leaveDate"
+              id="date"
               type="date"
-              value={leaveDate}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setLeaveDate(e.target.value)}
+              value={date}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
               className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="leaveReason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason</label>
+            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason <span className="text-gray-400 font-normal">(min 10 characters)</span></label>
             <textarea
-              id="leaveReason"
-              value={leaveReason}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setLeaveReason(e.target.value)}
+              id="reason"
+              value={reason}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
               placeholder="Provide a brief reason for your leave..."
               rows={4}
               className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
+              minLength={10}
+              maxLength={500}
               data-gramm="false"
             />
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{reason.length}/500</p>
           </div>
 
           <div className="flex justify-end items-center gap-3 pt-4">

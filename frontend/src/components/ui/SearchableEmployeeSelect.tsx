@@ -162,13 +162,15 @@ const SearchableEmployeeSelect = ({
         </span>
         <div className="flex items-center gap-1">
           {selectedEmployee && !disabled && (
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               onClick={clearSelection}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
-              type="button"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') clearSelection(e as unknown as React.MouseEvent<HTMLButtonElement>); }}
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded cursor-pointer"
             >
               <X className="h-3 w-3 text-slate-400" />
-            </button>
+            </span>
           )}
           <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>

@@ -67,10 +67,14 @@ export const useRequestLeave = () => {
       queryClient.setQueryData(myLeavesKey, (old: Leave[] = []) => [
         {
           _id: 'optimistic-' + Date.now(),
-          userId: 'current-user',
-          employeeId: 'current-employee',
-          ...leaveData,
+          employee: '',
+          employeeName: '',
+          leaveType: leaveData.leaveType,
+          startDate: leaveData.date,
+          endDate: leaveData.date,
+          reason: leaveData.reason,
           status: 'pending',
+          numberOfDays: leaveData.leaveType === 'half-day' ? 0.5 : 1,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as Leave,
@@ -85,9 +89,16 @@ export const useRequestLeave = () => {
         queryClient.setQueryData(context.myLeavesKey, context.previousLeaves);
       }
     },
+    // Refetch on success to get actual data from server
+    onSuccess: () => {
+      // Immediately refetch to replace optimistic data with real data
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.myLeaves() });
+      // Also invalidate all leaves for admin dashboard
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.allLeaves() });
+    },
     // Refetch to ensure consistency
     onSettled: () => {
-      // Invalidate leave queries
+      // Invalidate all leave queries
       queryClient.invalidateQueries({ queryKey: queryKeys.leaves.all() });
 
       // Invalidate dashboard (shows pending leaves count)

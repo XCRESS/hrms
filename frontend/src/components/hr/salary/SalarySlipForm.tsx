@@ -384,27 +384,40 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                 return;
             }
 
-            const employeeName = `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim();
+            // Get employee name - handle both name and firstName/lastName formats
+            const employeeName = employeeDetails.name || 
+                `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim() || 
+                employeeDetails.employeeId;
             const monthName = months.find(m => m.value === month)?.label || String(month);
 
-            // Inject employee details if missing in slip
+            // Inject employee details if missing in slip - map Employee type to EmployeeInfo type
             const slipWithDetails = {
                 ...salarySlip,
                 employee: salarySlip.employee || {
-                    firstName: employeeDetails.firstName,
-                    lastName: employeeDetails.lastName,
+                    firstName: employeeDetails.firstName || employeeDetails.name?.split(' ')[0] || '',
+                    lastName: employeeDetails.lastName || employeeDetails.name?.split(' ').slice(1).join(' ') || '',
                     employeeId: employeeDetails.employeeId,
                     department: employeeDetails.department,
-                    position: employeeDetails.designation, // Note: type mismatch potential, map designation to position
+                    position: employeeDetails.position || employeeDetails.designation,
                     email: employeeDetails.email,
                     bankName: employeeDetails.bankDetails?.bankName,
                     bankAccountNumber: employeeDetails.bankDetails?.accountNumber,
-                    panNumber: employeeDetails.bankDetails?.panNumber,
+                    panNumber: employeeDetails.bankDetails?.panNumber || employeeDetails.govtId?.pan,
                     joiningDate: employeeDetails.dateOfJoining
                 }
             };
 
-            downloadSalarySlipPDF(slipWithDetails, employeeName, monthName, employeeDetails);
+            downloadSalarySlipPDF(slipWithDetails, employeeName, monthName, {
+                firstName: employeeDetails.firstName || employeeDetails.name?.split(' ')[0] || '',
+                lastName: employeeDetails.lastName || employeeDetails.name?.split(' ').slice(1).join(' ') || '',
+                companyName: employeeDetails.companyName,
+                department: employeeDetails.department,
+                position: employeeDetails.position || employeeDetails.designation,
+                bankName: employeeDetails.bankDetails?.bankName,
+                bankAccountNumber: employeeDetails.bankDetails?.accountNumber,
+                panNumber: employeeDetails.bankDetails?.panNumber || employeeDetails.govtId?.pan,
+                joiningDate: employeeDetails.dateOfJoining
+            });
 
             toast({
                 title: "Success",
@@ -547,7 +560,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Full Name</p>
                                                 <p className="font-medium text-slate-900 dark:text-slate-100">
-                                                    {`${employeeDetails.name}` || 'N/A'}
+                                                    {employeeDetails.name || `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim() || 'N/A'}
                                                 </p>
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
@@ -560,16 +573,21 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Position</p>
-                                                <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.designation || 'N/A'}</p>
+                                                <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.position || employeeDetails.designation || 'N/A'}</p>
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Bank Name</p>
-                                                <p className="font-medium text-slate-900 dark:text-slate-100">{employeeDetails.bankDetails?.bankName || 'N/A'}</p>
+                                                <p className="font-medium text-slate-900 dark:text-slate-100">
+                                                    {employeeDetails.bankName || employeeDetails.bankDetails?.bankName || 'N/A'}
+                                                </p>
                                             </div>
                                             <div className="bg-slate-50 dark:bg-slate-600 p-3 rounded-lg">
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">Joining Date</p>
                                                 <p className="font-medium text-slate-900 dark:text-slate-100">
-                                                    {employeeDetails.dateOfJoining ? new Date(employeeDetails.dateOfJoining).toLocaleDateString('en-IN') : 'N/A'}
+                                                    {(() => {
+                                                        const joiningDate = employeeDetails.joiningDate || employeeDetails.dateOfJoining;
+                                                        return joiningDate ? new Date(joiningDate).toLocaleDateString('en-IN') : 'N/A';
+                                                    })()}
                                                 </p>
                                             </div>
                                         </div>
@@ -1052,11 +1070,13 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                             <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-8">
                                                 <div>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">Employee Name</p>
-                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">{employeeDetails?.name}</p>
+                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                                        {employeeDetails?.name || `${employeeDetails?.firstName || ''} ${employeeDetails?.lastName || ''}`.trim() || '-'}
+                                                    </p>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">Employee ID</p>
-                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">{employeeDetails?.employeeId}</p>
+                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">{employeeDetails?.employeeId || '-'}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">Department</p>
@@ -1064,7 +1084,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">Position</p>
-                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">{employeeDetails?.designation || '-'}</p>
+                                                    <p className="font-semibold text-slate-900 dark:text-slate-100">{employeeDetails?.position || employeeDetails?.designation || '-'}</p>
                                                 </div>
                                             </div>
 
