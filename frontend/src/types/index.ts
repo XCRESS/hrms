@@ -63,6 +63,7 @@ export interface Employee {
   motherName?: string;
   dateOfBirth?: string;
   dateOfJoining: string;
+  joiningDate?: string; // Backend uses this field name
   department?: string;
   designation?: string;
   position?: string;
@@ -71,6 +72,13 @@ export interface Employee {
   isActive?: boolean; // Backend uses this field for active status
   companyName?: string;
   employmentType?: string;
+  // Direct bank fields from backend
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIFSCCode?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
+  // Nested bank details (legacy/alternative format)
   bankDetails?: {
     accountNumber?: string;
     ifscCode?: string;
