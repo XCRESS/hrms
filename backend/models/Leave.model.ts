@@ -21,8 +21,8 @@ const leaveSchema = new Schema<ILeave>(
     leaveType: {
       type: String,
       enum: {
-        values: ['sick', 'casual', 'earned', 'maternity', 'paternity'] as LeaveType[],
-        message: 'Leave type must be one of: sick, casual, earned, maternity, paternity',
+        values: ['full-day', 'half-day'],
+        message: 'Leave type must be one of: full-day, half-day',
       },
       required: [true, 'Leave type is required'],
     },

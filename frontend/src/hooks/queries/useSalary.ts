@@ -1,8 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
-import { queryKeys } from '@/lib/queryKeys';
-import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, SalaryStructure, SalarySlip, SalarySlipStatus, SalaryStructureQueryParams, SalarySlipQueryParams, SalaryStatistics, TaxCalculation } from '@/types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axiosInstance from "@/lib/axios";
+import { queryKeys } from "@/lib/queryKeys";
+import { API_ENDPOINTS, buildEndpointWithQuery } from "@/lib/apiEndpoints";
+import type {
+  ApiResponse,
+  SalaryStructure,
+  SalarySlip,
+  SalarySlipStatus,
+  SalaryStructureQueryParams,
+  SalarySlipQueryParams,
+  SalaryStatistics,
+  TaxCalculation,
+} from "@/types";
 
 // ============================================================================
 // SALARY STRUCTURES
@@ -15,8 +24,13 @@ export const useSalaryStructures = (params?: SalaryStructureQueryParams) => {
   return useQuery({
     queryKey: queryKeys.salaryStructures.list(params),
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_STRUCTURES.GET_ALL, params || {});
-      const { data } = await axiosInstance.get<ApiResponse<SalaryStructure[]>>(endpoint);
+      const endpoint = buildEndpointWithQuery(
+        API_ENDPOINTS.SALARY_STRUCTURES.GET_ALL,
+        params || {}
+      );
+      const { data } = await axiosInstance.get<ApiResponse<SalaryStructure[]>>(
+        endpoint
+      );
       return data.data || [];
     },
   });
@@ -25,7 +39,10 @@ export const useSalaryStructures = (params?: SalaryStructureQueryParams) => {
 /**
  * Get salary structure by employee ID
  */
-export const useSalaryStructure = (employeeId: string) => {
+export const useSalaryStructure = (
+  employeeId: string,
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: queryKeys.salaryStructures.byEmployee(employeeId),
     queryFn: async () => {
@@ -34,7 +51,10 @@ export const useSalaryStructure = (employeeId: string) => {
       );
       return data.data;
     },
-    enabled: !!employeeId,
+    enabled:
+      options?.enabled !== undefined
+        ? options.enabled && !!employeeId
+        : !!employeeId,
   });
 };
 
@@ -45,7 +65,9 @@ export const useSalaryStatistics = () => {
   return useQuery({
     queryKey: queryKeys.salaryStructures.statistics(),
     queryFn: async () => {
-      const { data } = await axiosInstance.get<ApiResponse<SalaryStatistics>>(API_ENDPOINTS.SALARY_STRUCTURES.STATISTICS);
+      const { data } = await axiosInstance.get<ApiResponse<SalaryStatistics>>(
+        API_ENDPOINTS.SALARY_STRUCTURES.STATISTICS
+      );
       return data.data;
     },
   });
@@ -67,7 +89,9 @@ export const useCreateOrUpdateSalaryStructure = () => {
     },
     onSuccess: (updatedStructure) => {
       // Invalidate salary structure lists
-      queryClient.invalidateQueries({ queryKey: queryKeys.salaryStructures.all() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.salaryStructures.all(),
+      });
 
       // Update specific structure in cache
       if (updatedStructure?.employeeId) {
@@ -78,7 +102,9 @@ export const useCreateOrUpdateSalaryStructure = () => {
       }
 
       // Invalidate statistics
-      queryClient.invalidateQueries({ queryKey: queryKeys.salaryStructures.statistics() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.salaryStructures.statistics(),
+      });
     },
   });
 };
@@ -97,7 +123,9 @@ export const useDeleteSalaryStructure = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.salaryStructures.all() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.salaryStructures.all(),
+      });
     },
   });
 };
@@ -113,9 +141,28 @@ export const useSalarySlips = (params?: SalarySlipQueryParams) => {
   return useQuery({
     queryKey: queryKeys.salarySlips.list(params),
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.GET_ALL, params || {});
-      const { data } = await axiosInstance.get<ApiResponse<SalarySlip[]>>(endpoint);
-      return data.data || [];
+      const endpoint = buildEndpointWithQuery(
+        API_ENDPOINTS.SALARY_SLIPS.GET_ALL,
+        params || {}
+      );
+      const { data } = await axiosInstance.get<ApiResponse<{ salarySlips: SalarySlip[]; pagination: { page: number; limit: number; total: number; totalPages: number; currentPage?: number; totalItems?: number; itemsPerPage?: number } }>>(
+        endpoint
+      );
+      // Normalize pagination response from backend (which uses currentPage, totalItems, itemsPerPage)
+      const responseData = data.data;
+      if (responseData) {
+        const pagination = responseData.pagination;
+        return {
+          salarySlips: responseData.salarySlips || [],
+          pagination: {
+            page: pagination.currentPage || pagination.page || 1,
+            limit: pagination.itemsPerPage || pagination.limit || 10,
+            total: pagination.totalItems || pagination.total || 0,
+            totalPages: pagination.totalPages || 1
+          }
+        };
+      }
+      return { salarySlips: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 1 } };
     },
   });
 };
@@ -123,7 +170,10 @@ export const useSalarySlips = (params?: SalarySlipQueryParams) => {
 /**
  * Get salary slips for specific employee
  */
-export const useEmployeeSalarySlips = (employeeId: string, params?: SalarySlipQueryParams) => {
+export const useEmployeeSalarySlips = (
+  employeeId: string,
+  params?: SalarySlipQueryParams
+) => {
   return useQuery({
     queryKey: queryKeys.salarySlips.byEmployee(employeeId, params),
     queryFn: async () => {
@@ -131,7 +181,9 @@ export const useEmployeeSalarySlips = (employeeId: string, params?: SalarySlipQu
         API_ENDPOINTS.SALARY_SLIPS.GET_EMPLOYEE_SLIPS(employeeId),
         params || {}
       );
-      const { data } = await axiosInstance.get<ApiResponse<SalarySlip[]>>(endpoint);
+      const { data } = await axiosInstance.get<ApiResponse<SalarySlip[]>>(
+        endpoint
+      );
       return data.data || [];
     },
     enabled: !!employeeId,
@@ -141,12 +193,24 @@ export const useEmployeeSalarySlips = (employeeId: string, params?: SalarySlipQu
 /**
  * Get specific salary slip
  */
-export const useSalarySlip = (employeeId: string, month: number, year: number) => {
+export const useSalarySlip = (
+  employeeId: string,
+  month: number,
+  year: number
+) => {
   return useQuery({
-    queryKey: queryKeys.salarySlips.byEmployeeMonthYear(employeeId, month, year),
+    queryKey: queryKeys.salarySlips.byEmployeeMonthYear(
+      employeeId,
+      month,
+      year
+    ),
     queryFn: async () => {
       const { data } = await axiosInstance.get<ApiResponse<SalarySlip>>(
-        API_ENDPOINTS.SALARY_SLIPS.GET_BY_EMPLOYEE_MONTH_YEAR(employeeId, month, year)
+        API_ENDPOINTS.SALARY_SLIPS.GET_BY_EMPLOYEE_MONTH_YEAR(
+          employeeId,
+          month,
+          year
+        )
       );
       return data.data;
     },
@@ -157,18 +221,30 @@ export const useSalarySlip = (employeeId: string, month: number, year: number) =
 /**
  * Get tax calculation
  */
-export const useTaxCalculation = (grossSalary: number, taxRegime: 'old' | 'new' = 'new') => {
+export const useTaxCalculation = (
+  grossSalary: number,
+  taxRegime: "old" | "new" = "new",
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: queryKeys.salarySlips.taxCalculation(grossSalary, taxRegime),
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.SALARY_SLIPS.TAX_CALCULATION, {
-        grossSalary,
-        taxRegime,
-      });
-      const { data } = await axiosInstance.get<ApiResponse<TaxCalculation>>(endpoint);
+      const endpoint = buildEndpointWithQuery(
+        API_ENDPOINTS.SALARY_SLIPS.TAX_CALCULATION,
+        {
+          grossSalary,
+          taxRegime,
+        }
+      );
+      const { data } = await axiosInstance.get<ApiResponse<TaxCalculation>>(
+        endpoint
+      );
       return data.data;
     },
-    enabled: grossSalary > 0,
+    enabled:
+      options?.enabled !== undefined
+        ? options.enabled && grossSalary > 0
+        : grossSalary > 0,
   });
 };
 
@@ -193,7 +269,11 @@ export const useCreateOrUpdateSalarySlip = () => {
       // Update specific slip in cache
       if (updatedSlip?.employeeId && updatedSlip.month && updatedSlip.year) {
         queryClient.setQueryData(
-          queryKeys.salarySlips.byEmployeeMonthYear(updatedSlip.employeeId, updatedSlip.month, updatedSlip.year),
+          queryKeys.salarySlips.byEmployeeMonthYear(
+            updatedSlip.employeeId,
+            updatedSlip.month,
+            updatedSlip.year
+          ),
           updatedSlip
         );
       }
@@ -220,7 +300,9 @@ export const useUpdateSalarySlipStatus = () => {
       status: SalarySlipStatus;
     }) => {
       const { data } = await axiosInstance.put<ApiResponse<SalarySlip>>(
-        `${API_ENDPOINTS.SALARY_SLIPS.BASE}/${encodeURIComponent(employeeId)}/${month}/${year}/status`,
+        `${API_ENDPOINTS.SALARY_SLIPS.BASE}/${encodeURIComponent(
+          employeeId
+        )}/${month}/${year}/status`,
         { status }
       );
       return data.data;
@@ -264,7 +346,15 @@ export const useDeleteSalarySlip = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ employeeId, month, year }: { employeeId: string; month: number; year: number }) => {
+    mutationFn: async ({
+      employeeId,
+      month,
+      year,
+    }: {
+      employeeId: string;
+      month: number;
+      year: number;
+    }) => {
       const { data } = await axiosInstance.delete<ApiResponse>(
         API_ENDPOINTS.SALARY_SLIPS.DELETE(employeeId, month, year)
       );

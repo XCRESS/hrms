@@ -76,6 +76,11 @@ axiosInstance.interceptors.response.use(
       customError.isValidationError = true;
       customError.message = error.response.data?.message || 'Validation failed';
 
+      // Capture validation details from backend
+      if (error.response.data?.details) {
+        customError.validationDetails = error.response.data.details;
+      }
+
       // Check if this is an expected validation (not a real error)
       customError.isExpectedValidation = EXPECTED_VALIDATION_MESSAGES.includes(
         customError.message as typeof EXPECTED_VALIDATION_MESSAGES[number]

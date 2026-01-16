@@ -10,10 +10,9 @@ import type { IAuthRequest } from '../types/index.js';
 import type { LeaveStatus } from '../types/index.js';
 
 export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { leaveType, startDate, endDate, reason } = req.body as {
+  const { leaveType, date, reason } = req.body as {
     leaveType: string;
-    startDate: string;
-    endDate: string;
+    date: string;
     reason: string;
   };
 
@@ -30,20 +29,27 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
     throw new NotFoundError('Employee profile not found');
   }
 
+  // Use the same date for both startDate and endDate (single day leave)
+  const leaveDate = new Date(date);
+
+  // Calculate numberOfDays based on leave type
+  const numberOfDays = leaveType === 'half-day' ? 0.5 : 1;
+
   const leave = await Leave.create({
     employee: employee._id,
     employeeName: `${employee.firstName} ${employee.lastName}`,
     leaveType,
-    startDate: new Date(startDate),
-    endDate: new Date(endDate),
-    reason
+    startDate: leaveDate,
+    endDate: leaveDate,
+    reason,
+    numberOfDays
   });
 
   NotificationService.notifyHR('leave_request', {
     employee: req.user.name,
     employeeId: req.user.employeeId,
     type: leaveType,
-    date: startDate,
+    date,
     reason
   }).catch((error: unknown) => {
     const err = error instanceof Error ? error : new Error('Unknown error');
