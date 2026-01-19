@@ -1,4 +1,4 @@
-import { useState, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,6 +114,17 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   });
 
   const policies = policiesData?.policies || [];
+
+  // Sync pagination state with API response
+  useEffect(() => {
+    if (policiesData?.pagination) {
+      setPagination(prev => ({
+        ...prev,
+        totalPages: policiesData.pagination.totalPages,
+        totalItems: policiesData.pagination.totalItems,
+      }));
+    }
+  }, [policiesData?.pagination]);
 
   // Mutations
   const createPolicyMutation = useCreatePolicy();
