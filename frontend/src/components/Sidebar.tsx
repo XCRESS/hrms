@@ -185,15 +185,15 @@ export default function SidebarDemo() {
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10 z-50 border-r-1">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hide">
-            <div className="mt-6 flex flex-col gap-1">
+        <SidebarBody className="justify-between gap-4 z-50 border-r-1">
+          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hide min-h-0">
+            <div className="mt-4 flex flex-col gap-0.5">
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
               ))}
             </div>
           </div>
-          <div>
+          <div className="shrink-0 pt-2 border-t border-sidebar-border">
             <SidebarLink
               link={{
                 label: user?.name || "User",

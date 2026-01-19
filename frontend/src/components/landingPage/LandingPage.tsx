@@ -166,7 +166,7 @@ const LandingPage: React.FC = () => {
         return (
             <section id="hero" className="relative min-h-screen bg-black text-white overflow-hidden">
                 {/* 🔥 Animated Cyber Grid Background */}
-                <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                <div className="absolute inset-0 opacity-70 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
 
                 {/* Glowing gradient background behind everything */}
                 <div className="absolute inset-0 bg-blue-900/20"></div>
