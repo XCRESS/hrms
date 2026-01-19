@@ -169,12 +169,12 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-sidebar p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 bg-sidebar p-6 pt-16 z-[100] flex flex-col justify-between overflow-y-auto",
                 className
               )}
             >
               <div
-                className="absolute right-10 top-10 z-50 text-sidebar-foreground"
+                className="absolute right-6 top-6 z-50 text-sidebar-foreground cursor-pointer p-2 hover:bg-sidebar-accent rounded-lg"
                 onClick={() => setOpen(!open)}
               >
                 <IconX />
@@ -225,7 +225,7 @@ export const SidebarLink = ({
 
   const linkClasses = (isActive: boolean) =>
     cn(
-      "flex items-center justify-start gap-3 group/sidebar py-3 rounded-xl transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      "flex items-center justify-start gap-3 group/sidebar py-2.5 rounded-xl transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       open ? "px-3" : "px-4",
       {
         "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm": isActive,

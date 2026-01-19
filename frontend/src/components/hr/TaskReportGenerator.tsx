@@ -53,13 +53,21 @@ const TaskReportGenerator = () => {
 
   // Filter employees based on search term and exclude inactive employees
   const filteredEmployees = employees
-    .filter(emp => emp.status !== 'inactive')
-    .filter(emp =>
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter(emp => emp.status !== 'inactive' && emp.isActive !== false)
+    .filter(emp => {
+      const name = emp.fullName || emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        name.toLowerCase().includes(searchLower) ||
+        emp.employeeId?.toLowerCase().includes(searchLower) ||
+        emp.department?.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      const nameA = a.fullName || a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim();
+      const nameB = b.fullName || b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim();
+      return nameA.localeCompare(nameB);
+    });
 
   // Handle employee selection
   const handleEmployeeSelection = (employee: Employee) => {
@@ -157,7 +165,7 @@ const TaskReportGenerator = () => {
 
                 reportData.push({
                   'S.No.': serialNumber++,
-                  'Employee Name': employee.name,
+                  'Employee Name': employee.fullName || employee.name || `${employee.firstName} ${employee.lastName}`,
                   'Summary Report': summary
                 });
               } catch (aiError) {
@@ -168,7 +176,7 @@ const TaskReportGenerator = () => {
             }
           }
         } catch (err) {
-          console.error(`Failed to fetch reports for ${employee.name}:`, err);
+          console.error(`Failed to fetch reports for ${employee.fullName || employee.name}:`, err);
         }
       }
 
@@ -262,13 +270,13 @@ const TaskReportGenerator = () => {
 
               reportData.push({
                 'S.No.': serialNumber++,
-                'Employee Name': employee.name,
+                'Employee Name': employee.fullName || employee.name || `${employee.firstName} ${employee.lastName}`,
                 'Summary Report': summaryReport
               });
             }
           }
         } catch (err) {
-          console.error(`Failed to fetch reports for ${employee.name}:`, err);
+          console.error(`Failed to fetch reports for ${employee.fullName || employee.name}:`, err);
           // Continue with other employees even if one fails
         }
       }
@@ -431,7 +439,7 @@ const TaskReportGenerator = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-slate-900 dark:text-slate-100">
-                              {employee.name}
+                              {employee.fullName || employee.name}
                             </p>
                             <p className="text-sm text-slate-600 dark:text-slate-400">
                               {employee.employeeId} • {employee.department}

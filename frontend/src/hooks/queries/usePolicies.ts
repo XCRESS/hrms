@@ -8,6 +8,16 @@ import type { ApiResponse, Policy, CreatePolicyDto, UpdatePolicyDto, PolicyQuery
 // QUERIES
 // ============================================================================
 
+interface PoliciesResponse {
+  policies: Policy[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
 /**
  * Get all policies with optional filtering
  */
@@ -17,8 +27,8 @@ export const usePolicies = (params?: PolicyQueryParams) => {
     queryFn: async () => {
       // Backend returns { success, data: { policies, pagination } } via formatResponse
       const endpoint = buildEndpointWithQuery(API_ENDPOINTS.POLICIES.BASE, (params || {}) as Record<string, string | number | boolean | null | undefined>);
-      const { data } = await axiosInstance.get<ApiResponse<{ policies: Policy[] }>>(endpoint);
-      return data.data?.policies || [];
+      const { data } = await axiosInstance.get<ApiResponse<PoliciesResponse>>(endpoint);
+      return data.data || { policies: [], pagination: { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 } };
     },
   });
 };

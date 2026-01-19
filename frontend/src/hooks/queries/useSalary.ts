@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@/lib/axios";
 import { queryKeys } from "@/lib/queryKeys";
 import { API_ENDPOINTS, buildEndpointWithQuery } from "@/lib/apiEndpoints";
@@ -172,7 +172,8 @@ export const useSalarySlips = (params?: SalarySlipQueryParams) => {
  */
 export const useEmployeeSalarySlips = (
   employeeId: string,
-  params?: SalarySlipQueryParams
+  params?: SalarySlipQueryParams,
+  options?: { enabled?: boolean }
 ) => {
   return useQuery({
     queryKey: queryKeys.salarySlips.byEmployee(employeeId, params),
@@ -181,12 +182,12 @@ export const useEmployeeSalarySlips = (
         API_ENDPOINTS.SALARY_SLIPS.GET_EMPLOYEE_SLIPS(employeeId),
         params || {}
       );
-      const { data } = await axiosInstance.get<ApiResponse<SalarySlip[]>>(
+      const { data } = await axiosInstance.get<ApiResponse<{ salarySlips: SalarySlip[]; pagination: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number } }>>(
         endpoint
       );
-      return data.data || [];
+      return data;
     },
-    enabled: !!employeeId,
+    enabled: options?.enabled !== undefined ? options.enabled && !!employeeId : !!employeeId,
   });
 };
 

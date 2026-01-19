@@ -11,20 +11,21 @@ import type { ApiResponse, GlobalSettings, DepartmentSettings, EffectiveSettings
 /**
  * Get global settings
  */
-export const useGlobalSettings = () => {
+export const useGlobalSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.settings.global(),
     queryFn: async () => {
       const { data } = await axiosInstance.get<ApiResponse<GlobalSettings>>(API_ENDPOINTS.SETTINGS.GLOBAL);
       return data.data;
     },
+    enabled: options?.enabled ?? true,
   });
 };
 
 /**
  * Get department settings
  */
-export const useDepartmentSettings = (department: string) => {
+export const useDepartmentSettings = (department: string, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.settings.department(department),
     queryFn: async () => {
@@ -33,7 +34,7 @@ export const useDepartmentSettings = (department: string) => {
       );
       return data.data;
     },
-    enabled: !!department,
+    enabled: (options?.enabled ?? true) && !!department,
   });
 };
 
@@ -56,26 +57,28 @@ export const useEffectiveSettings = (department?: string, options?: { enabled?: 
 /**
  * Get list of departments
  */
-export const useDepartments = () => {
+export const useDepartments = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.settings.departments(),
     queryFn: async () => {
-      const { data } = await axiosInstance.get<ApiResponse<string[]>>(API_ENDPOINTS.SETTINGS.DEPARTMENTS);
-      return data.data || [];
+      const { data } = await axiosInstance.get<ApiResponse<{ departments: string[] }>>(API_ENDPOINTS.SETTINGS.DEPARTMENTS);
+      return data.data?.departments || [];
     },
+    enabled: options?.enabled ?? true,
   });
 };
 
 /**
  * Get department statistics
  */
-export const useDepartmentStats = () => {
+export const useDepartmentStats = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.settings.departmentStats(),
     queryFn: async () => {
-      const { data } = await axiosInstance.get<ApiResponse<DepartmentStats[]>>(API_ENDPOINTS.SETTINGS.DEPARTMENT_STATS);
-      return data.data || [];
+      const { data } = await axiosInstance.get<ApiResponse<{ departments: DepartmentStats[] }>>(API_ENDPOINTS.SETTINGS.DEPARTMENT_STATS);
+      return data.data?.departments || [];
     },
+    enabled: options?.enabled ?? true,
   });
 };
 

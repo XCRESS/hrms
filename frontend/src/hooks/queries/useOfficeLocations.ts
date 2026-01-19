@@ -11,7 +11,8 @@ import type { ApiResponse, OfficeLocation, CreateOfficeLocationDto, UpdateOffice
 /**
  * Get all office locations with optional filtering
  */
-export const useOfficeLocations = (params?: OfficeLocationQueryParams) => {
+export const useOfficeLocations = (options?: OfficeLocationQueryParams & { enabled?: boolean }) => {
+  const { enabled, ...params } = options || {};
   return useQuery({
     queryKey: queryKeys.officeLocations.list(params),
     queryFn: async () => {
@@ -20,6 +21,7 @@ export const useOfficeLocations = (params?: OfficeLocationQueryParams) => {
       const { data } = await axiosInstance.get<ApiResponse<{ locations: OfficeLocation[] }>>(endpoint);
       return data.data?.locations || [];
     },
+    enabled: enabled ?? true,
   });
 };
 
