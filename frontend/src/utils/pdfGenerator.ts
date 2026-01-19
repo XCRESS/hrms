@@ -1,11 +1,6 @@
-import { formatIndianNumber, getCompanyAddress } from './indianNumber';
+import { formatIndianNumber, getCompanyAddress, convertToWords } from './indianNumber';
 
-// Types for salary slip PDF generation
-interface CustomDeduction {
-  name: string;
-  amount: number;
-}
-
+// Types for salary slip PDF generation - minimal local types for flexibility
 interface Earnings {
   basic: number;
   hra: number;
@@ -16,8 +11,14 @@ interface Earnings {
   mobileAllowance: number;
 }
 
+interface CustomDeduction {
+  name: string;
+  amount: number;
+}
+
 interface Deductions {
-  incomeTax: number;
+  incomeTax?: number;
+  tds?: number;
   customDeductions?: CustomDeduction[];
 }
 
@@ -33,15 +34,16 @@ interface EmployeeInfo {
   joiningDate?: string;
 }
 
-interface SalarySlip {
+interface SalarySlipForPDF {
   employeeId: string;
   year: number;
+  month?: number;
   earnings: Earnings;
-  deductions: Deductions;
+  deductions?: Deductions;
   grossSalary: number;
   totalDeductions: number;
   netSalary: number;
-  netSalaryInWords: string;
+  netSalaryInWords?: string;
   employee?: EmployeeInfo;
 }
 
@@ -53,11 +55,20 @@ const escapeHtml = (text: unknown): string => {
   return div.innerHTML;
 };
 
+/**
+ * Download salary slip as PDF
+ * @param slip - The salary slip data
+ * @param employeeName - Employee's full name
+ * @param monthName - Month name string
+ * @param employeeData - Optional additional employee data
+ */
 export const downloadSalarySlipPDF = (
-  slip: SalarySlip,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  slip: SalarySlipForPDF | any,
   employeeName: string,
   monthName: string,
-  employeeData: EmployeeInfo | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  employeeData: EmployeeInfo | any = null
 ): void => {
   // Create a new window for PDF
   const printWindow = window.open('', '_blank');
@@ -75,6 +86,9 @@ export const downloadSalarySlipPDF = (
   const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Services Limited';
   const companyAddress = getCompanyAddress(companyName);
 
+  // Generate netSalaryInWords using shared utility if not provided
+  const netSalaryInWords = slip.netSalaryInWords || convertToWords(slip.netSalary);
+
   // Sanitize all user-provided data
   const safeCompanyName = escapeHtml(companyName);
   const safeCompanyAddress = escapeHtml(companyAddress);
@@ -86,7 +100,7 @@ export const downloadSalarySlipPDF = (
   const safeBankName = escapeHtml(employeeData?.bankName || slip.employee?.bankName || 'N/A');
   const safeBankAccountNumber = escapeHtml(employeeData?.bankAccountNumber || slip.employee?.bankAccountNumber || 'N/A');
   const safePanNumber = escapeHtml(employeeData?.panNumber || slip.employee?.panNumber || 'N/A');
-  const safeNetSalaryInWords = escapeHtml(slip.netSalaryInWords);
+  const safeNetSalaryInWords = escapeHtml(netSalaryInWords);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -367,25 +381,32 @@ export const downloadSalarySlipPDF = (
     </html>
   `;
 
-  // Security: Use blob URL instead of document.write to prevent XSS vulnerabilities
-  // This approach creates an isolated document that cannot execute scripts
-  const blob = new Blob([htmlContent], { type: 'text/html' });
-  const blobURL = URL.createObjectURL(blob);
+  // Write content directly to the new window and trigger print
+  // Using document.write is safe here since we're controlling all the content
+  // and have already escaped all user-provided data
+  printWindow.document.open();
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
 
-  printWindow.location.href = blobURL;
-
-  // Wait for content to load before printing, then cleanup
+  // Wait for content and images to load before printing
   printWindow.onload = () => {
     setTimeout(() => {
+      printWindow.focus();
       printWindow.print();
-      // Cleanup blob URL after a delay to ensure print dialog has opened
-      setTimeout(() => URL.revokeObjectURL(blobURL), 1000);
-    }, 500);
+    }, 300);
   };
+
+  // Fallback: If onload doesn't fire (some browsers), trigger print after a delay
+  setTimeout(() => {
+    if (printWindow.document.readyState === 'complete') {
+      printWindow.focus();
+      printWindow.print();
+    }
+  }, 1000);
 };
 
 // Helper function to generate salary rows - only show non-zero values
-const generateSalaryRows = (slip: SalarySlip): string => {
+const generateSalaryRows = (slip: SalarySlipForPDF): string => {
   // Helper to escape HTML in the row generation context
   const escapeHtml = (text: unknown): string => {
     if (!text) return '';
@@ -413,8 +434,8 @@ const generateSalaryRows = (slip: SalarySlip): string => {
   const deductions: EarningDeductionItem[] = [];
 
   // Add custom deductions first (sanitize custom names to prevent XSS)
-  if (slip.deductions.customDeductions && slip.deductions.customDeductions.length > 0) {
-    slip.deductions.customDeductions.forEach(customDeduction => {
+  if (slip.deductions?.customDeductions && slip.deductions.customDeductions.length > 0) {
+    slip.deductions.customDeductions.forEach((customDeduction: CustomDeduction) => {
       if (customDeduction.amount > 0) {
         deductions.push({
           label: escapeHtml(customDeduction.name),
@@ -425,7 +446,7 @@ const generateSalaryRows = (slip: SalarySlip): string => {
   }
 
   // Add income tax if greater than 0
-  if (slip.deductions.incomeTax > 0) {
+  if (slip.deductions?.incomeTax && slip.deductions.incomeTax > 0) {
     deductions.push({
       label: 'Income Tax (TDS)',
       value: slip.deductions.incomeTax

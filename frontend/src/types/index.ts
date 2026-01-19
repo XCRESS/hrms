@@ -53,6 +53,7 @@ export interface User {
 export interface Employee {
   _id: string;
   name: string;
+  fullName?: string; // Backend returns this from getEmployees
   firstName?: string;
   lastName?: string;
   email: string;
