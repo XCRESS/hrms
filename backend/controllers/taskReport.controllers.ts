@@ -68,7 +68,10 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
 
     if (date) {
       // Parse the date string (YYYY-MM-DD) and create UTC dates
-      const [year, month, day] = date.split('-').map(Number);
+      const dateParts = date.split('-').map(Number);
+      const year = dateParts[0] ?? new Date().getFullYear();
+      const month = dateParts[1] ?? 1;
+      const day = dateParts[2] ?? 1;
       startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
       endOfDay = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0));
     } else {
@@ -115,7 +118,7 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
         date: startOfDay
       });
 
-      logger.info({ employee: employeeObjId, employeeId: employee.employeeId, tasks: validTasks, date: reportDate }, 'submitTaskReport: Attempting to save task report');
+      logger.info({ employee: employeeObjId, employeeId: employee.employeeId, tasks: validTasks, date: startOfDay }, 'submitTaskReport: Attempting to save task report');
 
       await taskReport.save();
 
