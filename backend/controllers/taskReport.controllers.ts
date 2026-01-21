@@ -61,13 +61,28 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
       return;
     }
 
-    const reportDate = date ? new Date(date) : new Date();
+    // Parse date string and create UTC date range to avoid timezone issues
+    // When date is '2026-01-20', we want to match reports from 2026-01-20T00:00:00Z to 2026-01-21T00:00:00Z
+    let startOfDay: Date;
+    let endOfDay: Date;
+
+    if (date) {
+      // Parse the date string (YYYY-MM-DD) and create UTC dates
+      const [year, month, day] = date.split('-').map(Number);
+      startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0));
+    } else {
+      // For current date, use local date but convert to UTC range
+      const now = new Date();
+      startOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0));
+    }
 
     const existingReport = await TaskReport.findOne({
       employee: employeeObjId,
       date: {
-        $gte: new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate()),
-        $lt: new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate() + 1)
+        $gte: startOfDay,
+        $lt: endOfDay
       }
     });
 
@@ -97,7 +112,7 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
         employee: employeeObjId,
         employeeId: employee.employeeId,
         tasks: validTasks,
-        date: reportDate
+        date: startOfDay
       });
 
       logger.info({ employee: employeeObjId, employeeId: employee.employeeId, tasks: validTasks, date: reportDate }, 'submitTaskReport: Attempting to save task report');
