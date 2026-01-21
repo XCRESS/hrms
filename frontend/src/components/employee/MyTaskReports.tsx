@@ -190,9 +190,15 @@ export default function MyTaskReports() {
     }
 
     try {
+      // Use original date string from API directly to avoid timezone conversion issues
+      // report.date is already in YYYY-MM-DD format or ISO string from the backend
+      const dateForSubmit = report.date
+        ? report.date.slice(0, 10)  // Extract YYYY-MM-DD from ISO string
+        : report.createdAt.slice(0, 10);
+
       await submitTaskReportMutation.mutateAsync({
         tasks: nonEmptyTasks,
-        date: formatDateForInput(report.submissionDate)
+        date: dateForSubmit
       });
 
       toast({
