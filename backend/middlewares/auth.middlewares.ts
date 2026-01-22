@@ -1,37 +1,71 @@
 import { verifyToken } from "../utils/jwt.js";
 import User from "../models/User.model.js";
 import Employee from "../models/Employee.model.js";
-import type { Response, NextFunction } from 'express';
-import type { IAuthRequest, UserRole } from '../types/index.js';
+import type { Response, NextFunction } from "express";
+import type { IAuthRequest, UserRole } from "../types/index.js";
 import logger from "../utils/logger.js";
 
-declare module 'express' {
+declare module "express" {
   interface Request {
     missingEmployeeId?: boolean;
   }
 }
 
 const authMiddleware = (allowedRoles: UserRole[] = []) => {
-  return async (req: IAuthRequest, res: Response, next: NextFunction): Promise<void | Response> => {
+  return async (
+    req: IAuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void | Response> => {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader)
-        return res.status(401).json({ success: false, message: "Access Denied: No Token Provided" });
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: "Access Denied: No Token Provided",
+          });
 
       const token = authHeader.split(" ")[1];
       if (!token)
-        return res.status(401).json({ success: false, message: "Access Denied: Invalid Authorization Format" });
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: "Access Denied: Invalid Authorization Format",
+          });
 
       const decoded = verifyToken(token);
 
+      // Extract user ID from JWT payload - prioritize 'userId' (current token format)
+      // with fallbacks for backward compatibility with older tokens
+      const userId =
+        decoded.userId ||
+        decoded.id ||
+        (decoded as Record<string, unknown>)._id;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: "Access Denied: Invalid token payload",
+          });
+      }
+
       // Fetch complete user data with isActive check in single query
       const user = await User.findOne({
-        _id: decoded.id || decoded._id,
-        isActive: true
+        _id: userId,
+        isActive: true,
       });
 
       if (!user) {
-        return res.status(401).json({ success: false, message: "Access Denied: User not found or inactive" });
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: "Access Denied: User not found or inactive",
+          });
       }
 
       // Set user data in request for controllers to use
@@ -41,13 +75,18 @@ const authMiddleware = (allowedRoles: UserRole[] = []) => {
         email: user.email,
         role: user.role,
         employee: user.employee,
-        employeeId: user.employeeId
+        employeeId: user.employeeId,
       };
 
       // If allowedRoles is specified, check user permissions
       if (allowedRoles.length) {
         if (!allowedRoles.includes(user.role)) {
-          return res.status(403).json({ success: false, message: "Access Forbidden: Insufficient Permissions" });
+          return res
+            .status(403)
+            .json({
+              success: false,
+              message: "Access Forbidden: Insufficient Permissions",
+            });
         }
       }
 
@@ -56,13 +95,14 @@ const authMiddleware = (allowedRoles: UserRole[] = []) => {
         // Single query to check if employee profile is active
         const employee = await Employee.findOne({
           employeeId: user.employeeId,
-          isActive: true
+          isActive: true,
         });
 
         if (!employee) {
           return res.status(403).json({
             success: false,
-            message: "Access Forbidden: Employee account is deactivated. Please contact HR."
+            message:
+              "Access Forbidden: Employee account is deactivated. Please contact HR.",
           });
         }
       } else if (user.role === "employee" && !user.employeeId) {
@@ -78,7 +118,7 @@ const authMiddleware = (allowedRoles: UserRole[] = []) => {
       return res.status(401).json({
         success: false,
         message: error.message || "Invalid Token",
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
       });
     }
   };
