@@ -1,5 +1,5 @@
 import express, { type Router, type Response } from "express";
-import authMiddleware from "../middlewares/auth.middlewares.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
 import NotificationService from "../services/notificationService.js";
 import SchedulerService from "../services/schedulerService.js";
 import PushService from "../services/pushService.js";
