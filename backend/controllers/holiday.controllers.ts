@@ -3,21 +3,98 @@ import Holiday from '../models/Holiday.model.js';
 import notificationService from '../utils/notificationService.js';
 import { getISTDayBoundaries, parseISTDateString } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
+import type { IHoliday } from '../types/index.js';
+
+// ============================================================================
+// HELPER FUNCTIONS - Extracted to avoid code duplication
+// ============================================================================
+
+/**
+ * Transform a holiday document to match frontend expectations
+ * Maps model fields (name, type) to frontend fields (title, isOptional)
+ */
+const transformHolidayForResponse = (holiday: IHoliday) => ({
+  _id: holiday._id,
+  title: holiday.name,
+  date: holiday.date,
+  description: holiday.description,
+  isOptional: holiday.type === 'optional',
+  type: holiday.type,
+  isActive: holiday.isActive,
+  createdAt: holiday.createdAt,
+  updatedAt: holiday.updatedAt,
+});
+
+/**
+ * Parse and validate a date string, returning start of day in IST
+ * @throws Error with user-friendly message if date is invalid
+ */
+const parseHolidayDate = (dateString: string): Date => {
+  const parsedDate = parseISTDateString(dateString);
+  const { startOfDay } = getISTDayBoundaries(parsedDate);
+  return new Date(startOfDay.valueOf());
+};
+
+/**
+ * Determine holiday type from request body
+ * Supports both 'type' (preferred) and 'isOptional' (backward compatibility)
+ */
+const determineHolidayType = (type?: string, isOptional?: boolean): string => {
+  if (type) return type;
+  return isOptional ? 'optional' : 'public';
+};
+
+/**
+ * Send holiday notification with error handling
+ * Logs errors but doesn't throw to avoid failing the main operation
+ */
+const sendHolidayNotificationSafe = async (
+  holidayId: string,
+  title: string,
+  description: string,
+  date: Date
+): Promise<void> => {
+  try {
+    await notificationService.sendHolidayNotification({
+      _id: holidayId,
+      title,
+      description: description || '',
+      date,
+    });
+  } catch (notificationError) {
+    const error = notificationError instanceof Error
+      ? notificationError
+      : new Error('Unknown notification error');
+    logger.error({ err: error }, 'Failed to send holiday notification');
+  }
+};
+
+/**
+ * Extract holiday name from request body
+ * Supports both 'name' (preferred) and 'title' (backward compatibility)
+ */
+const getHolidayName = (name?: string, title?: string): string | undefined => {
+  return name || title;
+};
+
+// ============================================================================
+// CONTROLLERS
+// ============================================================================
 
 export const createHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, date, isOptional, description } = req.body;
-    if (!title || !date) {
-      res.status(400).json({ success: false, message: 'Title and date are required for a holiday.' });
+    const { title, name, date, isOptional, type, description } = req.body;
+    const holidayName = getHolidayName(name, title);
+
+    if (!holidayName || !date) {
+      res.status(400).json({ success: false, message: 'Name/Title and date are required for a holiday.' });
       return;
     }
 
-    // Validate date format and parse
+    // Parse and validate date
     let holidayDate: Date;
     try {
-      const parsedDate = parseISTDateString(date);
-      const { startOfDay } = getISTDayBoundaries(parsedDate);
-      holidayDate = new Date(startOfDay.valueOf());
+      holidayDate = parseHolidayDate(date);
     } catch (dateError) {
       const error = dateError instanceof Error ? dateError : new Error('Unknown date parsing error');
       res.status(400).json({
@@ -28,27 +105,24 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const holiday = await Holiday.create({ title, date: holidayDate, isOptional, description });
+    const holiday = await Holiday.create({
+      name: holidayName,
+      date: holidayDate,
+      type: determineHolidayType(type, isOptional),
+      description
+    });
 
-    // Send notification for new holiday
-    try {
-      await notificationService.sendHolidayNotification({
-        _id: holiday._id.toString(),
-        title,
-        description: description || '',
-        date: holidayDate,
-      });
-    } catch (notificationError) {
-      const error = notificationError instanceof Error ? notificationError : new Error('Unknown notification error');
-      logger.error({ err: error }, 'Failed to send holiday notification');
-      // Don't fail the main operation if notification fails
-    }
+    // Send notification (non-blocking)
+    await sendHolidayNotificationSafe(holiday._id.toString(), holidayName, description || '', holidayDate);
 
-    res.status(201).json({ success: true, message: 'Holiday created successfully', holiday });
+    res.status(201).json({
+      success: true,
+      message: 'Holiday created successfully',
+      holiday: transformHolidayForResponse(holiday)
+    });
   } catch (err) {
     const error = err as { code?: number; message: string };
     if (error.code === 11000) {
-      // Duplicate key error (for date)
       res.status(409).json({ success: false, message: 'A holiday with this date already exists.', error: error.message });
       return;
     }
@@ -59,8 +133,9 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
 
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
   try {
-    const holidays = await Holiday.find().sort({ date: 1 }); // Sort by date ascending
-    res.status(200).json({ success: true, holidays });
+    const holidays = await Holiday.find().sort({ date: 1 });
+    const transformedHolidays = holidays.map(transformHolidayForResponse);
+    res.status(200).json({ success: true, holidays: transformedHolidays });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error({ err }, 'Fetch holidays error');
@@ -68,15 +143,11 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// @desc    Update a holiday
-// @route   PUT /api/holidays/:id
-// @access  Private (Admin/HR)
 export const updateHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
     const holidayId = req.params.id;
-    const { title, date, isOptional, description } = req.body;
+    const { title, name, date, isOptional, type, description } = req.body;
 
-    // Basic check: at least one field to update should be present if body is not empty
     if (Object.keys(req.body).length === 0) {
       res.status(400).json({ success: false, message: 'No update data provided.' });
       return;
@@ -88,12 +159,11 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Parse date if provided
     let newDateObj: Date | undefined;
     if (date) {
       try {
-        const parsedDate = parseISTDateString(date);
-        const { startOfDay } = getISTDayBoundaries(parsedDate);
-        newDateObj = new Date(startOfDay.valueOf());
+        newDateObj = parseHolidayDate(date);
       } catch (dateError) {
         const error = dateError instanceof Error ? dateError : new Error('Unknown date parsing error');
         res.status(400).json({
@@ -103,8 +173,9 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
         });
         return;
       }
-      // Check for duplicate date only if the date is actually changing to a new value
-      if (newDateObj && holidayToUpdate.date.getTime() !== newDateObj.getTime()) {
+
+      // Check for duplicate date
+      if (holidayToUpdate.date.getTime() !== newDateObj.getTime()) {
         const existingHoliday = await Holiday.findOne({ date: newDateObj, _id: { $ne: holidayId } });
         if (existingHoliday) {
           res.status(409).json({ success: false, message: 'Another holiday with this date already exists.' });
@@ -113,16 +184,15 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Prepare update payload, only including fields that are actually sent
-    const updatePayload: {
-      title?: string;
-      date?: Date;
-      isOptional?: boolean;
-      description?: string;
-    } = {};
-    if (title !== undefined) updatePayload.title = title;
-    if (date !== undefined && newDateObj !== undefined) updatePayload.date = newDateObj; // Use the processed date
-    if (isOptional !== undefined) updatePayload.isOptional = isOptional;
+    // Build update payload
+    const holidayName = getHolidayName(name, title);
+    const updatePayload: { name?: string; date?: Date; type?: string; description?: string } = {};
+
+    if (holidayName !== undefined) updatePayload.name = holidayName;
+    if (newDateObj !== undefined) updatePayload.date = newDateObj;
+    if (type !== undefined || isOptional !== undefined) {
+      updatePayload.type = determineHolidayType(type, isOptional);
+    }
     if (description !== undefined) updatePayload.description = description;
 
     if (Object.keys(updatePayload).length === 0) {
@@ -137,23 +207,21 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Send notification for updated holiday (only if significant change like title or date)
-    if (title !== undefined || date !== undefined) {
-      try {
-        await notificationService.sendHolidayNotification({
-          _id: updatedHoliday._id.toString(),
-          title: updatePayload.title || title,
-          description: updatePayload.description || description || '',
-          date: updatePayload.date || updatedHoliday.date,
-        });
-      } catch (notificationError) {
-        const error = notificationError instanceof Error ? notificationError : new Error('Unknown notification error');
-        logger.error({ err: error }, 'Failed to send holiday update notification');
-        // Don't fail the main operation if notification fails
-      }
+    // Send notification if name or date changed
+    if (holidayName !== undefined || date !== undefined) {
+      await sendHolidayNotificationSafe(
+        updatedHoliday._id.toString(),
+        updatePayload.name || updatedHoliday.name,
+        updatePayload.description || description || '',
+        updatePayload.date || updatedHoliday.date
+      );
     }
 
-    res.status(200).json({ success: true, message: 'Holiday updated successfully', holiday: updatedHoliday });
+    res.status(200).json({
+      success: true,
+      message: 'Holiday updated successfully',
+      holiday: transformHolidayForResponse(updatedHoliday)
+    });
   } catch (err) {
     const error = err as { code?: number; message: string };
     if (error.code === 11000) {
@@ -165,9 +233,6 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// @desc    Delete a holiday
-// @route   DELETE /api/holidays/:id
-// @access  Private (Admin/HR)
 export const deleteHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
     const holidayId = req.params.id;
