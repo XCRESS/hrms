@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, X } from 'lucide-react';
 import { formatISTDate } from '../../utils/luxonUtils';
 import { useEmployees, useTaskReports } from '../../hooks/queries';
 import type { TaskReportQueryParams } from '@/types';
@@ -37,11 +37,9 @@ const TaskReportsPage = () => {
 
   const { data: reportsData, isLoading, error } = useTaskReports(queryParams);
 
-  // Handle both array response (old) and paginated response (new)
-  const reports = Array.isArray(reportsData) ? reportsData : (reportsData?.reports || []);
-  const pagination = Array.isArray(reportsData)
-    ? { page: 1, limit: 10, total: 0, totalPages: 1 }
-    : (reportsData?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 });
+  // Extract reports and pagination from the response
+  const reports = reportsData?.reports || [];
+  const pagination = reportsData?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
 
   const handleFilterChange = (field: keyof FilterState, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -56,6 +54,18 @@ const TaskReportsPage = () => {
       setCurrentPage(newPage);
     }
   };
+
+  const handleEmployeeClick = (employeeId: string) => {
+    setFilters(prev => ({ ...prev, employeeId }));
+    setCurrentPage(1); // Reset to page 1 when filtering by employee
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ employeeId: '', startDate: '', endDate: '' });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = filters.employeeId || filters.startDate || filters.endDate;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
@@ -95,7 +105,7 @@ const TaskReportsPage = () => {
                 <SelectItem value="all">All Employees</SelectItem>
                 {employees.map(emp => (
                   <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                    {emp.name}
+                    {emp.fullName || emp.name || `${emp.firstName} ${emp.lastName}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -112,19 +122,44 @@ const TaskReportsPage = () => {
               onChange={(e) => handleFilterChange('endDate', e.target.value)}
               className="w-full"
             />
-            <Button
-              onClick={handleSearch}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Search
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSearch}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Search
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  onClick={handleClearFilters}
+                  variant="outline"
+                  className="border-slate-300 dark:border-slate-600"
+                  title="Clear all filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Reports Table */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Reports</h2>
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Reports</h2>
+              {filters.employeeId && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                  Filtered by employee: {(() => {
+                    const emp = employees.find(e => e.employeeId === filters.employeeId);
+                    return emp ? (emp.fullName || emp.name || `${emp.firstName} ${emp.lastName}`) : filters.employeeId;
+                  })()}
+                </p>
+              )}
+            </div>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {pagination.total} {pagination.total === 1 ? 'report' : 'reports'} found
+            </span>
           </div>
           <div className="overflow-x-auto">
             {isLoading ? (
@@ -155,9 +190,13 @@ const TaskReportsPage = () => {
                 </thead>
                 <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-600">
                   {reports.length > 0 ? reports.map(report => (
-                    <tr key={report._id} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <tr
+                      key={report._id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      onClick={() => report.employee?.employeeId && handleEmployeeClick(report.employee.employeeId)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400">
                           {report.employee?.firstName} {report.employee?.lastName}
                         </div>
                         <div className="text-sm text-slate-500 dark:text-slate-400">

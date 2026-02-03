@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, TaskReport, CreateTaskReportDto, TaskReportQueryParams } from '@/types';
+import type { ApiResponse, TaskReport, TaskReportsResponse, TaskReportQueryParams } from '@/types';
+
+// Type for creating/submitting a task report
+interface CreateTaskReportDto {
+  tasks: string[];
+  date?: string;
+}
 
 // ============================================================================
 // QUERIES
@@ -10,15 +16,16 @@ import type { ApiResponse, TaskReport, CreateTaskReportDto, TaskReportQueryParam
 
 /**
  * Get all task reports (Admin/HR)
+ * Returns full data structure with reports and pagination
  */
 export const useTaskReports = (params?: TaskReportQueryParams) => {
   return useQuery({
     queryKey: queryKeys.taskReports.list(params),
     queryFn: async () => {
       // Backend returns { success, data: { reports, pagination } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.ALL_REPORTS, params || {});
-      const { data } = await axiosInstance.get<ApiResponse<{ reports: TaskReport[] }>>(endpoint);
-      return data.data?.reports || [];
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.ALL_REPORTS, params as Record<string, string | number | boolean | undefined> || {});
+      const { data } = await axiosInstance.get<ApiResponse<TaskReportsResponse>>(endpoint);
+      return data.data || { reports: [], pagination: { total: 0, page: 1, limit: 10, totalPages: 1 } };
     },
   });
 };
@@ -32,7 +39,7 @@ export const useMyTaskReports = (params?: TaskReportQueryParams) => {
     queryKey: queryKeys.taskReports.my(params),
     queryFn: async () => {
       // Backend returns { success, data: { reports, pagination } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.MY_REPORTS, params || {});
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.TASK_REPORTS.MY_REPORTS, params as Record<string, string | number | boolean | undefined> || {});
       const { data } = await axiosInstance.get<ApiResponse<{ reports: TaskReport[]; pagination?: { total: number; totalPages: number } }>>(endpoint);
       return data.data || { reports: [], pagination: { total: 0, totalPages: 0 } };
     },

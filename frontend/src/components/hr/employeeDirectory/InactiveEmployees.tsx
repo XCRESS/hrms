@@ -345,9 +345,8 @@ const InactiveEmployees: React.FC = () => {
                                                 Emergency Contact
                                             </h4>
                                             <div className="space-y-2 text-sm">
-                                                <div><span className="font-medium">Name:</span> {employeeDetails.emergencyContact?.name}</div>
-                                                <div><span className="font-medium">Phone:</span> {employeeDetails.emergencyContact?.phone}</div>
-                                                <div><span className="font-medium">Relation:</span> {employeeDetails.emergencyContact?.relationship}</div>
+                                                <div><span className="font-medium">Name:</span> {employeeDetails.emergencyContactName || "N/A"}</div>
+                                                <div><span className="font-medium">Phone:</span> {employeeDetails.emergencyContactNumber || "N/A"}</div>
                                             </div>
                                         </div>
                                     </div>
