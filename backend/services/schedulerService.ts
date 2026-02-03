@@ -332,12 +332,14 @@ class SchedulerService {
         return;
       }
 
-      // Check if today is a holiday
+      // Check if today is a holiday (only check active public holidays)
       const todayHoliday = await Holiday.findOne({
         date: {
           $gte: today,
           $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
-        }
+        },
+        isActive: true,
+        type: 'public'
       });
 
       if (todayHoliday) {

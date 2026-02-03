@@ -91,8 +91,8 @@ export default function ProfileDisplay() {
     return parts.length > 0 ? parts.join(", ") : "N/A";
   };
 
-  const emergencyContactName = employee?.emergencyContact?.name || "Not provided";
-  const emergencyContactPhone = employee?.emergencyContact?.phone || "Not provided";
+  const emergencyContactName = employee?.emergencyContactName || "Not provided";
+  const emergencyContactPhone = employee?.emergencyContactNumber || "Not provided";
   const aadhaarNumber = employee?.govtId?.aadhaar || "N/A";
   const panNumber = employee?.govtId?.pan || "N/A";
   const bankName = employee?.bankDetails?.bankName || "Not provided";
