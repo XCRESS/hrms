@@ -76,9 +76,21 @@ export default function EmployeeDirectory() {
     // Derived data from React Query - hooks now return proper arrays
     const employees: Employee[] = employeesData || [];
     const users: User[] = usersData || [];
-    const leaves: Leave[] = leavesData || [];
+    const allLeaves: Leave[] = leavesData || [];
     const error = (employeesError as any)?.message || null;
     const profileError = (profileErrorObj as any)?.message || null;
+
+    // Filter leaves for the selected employee only
+    const employeeLeaves = useMemo(() => {
+        if (!employeeProfile) return [];
+        return allLeaves.filter(leave => {
+            // leave.employee can be a string ID or a populated object
+            const leaveEmployeeId = typeof leave.employee === 'object' && leave.employee !== null
+                ? (leave.employee as { _id?: string; employeeId?: string })._id || (leave.employee as { _id?: string; employeeId?: string }).employeeId
+                : leave.employee;
+            return leaveEmployeeId === employeeProfile._id || leaveEmployeeId === employeeProfile.employeeId;
+        });
+    }, [allLeaves, employeeProfile]);
 
     // useMemo must be called before any conditional returns (Rules of Hooks)
     const filteredEmployees = useMemo(() =>
@@ -607,8 +619,8 @@ export default function EmployeeDirectory() {
                                             {renderField('Address', 'address')}
                                             {renderField('Aadhaar', 'govtId' as any, 'number')}
                                             {renderField('PAN', 'govtId' as any)}
-                                            {renderField('Emergency Contact Name', 'emergencyContact' as any)}
-                                            {renderField('Emergency Contact Number', 'emergencyContact' as any, 'tel')}
+                                            {renderField('Emergency Contact Name', 'emergencyContactName' as any)}
+                                            {renderField('Emergency Contact Number', 'emergencyContactNumber' as any, 'tel')}
                                         </div>
 
                                         {/* Financial Info */}
@@ -636,7 +648,7 @@ export default function EmployeeDirectory() {
                                     {/* Enhanced Leave Requests Section */}
                                     <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
                                         <h3 className="text-xl font-semibold text-cyan-700 dark:text-cyan-300 mb-4">Leave Management</h3>
-                                        <LeaveSection leaves={leaves} employeeProfile={employeeProfile} />
+                                        <LeaveSection leaves={employeeLeaves} employeeProfile={employeeProfile} />
                                     </div>
                                 </div>
                             )
