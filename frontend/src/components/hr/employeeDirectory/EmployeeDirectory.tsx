@@ -8,12 +8,13 @@ import {
     useUsers,
     useDepartments,
     useUpdateEmployee,
-    useToggleEmployeeStatus
+    useToggleEmployeeStatus,
+    useUnlinkEmployeeFromUser
 } from '../../../hooks/queries';
 import AttendanceSection, { EditAttendanceModal } from './AttendanceSection';
 import LeaveSection from './LeaveSection';
 import InactiveEmployees from './InactiveEmployees';
-import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, FileText } from 'lucide-react';
+import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, Link2Off, FileText } from 'lucide-react';
 import { useToast } from '../../../components/ui/toast';
 import DocumentManager from './DocumentManager';
 import { sanitizeText, maskAadhaar, maskBankAccount, maskPAN } from '../../../utils/sanitization';
@@ -72,6 +73,7 @@ export default function EmployeeDirectory() {
 
     const updateEmployeeMutation = useUpdateEmployee();
     const toggleStatusMutation = useToggleEmployeeStatus();
+    const unlinkMutation = useUnlinkEmployeeFromUser();
 
     // Derived data from React Query - hooks now return proper arrays
     const employees: Employee[] = employeesData || [];
@@ -114,6 +116,31 @@ export default function EmployeeDirectory() {
 
     const isEmployeeLinked = (employeeId: string) => {
         return users.some(u => u.employeeId === employeeId);
+    };
+
+    const getLinkedUserId = (employeeId: string): string | null => {
+        const linked = users.find(u => u.employeeId === employeeId);
+        return linked ? linked._id : null;
+    };
+
+    const getLinkedUserName = (employeeId: string): string => {
+        const linked = users.find(u => u.employeeId === employeeId);
+        return linked ? linked.name : '';
+    };
+
+    const handleUnlinkEmployee = (employeeId: string, employeeName: string) => {
+        const userId = getLinkedUserId(employeeId);
+        if (!userId) return;
+        const linkedUserName = getLinkedUserName(employeeId);
+        if (!window.confirm(`Unlink "${linkedUserName}" from ${employeeName}? This will revoke their login access.`)) return;
+        unlinkMutation.mutate({ userId }, {
+            onSuccess: () => {
+                toast({ title: 'Unlinked', description: `${linkedUserName} has been unlinked from ${employeeName}.` });
+            },
+            onError: (error: any) => {
+                toast({ variant: 'destructive', title: 'Unlink Failed', description: error.message || 'Failed to unlink user' });
+            }
+        });
     };
 
     const handleEditAttendance = (record: AttendanceRecord) => {
@@ -469,16 +496,26 @@ export default function EmployeeDirectory() {
                                         >
                                             <div className="flex justify-between items-center">
                                                 <span>{e.name || `${e.firstName} ${e.lastName}`}</span>
-                                                <div className="flex items-center">
+                                            <div className="flex items-center gap-1">
                                                     <span className={`text-xs px-2 py-0.5 rounded-full ${isEmployeeLinked(e.employeeId) ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
                                                         {isEmployeeLinked(e.employeeId) ? 'Linked' : 'Unlinked'}
                                                     </span>
                                                     {!isEmployeeLinked(e.employeeId) && (
                                                         <button
-                                                            className="ml-2 px-2 py-1 text-xs bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
+                                                            className="ml-1 px-2 py-1 text-xs bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
                                                             onClick={evt => { evt.stopPropagation(); window.location.href = '/auth/signup'; }}
                                                         >
                                                             Create User
+                                                        </button>
+                                                    )}
+                                                    {isEmployeeLinked(e.employeeId) && (
+                                                        <button
+                                                            className="ml-1 px-1.5 py-1 text-xs bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded transition-colors flex items-center gap-0.5 disabled:opacity-50"
+                                                            disabled={unlinkMutation.isPending}
+                                                            onClick={evt => { evt.stopPropagation(); handleUnlinkEmployee(e.employeeId, e.name || `${e.firstName} ${e.lastName}`); }}
+                                                            title="Unlink user from this employee"
+                                                        >
+                                                            <Link2Off className="w-3 h-3" />
                                                         </button>
                                                     )}
                                                 </div>

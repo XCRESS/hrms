@@ -71,8 +71,8 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
       }
 
-      // Validate user is still active (minimal DB query - only checks isActive field)
-      const userStatus = await User.findById(userId).select('isActive').lean();
+      // Validate user is still active AND fetch link status in a single query
+      const userStatus = await User.findById(userId).select('isActive employeeId employee').lean();
       if (!userStatus || !userStatus.isActive) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
       }
@@ -99,24 +99,37 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         }
       }
 
-      // 6. Additional check for employee role
+      // 6. Additional check for employee role — re-query DB for fresh link status
+      // This ensures unlink takes effect immediately without requiring re-login,
+      // mirroring how isActive enforcement already works above.
       if (req.user.role === 'employee') {
-        if (req.user.employeeId) {
-          // Verify employee profile is active
-          const employee = await Employee.findOne({
-            employeeId: req.user.employeeId,
-            isActive: true,
-          });
+        // userStatus already has employeeId/employee from the select above (IUser fields)
+        const currentEmployeeId = userStatus.employeeId;
+        const currentEmployeeRef = userStatus.employee;
 
-          if (!employee) {
-            throw new AuthorizationError(
-              'Access Forbidden: Employee account is deactivated. Please contact HR.'
-            );
-          }
-        } else {
-          // Warning: Employee user without employeeId
-          req.missingEmployeeId = true;
-          logger.warn(`⚠️  User ${req.user._id} has role 'employee' but no employeeId assigned`);
+        // Block if not linked to any employee profile (catches post-unlink sessions)
+        if (!currentEmployeeId) {
+          throw new AuthorizationError(
+            'Access Forbidden: Your account is not linked to an employee profile. Please contact HR.'
+          );
+        }
+
+        // Verify the linked employee is still active
+        const employee = await Employee.findOne({
+          employeeId: currentEmployeeId,
+          isActive: true,
+        });
+
+        if (!employee) {
+          throw new AuthorizationError(
+            'Access Forbidden: Employee account is deactivated. Please contact HR.'
+          );
+        }
+
+        // Keep req.user in sync with DB (not stale JWT values)
+        req.user.employeeId = currentEmployeeId;
+        if (currentEmployeeRef) {
+          req.user.employee = currentEmployeeRef as mongoose.Types.ObjectId;
         }
       }
 

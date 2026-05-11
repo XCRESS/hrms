@@ -65,10 +65,33 @@ axiosInstance.interceptors.response.use(
       timestamp: new Date().toISOString(),
     };
 
-    // Handle 401 - Unauthorized
+    // Handle 401 - Unauthorized (includes deactivated account caught by middleware)
     if (error.response?.status === 401) {
       tokenStorage.remove();
-      customError.message = 'Authentication failed. Please login again.';
+      customError.message = error.response.data?.message || 'Authentication failed. Please login again.';
+      // Redirect to login with context so the page can show a relevant banner
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
+        window.location.href = '/auth/login?reason=session_expired';
+      }
+    }
+
+    // Handle 403 - Forbidden (unlinked employee, deactivated via middleware)
+    else if (error.response?.status === 403) {
+      const msg = error.response.data?.message || '';
+      const isSessionRevoked =
+        msg.toLowerCase().includes('not linked') ||
+        msg.toLowerCase().includes('deactivated') ||
+        msg.toLowerCase().includes('access forbidden');
+
+      if (isSessionRevoked) {
+        tokenStorage.remove();
+        customError.message = msg || 'Your session has been revoked. Please contact HR.';
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
+          window.location.href = '/auth/login?reason=session_revoked';
+        }
+      } else {
+        customError.message = msg || 'Access forbidden.';
+      }
     }
 
     // Handle 400 - Validation errors
