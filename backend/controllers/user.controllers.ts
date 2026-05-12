@@ -67,6 +67,13 @@ export const login = asyncHandler(async (req: IAuthRequest, res: Response) => {
     throw new ValidationError('Account has been deactivated. Please contact HR.');
   }
 
+  // Block login for unlinked employee accounts
+  if (user.role === 'employee' && !user.employeeId) {
+    throw new ValidationError(
+      'Your account is not linked to an employee profile. Please contact HR.'
+    );
+  }
+
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     throw new ValidationError('Invalid credentials');
@@ -153,6 +160,38 @@ export const updateEmployeeId = asyncHandler(async (req: IAuthRequest, res: Resp
   });
 });
 
+export const unlinkEmployee = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { userId } = req.body as { userId: string };
+
+  if (!userId) {
+    throw new ValidationError('User ID is required');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  if (!user.employeeId && !user.employee) {
+    throw new ValidationError('User is not linked to any employee');
+  }
+
+  user.employee = undefined;
+  user.employeeId = undefined;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'User successfully unlinked from employee profile',
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
+
 export const findUsersWithMissingEmployeeId = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const users = await User.find({
     role: 'employee',
@@ -203,4 +242,28 @@ export const getUserByEmployeeId = asyncHandler(async (req: IAuthRequest, res: R
 export const getAllUsers = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const users = await User.find().populate('employee');
   res.json({ users });
+});
+
+export const deleteUser = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { userId } = req.params;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  // Safety: refuse to delete users who are still linked to an employee
+  if (user.employeeId || user.employee) {
+    throw new ValidationError(
+      'Cannot delete a user who is still linked to an employee. Please unlink first.'
+    );
+  }
+
+  // Safety: refuse to delete admin or HR accounts
+  if (user.role === 'admin' || user.role === 'hr') {
+    throw new ValidationError('Cannot delete admin or HR user accounts.');
+  }
+
+  await User.findByIdAndDelete(userId);
+  res.json({ success: true, message: 'User deleted successfully' });
 });

@@ -133,6 +133,7 @@ export const API_ENDPOINTS = {
     UPDATE_ROLE: (id: string) => `/users/${encodeURIComponent(id)}/role`,
     DELETE: (id: string) => `/users/${encodeURIComponent(id)}`,
     LINK_EMPLOYEE: '/employees/link',
+    UNLINK_EMPLOYEE: '/employees/unlink',
     MISSING_EMPLOYEES: '/users/missing-employees',
   },
 

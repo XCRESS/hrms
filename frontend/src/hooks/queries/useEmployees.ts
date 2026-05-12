@@ -190,3 +190,23 @@ export const useLinkEmployeeToUser = () => {
     },
   });
 };
+
+/**
+ * Unlink employee from user account (revokes login access)
+ */
+export const useUnlinkEmployeeFromUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const { data } = await axiosInstance.post<ApiResponse>(API_ENDPOINTS.USERS.UNLINK_EMPLOYEE, {
+        userId,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
+    },
+  });
+};
