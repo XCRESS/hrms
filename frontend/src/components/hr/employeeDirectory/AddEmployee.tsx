@@ -179,20 +179,19 @@ const AddEmployee: React.FC = () => {
             },
             onError: (error: any) => {
                 let errorMessage = "Failed to create employee.";
-                if (error?.response?.data) {
-                    const data = error.response.data;
 
-                    // Parse Mongoose validation error details (array of {field, message})
+                // The axios interceptor transforms errors into ApiError with validationDetails
+                if (error?.validationDetails && Array.isArray(error.validationDetails) && error.validationDetails.length > 0) {
+                    errorMessage = error.validationDetails.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
+                } else if (error?.message && error.message !== 'An error occurred') {
+                    errorMessage = error.message;
+                } else if (error?.response?.data) {
+                    // Fallback for non-intercepted errors
+                    const data = error.response.data;
                     if (data.details && Array.isArray(data.details) && data.details.length > 0) {
                         errorMessage = data.details.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
-                    } else if (data.message && data.message !== 'Validation failed') {
-                        errorMessage = data.message;
                     } else if (data.message) {
                         errorMessage = data.message;
-                    } else if (data.errors && Array.isArray(data.errors)) {
-                        errorMessage = data.errors.map((e: any) => e.msg || e.message || JSON.stringify(e)).join(', ');
-                    } else if (typeof data.errors === 'object') {
-                        errorMessage = Object.values(data.errors).join(', ');
                     }
                 } else if (error?.message) {
                     errorMessage = error.message;
