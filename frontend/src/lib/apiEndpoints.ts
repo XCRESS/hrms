@@ -19,7 +19,7 @@ export const API_ENDPOINTS = {
     CREATE: '/employees/create',
     GET_ALL: '/employees',
     GET_BY_ID: (id: string) => `/employees/${encodeURIComponent(id)}`,
-    UPDATE: (id: string) => `/employees/${encodeURIComponent(id)}`,
+    UPDATE: (id: string) => `/employees/update/${encodeURIComponent(id)}`,
     DELETE: (id: string) => `/employees/${encodeURIComponent(id)}`,
   },
 
