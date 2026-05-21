@@ -165,7 +165,18 @@ export const getAllRegularizations = async (req: IAuthRequest, res: Response): P
     const regs = await RegularizationRequest.find()
       .populate('user', 'name email')
       .sort({ createdAt: -1 });
-    res.json({ success: true, regs });
+
+    // Resolve employee names from Employee model (more reliable than User.name)
+    const employeeIds = [...new Set(regs.map(r => r.employeeId).filter(Boolean))];
+    const employees = await Employee.find({ employeeId: { $in: employeeIds } }).select('employeeId firstName lastName');
+    const employeeMap = new Map(employees.map(e => [`${e.employeeId}`, `${e.firstName} ${e.lastName}`]));
+
+    const regsWithNames = regs.map(reg => ({
+      ...reg.toObject(),
+      employeeName: employeeMap.get(reg.employeeId) || (reg.user as any)?.name || 'Unknown User',
+    }));
+
+    res.json({ success: true, regs: regsWithNames });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error({ err: error }, 'Failed to fetch all regularization requests');

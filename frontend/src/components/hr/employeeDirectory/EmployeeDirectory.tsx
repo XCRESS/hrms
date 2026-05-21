@@ -167,14 +167,17 @@ export default function EmployeeDirectory() {
     const handleSaveEmployee = () => {
         if (!editedEmployee || !employeeProfile) return;
 
-        // Validate before saving
+        // Strip fields that are immutable or masked and must not be validated/sent:
+        // - aadhaarNumber: returned masked ("XXXX-XXXX-XXXX") by the API
+        // - employeeId: displayed as read-only; can contain slashes that fail the regex
+        const { aadhaarNumber: _masked, employeeId: _empId, ...editableFields } = editedEmployee as any;
+
         const validation = validateUpdateEmployee({
-            ...editedEmployee,
+            ...editableFields,
             _id: employeeProfile._id
         });
 
         if (!validation.success) {
-            // Show validation errors
             const firstError = Object.entries(validation.errors)[0];
             toast({
                 variant: "destructive",
@@ -185,26 +188,19 @@ export default function EmployeeDirectory() {
             return;
         }
 
-        // Sanitize data before sending
+        // Exclude _id from the PUT body — MongoDB rejects $set on immutable _id.
+        // Exclude aadhaarNumber — masked value must not overwrite the real one.
+        const { _id: _id2, aadhaarNumber: _aadhaar, ...fieldsToUpdate } = validation.data as any;
+
         const sanitizedData = {
-            ...validation.data,
-            firstName: sanitizeText(validation.data.firstName || ''),
-            lastName: sanitizeText(validation.data.lastName || ''),
-            address: sanitizeText(JSON.stringify(validation.data.address) || ''), // address can be object? sanitizeText expects string? 
-            // address in Employee is string | object. If object, JSON.stringify? 
-            // sanitizeText likely expects string. If Address is object, validation.data.address might be object.
-            // Assuming validation handles it or backend handles it.
-            // Re-reading original JSX: address: sanitizeText(validation.data.address || '')
-            // Check sanitization.ts if I could. Assuming it handles string.
+            ...fieldsToUpdate,
+            firstName: sanitizeText(fieldsToUpdate.firstName || ''),
+            lastName: sanitizeText(fieldsToUpdate.lastName || ''),
+            address: sanitizeText(fieldsToUpdate.address || ''),
         };
 
-        // Fix for address object: if address is object, don't sanitize with sanitizeText directly unless it supports it.
-        // Ideally sanitize fields individually if it's an object. 
-        // For now, I'll trust existing logic or skip sanitization for complex objects if risky.
-        // Original code: address: sanitizeText(validation.data.address || '')
-
         updateEmployeeMutation.mutate(
-            { id: employeeProfile._id, data: sanitizedData },
+            { id: employeeProfile._id, ...sanitizedData },
             {
                 onSuccess: () => {
                     setIsEditingEmployee(false);

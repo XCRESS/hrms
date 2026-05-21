@@ -128,7 +128,7 @@ const AdminPendingRequests = () => {
         icon: <Clock className="w-5 h-5 text-orange-500" />,
         title: 'Attendance Regularization',
         description: reg.reason || 'Missing checkout regularization request',
-        employee: reg.user?.name || 'Unknown User',
+        employee: reg.employeeName || reg.user?.name || 'Unknown User',
         date: reg.createdAt || reg.date
       })));
     }
