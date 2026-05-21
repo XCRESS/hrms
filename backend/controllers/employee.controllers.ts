@@ -198,7 +198,7 @@ export const updateEmployee = async (req: IAuthRequest, res: Response): Promise<
       runValidators: true
     });
 
-    res.json(formatResponse(true, 'Employee updated successfully', { employee }));
+    res.json(formatResponse(true, 'Employee updated successfully', employee));
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error({ err: error }, 'Update failed');
@@ -280,24 +280,26 @@ export const toggleEmployeeStatus = async (req: IAuthRequest, res: Response): Pr
       return;
     }
 
-    employee.isActive = !employee.isActive;
-    await employee.save();
+    const newStatus = !employee.isActive;
+
+    // Use findByIdAndUpdate instead of save() to avoid re-running full document
+    // validation — existing employees may have data that predates stricter validators.
+    await Employee.findByIdAndUpdate(id, { isActive: newStatus });
 
     const user = await User.findOne({ employeeId: employee.employeeId });
     if (user) {
-      user.isActive = employee.isActive;
-      await user.save();
-      logger.info({ email: user.email, isActive: user.isActive }, `User account status synced with employee status`);
+      await User.findByIdAndUpdate(user._id, { isActive: newStatus });
+      logger.info({ email: user.email, isActive: newStatus }, `User account status synced with employee status`);
     }
 
     res.json(formatResponse(
       true,
-      `Employee ${employee.isActive ? 'activated' : 'deactivated'} successfully`,
+      `Employee ${newStatus ? 'activated' : 'deactivated'} successfully`,
       {
         _id: employee._id,
         employeeId: employee.employeeId,
         fullName: `${employee.firstName} ${employee.lastName}`,
-        isActive: employee.isActive
+        isActive: newStatus
       }
     ));
   } catch (err) {
