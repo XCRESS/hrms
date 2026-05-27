@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
     minify: 'esbuild',
     rollupOptions: {
       treeshake: {
+        moduleSideEffects: false,
         propertyReadSideEffects: false,
         tryCatchDeoptimization: false
       },
