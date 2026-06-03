@@ -385,15 +385,15 @@ class SchedulerService {
         const attendance = attendanceMap.get(employee._id.toString());
         const employeeName = `${employee.firstName} ${employee.lastName}`;
 
-        if (attendance) {
+        if (attendance && attendance.status !== 'absent' && attendance.checkIn) {
           // Employee checked in
           group.presentEmployees.push({
             name: employeeName,
-            checkIn: attendance.checkIn ? toIST(attendance.checkIn).toFormat('hh:mm a') : null,
+            checkIn: toIST(attendance.checkIn).toFormat('hh:mm a'),
             checkOut: attendance.checkOut ? toIST(attendance.checkOut).toFormat('hh:mm a') : null
           });
         } else if (settings.notifications.dailyHrAttendanceReport.includeAbsentees) {
-          // Employee absent
+          // Employee absent (no record, status is absent, or no check-in)
           group.absentEmployees.push({
             name: employeeName
           });
