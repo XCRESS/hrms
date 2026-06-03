@@ -17,7 +17,7 @@ import InactiveEmployees from './InactiveEmployees';
 import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, Link2Off, FileText } from 'lucide-react';
 import { useToast } from '../../../components/ui/toast';
 import DocumentManager from './DocumentManager';
-import { sanitizeText, maskAadhaar, maskBankAccount, maskPAN } from '../../../utils/sanitization';
+import { sanitizeText } from '../../../utils/sanitization';
 import { validateUpdateEmployee, validateField } from '../../../schemas/employeeValidation';
 import { Employee, User, AttendanceRecord, Leave } from '../../../types';
 
@@ -282,31 +282,8 @@ export default function EmployeeDirectory() {
         let value = isEditingEmployee ? (editedEmployee as any)?.[field] || '' : (employeeProfile as any)[field];
         let displayValue = value;
 
-        // Apply masking for sensitive fields when not editing
         if (!isEditingEmployee && value) {
-            // Use explicit casting or checks for specific fields 
-            if (field === 'govtId') {
-                // Handle nested? Original code just checks 'aadhaarNumber' which is top level in FORM?
-                // In Employee type, aadhaarNumber is not top level? It's in govtId.
-                // BUT in `AddEmployee.tsx` I used top level for form. The backend maps it.
-                // If `employeeProfile` coming from API has flattened structure or nested?
-                // `useEmployee` usually returns `Employee`. `Employee` has `govtId: { aadhaar }`.
-                // Original JSX: `if (field === 'aadhaarNumber')`.
-                // This implies `employeeProfile` has `aadhaarNumber` at top level?
-                // Maybe the `Employee` type in `index.ts` is strict but runtime has flat fields?
-                // Or I should access `govtId.aadhaar`.
-                // I will follow original code key access `field`.
-                // If `field` is passed as 'aadhaarNumber' but object has 'govtId', `value` will be undefined if I access `employeeProfile['aadhaarNumber']` (unless it exists).
-                // I'll stick to dynamic access but be aware.
-            }
-
-            if (String(field) === 'aadhaarNumber') { // Cast for safety
-                displayValue = maskAadhaar(value);
-            } else if (String(field) === 'bankAccountNumber') {
-                displayValue = maskBankAccount(value);
-            } else if (String(field) === 'panNumber') {
-                displayValue = maskPAN(value);
-            } else if (typeof value === 'string') {
+            if (typeof value === 'string') {
                 displayValue = sanitizeText(value);
             }
         }
