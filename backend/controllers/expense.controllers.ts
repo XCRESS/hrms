@@ -186,7 +186,7 @@ export const bulkUpdateStatus = asyncHandler(async (req: IAuthRequest, res: Resp
  * Export filtered expenses to Excel
  */
 export const exportExpensesExcel = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { employeeId, status, startDate, endDate } = req.query;
+  const { employeeId, status, startDate, endDate, search } = req.query;
   const filter: any = {};
 
   if (employeeId && typeof employeeId === 'string') {
@@ -200,6 +200,13 @@ export const exportExpensesExcel = asyncHandler(async (req: IAuthRequest, res: R
     filter.date = {};
     if (startDate) filter.date.$gte = new Date(startDate as string);
     if (endDate) filter.date.$lte = new Date(endDate as string);
+  }
+  if (search && typeof search === 'string') {
+    const regex = new RegExp(search, 'i');
+    filter.$or = [
+      { employeeName: regex },
+      { item: regex }
+    ];
   }
 
   const expenses = await Expense.find(filter)
