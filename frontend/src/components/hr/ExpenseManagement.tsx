@@ -139,7 +139,8 @@ const ExpenseManagement = () => {
 
   const handleExport = async () => {
     try {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.EXPORT, queryParams as any);
+      const exportParams = { ...queryParams, ...(searchTerm ? { search: searchTerm } : {}) };
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.EXPORT, exportParams as any);
       const response = await axiosInstance.get(endpoint, {
         responseType: 'blob'
       });
