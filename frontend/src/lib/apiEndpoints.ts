@@ -75,6 +75,7 @@ export const API_ENDPOINTS = {
     REQUEST: '/expenses/request',
     MY_EXPENSES: '/expenses/my',
     ALL_EXPENSES: '/expenses/all',
+    UPDATE: (id: string) => `/expenses/${id}`,
     UPDATE_STATUS: (id: string) => `/expenses/${id}/status`,
     BULK_UPDATE: '/expenses/bulk-status',
     EXPORT: '/expenses/export',
