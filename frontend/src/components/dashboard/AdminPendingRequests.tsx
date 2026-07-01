@@ -264,7 +264,7 @@ const AdminPendingRequests = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-3">
-                  <h4 className="font-semibold text-foreground text-sm leading-tight">
+                  <h4 className="min-w-0 font-semibold text-foreground text-sm leading-tight break-words [overflow-wrap:anywhere]">
                     {request.title}
                   </h4>
                   <span className="flex-shrink-0 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
@@ -276,7 +276,7 @@ const AdminPendingRequests = () => {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed ml-10 sm:ml-14">
+            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed ml-10 sm:ml-14 break-words [overflow-wrap:anywhere]">
               {request.description}
             </p>
           </div>

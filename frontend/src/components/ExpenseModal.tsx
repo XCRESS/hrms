@@ -1,18 +1,33 @@
-import { useState, FormEvent, ChangeEvent } from "react";
-import { X, Receipt, IndianRupee, Calendar } from "lucide-react";
-import type { CreateExpenseDto } from "@/types";
+import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { X, Receipt, Calendar, Pencil } from "lucide-react";
+import type { CreateExpenseDto, Expense } from "@/types";
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateExpenseDto) => void;
   isLoading: boolean;
+  /** If provided, the modal operates in "edit" mode */
+  editingExpense?: Expense | null;
 }
 
-const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading }: ExpenseModalProps) => {
+const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading, editingExpense }: ExpenseModalProps) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [item, setItem] = useState("");
   const [amount, setAmount] = useState<string>("");
+
+  const isEditMode = !!editingExpense;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingExpense) {
+      setDate(new Date(editingExpense.date).toISOString().split('T')[0]);
+      setItem(editingExpense.item);
+      setAmount(editingExpense.amount.toString());
+    } else {
+      resetForm();
+    }
+  }, [editingExpense]);
 
   const resetForm = () => {
     setDate(new Date().toISOString().split('T')[0]);
@@ -46,10 +61,12 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading }: ExpenseModalProp
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in border border-gray-100 dark:border-slate-700">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
-              <Receipt size={24} />
+            <div className={`p-2 rounded-lg ${isEditMode ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
+              {isEditMode ? <Pencil size={24} /> : <Receipt size={24} />}
             </div>
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Submit Expense</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">
+              {isEditMode ? 'Edit Expense' : 'Submit Expense'}
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -116,9 +133,12 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading }: ExpenseModalProp
             </div>
           </div>
 
-          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-lg p-4 mb-2">
-            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed font-medium">
-              Note: Once submitted, your expense will be sent to HR for review. Approved expenses cannot be modified later.
+          <div className={`border rounded-lg p-4 mb-2 ${isEditMode ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'}`}>
+            <p className={`text-xs leading-relaxed font-medium ${isEditMode ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'}`}>
+              {isEditMode
+                ? 'You are editing a pending expense. Once approved by HR, it can no longer be modified.'
+                : 'Note: Once submitted, your expense will be sent to HR for review. Approved expenses cannot be modified later.'
+              }
             </p>
           </div>
 
@@ -133,14 +153,18 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading }: ExpenseModalProp
             <button
               type="submit"
               disabled={isLoading || !isFormValid()}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:ring-4 focus:outline-none focus:ring-amber-300 dark:bg-amber-500 dark:hover:bg-amber-600 dark:focus:ring-amber-700 rounded-lg transition-colors disabled:opacity-70 flex items-center gap-2"
+              className={`px-5 py-2.5 text-sm font-medium text-white focus:ring-4 focus:outline-none rounded-lg transition-colors disabled:opacity-70 flex items-center gap-2 ${
+                isEditMode
+                  ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-700'
+                  : 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-300 dark:bg-amber-500 dark:hover:bg-amber-600 dark:focus:ring-amber-700'
+              }`}
             >
               {isLoading ? (
                 <>
                   <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Submitting...
+                  {isEditMode ? 'Updating...' : 'Submitting...'}
                 </>
-              ) : "Submit Expense"}
+              ) : isEditMode ? "Update Expense" : "Submit Expense"}
             </button>
           </div>
         </form>

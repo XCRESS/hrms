@@ -48,6 +48,59 @@ export const createExpense = asyncHandler(async (req: IAuthRequest, res: Respons
 });
 
 /**
+ * Update an existing expense (Employee only — before approval)
+ */
+export const updateExpense = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { date, item, amount } = req.body as { date?: string; item?: string; amount?: number };
+
+  if (!req.user) throw new ValidationError('Authentication required');
+
+  if (!req.user.employeeId) {
+    throw new ValidationError('You must be linked to an employee profile to edit expenses.');
+  }
+
+  const employee = await Employee.findOne({ employeeId: req.user.employeeId });
+  if (!employee) throw new NotFoundError('Employee profile not found');
+
+  const expense = await Expense.findById(id);
+  if (!expense) throw new NotFoundError('Expense not found');
+
+  // Ensure the employee owns this expense
+  if (expense.employee.toString() !== employee._id.toString()) {
+    throw new ForbiddenError('You can only edit your own expenses');
+  }
+
+  // Block editing of approved expenses
+  if (expense.status === 'approved') {
+    throw new ForbiddenError('Approved expenses cannot be edited');
+  }
+
+  // Apply updates
+  if (date) expense.date = new Date(date);
+  if (item !== undefined) expense.item = item;
+  if (amount !== undefined) expense.amount = amount;
+
+  // If expense was rejected and is being edited, reset status to pending for re-review
+  if (expense.status === 'rejected') {
+    expense.status = 'pending';
+    expense.reviewComment = undefined;
+    expense.approvedBy = null;
+    expense.approvedAt = null;
+  }
+
+  await expense.save();
+
+  logger.info({ expenseId: id, employeeId: req.user.employeeId }, 'Expense updated by employee');
+
+  res.json({
+    success: true,
+    message: 'Expense updated successfully',
+    expense
+  });
+});
+
+/**
  * Get expenses for the logged-in employee
  */
 export const getMyExpenses = asyncHandler(async (req: IAuthRequest, res: Response) => {
