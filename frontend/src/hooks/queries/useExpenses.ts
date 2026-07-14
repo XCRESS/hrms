@@ -61,6 +61,28 @@ export const useCreateExpense = () => {
 };
 
 /**
+ * Update an existing expense (Employee — before approval)
+ */
+export const useUpdateExpense = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...expenseData }: { id: string } & Partial<CreateExpenseDto>) => {
+      const { data } = await axiosInstance.put<ApiResponse<Expense>>(
+        API_ENDPOINTS.EXPENSES.UPDATE(id),
+        expenseData
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.myExpenses() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.allExpenses() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
+    },
+  });
+};
+
+/**
  * Update expense status (Admin/HR)
  */
 export const useUpdateExpenseStatus = () => {

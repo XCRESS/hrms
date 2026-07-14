@@ -20,7 +20,7 @@ import { useToast } from "../ui/toast";
 import { useQueryClient } from '@tanstack/react-query';
 import useAuth from "../../hooks/authjwt";
 import BackButton from "../ui/BackButton";
-import { formatTime, formatISTDate } from '../../utils/luxonUtils';
+import { formatTime, formatISTDate, getISTDateString, getMonthOptions } from '../../utils/luxonUtils';
 import {
   useUsers,
   useAllLeaves,
@@ -95,6 +95,7 @@ interface Tab {
 const AdminRequestsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   // Edit states for different request types
   const [editing, setEditing] = useState<EditState>({});
@@ -109,17 +110,33 @@ const AdminRequestsPage = () => {
   const { data: usersData } = useUsers();
   const users: UserType[] = usersData || [];
 
+  // Only load the selected month's requests by default - keeps the page fast and avoids
+  // pulling every request ever made into the browser at once.
+  const dateRange = useMemo(() => {
+    const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+    const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+    return {
+      startDate: getISTDateString(firstDay),
+      endDate: getISTDateString(lastDay)
+    };
+  }, [selectedMonth]);
+
+  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    const [year, month] = event.target.value.split('-');
+    setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
+  };
+
   const shouldFetchLeaves = activeTab === 'all' || activeTab === 'leave';
   const shouldFetchHelp = activeTab === 'all' || activeTab === 'help';
   const shouldFetchReg = activeTab === 'all' || activeTab === 'regularization';
   const shouldFetchPassword = activeTab === 'all' || activeTab === 'password';
   const shouldFetchExpense = activeTab === 'all' || activeTab === 'expense';
 
-  const { data: leavesData, isLoading: leavesLoading } = useAllLeaves({ enabled: isAdminOrHR && shouldFetchLeaves });
-  const { data: helpData, isLoading: helpLoading } = useAllHelpInquiries({ enabled: isAdminOrHR && shouldFetchHelp });
-  const { data: regData, isLoading: regLoading } = useRegularizationRequests({ enabled: isAdminOrHR && shouldFetchReg });
-  const { data: passwordData, isLoading: passwordLoading } = usePasswordResetRequests({ enabled: isAdminOrHR && shouldFetchPassword });
-  const { data: expenseData, isLoading: expenseLoading } = useAllExpenses(undefined, { enabled: isAdminOrHR && shouldFetchExpense });
+  const { data: leavesData, isLoading: leavesLoading } = useAllLeaves({ params: dateRange, enabled: isAdminOrHR && shouldFetchLeaves });
+  const { data: helpData, isLoading: helpLoading } = useAllHelpInquiries({ params: dateRange, enabled: isAdminOrHR && shouldFetchHelp });
+  const { data: regData, isLoading: regLoading } = useRegularizationRequests({ params: dateRange, enabled: isAdminOrHR && shouldFetchReg });
+  const { data: passwordData, isLoading: passwordLoading } = usePasswordResetRequests({ params: dateRange, enabled: isAdminOrHR && shouldFetchPassword });
+  const { data: expenseData, isLoading: expenseLoading } = useAllExpenses(dateRange, { enabled: isAdminOrHR && shouldFetchExpense });
 
   const loading = leavesLoading || helpLoading || regLoading || passwordLoading || expenseLoading;
 
@@ -478,10 +495,24 @@ const AdminRequestsPage = () => {
           </nav>
         </div>
 
-        {/* Employee Filter */}
+        {/* Filters */}
         <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-slate-500" />
+                <select
+                  value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
+                  onChange={handleMonthChange}
+                  className="text-sm bg-background text-foreground border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {getMonthOptions(12).map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.display}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <User className="h-4 w-4 text-slate-500" />
               <Input
                 placeholder="Filter by employee name or email..."

@@ -166,14 +166,20 @@ export const getMyLeaves = asyncHandler(async (req: IAuthRequest, res: Response)
 
 export const getAllLeaves = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.query;
-    const filter: { employee?: unknown } = {};
+    const { employeeId, startDate, endDate } = req.query;
+    const filter: { employee?: unknown; createdAt?: { $gte?: Date; $lte?: Date } } = {};
 
     if (employeeId && typeof employeeId === 'string') {
       const employee = await Employee.findOne({ employeeId });
       if (employee) {
         filter.employee = employee._id;
       }
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
+      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
     }
 
     const leaves = await Leave.find(filter)

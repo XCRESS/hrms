@@ -124,7 +124,16 @@ export const approvePasswordResetRequest = async (req: Request, res: Response): 
 export const getAllPasswordResetRequests = async (req: Request, res: Response): Promise<void> => {
   try {
     // HR/Admin might want to filter by status, e.g., only "pending"
-    const query = req.query.status ? { status: req.query.status as string } : {};
+    const { status, startDate, endDate } = req.query;
+    const query: Record<string, unknown> = status ? { status: status as string } : {};
+
+    if (startDate || endDate) {
+      const createdAt: { $gte?: Date; $lte?: Date } = {};
+      if (startDate) createdAt.$gte = new Date(startDate as string);
+      if (endDate) createdAt.$lte = new Date(endDate as string);
+      query.createdAt = createdAt;
+    }
+
     const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }); // Newest first
 
     res.status(200).json(

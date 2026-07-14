@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, Leave, LeaveRequestDto, LeaveStatus } from '@/types';
+import type { ApiResponse, Leave, LeaveRequestDto, LeaveStatus, LeaveQueryParams } from '@/types';
 
 // ============================================================================
 // TYPES
@@ -40,12 +40,13 @@ export const useMyLeaves = (options?: { enabled?: boolean }) => {
 /**
  * Get all leaves (Admin/HR)
  */
-export const useAllLeaves = (options?: { enabled?: boolean }) => {
+export const useAllLeaves = (options?: { params?: LeaveQueryParams; enabled?: boolean }) => {
   return useQuery({
-    queryKey: queryKeys.leaves.allLeaves(),
+    queryKey: queryKeys.leaves.allLeaves(options?.params),
     queryFn: async () => {
       // Backend returns { success, leaves: Leave[] }
-      const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] }>(API_ENDPOINTS.LEAVES.ALL_LEAVES);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, (options?.params || {}) as Record<string, string | number | boolean>);
+      const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] }>(endpoint);
       return data.leaves || [];
     },
     enabled: options?.enabled ?? true,
