@@ -19,6 +19,8 @@ import type {
   PasswordResetQueryParams,
   WFHRequestQueryParams,
   ExpenseQueryParams,
+  LeaveQueryParams,
+  RegularizationQueryParams,
 } from '@/types';
 
 export const queryKeys = {
@@ -54,7 +56,7 @@ export const queryKeys = {
   leaves: {
     all: () => ['leaves'] as const,
     myLeaves: () => ['leaves', 'my-leaves'] as const,
-    allLeaves: () => ['leaves', 'all-leaves'] as const,
+    allLeaves: (params?: LeaveQueryParams) => ['leaves', 'all-leaves', params] as const,
   },
 
   // Expenses
@@ -75,7 +77,7 @@ export const queryKeys = {
   regularizations: {
     all: () => ['regularizations'] as const,
     my: () => ['regularizations', 'my'] as const,
-    allRequests: () => ['regularizations', 'all-requests'] as const,
+    allRequests: (params?: RegularizationQueryParams) => ['regularizations', 'all-requests', params] as const,
   },
 
   // Holidays

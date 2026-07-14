@@ -104,10 +104,12 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
  */
 export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { status, priority, category } = req.query as {
+    const { status, priority, category, startDate, endDate } = req.query as {
       status?: string;
       priority?: string;
       category?: string;
+      startDate?: string;
+      endDate?: string;
     };
     const filter: Record<string, unknown> = {};
 
@@ -115,6 +117,13 @@ export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (category) filter.category = category;
+
+    if (startDate || endDate) {
+      const createdAt: { $gte?: Date; $lte?: Date } = {};
+      if (startDate) createdAt.$gte = new Date(startDate);
+      if (endDate) createdAt.$lte = new Date(endDate);
+      filter.createdAt = createdAt;
+    }
 
     const inquiries = await Help.find(filter).sort({ createdAt: -1 }).populate('userId', 'name email');
 
