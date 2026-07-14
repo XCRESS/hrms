@@ -1,87 +1,58 @@
-/**
- * HR Chatbot Controller
- * Implements OpenAI GPT-5 Responses API with function calling for HR queries
- * Provides intelligent HR assistance with access to HRMS data
- */
-
 import type { Response } from 'express';
 import OpenAI from 'openai';
 import { HR_FUNCTIONS, executeHRFunction } from '../utils/hrChatbotFunctions.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
-import { formatResponse } from '../utils/response.js';
+import { formatSuccessResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
-// OpenAI type helpers
-type OpenAIMessage = { role: string; content: string } | Record<string, unknown>;
+type InputMessage = { role: 'user' | 'assistant'; content: string };
 type OpenAIResponse = {
+  id: string;
   output: Array<Record<string, unknown>>;
   output_text?: string;
 };
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/**
- * Chat session storage (in production, use Redis or database)
- * Stores conversation history and context
- */
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp?: string;
-}
+// Per-session: ordered user/assistant messages for multi-turn context
+const chatSessions = new Map<string, InputMessage[]>();
 
-const chatSessions = new Map<string, ChatMessage[]>();
-
-/**
- * System instructions for the HR chatbot
- * Defines the chatbot's role, capabilities, and behavior guidelines
- */
-const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for an HR Management System. You help HR professionals and employees with HR-related queries.
+const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for an HR Management System. You help HR professionals manage their workforce with direct access to all HR data.
 
 ## Your Role & Capabilities:
-- You have access to HR data through secure, read-only functions
-- You can provide attendance summaries, employee information, leave statistics, salary insights, and more
-- You present information in a clear, professional, and helpful manner
-- You maintain confidentiality and only access appropriate data based on user permissions
+- You have full read access to all HR data through your available functions — attendance, salaries, leaves, employees, tasks, requests
+- Always fetch real data using your functions. Never refuse to retrieve or show data that the available functions can provide
+- Present all data clearly, including individual employee details, financial figures, and attendance records — this is an internal HR tool and all data is appropriate to display
 
 ## Guidelines:
-1. **Data Access**: Always use the available functions to get real-time, accurate data from the HRMS
-2. **Privacy**: Only provide aggregated data or basic employee information (names, departments, positions)
-3. **Professionalism**: Maintain a helpful, professional tone suitable for HR interactions
-4. **Accuracy**: Always verify data through function calls rather than making assumptions
-5. **Clarity**: Present complex data in easy-to-understand formats with clear explanations
-6. **No File Creation**: Never suggest creating files, CSVs, or documents. Only provide data in the chat response
+1. **Data Access**: Always use your functions to fetch data. Never decline a data request by citing privacy — the user is authorized HR/admin personnel
+2. **Completeness**: Show full details including salary figures, individual attendance records, and financial breakdowns when asked
+3. **Professionalism**: Maintain a helpful, professional tone
+4. **Accuracy**: Always call the relevant function rather than guessing or estimating
+5. **No File Creation**: Never suggest creating files, CSVs, or documents — only provide data in the chat response
 
 ## Function Usage:
-- Use get_employee_attendance_summary() for attendance-related questions (includes today's attendance, attendance summaries, etc.)
-- Use get_current_datetime() only if you need the current date/time for other purposes
-- Use get_employee_count_by_tenure() for tenure-related queries
-- Use get_leave_statistics() for leave-related information
-- Use get_employees_by_department() for department-wise employee data
-- Use get_salary_slip_statistics() for payroll-related queries
-- Use get_upcoming_holidays() for holiday information
-- Use get_task_report_summary() for task reporting insights - analyze and summarize task patterns, don't just list tasks
-- Use get_employee_basic_info() for general employee information
-- Use get_all_pending_requests() for comprehensive pending requests across all types (leave, help, regularization, password reset)
+- get_employee_attendance_summary() — attendance summaries, today's attendance, date-range stats
+- get_detailed_attendance_with_times() — check-in/check-out times per employee
+- get_employee_count_by_tenure() — tenure-based employee counts
+- get_leave_statistics() — leave data by status, type, and date range
+- get_employees_by_department() — employees grouped by department
+- get_salary_slip_statistics() — payroll stats including gross/net salary per employee
+- get_upcoming_holidays() — upcoming holidays
+- get_task_report_summary() — task reports with productivity analysis
+- get_employee_basic_info() — basic employee info
+- get_all_pending_requests() — all pending leave, help, regularization, and password reset requests
+- get_current_datetime() — current IST date/time (use when needed for context)
 
 ## Response Format:
-- Start with a brief acknowledgment of the query
-- Present data in organized, readable format (use tables, lists, or structured text)
-- **Date Format**: Always display dates in DD-MM-YYYY format (e.g., 25-12-2024, not 2024-12-25)
-- **Task Reports**: When analyzing task reports, provide intelligent summaries of work patterns, productivity insights, and key accomplishments rather than just listing tasks
-- **Data Analysis**: Always provide context, insights, and actionable information when presenting data
-- End with an offer to help with follow-up questions
+- Present data in organized, readable format (tables, lists, or structured text)
+- **Date Format**: Always display dates in DD-MM-YYYY format (e.g., 25-12-2024)
+- **Task Reports**: Provide intelligent summaries of work patterns and productivity insights, not just raw lists
+- **Data Analysis**: Include context and actionable insights alongside raw data
+- End with an offer to help with follow-up questions`;
 
-Remember: You are a helpful HR assistant focused on providing accurate, timely information to support HR operations and employee inquiries.`;
-
-/**
- * Main chat endpoint - handles conversation with OpenAI GPT-5
- */
 export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { message, conversation_id } = req.body as {
     message: string;
@@ -102,134 +73,96 @@ export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
 
   try {
     const sessionId = conversation_id || `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const history = chatSessions.get(sessionId) || [];
 
-    let conversationHistory = chatSessions.get(sessionId) || [];
+    const userMessage: InputMessage = { role: 'user', content: message.trim() };
+    const input: InputMessage[] = [...history, userMessage];
 
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: message.trim()
-    };
-
-    const apiConversationHistory: OpenAIMessage[] = [...conversationHistory, userMessage];
-
-    logger.info({ sessionId, messagePreview: message.substring(0, 100) }, 'ChatBot processing message');
+    logger.info({ sessionId, messagePreview: message.slice(0, 100) }, 'ChatBot processing message');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let response = await openai.responses.create({
-      model: 'gpt-5-mini',
+    let response = await (openai.responses.create as any)({
+      model: 'gpt-5.4-mini',
       instructions: SYSTEM_INSTRUCTIONS,
-      input: apiConversationHistory,
+      input,
       tools: HR_FUNCTIONS,
       tool_choice: 'auto',
-      reasoning: { effort: 'low' },
-      text: { verbosity: 'medium' },
-      parallel_tool_calls: true
-    } as any) as unknown as OpenAIResponse;
+      parallel_tool_calls: true,
+    }) as OpenAIResponse;
 
-    logger.info({ sessionId }, 'ChatBot initial response received');
+    logger.info({ sessionId, responseId: response.id }, 'ChatBot initial response received');
 
-    const functionCalls = response.output.filter((item: Record<string, unknown>) => item.type === 'function_call');
+    // Handle function calls: collect outputs then send back via previous_response_id
+    const functionCalls = response.output.filter(item => item['type'] === 'function_call');
 
     if (functionCalls.length > 0) {
       logger.info({ sessionId, count: functionCalls.length }, 'ChatBot processing function calls');
 
-      apiConversationHistory.push(...(response.output as OpenAIMessage[]));
+      const toolOutputs: Array<{ type: 'function_call_output'; call_id: string; output: string }> = [];
 
-      for (const functionCall of functionCalls) {
+      for (const fc of functionCalls) {
+        const call = fc as { name: string; arguments: string; call_id: string };
         try {
-          const call = functionCall as { name: string; arguments: string; call_id: string };
-          logger.info({ function: call.name, args: call.arguments }, 'ChatBot executing function');
-
-          const functionArgs = JSON.parse(call.arguments);
-          const functionResult = await executeHRFunction(call.name, functionArgs);
-
-          apiConversationHistory.push({
-            type: 'function_call_output',
-            call_id: call.call_id,
-            output: JSON.stringify(functionResult)
-          });
-
+          logger.info({ function: call.name }, 'ChatBot executing function');
+          const args = JSON.parse(call.arguments) as Record<string, unknown>;
+          const result = await executeHRFunction(call.name, args);
+          toolOutputs.push({ type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(result) });
           logger.info({ function: call.name }, 'ChatBot function executed successfully');
         } catch (error) {
-          const call = functionCall as { name: string; call_id: string };
           const err = error instanceof Error ? error : new Error('Unknown error');
           logger.error({ err, function: call.name }, 'ChatBot function execution error');
-
-          apiConversationHistory.push({
+          toolOutputs.push({
             type: 'function_call_output',
             call_id: call.call_id,
-            output: JSON.stringify({
-              success: false,
-              error: `Failed to execute ${call.name}: ${err.message}`
-            })
+            output: JSON.stringify({ success: false, error: `Failed to execute ${call.name}: ${err.message}` }),
           });
         }
       }
 
+      // Use previous_response_id so the model has full context of its own function calls
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      response = await openai.responses.create({
-        model: 'gpt-5-mini',
+      response = await (openai.responses.create as any)({
+        model: 'gpt-5.4-mini',
         instructions: SYSTEM_INSTRUCTIONS,
-        input: apiConversationHistory,
+        previous_response_id: response.id,
+        input: toolOutputs,
         tools: HR_FUNCTIONS,
-        reasoning: { effort: 'low' },
-        text: { verbosity: 'medium' }
-      } as any) as unknown as OpenAIResponse;
+      }) as OpenAIResponse;
 
       logger.info({ sessionId }, 'ChatBot final response generated');
     }
 
-    logger.debug({
-      keys: Object.keys(response),
-      hasOutputText: !!response.output_text,
-      outputTextLength: response.output_text?.length || 0
-    }, 'ChatBot response structure');
-
     let assistantResponse = response.output_text;
 
-    if (!assistantResponse && response.output && Array.isArray(response.output)) {
-      const textItems = response.output.filter((item: Record<string, unknown>) => item.type === 'text' && item.text);
+    if (!assistantResponse && Array.isArray(response.output)) {
+      const textItems = response.output.filter(item => item['type'] === 'text' && item['text']);
       if (textItems.length > 0) {
-        assistantResponse = textItems.map((item: Record<string, unknown>) => item.text as string).join('\n');
-        logger.debug({ preview: assistantResponse.substring(0, 100) }, 'ChatBot extracted text from output array');
+        assistantResponse = textItems.map(item => item['text'] as string).join('\n');
       }
     }
 
     if (!assistantResponse) {
-      assistantResponse = "I apologize, but I couldn't generate a proper response. Please try again.";
+      assistantResponse = "I couldn't generate a response. Please try again.";
     }
 
-    const assistantMessage: ChatMessage = {
-      role: 'assistant',
-      content: assistantResponse
-    };
+    // Keep only user/assistant turns in history (max 20 messages = 10 turns)
+    const updatedHistory: InputMessage[] = [...history, userMessage, { role: 'assistant', content: assistantResponse }];
+    chatSessions.set(sessionId, updatedHistory.slice(-20));
 
-    conversationHistory.push(userMessage);
-    conversationHistory.push(assistantMessage);
-
-    const filteredHistory = conversationHistory.filter(msg =>
-      msg.role === 'user' || msg.role === 'assistant'
-    );
-    if (filteredHistory.length > 20) {
-      const trimmedHistory = filteredHistory.slice(-20);
-      chatSessions.set(sessionId, trimmedHistory);
-    } else {
-      chatSessions.set(sessionId, filteredHistory);
-    }
-
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    // Prune sessions older than 1 hour
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
     for (const [key] of chatSessions) {
-      if (key.includes('chat_') && parseInt(key.split('_')[1] || '0') < oneHourAgo) {
+      if (key.startsWith('chat_') && parseInt(key.split('_')[1] || '0') < oneHourAgo) {
         chatSessions.delete(key);
       }
     }
 
     logger.info({ sessionId }, 'ChatBot message processed successfully');
 
-    res.status(200).json(formatResponse(true, 'Chat response generated successfully', {
+    res.status(200).json(formatSuccessResponse('Chat response generated successfully', {
       response: assistantResponse,
       conversation_id: sessionId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }));
 
   } catch (error) {
@@ -248,9 +181,6 @@ export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
   }
 });
 
-/**
- * Get conversation history for a specific session
- */
 export const getConversationHistory = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { conversation_id } = req.params;
 
@@ -258,37 +188,26 @@ export const getConversationHistory = asyncHandler(async (req: IAuthRequest, res
     throw new ValidationError('Conversation ID is required');
   }
 
-  const conversationHistory = chatSessions.get(conversation_id) || [];
+  const history = chatSessions.get(conversation_id) || [];
 
-  const userFriendlyHistory = conversationHistory.filter(msg =>
-    msg.role === 'user' || msg.role === 'assistant'
-  ).map(msg => ({
-    role: msg.role,
-    content: msg.content,
-    timestamp: msg.timestamp || new Date().toISOString()
-  }));
-
-  res.status(200).json(formatResponse(true, 'Conversation history retrieved', {
+  res.status(200).json(formatSuccessResponse('Conversation history retrieved', {
     conversation_id,
-    messages: userFriendlyHistory,
-    total_messages: userFriendlyHistory.length
+    messages: history.map(msg => ({ role: msg.role, content: msg.content, timestamp: new Date().toISOString() })),
+    total_messages: history.length,
   }));
 });
 
-/**
- * Clear a specific conversation or all conversations
- */
 export const clearConversation = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { conversation_id } = req.params;
   const { clear_all } = req.body as { clear_all?: boolean };
 
   if (clear_all) {
     chatSessions.clear();
-    res.status(200).json(formatResponse(true, 'All conversations cleared'));
+    res.status(200).json(formatSuccessResponse('All conversations cleared'));
   } else if (conversation_id) {
     if (chatSessions.has(conversation_id)) {
       chatSessions.delete(conversation_id);
-      res.status(200).json(formatResponse(true, 'Conversation cleared', { conversation_id }));
+      res.status(200).json(formatSuccessResponse('Conversation cleared', { conversation_id }));
     } else {
       throw new NotFoundError('Conversation not found');
     }
@@ -297,23 +216,12 @@ export const clearConversation = asyncHandler(async (req: IAuthRequest, res: Res
   }
 });
 
-/**
- * Health check for chat service
- */
-export const chatHealthCheck = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const isOpenAIConfigured = !!process.env.OPENAI_API_KEY;
-  const activeSessions = chatSessions.size;
-
-  res.status(200).json(formatResponse(true, 'Chat service health check', {
-    openai_configured: isOpenAIConfigured,
-    active_sessions: activeSessions,
-    service_status: isOpenAIConfigured ? 'healthy' : 'configuration_required'
+export const chatHealthCheck = asyncHandler(async (_req: IAuthRequest, res: Response) => {
+  res.status(200).json(formatSuccessResponse('Chat service health check', {
+    openai_configured: !!process.env.OPENAI_API_KEY,
+    active_sessions: chatSessions.size,
+    service_status: process.env.OPENAI_API_KEY ? 'healthy' : 'configuration_required',
   }));
 });
 
-export default {
-  chat,
-  getConversationHistory,
-  clearConversation,
-  chatHealthCheck
-};
+export default { chat, getConversationHistory, clearConversation, chatHealthCheck };

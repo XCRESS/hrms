@@ -228,6 +228,7 @@ export const HR_FUNCTIONS = [
     parameters: {
       type: 'object',
       properties: {},
+      required: [],
       additionalProperties: false,
     },
     strict: true,
@@ -723,12 +724,12 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
     const now = getCurrentIST();
     return {
       success: true,
-      currentDateTime: now.toFormat('YYYY-MM-DD HH:mm:ss'),
+      currentDateTime: now.toFormat('yyyy-MM-dd HH:mm:ss'),
       timezone: 'Asia/Kolkata (IST)',
-      date: now.toFormat('YYYY-MM-DD'),
+      date: now.toFormat('yyyy-MM-dd'),
       time: now.toFormat('HH:mm:ss'),
-      dayOfWeek: now.toFormat('dddd'),
-      monthYear: now.toFormat('MMMM YYYY'),
+      dayOfWeek: now.toFormat('EEEE'),
+      monthYear: now.toFormat('LLLL yyyy'),
     };
   },
 
