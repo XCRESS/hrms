@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
-import { API_ENDPOINTS } from '@/lib/apiEndpoints';
-import type { ApiResponse, RegularizationRequest, RegularizationRequestDto, RegularizationStatus } from '@/types';
+import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
+import type { ApiResponse, RegularizationRequest, RegularizationRequestDto, RegularizationStatus, RegularizationQueryParams } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -11,14 +11,13 @@ import type { ApiResponse, RegularizationRequest, RegularizationRequestDto, Regu
 /**
  * Get all regularization requests (Admin/HR)
  */
-export const useRegularizationRequests = (options?: { enabled?: boolean }) => {
+export const useRegularizationRequests = (options?: { params?: RegularizationQueryParams; enabled?: boolean }) => {
   return useQuery({
-    queryKey: queryKeys.regularizations.allRequests(),
+    queryKey: queryKeys.regularizations.allRequests(options?.params),
     queryFn: async () => {
       // Backend returns { success, regs: RegularizationRequest[] }
-      const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] }>(
-        API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS
-      );
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, (options?.params || {}) as Record<string, string | number | boolean>);
+      const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] }>(endpoint);
       return data.regs || [];
     },
     enabled: options?.enabled ?? true,

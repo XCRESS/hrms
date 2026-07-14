@@ -1088,6 +1088,8 @@ export interface HelpInquiryQueryParams extends PaginationParams {
   status?: HelpInquiryStatus;
   category?: string;
   priority?: 'low' | 'medium' | 'high';
+  startDate?: string;
+  endDate?: string;
 }
 
 // Task report query params
@@ -1101,6 +1103,21 @@ export interface TaskReportQueryParams extends PaginationParams {
 // Password reset request query params
 export interface PasswordResetQueryParams extends PaginationParams {
   status?: 'pending' | 'approved' | 'rejected';
+  startDate?: string;
+  endDate?: string;
+}
+
+// Leave list query params (Admin/HR)
+export interface LeaveQueryParams {
+  employeeId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+// Regularization list query params (Admin/HR)
+export interface RegularizationQueryParams {
+  startDate?: string;
+  endDate?: string;
 }
 
 // WFH request query params
