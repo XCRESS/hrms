@@ -137,7 +137,7 @@ HRMS is a full-featured human resource management platform that handles employee
 ```bash
 cd frontend
 pnpm build
-pnpm preview  # Preview production build
+pnpm preview   # Preview production build
 ```
 
 **Backend**:
