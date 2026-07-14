@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createExpense,
+  updateExpense,
   getMyExpenses,
   getAllExpenses,
   updateExpenseStatus,
@@ -14,6 +15,7 @@ const router: Router = Router();
 // Employee routes
 router.post('/request', authMiddleware(), createExpense);
 router.get('/my', authMiddleware(), getMyExpenses);
+router.put('/:id', authMiddleware(), updateExpense);
 
 // Admin/HR routes
 router.get('/all', authMiddleware(['admin', 'hr']), getAllExpenses);

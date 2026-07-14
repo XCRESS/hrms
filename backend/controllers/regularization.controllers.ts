@@ -162,7 +162,16 @@ export const getAllRegularizations = async (req: IAuthRequest, res: Response): P
       res.status(403).json({ message: 'Not authorized' });
       return;
     }
-    const regs = await RegularizationRequest.find()
+
+    const { startDate, endDate } = req.query;
+    const filter: { createdAt?: { $gte?: Date; $lte?: Date } } = {};
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
+      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
+    }
+
+    const regs = await RegularizationRequest.find(filter)
       .populate('user', 'name email')
       .sort({ createdAt: -1 });
 

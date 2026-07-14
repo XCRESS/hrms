@@ -398,7 +398,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="text-xs sm:text-sm font-medium text-muted-foreground">Item / Description</label>
-                <p className="text-sm sm:text-base text-foreground mt-1 font-medium">{request.item}</p>
+                <p className="text-sm sm:text-base text-foreground mt-1 font-medium break-words [overflow-wrap:anywhere]">{request.item}</p>
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium text-muted-foreground">Amount</label>
@@ -445,13 +445,13 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden mx-2 sm:mx-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-border">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
             <div className="p-2 bg-muted rounded-lg flex-shrink-0">
               {request.icon}
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-bold text-foreground truncate">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight break-words [overflow-wrap:anywhere]">
                 {request.title}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">

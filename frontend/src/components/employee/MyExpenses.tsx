@@ -7,7 +7,8 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  Clock
+  Clock,
+  Pencil
 } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,16 +16,19 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import BackButton from "@/components/ui/BackButton";
 import ExpenseModal from "@/components/ExpenseModal";
-import { useMyExpenses, useCreateExpense } from '@/hooks/queries/useExpenses';
+import { useMyExpenses, useCreateExpense, useUpdateExpense } from '@/hooks/queries/useExpenses';
 import { formatISTDate } from '@/utils/luxonUtils';
+import type { Expense } from '@/types';
 
 const MyExpenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   
   const { toast } = useToast();
   const { data: expenses = [], isLoading, refetch } = useMyExpenses();
   const createExpenseMutation = useCreateExpense();
+  const updateExpenseMutation = useUpdateExpense();
 
   const handleCreateExpense = async (data: { date: string; item: string; amount: number }) => {
     try {
@@ -44,6 +48,41 @@ const MyExpenses = () => {
     }
   };
 
+  const handleUpdateExpense = async (data: { date: string; item: string; amount: number }) => {
+    if (!editingExpense) return;
+    try {
+      await updateExpenseMutation.mutateAsync({ id: editingExpense._id, ...data });
+      toast({
+        variant: "success",
+        title: "Expense Updated",
+        description: "Your expense has been updated successfully."
+      });
+      setEditingExpense(null);
+      setIsModalOpen(false);
+    } catch (error: any) {
+      toast({
+        variant: "error",
+        title: "Update Failed",
+        description: error.response?.data?.message || "Something went wrong"
+      });
+    }
+  };
+
+  const handleEditClick = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditingExpense(null);
+  };
+
+  const handleNewExpense = () => {
+    setEditingExpense(null);
+    setIsModalOpen(true);
+  };
+
   const filteredExpenses = expenses.filter(exp => 
     exp.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
     exp.amount.toString().includes(searchTerm)
@@ -59,6 +98,9 @@ const MyExpenses = () => {
         return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 gap-1"><Clock size={12} /> Pending</Badge>;
     }
   };
+
+  /** Expense is editable only when it hasn't been approved */
+  const isEditable = (expense: Expense) => expense.status !== 'approved';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 lg:p-8">
@@ -84,7 +126,7 @@ const MyExpenses = () => {
               <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
             </Button>
             <Button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleNewExpense}
               className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 gap-2 px-5"
             >
               <Plus size={18} />
@@ -138,7 +180,7 @@ const MyExpenses = () => {
               </div>
               {!searchTerm && (
                 <Button 
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={handleNewExpense}
                   variant="outline"
                   className="mt-2 border-amber-200 text-amber-600 hover:bg-amber-50"
                 >
@@ -188,6 +230,17 @@ const MyExpenses = () => {
                 
                 <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400">
                   <span>Submitted {formatISTDate(expense.createdAt, { customFormat: 'dd/MM/yy hh:mm a' })}</span>
+                  {isEditable(expense) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditClick(expense)}
+                      className="h-7 px-2.5 text-xs gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 font-semibold"
+                    >
+                      <Pencil size={12} />
+                      Edit
+                    </Button>
+                  )}
                 </div>
               </Card>
             ))}
@@ -197,9 +250,10 @@ const MyExpenses = () => {
 
       <ExpenseModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateExpense}
-        isLoading={createExpenseMutation.isPending}
+        onClose={handleModalClose}
+        onSubmit={editingExpense ? handleUpdateExpense : handleCreateExpense}
+        isLoading={editingExpense ? updateExpenseMutation.isPending : createExpenseMutation.isPending}
+        editingExpense={editingExpense}
       />
     </div>
   );
