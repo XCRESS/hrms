@@ -31,6 +31,7 @@ import AbsentEmployeesModal from "./AbsentEmployeesModal";
 import PresentEmployeesModal from "./PresentEmployeesModal";
 import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal";
 import NewYearBanner from './ui/NewYearBanner';
+import IndependenceDayBanner from './ui/IndependenceDayBanner';
 import ChristmasBanner from './ui/ChristmasBanner';
 
 // Subcomponents
@@ -865,6 +866,7 @@ const HRMSDashboard: React.FC = () => {
             <div className="flex flex-col h-full">
                 <ChristmasBanner username={employeeFirstName} />
                 <NewYearBanner username={employeeFirstName} />
+                <IndependenceDayBanner username={employeeFirstName} />
                 <Header
                     username={username}
                     isCheckedIn={!!isCheckedIn}

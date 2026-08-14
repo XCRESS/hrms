@@ -11,7 +11,8 @@ import {
   DollarSign,
   MessageCircle,
   Shield,
-  Settings
+  Settings,
+  Palette
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { cn } from "@/lib/utils";
@@ -172,6 +173,11 @@ export default function SidebarDemo() {
               label: "Announcements",
               href: "/announcements",
               icon: <Megaphone className={iconClass} />,
+            },
+            {
+              label: "Appearance",
+              href: "/appearance",
+              icon: <Palette className={iconClass} />,
             },
           ] as LinkItem[];
         }

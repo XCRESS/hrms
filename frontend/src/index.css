@@ -484,6 +484,106 @@ html[data-theme='newyear'] body {
   color: var(--foreground);
 }
 
+/* =========================================
+   INDEPENDENCE DAY / TIRANGA THEME
+   Light: Ivory White, Saffron, India Green, Chakra Navy
+   Dark:  Midnight Indigo, Glowing Saffron, Fresh Green
+   ========================================= */
+html[data-theme='independence'] {
+  --background: #FFF3E0;
+  /* Saffron Cream - unmistakably warm, never reads as white */
+  --foreground: #0F2350;
+  /* Chakra Navy (Main Text) */
+  --card: #FFFFFF;
+  /* The white band - cards float above the saffron page */
+  --card-foreground: #0F2350;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F2350;
+  --primary: #FF9933;
+  /* Flag Saffron */
+  --primary-foreground: #3A1A00;
+  /* Deep brown - 7:1 on saffron, keeps the true flag hue */
+  --secondary: #138808;
+  /* India Green */
+  --secondary-foreground: #FFFFFF;
+  --accent: #D8F3D3;
+  /* Green tint - the green band shows up in highlights */
+  --accent-foreground: #0B5D06;
+  --muted: #FFE9CC;
+  /* Deeper saffron - muted surfaces stay in the palette */
+  --muted-foreground: #46587F;
+  /* Muted Navy (Secondary Text) */
+  --border: #F4C48A;
+  /* Saffron border, strong enough to see */
+  --input: #F4C48A;
+  --ring: #FF9933;
+
+  --sidebar: #FFEBD1;
+  /* Deeper saffron than the page, so the rail separates */
+  --sidebar-foreground: #0F2350;
+  --sidebar-primary: #138808;
+  /* Green active pill against the saffron rail */
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FFFFFF;
+  /* White hover - the middle band */
+  --sidebar-accent-foreground: #0F2350;
+  --sidebar-border: #F4C48A;
+  --sidebar-ring: #138808;
+}
+
+html.dark[data-theme='independence'] {
+  --background: #13100C;
+  /* Warm Ink. Navy is deliberately NOT the canvas here - on the flag, blue is
+     one small wheel, not the field. A near-neutral warm base lets saffron and
+     green read as the theme; navy comes back as a chakra accent below. */
+  --foreground: #F6EFE4;
+  /* Soft Ivory */
+  --card: #2E271E;
+  /* Warm charcoal, 1.29 separation from the page (Christmas sits at 1.27) */
+  --card-foreground: #F6EFE4;
+  --popover: #2E271E;
+  --popover-foreground: #F6EFE4;
+  --primary: #FF9933;
+  /* Flag Saffron - the theme's identity, and now the loudest thing on screen */
+  --primary-foreground: #3A1A00;
+  --secondary: #2FBF3D;
+  /* Brightened India Green */
+  --secondary-foreground: #04230A;
+  --accent: #2A2118;
+  --accent-foreground: #FFB566;
+  --muted: #1E1811;
+  --muted-foreground: #C4B4A0;
+  /* Warm stone for secondary text */
+  --border: #3A2E22;
+  --input: #3A2E22;
+  --ring: #7FA6FF;
+  /* Chakra Blue, used the way the flag uses it: a small, deliberate accent
+     on focus rings only - never a surface */
+
+  --sidebar: #0D0B08;
+  /* Deepest ink so the rail sits behind the page */
+  --sidebar-foreground: #F6EFE4;
+  --sidebar-primary: #FF9933;
+  /* Saffron active pill */
+  --sidebar-primary-foreground: #3A1A00;
+  --sidebar-accent: #2A2118;
+  --sidebar-accent-foreground: #F6EFE4;
+  --sidebar-border: #3A2E22;
+  --sidebar-ring: #7FA6FF;
+}
+
+html[data-theme='independence'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Saffron text selection. Deliberately the only global flourish - a tricolour
+   scrollbar was tried and read as a stray orange border down the viewport. */
+html[data-theme='independence'] ::selection {
+  background-color: #FF9933;
+  color: #2B1200;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

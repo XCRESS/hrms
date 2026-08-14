@@ -39,6 +39,7 @@ const DocumentsPage = lazy(() => import('./components/employee/DocumentsPage'));
 const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage'));
 const PoliciesPage = lazy(() => import('./components/hr/PoliciesPage'));
 const SettingsPage = lazy(() => import('./components/hr/SettingsPage'));
+const AppearancePage = lazy(() => import('./components/employee/AppearancePage'));
 const ChatBot = lazy(() => import('./components/chatbot/chatbot'));
 const MyExpenses = lazy(() => import('./components/employee/MyExpenses'));
 const ExpenseManagement = lazy(() => import('./components/hr/ExpenseManagement'));
@@ -108,6 +109,9 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         </Route>
                                         <Route path="/settings" element={<SidebarDemo />}>
                                             <Route index element={<SettingsPage />} />
+                                        </Route>
+                                        <Route path="/appearance" element={<SidebarDemo />}>
+                                            <Route index element={<AppearancePage />} />
                                         </Route>
                                         <Route path="/attendance" element={<SidebarDemo />}>
                                             <Route path="my" element={<MyAttendance />} />

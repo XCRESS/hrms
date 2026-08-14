@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, type LucideIcon } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, Flag, type LucideIcon } from 'lucide-react';
 
 interface ThemeMode {
   value: 'light' | 'dark' | 'system';
@@ -43,6 +43,13 @@ const AppearanceSettings: React.FC = () => {
       label: 'New Year',
       icon: Snowflake,
       colors: ['#06B6D4', '#E2E8F0', '#F0F9FF']
+    },
+    {
+      value: 'independence',
+      label: 'Independence',
+      icon: Flag,
+      subtitle: 'Tiranga',
+      colors: ['#FF9933', '#FFFFFF', '#138808', '#0F2350']
     },
     {
       value: 'ocean',
@@ -201,7 +208,7 @@ const AppearanceSettings: React.FC = () => {
         <div className="flex gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
           <Sparkles className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
           <div className="text-xs text-foreground/80">
-            <span className="font-medium">Tip:</span> Seasonal themes (Christmas & New Year) auto-activate based on date. Change anytime here.
+            <span className="font-medium">Tip:</span> Seasonal themes (Christmas, New Year & Independence Day) auto-activate based on date. Change anytime here.
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import s3Service from '../services/s3Service.js';
 import fileValidationService from '../services/fileValidationService.js';
 import multer from 'multer';
 import logger from '../utils/logger.js';
+import { formatSuccessResponse, formatErrorResponse } from '../utils/response.js';
 
 const storage = multer.memoryStorage();
 export const upload = multer({
@@ -24,22 +25,25 @@ export const uploadDocument = async (req: MulterRequest, res: Response): Promise
     const file = req.file;
 
     if (!file) {
-      res.status(400).json({ message: 'No file uploaded' });
+      res.status(400).json(formatErrorResponse('No file uploaded'));
       return;
     }
 
     if (!employeeId) {
-      res.status(400).json({ message: 'Employee ID is required' });
+      res.status(400).json(formatErrorResponse('Employee ID is required'));
       return;
     }
 
     // Simple validation
     const validation = fileValidationService.validateFile(file);
     if (!validation.isValid) {
-      res.status(400).json({
-        message: 'File validation failed',
-        errors: validation.errors,
-      });
+      res.status(400).json(
+        formatErrorResponse(
+          'File validation failed',
+          undefined,
+          validation.errors.map((message) => ({ field: 'document', message }))
+        )
+      );
       return;
     }
 
@@ -70,14 +74,11 @@ export const uploadDocument = async (req: MulterRequest, res: Response): Promise
       await Employee.findOneAndUpdate({ employeeId }, { profilePicture: uploadResult.url });
     }
 
-    res.status(201).json({
-      message: 'File uploaded successfully',
-      document,
-    });
+    res.status(201).json(formatSuccessResponse('File uploaded successfully', { document }));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     logger.error({ err }, 'Upload error');
-    res.status(500).json({ message: 'Failed to upload file' });
+    res.status(500).json(formatErrorResponse('Failed to upload file'));
   }
 };
 
@@ -85,11 +86,11 @@ export const getEmployeeDocuments = async (req: Request, res: Response): Promise
   try {
     const { employeeId } = req.params;
     const documents = await EmployeeDocument.find({ employeeId });
-    res.json({ documents });
+    res.json(formatSuccessResponse('Documents retrieved successfully', { documents }));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     logger.error({ err }, 'Get documents error');
-    res.status(500).json({ message: 'Failed to get documents' });
+    res.status(500).json(formatErrorResponse('Failed to get documents'));
   }
 };
 
@@ -99,7 +100,7 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
     const document = await EmployeeDocument.findById(id);
 
     if (!document) {
-      res.status(404).json({ message: 'Document not found' });
+      res.status(404).json(formatErrorResponse('Document not found'));
       return;
     }
 
@@ -114,10 +115,10 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
     // Delete from database
     await EmployeeDocument.findByIdAndDelete(id);
 
-    res.json({ message: 'Document deleted successfully' });
+    res.json(formatSuccessResponse('Document deleted successfully'));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     logger.error({ err }, 'Delete error');
-    res.status(500).json({ message: 'Failed to delete document' });
+    res.status(500).json(formatErrorResponse('Failed to delete document'));
   }
 };

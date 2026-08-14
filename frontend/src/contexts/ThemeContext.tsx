@@ -3,6 +3,9 @@ import { ThemeMode, CustomTheme, ThemeContextValue } from '@/types';
 
 const THEME_MODE_KEY = 'hrms_theme_mode';
 const CUSTOM_THEME_KEY = 'hrms_custom_theme';
+// Remembers a seasonal theme we switched on by ourselves, so it can be undone
+// once the occasion passes without discarding a theme the user chose.
+const AUTO_APPLIED_KEY = 'hrms_auto_applied_theme';
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
@@ -87,8 +90,28 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     const isDefaultOrChristmas = !savedCustom || savedCustom === 'default' || savedCustom === 'christmas';
     const shouldAutoApply = customTheme === 'default' || (customTheme === 'christmas' && isDefaultOrChristmas);
 
+    const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
+
+    // Independence Day window: 8th - 18th August
+    const isIndependenceWindow = month === 7 && day >= 8 && day <= 18;
+
+    if (autoSeasonalEnabled && isIndependenceWindow) {
+      // Only take over when the user hasn't picked a theme of their own
+      if (customTheme === 'default') {
+        localStorage.setItem(AUTO_APPLIED_KEY, 'independence');
+        updateCustomTheme('independence');
+      }
+      return;
+    }
+
+    // Outside the window: undo an Independence theme we applied automatically
+    if (customTheme === 'independence' && localStorage.getItem(AUTO_APPLIED_KEY) === 'independence') {
+      localStorage.removeItem(AUTO_APPLIED_KEY);
+      updateCustomTheme('default');
+      return;
+    }
+
     if (shouldAutoApply) {
-      const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
       if (autoSeasonalEnabled) {
         if (month === 11) { // December
           if (day > 25) {
