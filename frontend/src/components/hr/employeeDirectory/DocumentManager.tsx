@@ -44,12 +44,11 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
   const deleteMutation = useDeleteDocument();
 
   const handleFileUpload = (docType: DocumentType, file: File): void => {
-    const formData = new FormData();
-    formData.append('document', file);
-    formData.append('employeeId', employeeProfile.employeeId);
-    formData.append('documentType', docType);
-
-    uploadMutation.mutate(formData, {
+    uploadMutation.mutate({
+      employeeId: employeeProfile.employeeId,
+      documentType: docType,
+      file,
+    }, {
       onSuccess: () => {
         toast({
           title: "Success",
@@ -61,14 +60,18 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
         toast({
           title: "Error",
           description: error.message || "Failed to upload document",
-          variant: "destructive"
+          variant: "error"
         });
       }
     });
   };
 
   const handleFileDelete = (documentId: string, docType: DocumentType): void => {
-    deleteMutation.mutate(documentId, {
+    deleteMutation.mutate({
+      documentId,
+      employeeId: employeeProfile.employeeId,
+      documentType: docType,
+    }, {
       onSuccess: () => {
         toast({
           title: "Success",
@@ -80,7 +83,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
         toast({
           title: "Error",
           description: error.message || "Failed to delete document",
-          variant: "destructive"
+          variant: "error"
         });
       }
     });
@@ -149,7 +152,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
                     {isImage(existingDoc.fileName) ? (
                       <div className="h-32 bg-gray-100 dark:bg-slate-700 rounded-lg overflow-hidden">
                         <img
-                          src={existingDoc.fileUrl}
+                          src={existingDoc.s3Url}
                           alt={existingDoc.fileName}
                           className="w-full h-full object-cover"
                         />
@@ -173,7 +176,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
                     {/* Actions */}
                     <div className="flex gap-2">
                       <a
-                        href={existingDoc.fileUrl}
+                        href={existingDoc.s3Url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"

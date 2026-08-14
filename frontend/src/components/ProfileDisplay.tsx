@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/queries";
-import { useEffect, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import type { Employee } from "@/types";
+import AvatarViewer from "@/components/ui/AvatarViewer";
+import useProfilePicture from "@/hooks/useProfilePicture";
 
 interface InfoFieldProps {
   icon: ReactNode;
@@ -35,6 +37,8 @@ interface StatCardProps {
 export default function ProfileDisplay() {
   const navigate = useNavigate();
   const { data: employee, isLoading: loading, error } = useProfile();
+  const { documentId } = useProfilePicture();
+  const [showAvatarViewer, setShowAvatarViewer] = useState(false);
 
   // Handle authentication errors
   useEffect(() => {
@@ -135,11 +139,19 @@ export default function ProfileDisplay() {
           <div className="p-6 sm:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center gap-6">
               <div className="relative">
-                <Avatar className="w-24 h-24 sm:w-28 sm:h-28 border-4 border-white dark:border-neutral-700 shadow-lg">
-                  <AvatarImage src={employee.profilePicture || ""} alt={getFullName()} />
-                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">{getInitials()}</AvatarFallback>
-                </Avatar>
-                <span className="absolute -bottom-1.5 -right-1.5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 ring-2 ring-white dark:ring-neutral-700">
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarViewer(true)}
+                  title="View profile picture"
+                  aria-label="View profile picture"
+                  className="rounded-full transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+                >
+                  <Avatar className="w-24 h-24 sm:w-28 sm:h-28 border-4 border-white dark:border-neutral-700 shadow-lg">
+                    <AvatarImage src={employee.profilePicture || ""} alt={getFullName()} />
+                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">{getInitials()}</AvatarFallback>
+                  </Avatar>
+                </button>
+                <span className="absolute -bottom-1.5 -right-1.5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 ring-2 ring-white dark:ring-neutral-700 pointer-events-none">
                   <Shield size={14} className="text-white" />
                 </span>
               </div>
@@ -384,6 +396,16 @@ export default function ProfileDisplay() {
           </div>
         </div>
       </div>
+
+      <AvatarViewer
+        open={showAvatarViewer}
+        onClose={() => setShowAvatarViewer(false)}
+        imageUrl={employee.profilePicture || null}
+        name={getFullName()}
+        employeeId={employee.employeeId}
+        documentId={documentId}
+        canEdit
+      />
     </div>
   );
 }

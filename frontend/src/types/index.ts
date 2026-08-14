@@ -698,7 +698,7 @@ export interface Document {
   employeeId: string;
   documentType: DocumentType;
   fileName: string;
-  fileUrl: string;
+  s3Url: string;
   uploadedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -1136,7 +1136,7 @@ export interface WFHRequestQueryParams extends PaginationParams {
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 // Custom theme options
-export type CustomTheme = 'default' | 'christmas' | 'newyear' | 'ocean' | 'forest';
+export type CustomTheme = 'default' | 'christmas' | 'newyear' | 'independence' | 'ocean' | 'forest';
 
 // Theme context value
 export interface ThemeContextValue {

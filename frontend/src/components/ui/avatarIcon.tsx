@@ -2,7 +2,7 @@ import React from 'react';
 import useProfilePicture from '../../hooks/useProfilePicture';
 
 const Avatar = ({ name }: { name: string }) => {
-  const { profilePicture } = useProfilePicture();
+  const { imageUrl } = useProfilePicture();
   const firstLetter = name.charAt(0).toUpperCase();
   const bgColors = [
     'bg-red-500',
@@ -15,12 +15,12 @@ const Avatar = ({ name }: { name: string }) => {
   ];
   const color = bgColors[name.charCodeAt(0) % bgColors.length];
 
-  if (profilePicture?.s3Url) {
+  if (imageUrl) {
     return (
-      <img 
-        src={profilePicture.s3Url} 
+      <img
+        src={imageUrl}
         alt={name}
-        className="h-7 w-7 min-w-7 shrink-0 rounded-full object-cover"
+        className="h-7 w-7 min-w-7 shrink-0 rounded-full object-cover object-center"
       />
     );
   }
