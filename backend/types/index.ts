@@ -464,8 +464,10 @@ export interface IExpense extends Document {
   amount: number;
   status: ExpenseStatus;
   reviewComment?: string;
-  approvedBy?: Types.ObjectId;
-  approvedAt?: Date;
+  // Null is a real stored value here: the schema defaults both fields to null,
+  // and they are reset to null when a rejected expense is edited for re-review.
+  approvedBy?: Types.ObjectId | null;
+  approvedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
