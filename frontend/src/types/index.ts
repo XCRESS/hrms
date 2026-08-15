@@ -233,6 +233,7 @@ export interface Holiday {
   date: string;
   description?: string;
   isOptional: boolean;
+  type?: 'public' | 'restricted' | 'optional';
   createdAt: string;
   updatedAt: string;
 }

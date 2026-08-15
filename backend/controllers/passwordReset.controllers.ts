@@ -91,18 +91,18 @@ export const approvePasswordResetRequest = async (req: Request, res: Response): 
 
     // Send email notification
     try {
-      const subject = '✅ Password Changed Successfully';
+      const subject = 'Your HRMS password was changed';
       const htmlContent = emailService.getBaseEmailTemplate(`
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Password Changed</h2>
-          <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Your password has been successfully changed.</p>
-        </div>
-        <div style="text-align: left;">
-          <p style="color: #475569; font-size: 16px; margin-bottom: 20px;">Hi ${user.name},</p>
-          <p style="color: #475569; font-size: 16px; margin-bottom: 25px;">
-            Your password has been successfully changed as per your request. You can now log in with your new password.
-          </p>
-        </div>
+        ${emailService.getHeading({
+          eyebrow: 'Security',
+          title: 'Your password was changed',
+          lede: `Hi ${user.name}, your password reset request has been approved.`
+        })}
+
+        ${emailService.getParagraph('You can now sign in with your new password.')}
+        ${emailService.getCallout('If you did not request this change, contact your HR administrator immediately.', 'warning')}
+
+        ${emailService.getActionButton('Sign in')}
       `);
       await emailService.send(user.email, subject, htmlContent);
     } catch (emailError) {
