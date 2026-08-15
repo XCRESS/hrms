@@ -17,10 +17,6 @@ interface EmailBatchResult {
   reason?: unknown;
 }
 
-interface StatusColors {
-  [key: string]: string;
-}
-
 interface EmailTemplateItem {
   label: string;
   value: string;
@@ -30,6 +26,47 @@ interface EmailTemplate {
   subject: string;
   htmlContent: string;
 }
+
+type Tone = 'positive' | 'negative' | 'warning' | 'neutral';
+
+interface ToneStyle {
+  bg: string;
+  border: string;
+  text: string;
+}
+
+interface HeadingOptions {
+  eyebrow: string;
+  title: string;
+  lede?: string;
+}
+
+const APP_URL = process.env.APP_URL || 'https://hr.intakesense.com';
+
+/**
+ * Design tokens. Kept flat and literal so every value that lands in an inline
+ * style is greppable — email clients strip <style> rules we cannot inline.
+ */
+const T = {
+  pageBg: '#f4f4f5',
+  surface: '#ffffff',
+  border: '#e4e4e7',
+  borderSubtle: '#f0f0f1',
+  ink: '#18181b',
+  body: '#3f3f46',
+  muted: '#71717a',
+  faint: '#a1a1aa',
+  accent: '#18181b',
+  font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Helvetica, Arial, sans-serif",
+  mono: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
+} as const;
+
+const TONES: Record<Tone, ToneStyle> = {
+  positive: { bg: '#f4fbf6', border: '#cdead8', text: '#15653b' },
+  negative: { bg: '#fdf6f6', border: '#f2d4d4', text: '#9f1f1f' },
+  warning: { bg: '#fffbf3', border: '#f2e2c0', text: '#8a5a10' },
+  neutral: { bg: '#fafafa', border: '#e4e4e7', text: '#3f3f46' }
+};
 
 class EmailService {
   resend: Resend | null;
@@ -188,712 +225,509 @@ class EmailService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Layout primitives
+  // ---------------------------------------------------------------------------
+
   getEmailHeader(): string {
     return `
-      <div class="header-padding" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center; margin-bottom: 0;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td align="center">
-              <img src="https://hr.intakesense.com/icon-192x192.png" alt="HRMS Logo" width="64" height="64" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
-              <h1 class="mobile-heading" style="color: white; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0.5px; padding: 0;">
-                HRMS System
-              </h1>
-              <p class="mobile-text-small" style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 14px; padding: 0;">
-                Human Resource Management System
-              </p>
-            </td>
-          </tr>
-        </table>
-      </div>
+      <tr>
+        <td class="px" style="padding: 24px 40px; border-bottom: 1px solid ${T.borderSubtle};">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding-right: 10px; line-height: 0;">
+                <img src="${APP_URL}/icon-192x192.png" alt="" width="28" height="28" style="display: block; width: 28px; height: 28px; border-radius: 6px; border: 1px solid ${T.borderSubtle};" />
+              </td>
+              <td style="vertical-align: middle;">
+                <span style="font-family: ${T.font}; font-size: 15px; font-weight: 600; color: ${T.ink}; letter-spacing: -0.01em;">HRMS</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     `;
   }
 
   getEmailFooter(): string {
     return `
-      <div class="mobile-padding" style="margin-top: 30px; padding: 25px 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td align="center">
-              <p class="mobile-text-small" style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.5;">This is an automated message from HRMS System</p>
-              <p class="mobile-text-small" style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5;">Please do not reply to this email</p>
-              <p class="mobile-text-small" style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
-                © ${new Date().getFullYear()} HRMS System. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </div>
+      <tr>
+        <td class="px" style="padding: 24px 40px 32px; border-top: 1px solid ${T.borderSubtle};">
+          <p style="margin: 0 0 6px; font-family: ${T.font}; font-size: 12px; line-height: 1.6; color: ${T.muted};">
+            Sent automatically by HRMS. Replies to this address are not monitored.
+          </p>
+          <p style="margin: 0; font-family: ${T.font}; font-size: 12px; line-height: 1.6; color: ${T.faint};">
+            &copy; ${new Date().getFullYear()} HRMS &middot; Human Resource Management System
+          </p>
+        </td>
+      </tr>
     `;
   }
 
   getBaseEmailTemplate(content: string): string {
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>HRMS Notification</title>
-        <!--[if mso]>
-        <style type="text/css">
-          body, table, td { font-family: Arial, Helvetica, sans-serif !important; }
-        </style>
-        <![endif]-->
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>HRMS</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, p, h1, h2, h3, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <style>
+    body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table { border-collapse: collapse; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    a { color: ${T.ink}; }
 
-          body {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-          }
-
-          table {
-            border-collapse: collapse !important;
-          }
-
-          img {
-            -ms-interpolation-mode: bicubic;
-            max-width: 100%;
-            height: auto;
-          }
-
-          @media only screen and (max-width: 600px) {
-            .email-container {
-              width: 100% !important;
-              margin: 0 !important;
-              border-radius: 0 !important;
-            }
-
-            .content-padding {
-              padding: 20px 16px !important;
-            }
-
-            .header-padding {
-              padding: 24px 16px !important;
-            }
-
-            .mobile-text-center {
-              text-align: center !important;
-            }
-
-            .mobile-full-width {
-              width: 100% !important;
-              display: block !important;
-            }
-
-            .mobile-padding {
-              padding: 12px !important;
-            }
-
-            .mobile-text-small {
-              font-size: 14px !important;
-            }
-
-            .mobile-heading {
-              font-size: 20px !important;
-            }
-
-            .mobile-subheading {
-              font-size: 16px !important;
-            }
-
-            .mobile-hide {
-              display: none !important;
-            }
-
-            .mobile-stack {
-              display: block !important;
-              width: 100% !important;
-              max-width: 100% !important;
-            }
-
-            .mobile-icon-container {
-              width: 50px !important;
-              height: 50px !important;
-              font-size: 20px !important;
-            }
-          }
-        </style>
-      </head>
-      <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #334155; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; padding: 20px 0;">
+    @media only screen and (max-width: 620px) {
+      .shell { padding: 0 !important; }
+      .card { border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; }
+      .px { padding-left: 24px !important; padding-right: 24px !important; }
+      .title { font-size: 20px !important; }
+      .stack { display: block !important; width: 100% !important; text-align: left !important; padding-left: 0 !important; }
+      .stack-value { text-align: left !important; padding-top: 2px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; width: 100%; background-color: ${T.pageBg};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${T.pageBg};">
+    <tr>
+      <td class="shell" align="center" style="padding: 40px 16px;">
+        <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" border="0" style="width: 600px; max-width: 600px; background-color: ${T.surface}; border: 1px solid ${T.border}; border-radius: 10px;">
+          ${this.getEmailHeader()}
           <tr>
-            <td align="center" style="padding: 0;">
-              <div class="email-container" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
-                ${this.getEmailHeader()}
-                <div class="content-padding" style="padding: 0 40px 40px 40px;">
-                  ${content}
-                </div>
-                ${this.getEmailFooter()}
-              </div>
+            <td class="px" style="padding: 32px 40px;">
+              ${content}
             </td>
           </tr>
+          ${this.getEmailFooter()}
         </table>
-      </body>
-      </html>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  /** Eyebrow + headline + optional lede. Opens every message. */
+  getHeading({ eyebrow, title, lede }: HeadingOptions): string {
+    return `
+      <p style="margin: 0 0 10px; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: ${T.muted};">${eyebrow}</p>
+      <h1 class="title" style="margin: 0; font-family: ${T.font}; font-size: 23px; line-height: 1.3; font-weight: 600; letter-spacing: -0.02em; color: ${T.ink};">${title}</h1>
+      ${lede ? `<p style="margin: 10px 0 0; font-family: ${T.font}; font-size: 15px; line-height: 1.6; color: ${T.body};">${lede}</p>` : ''}
     `;
+  }
+
+  getParagraph(text: string): string {
+    return `<p style="margin: 0 0 16px; font-family: ${T.font}; font-size: 15px; line-height: 1.65; color: ${T.body};">${text}</p>`;
   }
 
   getStatusBadge(status: string): string {
-    const statusColors: StatusColors = {
-      approved: '#10b981',
-      rejected: '#ef4444',
-      pending: '#f59e0b',
-      completed: '#10b981',
-      high: '#ef4444',
-      medium: '#f59e0b',
-      low: '#10b981'
+    const key = (status || '').toLowerCase();
+    const map: Record<string, Tone> = {
+      approved: 'positive',
+      completed: 'positive',
+      low: 'positive',
+      rejected: 'negative',
+      declined: 'negative',
+      high: 'negative',
+      pending: 'warning',
+      medium: 'warning'
     };
+    const tone = TONES[map[key] || 'neutral'];
 
-    const color = statusColors[status?.toLowerCase()] || '#6b7280';
-
-    return `
-      <span style="
-        display: inline-block;
-        background-color: ${color};
-        color: white;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      ">${status}</span>
-    `;
+    return `<span style="display: inline-block; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: ${tone.text}; background-color: ${tone.bg}; border: 1px solid ${tone.border}; border-radius: 5px; padding: 4px 8px; white-space: nowrap;">${status}</span>`;
   }
 
-  getActionButton(text: string, color = '#667eea'): string {
+  /** Single primary action. Bulletproof enough for Outlook via the VML fallback. */
+  getActionButton(text: string, href: string = APP_URL): string {
     return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 4px;">
         <tr>
-          <td align="center">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td align="center" style="border-radius: 8px; background-color: ${color};">
-                  <a href="#" class="mobile-text-small" style="
-                    display: inline-block;
-                    background-color: ${color};
-                    color: white;
-                    text-decoration: none;
-                    padding: 14px 32px;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    font-size: 14px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    border: none;
-                    min-width: 200px;
-                    text-align: center;
-                  ">${text}</a>
-                </td>
-              </tr>
-            </table>
+          <td style="background-color: ${T.accent}; border-radius: 6px;">
+            <a href="${href}" style="display: inline-block; padding: 11px 20px; font-family: ${T.font}; font-size: 14px; font-weight: 500; line-height: 1; color: #ffffff; text-decoration: none; border-radius: 6px;">${text}</a>
           </td>
         </tr>
       </table>
     `;
   }
 
+  /** Key/value spec list. Values right-aligned on desktop, stacked on mobile. */
   getInfoCard(items: EmailTemplateItem[]): string {
-    const itemsHtml = items.map(item => `
+    const rows = items
+      .filter(item => item && item.value !== undefined && item.value !== null && item.value !== '')
+      .map((item, index) => `
       <tr>
-        <td class="mobile-text-small" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top;">
-          <strong style="color: #475569; font-size: 14px; display: block; word-break: break-word;">${item.label}:</strong>
-        </td>
-        <td class="mobile-text-small" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; vertical-align: top;">
-          <span style="color: #1e293b; font-size: 14px; display: block; word-break: break-word;">${item.value}</span>
-        </td>
+        <td class="stack" width="40%" style="padding: ${index === 0 ? '0' : '10px'} 12px 10px 0; border-top: ${index === 0 ? 'none' : `1px solid ${T.borderSubtle}`}; font-family: ${T.font}; font-size: 13px; line-height: 1.5; color: ${T.muted}; vertical-align: top;">${item.label}</td>
+        <td class="stack stack-value" width="60%" align="right" style="padding: ${index === 0 ? '0' : '10px'} 0 10px; border-top: ${index === 0 ? 'none' : `1px solid ${T.borderSubtle}`}; font-family: ${T.font}; font-size: 13px; line-height: 1.5; font-weight: 500; color: ${T.ink}; text-align: right; vertical-align: top; word-break: break-word;">${item.value}</td>
       </tr>
     `).join('');
 
     return `
-      <div class="mobile-padding" style="background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-          ${itemsHtml}
-        </table>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0; border: 1px solid ${T.border}; border-radius: 8px;">
+        <tr>
+          <td style="padding: 16px 18px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+          </td>
+        </tr>
+      </table>
     `;
   }
+
+  /** Tinted note. Used for status outcomes and short contextual remarks. */
+  getCallout(text: string, tone: Tone = 'neutral', footnote?: { label: string; value: string }): string {
+    const t = TONES[tone];
+    return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0; background-color: ${t.bg}; border: 1px solid ${t.border}; border-radius: 8px;">
+        <tr>
+          <td style="padding: 14px 16px;">
+            <p style="margin: 0; font-family: ${T.font}; font-size: 14px; line-height: 1.6; color: ${t.text};">${text}</p>
+            ${footnote ? `
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid ${t.border};">
+              <p style="margin: 0 0 4px; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: ${t.text}; opacity: 0.75;">${footnote.label}</p>
+              <p style="margin: 0; font-family: ${T.font}; font-size: 14px; line-height: 1.6; color: ${t.text};">${footnote.value}</p>
+            </div>` : ''}
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
+  /** Long-form body copy (announcements, ticket descriptions). */
+  getProse(label: string, body: string, attribution?: string): string {
+    const paragraphs = String(body)
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => `<p style="margin: 0 0 12px; font-family: ${T.font}; font-size: 15px; line-height: 1.7; color: ${T.body}; word-break: break-word;">${line}</p>`)
+      .join('');
+
+    return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0; border: 1px solid ${T.border}; border-radius: 8px;">
+        <tr>
+          <td style="padding: 18px;">
+            <p style="margin: 0 0 12px; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: ${T.muted};">${label}</p>
+            ${paragraphs}
+            ${attribution ? `<p style="margin: 16px 0 0; padding-top: 14px; border-top: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; color: ${T.muted};">${attribution}</p>` : ''}
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Formatting helpers
+  // ---------------------------------------------------------------------------
+
+  formatDate(value: unknown): string {
+    if (!value) return '—';
+    const date = new Date(value as string);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  formatAmount(value: unknown): string {
+    return `<span style="font-family: ${T.mono}; font-size: 13px;">₹${Number(value || 0).toLocaleString('en-IN')}</span>`;
+  }
+
+  private statusTone(status?: string): Tone {
+    if (status === 'approved') return 'positive';
+    if (status === 'rejected' || status === 'declined') return 'negative';
+    return 'warning';
+  }
+
+  private titleCase(value?: string): string {
+    if (!value) return 'Updated';
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Templates
+  // ---------------------------------------------------------------------------
 
   getTemplate(type: string, data: EmailData): EmailTemplate {
     const templates: Record<string, () => EmailTemplate> = {
       leave_request: () => ({
-        subject: `New Leave Request - ${data.employee as string}`,
+        subject: `Leave request from ${data.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🏖️</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">New Leave Request</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Requires your attention</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Leave request',
+            title: `${data.employee as string} requested leave`,
+            lede: 'This request is waiting for your review in HRMS.'
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
-            { label: 'Leave Type', value: data.type as string },
-            { label: 'Date', value: new Date(data.date as string).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) },
+            { label: 'Leave type', value: data.type as string },
+            { label: 'Date', value: this.formatDate(data.date) },
             { label: 'Reason', value: data.reason as string }
           ])}
 
-          <div style="background: linear-gradient(135deg, #fef3c7, #fed7aa); border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-            <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500;">
-              ⚡ Action Required: Please review and approve/reject this request in the HRMS system.
-            </p>
-          </div>
-
-          ${this.getActionButton('Review Request', '#10b981')}
+          ${this.getActionButton('Review request', `${APP_URL}/admin/requests`)}
         `)
       }),
 
       expense_request: () => ({
-        subject: `New Expense Reimbursement Request - ${data.employee as string}`,
+        subject: `Expense claim from ${data.employee as string} · ₹${Number(data.amount || 0).toLocaleString('en-IN')}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">💰</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Expense Reimbursement Request</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">New submission from employee</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Expense claim',
+            title: `${data.employee as string} submitted an expense`,
+            lede: 'Review the claim and approve or decline it in HRMS.'
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
             { label: 'Employee ID', value: data.employeeId as string },
-            { label: 'Item/Description', value: data.item as string },
-            { label: 'Amount', value: `₹${Number(data.amount || 0).toLocaleString()}` },
-            { label: 'Date', value: new Date(data.date as string).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }
+            { label: 'Description', value: data.item as string },
+            { label: 'Amount', value: this.formatAmount(data.amount) },
+            { label: 'Date', value: this.formatDate(data.date) }
           ])}
 
-          <div style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #10b981;">
-            <p style="margin: 0; color: #065f46; font-size: 14px; font-weight: 500;">
-              💵 A new expense has been submitted for your review and approval.
-            </p>
-          </div>
-
-          ${this.getActionButton('Review Expense', '#10b981')}
+          ${this.getActionButton('Review expense', `${APP_URL}/admin/expenses`)}
         `)
       }),
 
-      expense_status_update: () => ({
-        subject: `Expense Request ${data.status ? (data.status as string).charAt(0).toUpperCase() + (data.status as string).slice(1) : 'Update'}`,
-        htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🧾</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Expense Request Update</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Reimbursement status update</p>
-          </div>
+      expense_status_update: () => {
+        const status = data.status as string;
+        const tone = this.statusTone(status);
+        const message = status === 'approved'
+          ? 'Your expense has been approved and is queued for reimbursement.'
+          : status === 'rejected'
+            ? 'Your expense claim was not approved.'
+            : 'Your expense claim is still under review.';
 
-          <div style="text-align: center; margin: 25px 0;">
-            <p style="color: #475569; font-size: 18px; margin: 0 0 10px 0;">Your expense request has been</p>
-            <div style="margin: 10px 0;">
-              ${this.getStatusBadge(data.status as string)}
-            </div>
-          </div>
+        return {
+          subject: `Expense claim ${this.titleCase(status).toLowerCase()}`,
+          htmlContent: this.getBaseEmailTemplate(`
+            ${this.getHeading({
+              eyebrow: 'Expense claim',
+              title: `Your expense was ${this.titleCase(status).toLowerCase()}`
+            })}
 
-          ${this.getInfoCard([
-            { label: 'Item', value: data.item as string },
-            { label: 'Amount', value: `₹${Number(data.amount || 0).toLocaleString()}` },
-            { label: 'Status', value: data.status as string }
-          ])}
+            ${this.getCallout(
+              message,
+              tone,
+              data.comment ? { label: 'Reviewer note', value: data.comment as string } : undefined
+            )}
 
-          <div style="background: ${data.status === 'approved' ? '#ecfdf5' : data.status === 'rejected' ? '#fef2f2' : '#fefbeb'}; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid ${data.status === 'approved' ? '#10b981' : data.status === 'rejected' ? '#ef4444' : '#f59e0b'}; text-align: center;">
-            <p style="margin: 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 16px; font-weight: 500;">
-              ${data.status === 'approved' ? '✅ Your expense reimbursement has been approved!' : data.status === 'rejected' ? '❌ Your expense request was not approved' : '⏳ Your request is under review'}
-            </p>
-            ${data.comment ? `
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${data.status === 'approved' ? '#a7f3d0' : data.status === 'rejected' ? '#fca5a5' : '#fed7aa'};">
-                <p style="margin: 0; color: ${data.status === 'approved' ? '#047857' : data.status === 'rejected' ? '#7f1d1d' : '#78350f'}; font-size: 14px; font-weight: 500;">Admin Comment:</p>
-                <p style="margin: 5px 0 0 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 14px;">${data.comment as string}</p>
-              </div>
-            ` : ''}
-          </div>
-        `)
-      }),
+            ${this.getInfoCard([
+              { label: 'Description', value: data.item as string },
+              { label: 'Amount', value: this.formatAmount(data.amount) },
+              { label: 'Status', value: this.getStatusBadge(status) }
+            ])}
+
+            ${this.getActionButton('View in HRMS', `${APP_URL}/expenses/my`)}
+          `)
+        };
+      },
 
       wfh_request: () => ({
-        subject: `Work From Home Request - ${data.employee as string}`,
+        subject: `Work from home request from ${data.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🏠</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Work From Home Request</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Requires your attention</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Work from home',
+            title: `${data.employee as string} requested to work remotely`,
+            lede: 'The employee is requesting to check in from outside the office geofence.'
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
             { label: 'Employee ID', value: data.employeeId as string },
-            { label: 'Request Date', value: data.requestDate as string },
+            { label: 'Requested for', value: this.formatDate(data.requestDate) },
             { label: 'Reason', value: data.reason as string }
           ])}
 
-          <div style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-            <p style="margin: 0; color: #1e40af; font-size: 14px; font-weight: 500;">
-              ℹ️ This employee is requesting to work from home outside the office geofence.
-            </p>
-          </div>
-
-          ${this.getActionButton('Review Request', '#3b82f6')}
+          ${this.getActionButton('Review request', `${APP_URL}/admin/requests`)}
         `)
       }),
 
       help_request: () => ({
-        subject: `New Help Request - ${data.employee as string}`,
+        subject: `Help request from ${data.employee as string} · ${data.subject as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🆘</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">New Help Request</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Employee needs assistance</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Help request',
+            title: data.subject as string,
+            lede: `${data.employee as string} opened a support request.`
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
-            { label: 'Subject', value: data.subject as string },
             { label: 'Category', value: data.category as string },
             { label: 'Priority', value: this.getStatusBadge(data.priority as string) }
           ])}
 
-          <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-            <h4 style="color: #1e293b; margin: 0 0 10px 0; font-size: 16px;">Description:</h4>
-            <p style="color: #475569; margin: 0; font-size: 14px; line-height: 1.6;">${data.description as string}</p>
-          </div>
+          ${this.getProse('Description', data.description as string)}
 
-          ${this.getActionButton('Respond in HRMS', '#3b82f6')}
+          ${this.getActionButton('Respond in HRMS', `${APP_URL}/admin/requests`)}
         `)
       }),
 
       regularization_request: () => ({
-        subject: `New Regularization Request - ${data.employee as string}`,
+        subject: `Attendance regularization from ${data.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">⏰</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Attendance Regularization Request</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Requires approval</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Regularization',
+            title: `${data.employee as string} requested an attendance correction`,
+            lede: 'Verify the reported hours before approving the correction.'
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
-            { label: 'Date', value: new Date(data.date as string).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) },
-            { label: 'Check-in Time', value: (data.checkIn as string) || 'Not specified' },
-            { label: 'Check-out Time', value: (data.checkOut as string) || 'Not specified' },
+            { label: 'Date', value: this.formatDate(data.date) },
+            { label: 'Check in', value: (data.checkIn as string) || 'Not specified' },
+            { label: 'Check out', value: (data.checkOut as string) || 'Not specified' },
             { label: 'Reason', value: data.reason as string }
           ])}
 
-          <div style="background: linear-gradient(135deg, #fef3c7, #fed7aa); border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-            <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500;">
-              ⚡ Action Required: Please review and approve/reject this regularization request.
-            </p>
-          </div>
-
-          ${this.getActionButton('Review Request', '#8b5cf6')}
+          ${this.getActionButton('Review request', `${APP_URL}/admin/requests`)}
         `)
       }),
 
+      leave_status_update: () => {
+        const status = data.status as string;
+        const tone = this.statusTone(status);
+        const message = status === 'approved'
+          ? 'Your leave has been approved and your attendance will be adjusted automatically.'
+          : status === 'rejected'
+            ? 'Your leave request was not approved.'
+            : 'Your leave request is still under review.';
+
+        return {
+          subject: `Leave request ${this.titleCase(status).toLowerCase()}`,
+          htmlContent: this.getBaseEmailTemplate(`
+            ${this.getHeading({
+              eyebrow: 'Leave request',
+              title: `Your leave request was ${this.titleCase(status).toLowerCase()}`
+            })}
+
+            ${this.getCallout(
+              message,
+              tone,
+              data.comment ? { label: 'Reviewer note', value: data.comment as string } : undefined
+            )}
+
+            ${this.getInfoCard([
+              { label: 'Leave type', value: data.type as string },
+              { label: 'Date', value: this.formatDate(data.date) },
+              { label: 'Reason', value: data.reason as string },
+              { label: 'Status', value: this.getStatusBadge(status) }
+            ])}
+
+            ${this.getActionButton('View in HRMS', `${APP_URL}/requests`)}
+          `)
+        };
+      },
+
+      regularization_status_update: () => {
+        const status = data.status as string;
+        const tone = this.statusTone(status);
+        const message = status === 'approved'
+          ? 'Your attendance record has been corrected.'
+          : status === 'rejected'
+            ? 'Your regularization request was not approved.'
+            : 'Your regularization request is still under review.';
+
+        return {
+          subject: `Attendance regularization ${this.titleCase(status).toLowerCase()}`,
+          htmlContent: this.getBaseEmailTemplate(`
+            ${this.getHeading({
+              eyebrow: 'Regularization',
+              title: `Your regularization was ${this.titleCase(status).toLowerCase()}`
+            })}
+
+            ${this.getCallout(
+              message,
+              tone,
+              data.comment ? { label: 'Reviewer note', value: data.comment as string } : undefined
+            )}
+
+            ${this.getInfoCard([
+              { label: 'Date', value: this.formatDate(data.date) },
+              { label: 'Check in', value: (data.checkIn as string) || 'Not specified' },
+              { label: 'Check out', value: (data.checkOut as string) || 'Not specified' },
+              { label: 'Reason', value: data.reason as string },
+              { label: 'Status', value: this.getStatusBadge(status) }
+            ])}
+
+            ${this.getActionButton('View attendance', `${APP_URL}/attendance/my`)}
+          `)
+        };
+      },
+
       holiday_reminder: () => ({
-        subject: `Holiday Reminder - ${data.title as string}`,
+        subject: `Upcoming holiday · ${data.title as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #06b6d4, #0891b2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🏖️</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Upcoming Holiday</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Plan your work accordingly</p>
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Holiday',
+            title: data.title as string,
+            lede: 'The office will be closed. Plan your schedule accordingly.'
+          })}
 
-          <div style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; border: 2px solid #60a5fa;">
-            <h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 22px; font-weight: 700;">${data.title as string}</h3>
-            <p style="color: #1e40af; margin: 0; font-size: 18px; font-weight: 600;">${data.date as string}</p>
-            ${data.description ? `<p style="color: #3730a3; margin: 15px 0 0 0; font-size: 14px; font-style: italic;">${data.description as string}</p>` : ''}
-            ${data.isOptional ? `<div style="margin-top: 15px;">${this.getStatusBadge('Optional Holiday')}</div>` : ''}
-          </div>
+          ${this.getInfoCard([
+            { label: 'Date', value: data.date as string },
+            { label: 'Type', value: data.isOptional ? this.getStatusBadge('Optional') : 'Company holiday' },
+            ...(data.description ? [{ label: 'Details', value: data.description as string }] : [])
+          ])}
 
-          <div style="background: #f0f9ff; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #06b6d4; text-align: center;">
-            <p style="margin: 0; color: #0c4a6e; font-size: 16px; font-weight: 500;">
-              🏢 The office will be closed on this day
-            </p>
-            <p style="margin: 5px 0 0 0; color: #075985; font-size: 14px;">
-              Please plan your work schedule accordingly
-            </p>
-          </div>
+          ${this.getActionButton('View holiday calendar', `${APP_URL}/holidays`)}
         `)
       }),
 
       announcement: () => ({
-        subject: `Announcement: ${data.title as string}`,
+        subject: `${data.title as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td align="center" style="padding: 0 0 30px 0;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td align="center">
-                      <div class="mobile-icon-container" style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; margin: 0 auto 15px; display: inline-flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 24px;">📢</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <h2 class="mobile-heading" style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700; padding: 0;">New Announcement</h2>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <p class="mobile-text-small" style="color: #64748b; margin: 8px 0 0 0; font-size: 16px; padding: 0;">Important update from management</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+          ${this.getHeading({
+            eyebrow: 'Announcement',
+            title: data.title as string
+          })}
 
-          <div class="mobile-padding" style="background: linear-gradient(135deg, #fefbeb, #fef3c7); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #f59e0b;">
-            <h3 class="mobile-subheading" style="color: #92400e; margin: 0 0 15px 0; font-size: 20px; font-weight: 700; word-break: break-word;">${data.title as string}</h3>
-            <div class="mobile-text-small" style="color: #78350f; font-size: 16px; line-height: 1.7;">
-              ${(data.content as string).split('\n').map(paragraph => `<p style="margin: 0 0 15px 0; word-break: break-word;">${paragraph}</p>`).join('')}
-            </div>
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #fed7aa;">
-              <tr>
-                <td align="right">
-                  <p class="mobile-text-small mobile-text-center" style="color: #92400e; margin: 0; font-size: 14px; font-weight: 600;">— ${data.author as string}</p>
-                </td>
-              </tr>
-            </table>
-          </div>
+          ${this.getProse('Message', data.content as string, `Posted by ${data.author as string}`)}
 
-          <div class="mobile-padding" style="background: #fffbeb; border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b; text-align: center;">
-            <p class="mobile-text-small" style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500; line-height: 1.4;">
-              📋 This announcement is also available in your HRMS dashboard
-            </p>
-          </div>
+          ${this.getActionButton('Open announcements', `${APP_URL}/announcements`)}
         `)
       }),
 
       employee_milestone: () => ({
-        subject: `Employee Milestone - ${data.employee as string}`,
+        subject: `Work anniversary · ${data.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">🏆</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Employee Milestone Achievement</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Time to celebrate!</p>
-          </div>
-
-          <div style="background: linear-gradient(135deg, #fefbeb, #fef3c7); border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; border: 2px solid #f59e0b;">
-            <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 22px; font-weight: 700;">🎉 ${data.employee as string}</h3>
-            <p style="color: #78350f; margin: 0; font-size: 18px; font-weight: 600;">has completed ${data.milestone as string} with the company!</p>
-            ${data.department ? `<p style="color: #92400e; margin: 10px 0 0 0; font-size: 14px;">${data.department as string} Department</p>` : ''}
-          </div>
+          ${this.getHeading({
+            eyebrow: 'Work anniversary',
+            title: `${data.employee as string} completed ${data.milestone as string}`,
+            lede: 'A good moment to recognise their contribution to the team.'
+          })}
 
           ${this.getInfoCard([
             { label: 'Employee', value: data.employee as string },
             { label: 'Employee ID', value: data.employeeId as string },
-            { label: 'Milestone', value: (data.milestone as string) + ' work anniversary' },
-            { label: 'Joining Date', value: new Date(data.joiningDate as string).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) },
+            { label: 'Milestone', value: `${data.milestone as string} with the company` },
+            { label: 'Joined', value: this.formatDate(data.joiningDate) },
             ...(data.department ? [{ label: 'Department', value: data.department as string }] : []),
             ...(data.position ? [{ label: 'Position', value: data.position as string }] : [])
           ])}
 
-          <div style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #10b981; text-align: center;">
-            <p style="margin: 0; color: #065f46; font-size: 16px; font-weight: 500;">
-              🎊 Consider recognizing this employee's contribution and dedication
-            </p>
-            <p style="margin: 5px 0 0 0; color: #047857; font-size: 14px;">
-              A milestone like this deserves celebration and appreciation
-            </p>
-          </div>
-        `)
-      }),
-
-      leave_status_update: () => ({
-        subject: `Leave Request ${data.status ? (data.status as string).charAt(0).toUpperCase() + (data.status as string).slice(1) : 'Update'}`,
-        htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">📋</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Leave Request Update</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Status notification</p>
-          </div>
-
-          <div style="text-align: center; margin: 25px 0;">
-            <p style="color: #475569; font-size: 18px; margin: 0 0 10px 0;">Your leave request has been</p>
-            <div style="margin: 10px 0;">
-              ${this.getStatusBadge(data.status as string)}
-            </div>
-          </div>
-
-          ${this.getInfoCard([
-            { label: 'Leave Type', value: data.type as string },
-            { label: 'Date', value: data.date as string },
-            { label: 'Reason', value: data.reason as string },
-            { label: 'Status', value: data.status as string }
-          ])}
-
-          <div style="background: ${data.status === 'approved' ? '#ecfdf5' : data.status === 'rejected' ? '#fef2f2' : '#fefbeb'}; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid ${data.status === 'approved' ? '#10b981' : data.status === 'rejected' ? '#ef4444' : '#f59e0b'}; text-align: center;">
-            <p style="margin: 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 16px; font-weight: 500;">
-              ${data.status === 'approved' ? '✅ Your leave has been approved!' : data.status === 'rejected' ? '❌ Your leave request was not approved' : '⏳ Your leave request is under review'}
-            </p>
-            ${data.comment ? `
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${data.status === 'approved' ? '#a7f3d0' : data.status === 'rejected' ? '#fca5a5' : '#fed7aa'};">
-                <p style="margin: 0; color: ${data.status === 'approved' ? '#047857' : data.status === 'rejected' ? '#7f1d1d' : '#78350f'}; font-size: 14px; font-weight: 500;">Review Comment:</p>
-                <p style="margin: 5px 0 0 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 14px;">${data.comment as string}</p>
-              </div>
-            ` : ''}
-          </div>
-        `)
-      }),
-
-      regularization_status_update: () => ({
-        subject: `Regularization Request ${data.status ? (data.status as string).charAt(0).toUpperCase() + (data.status as string).slice(1) : 'Update'}`,
-        htmlContent: this.getBaseEmailTemplate(`
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px;">⏰</span>
-            </div>
-            <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Regularization Update</h2>
-            <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Attendance regularization status</p>
-          </div>
-
-          <div style="text-align: center; margin: 25px 0;">
-            <p style="color: #475569; font-size: 18px; margin: 0 0 10px 0;">Your regularization request has been</p>
-            <div style="margin: 10px 0;">
-              ${this.getStatusBadge(data.status as string)}
-            </div>
-          </div>
-
-          ${this.getInfoCard([
-            { label: 'Date', value: data.date as string },
-            { label: 'Check-in', value: data.checkIn as string },
-            { label: 'Check-out', value: data.checkOut as string },
-            { label: 'Reason', value: data.reason as string },
-            { label: 'Status', value: data.status as string }
-          ])}
-
-          <div style="background: ${data.status === 'approved' ? '#ecfdf5' : data.status === 'rejected' ? '#fef2f2' : '#fefbeb'}; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid ${data.status === 'approved' ? '#10b981' : data.status === 'rejected' ? '#ef4444' : '#f59e0b'}; text-align: center;">
-            <p style="margin: 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 16px; font-weight: 500;">
-              ${data.status === 'approved' ? '✅ Your attendance has been regularized!' : data.status === 'rejected' ? '❌ Your regularization request was not approved' : '⏳ Your request is under review'}
-            </p>
-            ${data.comment ? `
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${data.status === 'approved' ? '#a7f3d0' : data.status === 'rejected' ? '#fca5a5' : '#fed7aa'};">
-                <p style="margin: 0; color: ${data.status === 'approved' ? '#047857' : data.status === 'rejected' ? '#7f1d1d' : '#78350f'}; font-size: 14px; font-weight: 500;">Review Comment:</p>
-                <p style="margin: 5px 0 0 0; color: ${data.status === 'approved' ? '#065f46' : data.status === 'rejected' ? '#991b1b' : '#92400e'}; font-size: 14px;">${data.comment as string}</p>
-              </div>
-            ` : ''}
-          </div>
+          ${this.getActionButton('Open employee profile', `${APP_URL}/employees`)}
         `)
       }),
 
       birthday_wish: () => ({
-        subject: `Happy Birthday ${data.employee as string}!`,
+        subject: `Happy birthday, ${data.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td align="center" style="padding: 0 0 30px 0;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td align="center">
-                      <div class="mobile-icon-container" style="width: 80px; height: 80px; background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-radius: 50%; margin: 0 auto 20px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);">
-                        <span style="font-size: 32px;">🎂</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <h1 class="mobile-heading" style="color: #ff6b6b; margin: 0 0 10px 0; font-size: 32px; font-weight: 800; padding: 0;">
-                        Happy Birthday!
-                      </h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <h2 class="mobile-subheading" style="color: #667eea; margin: 0; font-size: 24px; font-weight: 700; padding: 0;">${data.employee as string}</h2>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+          ${this.getHeading({
+            eyebrow: 'Birthday',
+            title: `Happy birthday, ${data.employee as string}`
+          })}
 
-          <div class="mobile-padding" style="background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 16px; padding: 30px; text-align: center; margin: 30px 0; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);">
-            <p class="mobile-text-small" style="color: white; font-size: 20px; margin: 0 0 15px 0; font-weight: 600; line-height: 1.4;">
-              Wishing you a wonderful birthday and an amazing year ahead!
-            </p>
-            ${data.age ? `<p class="mobile-text-small" style="color: rgba(255,255,255,0.9); margin: 0 0 15px 0; font-size: 18px;">Celebrating ${data.age as string} years of awesomeness! 🎂</p>` : ''}
-            ${data.department ? `<p class="mobile-text-small" style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">From your ${data.department as string} team and the entire HRMS family</p>` : ''}
-          </div>
-
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
-            <tr>
-              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td align="center">
-                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #ff9a9e, #fecfef); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 20px;">🎁</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">May this special day bring you joy and happiness</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td align="center">
-                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #a8edea, #fed6e3); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 20px;">🌟</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">Here's to another year of great achievements</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-              <td class="mobile-stack" align="center" style="padding: 15px; width: 33.33%;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td align="center">
-                      <div class="mobile-icon-container" style="width: 50px; height: 50px; background: linear-gradient(135deg, #ffecd2, #fcb69f); border-radius: 50%; margin: 0 auto 10px; display: inline-flex; align-items: center; justify-content: center;">
-                        <span style="font-size: 20px;">🎈</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center">
-                      <p class="mobile-text-small" style="color: #64748b; margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 200px;">Enjoy your special celebration!</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          <div class="mobile-padding" style="background: linear-gradient(135deg, #ffeaa7, #fab1a0); border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
-            <p class="mobile-text-small" style="color: #2d3436; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4;">
-              🎊 Have a fantastic day filled with love, laughter, and cake! 🎊
-            </p>
-          </div>
+          ${this.getParagraph('Wishing you a great day and a strong year ahead.')}
+          ${this.getParagraph(
+            data.department
+              ? `From your ${data.department as string} team and everyone at the company.`
+              : 'From everyone at the company.'
+          )}
         `)
       }),
 
@@ -904,121 +738,76 @@ class EmailService {
           absentEmployees: Array<{ name: string }>;
         }>) || [];
 
-        return {
-          subject: (data.subjectLine as string) || `Daily Attendance Report - ${data.reportDateFormatted as string}`,
-          htmlContent: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              @media only screen and (max-width: 600px) {
-                .mobile-padding { padding: 12px !important; }
-                .mobile-text-small { font-size: 11px !important; }
-                .mobile-heading { font-size: 20px !important; }
-                .mobile-subheading { font-size: 14px !important; }
-                .mobile-stat { font-size: 24px !important; }
-                .mobile-table { font-size: 11px !important; }
-                .mobile-cell { padding: 6px !important; }
-              }
-            </style>
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.4; color: #1f2937; max-width: 1000px; margin: 0 auto; padding: 8px; background-color: #f9fafb;">
+        const stat = (label: string, value: number, color: string) => `
+          <td class="stack" width="33%" style="padding: 0 12px 0 0; vertical-align: top;">
+            <p style="margin: 0; font-family: ${T.mono}; font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; color: ${color};">${value}</p>
+            <p style="margin: 6px 0 0; font-family: ${T.font}; font-size: 12px; color: ${T.muted};">${label}</p>
+          </td>
+        `;
 
-            <!-- Header -->
-            <div class="mobile-padding" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; text-align: center;">
-              <h1 class="mobile-heading" style="margin: 0; font-size: 24px; font-weight: 700;">📊 Attendance</h1>
-              <p class="mobile-text-small" style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">${data.reportDateFormatted as string}</p>
-            </div>
+        const th = (label: string, align = 'left') => `
+          <th align="${align}" style="padding: 0 0 8px; border-bottom: 1px solid ${T.border}; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: ${T.muted}; text-align: ${align};">${label}</th>
+        `;
 
-            <!-- Summary -->
-            <div class="mobile-padding" style="background-color: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-              <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 8px;">
-                <div style="text-align: center; padding: 8px;">
-                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #1f2937;">${data.totalEmployees as number}</div>
-                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Total</div>
-                </div>
-                <div style="text-align: center; padding: 8px;">
-                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #10b981;">${data.totalPresent as number}</div>
-                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Present</div>
-                </div>
-                ${(data.totalAbsent as number) > 0 ? `
-                <div style="text-align: center; padding: 8px;">
-                  <div class="mobile-stat" style="font-size: 28px; font-weight: 700; color: #ef4444;">${data.totalAbsent as number}</div>
-                  <div class="mobile-text-small" style="font-size: 11px; color: #6b7280; font-weight: 500;">Absent</div>
-                </div>
-                ` : ''}
-              </div>
-            </div>
+        const sections = officeGroups.map(group => `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 0; border-top: 1px solid ${T.border};">
+            <tr>
+              <td style="padding: 20px 0 0;">
+                <p style="margin: 0 0 4px; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: ${T.muted};">Location</p>
+                <p style="margin: 0 0 16px; font-family: ${T.font}; font-size: 15px; font-weight: 600; color: ${T.ink};">${group.officeAddress}</p>
 
-            <!-- Office Groups -->
-            ${officeGroups.map(group => `
-              <div class="mobile-padding" style="background-color: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-
-                <!-- Office Header -->
-                <div class="mobile-padding" style="background-color: #3b82f6; color: white; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;">
-                  <h2 class="mobile-subheading" style="margin: 0; font-size: 15px; font-weight: 600;">📍 ${group.officeAddress.toUpperCase()}</h2>
-                </div>
-
-                <!-- Present Employees Table -->
                 ${group.presentEmployees.length > 0 ? `
-                  <h3 class="mobile-subheading" style="color: #1f2937; font-size: 14px; margin: 0 0 8px 0;">✅ Present (${group.presentEmployees.length})</h3>
-                  <div style="overflow-x: auto;">
-                    <table class="mobile-table" style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px;">
-                      <thead>
-                        <tr style="background-color: #f3f4f6;">
-                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">Name</th>
-                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">In</th>
-                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db; font-size: 11px;">Out</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${group.presentEmployees.map(emp => `
-                          <tr style="border-bottom: 1px solid #e5e7eb;">
-                            <td class="mobile-cell" style="padding: 8px 6px; font-weight: 500; font-size: 11px;">${emp.name}</td>
-                            <td class="mobile-cell" style="padding: 8px 6px; font-size: 11px;">${emp.checkIn || '-'}</td>
-                            <td class="mobile-cell" style="padding: 8px 6px; font-size: 11px; ${!emp.checkOut ? 'color: #f59e0b; font-weight: 600;' : ''}">${emp.checkOut || 'No'}</td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                ` : '<p class="mobile-text-small" style="color: #6b7280; font-style: italic; margin-bottom: 16px; font-size: 11px;">No employees present</p>'}
+                <p style="margin: 0 0 10px; font-family: ${T.font}; font-size: 13px; font-weight: 500; color: ${T.body};">Present &middot; ${group.presentEmployees.length}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 20px;">
+                  <tr>
+                    ${th('Name')}${th('In', 'right')}${th('Out', 'right')}
+                  </tr>
+                  ${group.presentEmployees.map(emp => `
+                  <tr>
+                    <td style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; color: ${T.ink};">${emp.name}</td>
+                    <td align="right" style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.mono}; font-size: 12px; color: ${T.body}; text-align: right;">${emp.checkIn || '—'}</td>
+                    <td align="right" style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.mono}; font-size: 12px; color: ${emp.checkOut ? T.body : TONES.warning.text}; text-align: right;">${emp.checkOut || 'Open'}</td>
+                  </tr>`).join('')}
+                </table>` : `
+                <p style="margin: 0 0 20px; font-family: ${T.font}; font-size: 13px; color: ${T.muted};">No employees marked present.</p>`}
 
-                <!-- Absent Employees Table -->
                 ${group.absentEmployees.length > 0 ? `
-                  <h3 class="mobile-subheading" style="color: #ef4444; font-size: 14px; margin: 0 0 8px 0;">❌ Absent (${group.absentEmployees.length})</h3>
-                  <div style="overflow-x: auto;">
-                    <table class="mobile-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                      <thead>
-                        <tr style="background-color: #fef2f2;">
-                          <th class="mobile-cell" style="padding: 8px 6px; text-align: left; font-weight: 600; border-bottom: 2px solid #fecaca; font-size: 11px;">Name</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${group.absentEmployees.map(emp => `
-                          <tr style="border-bottom: 1px solid #fecaca;">
-                            <td class="mobile-cell" style="padding: 8px 6px; color: #991b1b; font-size: 11px;">${emp.name}</td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                ` : ''}
+                <p style="margin: 0 0 10px; font-family: ${T.font}; font-size: 13px; font-weight: 500; color: ${T.body};">Absent &middot; ${group.absentEmployees.length}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>${th('Name')}</tr>
+                  ${group.absentEmployees.map(emp => `
+                  <tr>
+                    <td style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; color: ${T.ink};">${emp.name}</td>
+                  </tr>`).join('')}
+                </table>` : ''}
+              </td>
+            </tr>
+          </table>
+        `).join('');
 
-              </div>
-            `).join('')}
+        return {
+          subject: (data.subjectLine as string) || `Daily attendance report · ${data.reportDateFormatted as string}`,
+          htmlContent: this.getBaseEmailTemplate(`
+            ${this.getHeading({
+              eyebrow: 'Daily report',
+              title: 'Attendance summary',
+              lede: data.reportDateFormatted as string
+            })}
 
-            <!-- Footer -->
-            <div class="mobile-text-small" style="text-align: center; margin-top: 16px; padding: 12px; color: #6b7280; font-size: 10px;">
-              <p style="margin: 4px 0;">Automated report by HRMS System</p>
-              <p style="margin: 4px 0;">Generated: ${data.generatedAt as string} IST</p>
-            </div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 0;">
+              <tr>
+                ${stat('Employees', data.totalEmployees as number, T.ink)}
+                ${stat('Present', data.totalPresent as number, TONES.positive.text)}
+                ${stat('Absent', data.totalAbsent as number, (data.totalAbsent as number) > 0 ? TONES.negative.text : T.faint)}
+              </tr>
+            </table>
 
-          </body>
-          </html>
-        `
+            ${sections}
+
+            <p style="margin: 28px 0 0; padding-top: 20px; border-top: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 12px; color: ${T.faint};">
+              Generated ${data.generatedAt as string} IST
+            </p>
+          `)
         };
       }
     };
@@ -1029,12 +818,15 @@ class EmailService {
     }
 
     return {
-      subject: 'HRMS Notification',
+      subject: 'HRMS notification',
       htmlContent: this.getBaseEmailTemplate(`
-        <div style="text-align: center; padding: 40px 0;">
-          <h2 style="color: #1e293b; margin: 0;">HRMS Notification</h2>
-          <p style="color: #64748b; margin: 10px 0 0 0;">You have a new notification from the HRMS system.</p>
-        </div>
+        ${this.getHeading({
+          eyebrow: 'Notification',
+          title: 'You have a new notification',
+          lede: 'Open HRMS to see the details.'
+        })}
+
+        ${this.getActionButton('Open HRMS')}
       `)
     };
   }

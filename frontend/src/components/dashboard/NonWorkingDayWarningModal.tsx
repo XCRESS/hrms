@@ -3,10 +3,19 @@ import { AlertTriangle, Calendar, X } from 'lucide-react';
 interface WarningData {
   reason: string;
   dayName?: string;
+  saturdayWeek?: number;
   holidayTitle?: string;
   holidayType?: string;
   message: string;
 }
+
+const ORDINALS = ['', '1st', '2nd', '3rd', '4th'];
+
+const holidayTypeLabel = (holidayType?: string) => {
+  if (holidayType === 'optional') return ' (Optional)';
+  if (holidayType === 'restricted') return ' (Restricted)';
+  return '';
+};
 
 interface NonWorkingDayWarningModalProps {
   isOpen: boolean;
@@ -18,7 +27,7 @@ interface NonWorkingDayWarningModalProps {
 const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }: NonWorkingDayWarningModalProps) => {
   if (!isOpen || !warningData) return null;
 
-  const { reason, dayName, holidayTitle, holidayType, message } = warningData;
+  const { reason, dayName, saturdayWeek, holidayTitle, holidayType, message } = warningData;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -54,12 +63,19 @@ const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }: 
                 {reason === 'holiday' && holidayTitle && (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
                     Holiday: <span className="font-semibold">{holidayTitle}</span>
-                    {holidayType === 'optional' && ' (Optional)'}
+                    {holidayTypeLabel(holidayType)}
                   </p>
                 )}
                 {reason === 'weekend' && dayName && (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
                     Day: <span className="font-semibold">{dayName}</span>
+                  </p>
+                )}
+                {reason === 'saturday_off' && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Day: <span className="font-semibold">
+                      {saturdayWeek ? `${ORDINALS[saturdayWeek]} Saturday` : 'Saturday'}
+                    </span> — marked as a non-working Saturday in settings
                   </p>
                 )}
               </div>
