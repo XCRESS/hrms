@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowLeft, FileText, User, Shield, GraduationCap, Plus, Eye, X, Upload, LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useToast } from '../ui/toast';
 import useAuth from '../../hooks/authjwt';
 import { useEmployeeDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/queries';

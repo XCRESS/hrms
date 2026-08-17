@@ -92,8 +92,8 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
 
     const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
 
-    // Independence Day window: 8th - 18th August
-    const isIndependenceWindow = month === 7 && day >= 8 && day <= 18;
+    // Independence Day window: 10th - 15th August
+    const isIndependenceWindow = month === 7 && day >= 10 && day <= 15;
 
     if (autoSeasonalEnabled && isIndependenceWindow) {
       // Only take over when the user hasn't picked a theme of their own

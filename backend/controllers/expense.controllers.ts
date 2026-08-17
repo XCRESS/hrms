@@ -1,3 +1,4 @@
+import type { CreateExpenseInput, UpdateExpenseInput, ReviewExpenseInput, BulkExpenseStatusInput } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import ExcelJS from 'exceljs';
 import Expense from '../models/Expense.model.js';
@@ -12,7 +13,7 @@ import type { IAuthRequest, ExpenseStatus } from '../types/index.js';
  * Submit a new expense request
  */
 export const createExpense = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { date, item, amount } = req.body as { date: string; item: string; amount: number };
+  const { date, item, amount } = req.body as CreateExpenseInput;
 
   if (!req.user) throw new ValidationError('Authentication required');
 
@@ -52,7 +53,7 @@ export const createExpense = asyncHandler(async (req: IAuthRequest, res: Respons
  */
 export const updateExpense = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { id } = req.params;
-  const { date, item, amount } = req.body as { date?: string; item?: string; amount?: number };
+  const { date, item, amount } = req.body as UpdateExpenseInput;
 
   if (!req.user) throw new ValidationError('Authentication required');
 
@@ -109,7 +110,7 @@ export const getMyExpenses = asyncHandler(async (req: IAuthRequest, res: Respons
   const employee = await Employee.findOne({ employeeId: req.user.employeeId });
   if (!employee) throw new NotFoundError('Employee profile not found');
 
-  const expenses = await Expense.find({ employee: employee._id }).sort({ date: -1 });
+  const expenses = await Expense.find({ employee: employee._id }).sort({ date: -1 }).lean();
 
   res.json({
     success: true,
@@ -154,7 +155,7 @@ export const getAllExpenses = asyncHandler(async (req: IAuthRequest, res: Respon
  */
 export const updateExpenseStatus = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { id } = req.params;
-  const { status, reviewComment } = req.body as { status: ExpenseStatus; reviewComment?: string };
+  const { status, reviewComment } = req.body as ReviewExpenseInput;
 
   if (!['approved', 'rejected'].includes(status)) throw new ValidationError('Invalid status');
 
@@ -195,7 +196,7 @@ export const updateExpenseStatus = asyncHandler(async (req: IAuthRequest, res: R
  * Bulk update expense statuses
  */
 export const bulkUpdateStatus = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { ids, status, reviewComment } = req.body as { ids: string[]; status: ExpenseStatus; reviewComment?: string };
+  const { ids, status, reviewComment } = req.body as BulkExpenseStatusInput;
 
   if (!Array.isArray(ids) || ids.length === 0) throw new ValidationError('IDs are required');
   if (!['approved', 'rejected'].includes(status)) throw new ValidationError('Invalid status');
@@ -216,7 +217,7 @@ export const bulkUpdateStatus = asyncHandler(async (req: IAuthRequest, res: Resp
   );
 
   // Notify employees in background
-  const updatedExpenses = await Expense.find({ _id: { $in: ids } }).populate('employee', 'employeeId');
+  const updatedExpenses = await Expense.find({ _id: { $in: ids } }).populate('employee', 'employeeId').lean();
   for (const expense of updatedExpenses) {
     const emp: any = expense.employee;
     if (emp?.employeeId) {

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requestLeave, getMyLeaves, getAllLeaves, updateLeaveStatus, previewLeaveDays } from "../controllers/leave.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createLeaveSchema, updateLeaveStatusSchema } from "../validators/request.schemas.js";
 import type { IAuthRequest } from "../types/index.js";
 import type { Response } from "express";
 
@@ -10,7 +12,7 @@ const router: Router = Router();
 router.get("/preview-days", authMiddleware(), previewLeaveDays);
 
 // Employee can request and view their leaves
-router.post("/request", authMiddleware(), requestLeave);
+router.post("/request", authMiddleware(), validateBody(createLeaveSchema), requestLeave);
 router.get("/my", authMiddleware(), getMyLeaves);
 
 // Get leaves - returns appropriate leaves based on user role
@@ -25,6 +27,6 @@ router.get("/", authMiddleware(), async (req: IAuthRequest, res: Response) => {
 
 // Admin/HR can view all leaves and approve/reject
 router.get("/all", authMiddleware(["admin", "hr"]), getAllLeaves);
-router.put("/:leaveId/status", authMiddleware(["admin", "hr"]), updateLeaveStatus);
+router.put("/:leaveId/status", authMiddleware(["admin", "hr"]), validateBody(updateLeaveStatusSchema), updateLeaveStatus);
 
 export default router;

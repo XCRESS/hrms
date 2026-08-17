@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
-import { autoInvalidateMiddleware, getCacheInvalidationStats } from "./utils/cacheInvalidation.js";
+import { autoInvalidateMiddleware } from "./utils/cacheInvalidation.js";
 import { globalErrorHandler } from "./utils/asyncHandler.js";
 import logger from "./utils/logger.js";
 
@@ -33,11 +33,15 @@ app.use(helmet({
 }));
 
 // CORS configuration
-const allowedOrigins = [
+// Override per-environment with CORS_ALLOWED_ORIGINS (comma-separated).
+const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "https://hrms-jx26.vercel.app",
   "https://hr.intakesense.com"
 ];
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_ALLOWED_ORIGINS;
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, Postman, etc.)
@@ -77,9 +81,11 @@ app.use(generalLimiter);
 import documentRoutes from "./routes/document.js";
 app.use("/api/documents", documentRoutes);
 
-// JSON middleware for all other routes
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// JSON middleware for all other routes.
+// File uploads never reach this — /api/documents is mounted above and uses multer,
+// so no JSON body legitimately needs more than a bulk array of IDs.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // 🚀 Add cache auto-invalidation middleware for performance optimization
 app.use(autoInvalidateMiddleware);
@@ -158,31 +164,6 @@ app.get('/api', (req: Request, res: Response) => {
     message: 'HRMS API is working!',
     timestamp: new Date().toISOString()
   });
-});
-
-// 📊 Performance monitoring endpoint
-app.get('/api/performance/cache-stats', (req: Request, res: Response) => {
-  try {
-    const stats = getCacheInvalidationStats();
-
-    res.json({
-      success: true,
-      message: 'Cache statistics retrieved successfully',
-      data: {
-        ...stats,
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        nodeVersion: process.version
-      }
-    });
-  } catch (error) {
-    const err = error as Error;
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve cache statistics',
-      error: err.message
-    });
-  }
 });
 
 app.use("/api/auth", authLimiter, authRoutes);

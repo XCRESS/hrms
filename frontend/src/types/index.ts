@@ -1031,7 +1031,6 @@ export interface NotificationSubscription {
 
 export interface NotificationStatus {
   pushEnabled: boolean;
-  whatsappEnabled: boolean;
   emailEnabled: boolean;
 }
 

@@ -8,7 +8,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    // React Compiler (stable 1.0) auto-memoizes components, so manual
+    // useMemo/useCallback/React.memo are no longer the default tool.
+    // @vitejs/plugin-react v4 is still Babel-based, so the plugin slots in here
+    // directly; v6+ swaps to oxc and would need @rolldown/plugin-babel instead.
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler', {}]],
+      },
+    }),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -43,7 +54,7 @@ export default defineConfig(({ mode }) => ({
           // Core React libraries - loaded immediately
           // 'react-vendor': ['react', 'react-dom'],
           // Router - loaded when navigating
-          'router-vendor': ['react-router-dom'],
+          'router-vendor': ['react-router'],
           // UI component libraries - loaded when UI components are rendered
           'ui-vendor': ['@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-tabs', 'lucide-react'],
           // Charts - only loaded when dashboard charts are needed
@@ -61,7 +72,6 @@ export default defineConfig(({ mode }) => ({
           // Office/PDF functionality - only loaded when generating reports
           'office-vendor': ['xlsx', 'jspdf'],
           // Dashboard specific chunks for lazy loading
-          // 'dashboard-vendor': ['@headlessui/react']
         }
       }
     }

@@ -1,3 +1,5 @@
+import { validateBody } from '../middlewares/zodValidation.middleware.js';
+import { chatMessageSchema, clearConversationSchema } from '../validators/content.schemas.js';
 /**
  * Chat Routes
  * Defines API endpoints for HR Chatbot functionality
@@ -24,7 +26,7 @@ const router: Router = express.Router();
  * @body {string} message - The user's message
  * @body {string} [conversation_id] - Optional conversation ID to continue existing chat
  */
-router.post('/', authenticateToken, chat);
+router.post('/', authenticateToken, validateBody(chatMessageSchema), chat);
 
 /**
  * @route GET /api/chat/history/:conversation_id
@@ -40,7 +42,7 @@ router.get('/history/:conversation_id', authenticateToken, getConversationHistor
  * @access Private (requires authentication)
  * @param {string} conversation_id - The conversation ID to clear
  */
-router.delete('/clear/:conversation_id', authenticateToken, clearConversation);
+router.delete('/clear/:conversation_id', authenticateToken, validateBody(clearConversationSchema), clearConversation);
 
 /**
  * @route DELETE /api/chat/clear
@@ -48,7 +50,7 @@ router.delete('/clear/:conversation_id', authenticateToken, clearConversation);
  * @access Private (requires authentication)
  * @body {boolean} clear_all - Flag to confirm clearing all conversations
  */
-router.delete('/clear', authenticateToken, clearConversation);
+router.delete('/clear', authenticateToken, validateBody(clearConversationSchema), clearConversation);
 
 /**
  * @route GET /api/chat/health

@@ -1,7 +1,7 @@
 // hooks/useAuth.ts
 import { useEffect, useState } from "react";
 import {jwtDecode} from "jwt-decode";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 interface JwtPayload {
   userId: string;      // Standardized field name

@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createSalaryStructureSchema } from "../validators/salary.schemas.js";
 import express, { type Router } from "express";
 import {
   createOrUpdateSalaryStructure,
@@ -15,7 +17,7 @@ const router: Router = express.Router();
 router.use(authMiddleware(['hr', 'admin']));
 
 // Create or update salary structure
-router.post("/", createOrUpdateSalaryStructure);
+router.post("/", validateBody(createSalaryStructureSchema), createOrUpdateSalaryStructure);
 
 // Get all salary structures (with pagination and search)
 router.get("/", getAllSalaryStructures);

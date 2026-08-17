@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key, MapPin, IndianRupee } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import RequestDetailModal from './RequestDetailModal';
 import { formatISTDate } from '@/utils/luxonUtils';
 import {

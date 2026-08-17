@@ -1,21 +1,25 @@
 import { useMemo } from "react";
 import { LucideIcon } from "lucide-react";
-// Optimized Recharts imports - reduces bundle size from ~40KB to ~15KB gzipped
-import { AreaChart } from 'recharts/es6/chart/AreaChart';
-import { Area } from 'recharts/es6/cartesian/Area';
-import { XAxis } from 'recharts/es6/cartesian/XAxis';
-import { YAxis } from 'recharts/es6/cartesian/YAxis';
-import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
-import { Tooltip } from 'recharts/es6/component/Tooltip';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
-import { BarChart } from 'recharts/es6/chart/BarChart';
-import { Bar } from 'recharts/es6/cartesian/Bar';
-import { PieChart } from 'recharts/es6/chart/PieChart';
-import { Pie } from 'recharts/es6/polar/Pie';
-import { Cell } from 'recharts/es6/component/Cell';
-import { LineChart } from 'recharts/es6/chart/LineChart';
-import { Line } from 'recharts/es6/cartesian/Line';
-import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
+// Import from the package root: recharts' `es6/**` deep paths ship no type
+// declarations, so deep-importing silently typed every chart as `any`.
+// The root entry is ESM and tree-shakes fine under Rollup.
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  ComposedChart,
+} from 'recharts';
 import {
   Clock,
   TrendingUp,

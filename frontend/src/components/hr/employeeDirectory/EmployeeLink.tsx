@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useUsers, useEmployees, useLinkEmployeeToUser, useUnlinkEmployeeFromUser, useDeleteUser } from "@/hooks/queries";
 import { User } from "@/types";
 import { Link2, Link2Off, AlertTriangle, Trash2, UserX } from "lucide-react";

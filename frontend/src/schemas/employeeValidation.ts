@@ -149,9 +149,9 @@ export const createEmployeeSchema = employeeSchema.extend({
 });
 
 // Schema for updating employee (all fields optional except ID)
-export const updateEmployeeSchema = z.object({
+export const updateEmployeeSchema = employeeSchema.partial().extend({
   _id: z.string().min(1, 'Employee ID is required'),
-}).merge(employeeSchema.partial());
+});
 
 // Schema for employee search/filter
 export const employeeSearchSchema = z.object({
@@ -167,104 +167,73 @@ export const employeeSearchSchema = z.object({
 export const bulkEmployeeActionSchema = z.object({
   employeeIds: z.array(z.string()).min(1, 'At least one employee must be selected'),
   action: z.enum(['activate', 'deactivate', 'delete', 'export']),
-  confirm: z.boolean().refine(val => val === true, 'Action must be confirmed'),
+  confirm: z.boolean().refine((val) => val === true, 'Action must be confirmed'),
 });
 
+export type Employee = z.infer<typeof employeeSchema>;
+export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
+export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
+export type EmployeeSearchInput = z.infer<typeof employeeSearchSchema>;
+export type BulkEmployeeActionInput = z.infer<typeof bulkEmployeeActionSchema>;
+
+/** Field-name keyed map of validation messages. */
+export type ValidationErrors = Record<string, string>;
+
+export interface ValidationResult<T> {
+  success: boolean;
+  data: T | null;
+  errors: ValidationErrors | null;
+}
+
+/** Flatten a ZodError into a { "path.to.field": message } map. */
+const toErrorMap = (error: z.ZodError): ValidationErrors =>
+  error.issues.reduce<ValidationErrors>((acc, issue) => {
+    acc[issue.path.join('.')] = issue.message;
+    return acc;
+  }, {});
+
+/** Run a schema and normalise the result into ValidationResult. */
+const runValidation = <T>(schema: z.ZodType<T>, data: unknown): ValidationResult<T> => {
+  const result = schema.safeParse(data);
+
+  if (result.success) {
+    return { success: true, data: result.data, errors: null };
+  }
+
+  return { success: false, data: null, errors: toErrorMap(result.error) };
+};
+
 // Validation helper functions
-export const validateEmployee = (data) => {
-  try {
-    return {
-      success: true,
-      data: employeeSchema.parse(data),
-      errors: null
-    };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        data: null,
-        errors: error.errors.reduce((acc, err) => {
-          acc[err.path.join('.')] = err.message;
-          return acc;
-        }, {})
-      };
-    }
-    return {
-      success: false,
-      data: null,
-      errors: { _error: error.message }
-    };
-  }
-};
+export const validateEmployee = (data: unknown): ValidationResult<Employee> =>
+  runValidation(employeeSchema, data);
 
-export const validateCreateEmployee = (data) => {
-  try {
-    return {
-      success: true,
-      data: createEmployeeSchema.parse(data),
-      errors: null
-    };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        data: null,
-        errors: error.errors.reduce((acc, err) => {
-          acc[err.path.join('.')] = err.message;
-          return acc;
-        }, {})
-      };
-    }
-    return {
-      success: false,
-      data: null,
-      errors: { _error: error.message }
-    };
-  }
-};
+export const validateCreateEmployee = (data: unknown): ValidationResult<CreateEmployeeInput> =>
+  runValidation(createEmployeeSchema, data);
 
-export const validateUpdateEmployee = (data) => {
-  try {
-    return {
-      success: true,
-      data: updateEmployeeSchema.parse(data),
-      errors: null
-    };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        data: null,
-        errors: error.errors.reduce((acc, err) => {
-          acc[err.path.join('.')] = err.message;
-          return acc;
-        }, {})
-      };
-    }
-    return {
-      success: false,
-      data: null,
-      errors: { _error: error.message }
-    };
-  }
-};
+export const validateUpdateEmployee = (data: unknown): ValidationResult<UpdateEmployeeInput> =>
+  runValidation(updateEmployeeSchema, data);
 
-// Field-level validators for real-time validation
-export const validateField = (fieldName, value) => {
-  try {
-    const fieldSchema = employeeSchema.shape[fieldName];
-    if (!fieldSchema) {
-      return { valid: true, error: null };
-    }
+export interface FieldValidationResult {
+  valid: boolean;
+  error: string | null;
+}
 
-    fieldSchema.parse(value);
+/** Field-level validator for real-time validation. */
+export const validateField = (
+  fieldName: keyof typeof employeeSchema.shape,
+  value: unknown
+): FieldValidationResult => {
+  const fieldSchema = employeeSchema.shape[fieldName];
+  if (!fieldSchema) {
     return { valid: true, error: null };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { valid: false, error: error.errors[0]?.message || 'Invalid value' };
-    }
-    return { valid: false, error: 'Validation error' };
   }
+
+  const result = fieldSchema.safeParse(value);
+  if (result.success) {
+    return { valid: true, error: null };
+  }
+
+  return { valid: false, error: result.error.issues[0]?.message ?? 'Invalid value' };
 };
 
 export default {

@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 type Variant = 'default' | 'primary' | 'secondary' | 'outline' | 'ghost';
 type Size = 'sm' | 'default' | 'lg';

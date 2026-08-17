@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createPolicySchema, updatePolicySchema } from "../validators/content.schemas.js";
 import express, { type Router } from "express";
 import {
   createPolicy,
@@ -23,7 +25,7 @@ router.get("/active", getActivePolicies);
 router.get("/statistics", authMiddleware(['hr', 'admin']), getPolicyStatistics);
 
 // Create new policy (HR/Admin only)
-router.post("/", authMiddleware(['hr', 'admin']), createPolicy);
+router.post("/", authMiddleware(['hr', 'admin']), validateBody(createPolicySchema), createPolicy);
 
 // Get all policies with pagination and filters (HR/Admin only)
 router.get("/", authMiddleware(['hr', 'admin']), getAllPolicies);
@@ -32,7 +34,7 @@ router.get("/", authMiddleware(['hr', 'admin']), getAllPolicies);
 router.get("/:id", getPolicyById);
 
 // Update policy (HR/Admin only)
-router.put("/:id", authMiddleware(['hr', 'admin']), updatePolicy);
+router.put("/:id", authMiddleware(['hr', 'admin']), validateBody(updatePolicySchema), updatePolicy);
 
 // Delete policy (HR/Admin only)
 router.delete("/:id", authMiddleware(['hr', 'admin']), deletePolicy);

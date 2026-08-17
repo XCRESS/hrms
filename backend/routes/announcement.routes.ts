@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { announcementSchema, updateAnnouncementSchema } from "../validators/hr.schemas.js";
 import express, { type Router } from "express";
 import {
   createAnnouncement,
@@ -12,7 +14,7 @@ const router: Router = express.Router();
 
 // Create a new announcement
 // POST /api/announcements
-router.post("/", authMiddleware(["admin", "hr"]), createAnnouncement);
+router.post("/", authMiddleware(["admin", "hr"]), validateBody(announcementSchema), createAnnouncement);
 
 // Get all announcements (filtered by role/status in controller)
 // GET /api/announcements
@@ -24,7 +26,7 @@ router.get("/:id", authMiddleware(["admin", "hr", "employee"]), getAnnouncementB
 
 // Update an announcement
 // PUT /api/announcements/:id
-router.put("/:id", authMiddleware(["admin", "hr"]), updateAnnouncement);
+router.put("/:id", authMiddleware(["admin", "hr"]), validateBody(updateAnnouncementSchema), updateAnnouncement);
 
 // Delete an announcement
 // DELETE /api/announcements/:id

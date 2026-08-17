@@ -1,3 +1,4 @@
+import type { CreateOfficeLocationInput, UpdateOfficeLocationInput } from '../validators/content.schemas.js';
 import type { Response } from 'express';
 import OfficeLocation from '../models/OfficeLocation.model.js';
 import { formatResponse } from '../utils/attendance/attendanceHelpers.js';
@@ -67,14 +68,7 @@ export const getActiveOfficeLocations = async (req: IAuthRequest, res: Response)
 
 export const createOfficeLocation = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, address, latitude, longitude, radius, isActive = true } = req.body as {
-      name: string;
-      address?: string;
-      latitude: number;
-      longitude: number;
-      radius?: number;
-      isActive?: boolean;
-    };
+    const { name, address, latitude, longitude, radius, isActive } = req.body as CreateOfficeLocationInput;
 
     if (!name || latitude === undefined || longitude === undefined) {
       throw new BusinessLogicError(
@@ -128,15 +122,7 @@ export const createOfficeLocation = async (req: IAuthRequest, res: Response): Pr
 export const updateOfficeLocation = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { locationId } = req.params;
-    const updates = { ...req.body } as {
-      name?: string;
-      address?: string;
-      latitude?: number;
-      longitude?: number;
-      radius?: number;
-      isActive?: boolean;
-      coordinates?: { latitude: number; longitude: number };
-    };
+    const updates = { ...(req.body as UpdateOfficeLocationInput) };
 
     if (updates.latitude !== undefined || updates.longitude !== undefined) {
       const lat = Number(

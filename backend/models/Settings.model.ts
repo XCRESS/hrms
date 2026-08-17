@@ -47,9 +47,7 @@ export interface IDailyHrAttendanceReport {
 
 export interface INotificationConfig {
   hrEmails: string[];
-  hrPhones: string[];
   emailEnabled: boolean;
-  whatsappEnabled: boolean;
   pushEnabled: boolean;
   hrEmailTypes: IHrEmailTypes;
   holidayReminderEnabled: boolean;
@@ -157,18 +155,7 @@ const settingsSchema = new Schema<ISettingsDoc>(
           message: 'All HR emails must be valid',
         },
       },
-      hrPhones: {
-        type: [String],
-        default: [],
-        validate: {
-          validator: function (arr: string[]): boolean {
-            return arr.every((phone) => /^\+91[0-9]{10}$/.test(phone));
-          },
-          message: 'All HR phones must be valid Indian numbers (+91xxxxxxxxxx)',
-        },
-      },
       emailEnabled: { type: Boolean, default: true },
-      whatsappEnabled: { type: Boolean, default: false },
       pushEnabled: { type: Boolean, default: true },
       hrEmailTypes: {
         leaveRequests: { type: Boolean, default: true },

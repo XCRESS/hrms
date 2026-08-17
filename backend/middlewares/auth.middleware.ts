@@ -114,11 +114,13 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
           );
         }
 
-        // Verify the linked employee is still active
-        const employee = await Employee.findOne({
-          employeeId: currentEmployeeId,
-          isActive: true,
-        });
+        // Verify the linked employee is still active.
+        // Read-only existence check on every authenticated request: project to a
+        // single field and skip document hydration entirely.
+        const employee = await Employee.findOne(
+          { employeeId: currentEmployeeId, isActive: true },
+          { _id: 1 }
+        ).lean();
 
         if (!employee) {
           throw new AuthorizationError(

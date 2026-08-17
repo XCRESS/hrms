@@ -8,7 +8,7 @@ import {
   Users, HeartPulse, Loader2, MapPin, Award, Briefcase,
   Clock, DollarSign, Shield, FileText, Heart
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useProfile } from "@/hooks/queries";
 import { useEffect, useState, ReactNode } from "react";
 import type { Employee } from "@/types";

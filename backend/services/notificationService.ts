@@ -1,14 +1,12 @@
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
 import EmailService from './emailService.js';
-import WhatsAppService from './whatsappService.js';
 import PushService from './pushService.js';
 import logger from '../utils/logger.js';
 
 interface NotificationStatus {
   initialized: boolean;
   emailReady: boolean;
-  whatsappReady: boolean;
   pushReady: boolean;
 }
 
@@ -30,7 +28,6 @@ class NotificationService {
       logger.info('Initializing notification services...');
 
       await EmailService.initialize();
-      await WhatsAppService.initialize();
       PushService.initialize();
 
       this.initialized = true;
@@ -45,9 +42,9 @@ class NotificationService {
   async notifyHR(type: string, data: NotificationData): Promise<void> {
     try {
       const settings = await Settings.getGlobalSettings();
-      const { hrEmails, hrPhones, hrEmailTypes } = settings.notifications;
+      const { hrEmails, hrEmailTypes } = settings.notifications;
 
-      if (hrEmails.length === 0 && hrPhones.length === 0) {
+      if (hrEmails.length === 0) {
         logger.info('No HR contacts configured for notifications');
         return;
       }
@@ -79,16 +76,6 @@ class NotificationService {
         );
       } else if (!shouldSendEmail) {
         logger.info(`HR email notifications disabled for type: ${type}`);
-      }
-
-      if (settings.notifications.whatsappEnabled && hrPhones.length > 0) {
-        promises.push(
-          WhatsAppService.sendNotification(type, data, hrPhones)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'WhatsApp notification failed');
-            })
-        );
       }
 
       if (settings.notifications.pushEnabled) {
@@ -138,22 +125,6 @@ class NotificationService {
         }
       }
 
-      if (settings.notifications.whatsappEnabled) {
-        const phoneNumbers = employees
-          .map(emp => emp.phone ? `+91${emp.phone}` : null)
-          .filter((phone): phone is string => phone !== null);
-
-        if (phoneNumbers.length > 0) {
-          promises.push(
-            WhatsAppService.sendNotification(type, data, phoneNumbers)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'WhatsApp notification failed');
-              })
-          );
-        }
-      }
-
       if (settings.notifications.pushEnabled) {
         const allSubscriptions = PushService.getAllSubscriptions();
         if (allSubscriptions.length > 0) {
@@ -198,16 +169,6 @@ class NotificationService {
         );
       }
 
-      if (settings.notifications.whatsappEnabled && employee.phone) {
-        promises.push(
-          WhatsAppService.sendNotification(type, data, `+91${employee.phone}`)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'WhatsApp notification failed');
-            })
-        );
-      }
-
       if (settings.notifications.pushEnabled) {
         const allSubscriptions = PushService.getAllSubscriptions();
         if (allSubscriptions.length > 0) {
@@ -242,7 +203,7 @@ class NotificationService {
 
       logger.info('Testing notification system...');
 
-      if (settings.notifications.hrEmails.length > 0 || settings.notifications.hrPhones.length > 0) {
+      if (settings.notifications.hrEmails.length > 0) {
         await this.notifyHR('leave_request', testData);
         logger.info('HR notification test completed');
       }
@@ -267,7 +228,6 @@ class NotificationService {
     return {
       initialized: this.initialized,
       emailReady: !!EmailService.transporter,
-      whatsappReady: WhatsAppService.isReady,
       pushReady: PushService.initialized
     };
   }
