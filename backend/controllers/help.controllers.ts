@@ -1,3 +1,4 @@
+import type { SubmitInquiryInput, UpdateInquiryInput } from '../validators/hr.schemas.js';
 import type { Response } from 'express';
 import Help from '../models/Help.model.js';
 import User from '../models/User.model.js';
@@ -23,7 +24,7 @@ const formatResponse = (success: boolean, message: string, data: unknown = null,
  */
 export const submitInquiry = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { subject, description, category, priority } = req.body;
+    const { subject, description, category, priority } = req.body as SubmitInquiryInput;
 
     // Validation
     if (!subject || !description) {
@@ -85,7 +86,7 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean();
 
     res.json(formatResponse(true, 'Inquiries retrieved successfully', { inquiries }));
   } catch (err) {
@@ -125,7 +126,7 @@ export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<
       filter.createdAt = createdAt;
     }
 
-    const inquiries = await Help.find(filter).sort({ createdAt: -1 }).populate('userId', 'name email');
+    const inquiries = await Help.find(filter).sort({ createdAt: -1 }).populate('userId', 'name email').lean();
 
     res.json(formatResponse(true, 'All inquiries retrieved successfully', { inquiries }));
   } catch (err) {
@@ -145,7 +146,7 @@ export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<
 export const updateInquiry = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { inquiryId } = req.params;
-    const { status, response } = req.body;
+    const { status, response } = req.body as UpdateInquiryInput;
 
     const inquiry = await Help.findById(inquiryId);
 

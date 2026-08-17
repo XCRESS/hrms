@@ -47,14 +47,12 @@ export interface DailyHrReportSettings {
 
 export interface NotificationSettingsData {
     emailEnabled: boolean;
-    whatsappEnabled: boolean;
     pushEnabled: boolean;
     milestoneAlertsEnabled: boolean;
     milestoneTypes: MilestoneTypes;
     holidayReminderEnabled: boolean;
     holidayReminderDays: number;
     hrEmails: string[];
-    hrPhones: string[];
     hrEmailTypes: HrEmailTypes;
     dailyHrAttendanceReport: DailyHrReportSettings;
 }

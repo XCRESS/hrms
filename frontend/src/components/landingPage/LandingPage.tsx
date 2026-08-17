@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { useNavigate } from 'react-router';
+import { motion, useMotionValue, useTransform } from 'motion/react';
 import {
     ArrowRight, Play, Check, Menu, X, Mail, MapPin,
     Clock, Users, Calendar, FileText, DollarSign,

@@ -1,3 +1,4 @@
+import type { UploadDocumentInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import EmployeeDocument from '../models/EmployeeDocument.model.js';
 import Employee from '../models/Employee.model.js';
@@ -21,7 +22,7 @@ interface MulterRequest extends Request {
 
 export const uploadDocument = async (req: MulterRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, documentType = 'document' } = req.body;
+    const { employeeId, documentType } = req.body as UploadDocumentInput;
     const file = req.file;
 
     if (!file) {
@@ -85,7 +86,7 @@ export const uploadDocument = async (req: MulterRequest, res: Response): Promise
 export const getEmployeeDocuments = async (req: Request, res: Response): Promise<void> => {
   try {
     const { employeeId } = req.params;
-    const documents = await EmployeeDocument.find({ employeeId });
+    const documents = await EmployeeDocument.find({ employeeId }).lean();
     res.json(formatSuccessResponse('Documents retrieved successfully', { documents }));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');

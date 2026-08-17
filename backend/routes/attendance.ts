@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { checkInSchema, checkOutSchema, updateAttendanceRecordSchema } from "../validators/attendance.schemas.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getAdminAttendanceRange, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
@@ -15,8 +17,8 @@ const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Employee can check in and out
-router.post("/checkin", authMiddleware(), checkIn);
-router.post("/checkout", authMiddleware(), checkOut);
+router.post("/checkin", authMiddleware(), validateBody(checkInSchema), checkIn);
+router.post("/checkout", authMiddleware(), validateBody(checkOutSchema), checkOut);
 
 // Get missing checkouts for regularization reminders
 router.get("/missing-checkouts", authMiddleware(), noCacheMiddleware, getMissingCheckouts);
@@ -38,6 +40,6 @@ router.get("/admin-range", authMiddleware(), noCacheMiddleware, getAdminAttendan
 router.get("/employee-with-absents", authMiddleware(), noCacheMiddleware, getEmployeeAttendanceWithAbsents);
 
 // HR/Admin: Update attendance record
-router.put("/update/:recordId", authMiddleware(), updateAttendanceRecord);
+router.put("/update/:recordId", authMiddleware(), validateBody(updateAttendanceRecordSchema), updateAttendanceRecord);
 
 export default router;

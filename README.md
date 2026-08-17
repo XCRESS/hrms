@@ -15,11 +15,10 @@ HRMS is a full-featured human resource management platform that handles employee
 - **📊 Analytics & Reporting**: Real-time dashboards and detailed reports
 - **🔐 Role-Based Access**: Admin, HR, and Employee roles with appropriate permissions
 - **📱 Mobile Responsive**: Optimized for mobile and desktop usage
-- **🔔 Notifications**: Email, in-app, and WhatsApp notifications for important events
+- **🔔 Notifications**: Email (Resend), in-app, and Web Push notifications for important events
 - **💬 AI Chatbot**: OpenAI-powered intelligent assistant for HR-related queries
 - **📋 Document Management**: Secure document upload and management with AWS S3
 - **📄 PDF Generation**: Professional salary slip PDFs with company branding
-- **📱 WhatsApp Integration**: Automated notifications via WhatsApp Web.js
 
 ### 🏗️ Architecture
 
@@ -51,7 +50,6 @@ HRMS is a full-featured human resource management platform that handles employee
 - **File Storage**: AWS S3
 - **Email Service**: Resend + Nodemailer
 - **Push Notifications**: Web Push
-- **WhatsApp Integration**: WhatsApp Web.js for automated notifications
 - **AI Integration**: OpenAI API for intelligent chatbot
 - **PDF Generation**: jsPDF for professional salary slips
 - **Scheduling**: Node-cron

@@ -1,6 +1,6 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../service/notificationService';
+import notificationService from '../../services/notificationService';
 import {
   PlusCircle,
   Edit3,

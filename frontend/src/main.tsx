@@ -1,7 +1,7 @@
 import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
@@ -16,6 +16,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import DebugPanel from './components/DebugPanel';
+import RequireRole from './components/auth/RequireRole';
 
 // Lazy load heavy components
 const LandingPage = lazy(() => import('./components/landingPage/LandingPage'));
@@ -44,6 +45,10 @@ const ChatBot = lazy(() => import('./components/chatbot/chatbot'));
 const MyExpenses = lazy(() => import('./components/employee/MyExpenses'));
 const ExpenseManagement = lazy(() => import('./components/hr/ExpenseManagement'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
+
+// Routes only admin/HR may reach. Employees hitting these URLs directly are
+// redirected to /dashboard instead of rendering a shell that 403s on every call.
+const HR_ONLY = ['admin', 'hr'] as const;
 
 // 🚀 PHASE 2 OPTIMIZATION: Enhanced loading component with skeleton
 const PageLoader = () => (
@@ -92,7 +97,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/dashboard" element={<SidebarDemo />}>
                                             <Route index element={<HRMSDashboard />} />
                                         </Route>
-                                        <Route path="/employees" element={<SidebarDemo />}>
+                                        <Route path="/employees" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
                                             <Route index element={<EmployeeDirectory />} />
                                             <Route path=":employeeId" element={<EmployeeDirectory />} />
                                             <Route path="add" element={<AddEmployee />} />
@@ -107,7 +112,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/policies" element={<SidebarDemo />}>
                                             <Route index element={<PoliciesPage />} />
                                         </Route>
-                                        <Route path="/settings" element={<SidebarDemo />}>
+                                        <Route path="/settings" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
                                             <Route index element={<SettingsPage />} />
                                         </Route>
                                         <Route path="/appearance" element={<SidebarDemo />}>
@@ -116,23 +121,25 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/attendance" element={<SidebarDemo />}>
                                             <Route path="my" element={<MyAttendance />} />
                                         </Route>
+                                        {/* Mixed access: the index/generate views are HR-only,
+                                            but every role reaches the "my" views. */}
                                         <Route path="/task-reports" element={<SidebarDemo />}>
-                                            <Route index element={<TaskReportsManage />} />
-                                            <Route path="generate" element={<TaskReportGenerator />} />
+                                            <Route index element={<RequireRole roles={HR_ONLY}><TaskReportsManage /></RequireRole>} />
+                                            <Route path="generate" element={<RequireRole roles={HR_ONLY}><TaskReportGenerator /></RequireRole>} />
                                             <Route path="my" element={<MyTaskReports />} />
                                         </Route>
                                         <Route path="/salary-slips" element={<SidebarDemo />}>
-                                            <Route index element={<SalarySlipManagement />} />
+                                            <Route index element={<RequireRole roles={HR_ONLY}><SalarySlipManagement /></RequireRole>} />
                                             <Route path="my" element={<MySalarySlips />} />
                                         </Route>
                                         <Route path="/profile" element={<SidebarDemo />}>
                                             <Route index element={<GetProfile />} />
                                             <Route path="documents" element={<DocumentsPage />} />
                                         </Route>
-                                        <Route path="/salary" element={<SidebarDemo />}>
+                                        <Route path="/salary" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
                                             <Route index element={<SalaryHub />} />
                                         </Route>
-                                        <Route path="/salary-structures" element={<SidebarDemo />}>
+                                        <Route path="/salary-structures" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
                                             <Route index element={<SalaryStructureManagement />} />
                                         </Route>
                                         <Route path="/requests" element={<SidebarDemo />}>
@@ -141,7 +148,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/expenses" element={<SidebarDemo />}>
                                             <Route path="my" element={<MyExpenses />} />
                                         </Route>
-                                        <Route path="/admin" element={<SidebarDemo />}>
+                                        <Route path="/admin" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
                                             <Route path="requests" element={<AdminRequestsPage />} />
                                             <Route path="expenses" element={<ExpenseManagement />} />
                                         </Route>

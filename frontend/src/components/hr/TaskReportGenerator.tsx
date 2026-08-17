@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';

@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import Avatar from "./ui/avatarIcon";
 import { cn } from "@/lib/utils";
-import { useNavigate, Navigate, useLocation } from "react-router-dom";
+import { useNavigate, Navigate, useLocation } from "react-router";
 import useAuth from "../hooks/authjwt";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 interface User {
   name?: string;

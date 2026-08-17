@@ -1,3 +1,5 @@
+import type { CreateSalaryStructureInput } from '../validators/salary.schemas.js';
+import { paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import SalaryStructure from '../models/SalaryStructure.model.js';
@@ -9,18 +11,7 @@ import type { IAuthRequest } from '../types/index.js';
 
 export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, earnings } = req.body as {
-      employeeId: string;
-      earnings: {
-        basic: number;
-        hra?: number;
-        conveyance?: number;
-        medical?: number;
-        lta?: number;
-        specialAllowance?: number;
-        mobileAllowance?: number;
-      };
-    };
+    const { employeeId, earnings } = req.body as CreateSalaryStructureInput;
 
     if (!employeeId || !earnings || !earnings.basic) {
       res.status(400).json(formatResponse(false, 'Employee ID and basic salary are required'));
@@ -120,7 +111,7 @@ export const createOrUpdateSalaryStructure = async (req: IAuthRequest, res: Resp
 
 export const getSalaryStructure = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
 
     if (!employeeId) {
       res.status(400).json(formatResponse(false, 'Employee ID is required'));
@@ -233,7 +224,7 @@ export const getAllSalaryStructures = async (req: IAuthRequest, res: Response): 
 
 export const deleteSalaryStructure = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
 
     if (!employeeId) {
       res.status(400).json(formatResponse(false, 'Employee ID is required'));

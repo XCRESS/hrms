@@ -1,3 +1,4 @@
+import type { CreateRegularizationInput, ReviewRegularizationInput } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import RegularizationRequest from '../models/Regularization.model.js';
@@ -15,12 +16,7 @@ import type { RegularizationStatus } from '../types/index.js';
 
 export const requestRegularization = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { date, requestedCheckIn, requestedCheckOut, reason } = req.body as {
-      date: string;
-      requestedCheckIn?: string;
-      requestedCheckOut?: string;
-      reason: string;
-    };
+    const { date, requestedCheckIn, requestedCheckOut, reason } = req.body as CreateRegularizationInput;
 
     const user = req.user;
     if (!user || !user.employeeId) {
@@ -147,7 +143,7 @@ export const getMyRegularizations = async (req: IAuthRequest, res: Response): Pr
       return;
     }
 
-    const regs = await RegularizationRequest.find({ employeeId: user.employeeId }).sort({ createdAt: -1 });
+    const regs = await RegularizationRequest.find({ employeeId: user.employeeId }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, regs });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
@@ -177,7 +173,7 @@ export const getAllRegularizations = async (req: IAuthRequest, res: Response): P
 
     // Resolve employee names from Employee model (more reliable than User.name)
     const employeeIds = [...new Set(regs.map(r => r.employeeId).filter(Boolean))];
-    const employees = await Employee.find({ employeeId: { $in: employeeIds } }).select('employeeId firstName lastName');
+    const employees = await Employee.find({ employeeId: { $in: employeeIds } }).select('employeeId firstName lastName').lean();
     const employeeMap = new Map(employees.map(e => [`${e.employeeId}`, `${e.firstName} ${e.lastName}`]));
 
     const regsWithNames = regs.map(reg => ({
@@ -201,7 +197,7 @@ export const reviewRegularization = async (req: IAuthRequest, res: Response): Pr
     }
 
     const { id } = req.params;
-    const { status, reviewComment } = req.body as { status: string; reviewComment?: string };
+    const { status, reviewComment } = req.body as ReviewRegularizationInput;
 
     if (!id) {
       res.status(400).json({ message: 'Request ID is required' });

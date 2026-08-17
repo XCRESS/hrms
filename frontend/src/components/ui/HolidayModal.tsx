@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Gamepad2, Heart, Sparkles, Gift } from 'lucide-react';
 import GiftGame from './GiftGame';
-import { generateEmployeeGreeting } from '../../services/geminiService';
+import { generateEmployeeGreeting } from '../../services/festiveMessages';
 
 type Tab = 'game' | 'greeting';
 

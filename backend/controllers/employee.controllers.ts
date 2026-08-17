@@ -1,3 +1,4 @@
+import type { CreateEmployeeInput, UpdateEmployeeInput } from '../validators/employee.schemas.js';
 import type { Response } from 'express';
 import Employee from '../models/Employee.model.js';
 import Department from '../models/Department.model.js';
@@ -38,36 +39,7 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     joiningDate,
     emergencyContactName,
     emergencyContactNumber
-  } = req.body as {
-    employeeId: string;
-    firstName: string;
-    lastName: string;
-    gender?: string;
-    dateOfBirth?: string;
-    maritalStatus?: string;
-    email: string;
-    phone?: string;
-    address?: string;
-    aadhaarNumber?: string;
-    panNumber?: string;
-    fatherName?: string;
-    motherName?: string;
-    fatherPhone?: string;
-    motherPhone?: string;
-    officeAddress?: string;
-    companyName?: string;
-    department?: string;
-    position?: string;
-    paymentMode?: string;
-    bankName?: string;
-    bankAccountNumber?: string;
-    bankIFSCCode?: string;
-    employmentType?: string;
-    reportingSupervisor?: string;
-    joiningDate?: string;
-    emergencyContactName?: string;
-    emergencyContactNumber?: string;
-  };
+  } = req.body as CreateEmployeeInput;
 
   // Build duplicate check conditions only for non-empty fields
   const duplicateConditions: Record<string, string>[] = [
@@ -141,7 +113,7 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
       filter.isActive = false;
     }
 
-    const employees = await Employee.find(filter).select('-__v').sort({ createdAt: -1 });
+    const employees = await Employee.find(filter).select('-__v').sort({ createdAt: -1 }).lean();
     const employeeList = employees.map(employee => ({
       _id: employee._id,
       employeeId: employee.employeeId,
@@ -170,7 +142,7 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
 export const updateEmployee = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const updateData = req.body as Record<string, unknown>;
+    const updateData = req.body as UpdateEmployeeInput;
 
     const existingEmployee = await Employee.findById(id);
     if (!existingEmployee) {

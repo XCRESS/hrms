@@ -1,3 +1,4 @@
+import type { CheckInInput, CheckOutInput, UpdateAttendanceRecordInput } from '../validators/attendance.schemas.js';
 /**
  * Refactored Attendance Controllers
  * Simplified controllers using the new service layer architecture
@@ -241,12 +242,7 @@ export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response
   const locationSetting = effectiveSettings.general?.locationSetting || 'na';
   const geofenceSettings = effectiveSettings.general?.geofence;
 
-  const { latitude, longitude, accuracy, capturedAt } = req.body as {
-    latitude?: unknown;
-    longitude?: unknown;
-    accuracy?: unknown;
-    capturedAt?: string;
-  };
+  const { latitude, longitude, accuracy, capturedAt } = req.body as CheckInInput;
 
   const requireLocationForCheckIn =
     locationSetting === 'mandatory' ||
@@ -328,13 +324,7 @@ export const checkOut = asyncErrorHandler(async (req: IAuthRequest, res: Respons
     throw new BusinessLogicError(ERROR_MESSAGES.AUTH_REQUIRED, { auth: ERROR_MESSAGES.NO_VALID_USER });
   }
 
-  const { tasks, latitude, longitude, accuracy, capturedAt } = req.body as {
-    tasks?: unknown[];
-    latitude?: unknown;
-    longitude?: unknown;
-    accuracy?: unknown;
-    capturedAt?: string;
-  };
+  const { tasks, latitude, longitude, accuracy, capturedAt } = req.body as CheckOutInput;
 
   const employeeObjId = await getEmployeeObjectId(req.user);
   if (!employeeObjId) {
@@ -623,13 +613,7 @@ export const updateAttendanceRecord = asyncErrorHandler(async (req: IAuthRequest
   if (!validateAdminAccess(req, res)) return;
 
   const { recordId } = req.params;
-  const { status, checkIn, checkOut, employeeId, date } = req.body as {
-    status?: string;
-    checkIn?: string;
-    checkOut?: string;
-    employeeId?: string;
-    date?: string;
-  };
+  const { status, checkIn, checkOut, employeeId, date } = req.body as UpdateAttendanceRecordInput;
 
   let updatedRecord;
 

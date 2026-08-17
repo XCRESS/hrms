@@ -55,7 +55,9 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
+      // v7 'recommended-latest' also ships the React Compiler-powered rules,
+      // which flag code the compiler cannot safely memoize.
+      ...reactHooks.configs['recommended-latest'].rules,
       '@typescript-eslint/no-unused-vars': ['error', {
         varsIgnorePattern: '^[A-Z_]',
         argsIgnorePattern: '^_'

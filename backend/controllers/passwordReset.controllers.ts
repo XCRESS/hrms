@@ -1,3 +1,4 @@
+import type { CreatePasswordResetRequestInput, RejectPasswordResetInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import User from '../models/User.model.js';
@@ -11,7 +12,7 @@ import logger from '../utils/logger.js';
 // @access  Public
 export const createPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, newPassword } = req.body;
+    const { name, email, newPassword } = req.body as CreatePasswordResetRequestInput;
 
     if (!name || !email || !newPassword) {
       res.status(400).json(formatResponse(false, 'Please provide name, email, and new password.'));
@@ -134,7 +135,7 @@ export const getAllPasswordResetRequests = async (req: Request, res: Response): 
       query.createdAt = createdAt;
     }
 
-    const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }); // Newest first
+    const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }).lean(); // Newest first
 
     res.status(200).json(
       formatResponse(true, 'Password reset requests fetched successfully.', {
@@ -155,7 +156,7 @@ export const getAllPasswordResetRequests = async (req: Request, res: Response): 
 export const rejectPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const requestId = req.params.id;
-    const { remarks } = req.body; // Optional remarks from admin
+    const { remarks } = req.body as RejectPasswordResetInput; // Optional remarks from admin
 
     const request = await PasswordResetRequest.findByIdAndUpdate(
       requestId,

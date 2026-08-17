@@ -24,8 +24,6 @@ export interface IUser extends Document {
   isActive: boolean;
   employee?: Types.ObjectId;
   employeeId?: string;
-  resetPasswordToken?: string;
-  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

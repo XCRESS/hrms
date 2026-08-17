@@ -65,9 +65,11 @@ const IndependenceDayBanner = ({ username = 'Team' }: IndependenceDayBannerProps
     const date = now.getDate();
     const year = now.getFullYear();
 
+    // Banner window: 10th - 15th August. Countdown until the 14th,
+    // celebration on the day itself, nothing after.
     let status: SeasonStatus = 'inactive';
-    if (month === 7 && date >= 8 && date <= 14) status = 'upcoming';
-    if (month === 7 && date >= 15 && date <= 18) status = 'arrived';
+    if (month === 7 && date >= 10 && date <= 14) status = 'upcoming';
+    if (month === 7 && date === 15) status = 'arrived';
 
     return {
       seasonStatus: status,

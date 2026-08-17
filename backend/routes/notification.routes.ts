@@ -1,3 +1,6 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { testNotificationSchema, pushSubscriptionSchema } from "../validators/content.schemas.js";
+import type { TestNotificationInput, PushSubscriptionInput } from "../validators/content.schemas.js";
 import express, { type Router, type Response } from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import NotificationService from "../services/notificationService.js";
@@ -9,9 +12,9 @@ import logger from "../utils/logger.js";
 const router: Router = express.Router();
 
 // Test notification system - Admin/HR only
-router.post('/test', authMiddleware(['admin', 'hr']), async (req: IAuthRequest, res: Response): Promise<void> => {
+router.post('/test', authMiddleware(['admin', 'hr']), validateBody(testNotificationSchema), async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { type } = req.body as { type?: string };
+    const { type } = req.body as TestNotificationInput;
 
     logger.info('Testing notification system...');
 
@@ -58,7 +61,6 @@ router.post('/test', authMiddleware(['admin', 'hr']), async (req: IAuthRequest, 
       serviceStatus: status,
       details: {
         emailReady: status.emailReady,
-        whatsappReady: status.whatsappReady,
         pushReady: status.pushReady
       },
       timestamp: new Date().toISOString()
@@ -102,9 +104,9 @@ router.get('/status', authMiddleware(['admin', 'hr']), async (req: IAuthRequest,
 });
 
 // Subscribe to push notifications
-router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), async (req: IAuthRequest, res: Response): Promise<void> => {
+router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), validateBody(pushSubscriptionSchema), async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { subscription } = req.body as { subscription?: { endpoint: string; keys: { p256dh: string; auth: string } } };
+    const { subscription } = req.body as PushSubscriptionInput;
     const userId = req.user?._id?.toString();
 
     if (!subscription || !subscription.endpoint || !userId) {

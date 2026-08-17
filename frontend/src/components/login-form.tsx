@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useLogin } from "@/hooks/queries";
 import { useState, useEffect, FormEvent } from "react";
 import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
 import { Eye, EyeOff, Bug, Copy, AlertTriangle } from "lucide-react";
 import DebugUtils from "../utils/debugUtils";
-import notificationService from "../service/notificationService.js";
+import notificationService from "../services/notificationService";
 
 interface ErrorDetails {
   name: string;

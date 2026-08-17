@@ -1,39 +1,56 @@
 /**
  * Frontend IST (Indian Standard Time) Utility Functions
- * 
+ *
  * This module provides utilities to work with Indian Standard Time (IST)
  * on the frontend, complementing the backend IST utilities.
- * 
+ *
  * These functions handle date/time display and input formatting
  * consistently across the React application.
  */
 
+export type DateInput = Date | string | number;
+
+export interface FormatISTDateOptions {
+  dateOnly?: boolean;
+  timeOnly?: boolean;
+  format12Hour?: boolean;
+  includeSeconds?: boolean;
+}
+
+export interface MonthOption {
+  value: string;
+  label: string;
+  display: string;
+}
+
+/** Coerce any accepted date input into a Date. */
+const toDate = (date: DateInput): Date => (date instanceof Date ? date : new Date(date));
+
 /**
  * Get current IST date and time (browser-aware)
- * @returns {Date} Current date in IST
  */
-export const getISTNow = () => {
+export const getISTNow = (): Date => {
   return new Date();
 };
 
 /**
  * Format IST date for display
- * @param {Date|string} date - Date to format
- * @param {Object} options - Format options
- * @returns {string} Formatted date string
  */
-export const formatISTDate = (date, options = {}) => {
+export const formatISTDate = (
+  date: DateInput | null | undefined,
+  options: FormatISTDateOptions = {}
+): string => {
   const {
     dateOnly = false,
     timeOnly = false,
     format12Hour = true,
     includeSeconds = false
   } = options;
-  
+
   if (!date) return '';
-  
-  const istDate = date instanceof Date ? date : new Date(date);
-  
+
+  const istDate = toDate(date);
+
   if (dateOnly) {
     // Indian format: dd-mm-yyyy
     const day = String(istDate.getDate()).padStart(2, '0');
@@ -41,21 +58,21 @@ export const formatISTDate = (date, options = {}) => {
     const year = istDate.getFullYear();
     return `${day}-${month}-${year}`;
   }
-  
+
   if (timeOnly) {
-    const timeOptions = {
+    const timeOptions: Intl.DateTimeFormatOptions = {
       hour: 'numeric',
       minute: '2-digit',
       hour12: format12Hour
     };
-    
+
     if (includeSeconds) {
       timeOptions.second = '2-digit';
     }
-    
+
     return istDate.toLocaleTimeString('en-IN', timeOptions);
   }
-  
+
   // Indian format: dd-mm-yyyy with time
   const day = String(istDate.getDate()).padStart(2, '0');
   const month = String(istDate.getMonth() + 1).padStart(2, '0');
@@ -66,11 +83,9 @@ export const formatISTDate = (date, options = {}) => {
 
 /**
  * Get IST date string in YYYY-MM-DD format
- * @param {Date|string} date - Date to format
- * @returns {string} YYYY-MM-DD format
  */
-export const getISTDateString = (date = getISTNow()) => {
-  const istDate = date instanceof Date ? date : new Date(date);
+export const getISTDateString = (date: DateInput = getISTNow()): string => {
+  const istDate = toDate(date);
   const year = istDate.getFullYear();
   const month = String(istDate.getMonth() + 1).padStart(2, '0');
   const day = String(istDate.getDate()).padStart(2, '0');
@@ -79,54 +94,58 @@ export const getISTDateString = (date = getISTNow()) => {
 
 /**
  * Parse date string in IST context for input fields
- * @param {string} dateString - Date string (YYYY-MM-DD)
- * @returns {Date} IST Date object
  */
-export const parseISTDateString = (dateString) => {
+export const parseISTDateString = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
 };
 
 /**
  * Format time for display with AM/PM
- * @param {Date|string} time - Time to format
- * @returns {string} Formatted time string
  */
-export const formatTime = (time) => {
+export const formatTime = (time: DateInput | null | undefined): string => {
   if (!time) return '—';
   return formatISTDate(time, { timeOnly: true, format12Hour: true });
 };
 
+export type DateFormatPattern =
+  | 'MMM DD, YYYY'
+  | 'DD MMM YYYY'
+  | 'MMMM DD, YYYY'
+  | 'DD MMMM YYYY'
+  | 'DD/MM/YYYY'
+  | 'MM/DD/YYYY';
+
 /**
  * Format date for display (date only)
- * @param {Date|string} date - Date to format
- * @param {boolean} shortYear - Use 2-digit year (dd-mm-yy)
- * @param {string} format - Optional format pattern ('MMM DD, YYYY', 'DD-MM-YYYY', etc.)
- * @returns {string} Formatted date string
  */
-export const formatDate = (date, shortYear = false, format = null) => {
+export const formatDate = (
+  date: DateInput | null | undefined,
+  shortYear: boolean = false,
+  format: DateFormatPattern | null = null
+): string => {
   if (!date) return '';
-  
-  const istDate = date instanceof Date ? date : new Date(date);
-  
+
+  const istDate = toDate(date);
+
   // Handle specific format patterns
   if (format) {
     switch (format) {
       case 'MMM DD, YYYY':
       case 'DD MMM YYYY':
         // Indian format: "9 Aug 2025" (not American "Aug 9, 2025")
-        return istDate.toLocaleDateString('en-IN', { 
+        return istDate.toLocaleDateString('en-IN', {
           day: 'numeric',
-          month: 'short', 
-          year: 'numeric' 
+          month: 'short',
+          year: 'numeric'
         });
       case 'MMMM DD, YYYY':
       case 'DD MMMM YYYY':
         // Indian format: "9 August 2025" (not American "August 9, 2025")
-        return istDate.toLocaleDateString('en-IN', { 
+        return istDate.toLocaleDateString('en-IN', {
           day: 'numeric',
-          month: 'long', 
-          year: 'numeric' 
+          month: 'long',
+          year: 'numeric'
         });
       case 'DD/MM/YYYY': {
         const day1 = String(istDate.getDate()).padStart(2, '0');
@@ -146,96 +165,92 @@ export const formatDate = (date, shortYear = false, format = null) => {
         break;
     }
   }
-  
+
   // Default IST formatting: dd-mm-yyyy or dd-mm-yy
   const day = String(istDate.getDate()).padStart(2, '0');
   const month = String(istDate.getMonth() + 1).padStart(2, '0');
   const year = shortYear ? String(istDate.getFullYear()).slice(-2) : istDate.getFullYear();
-  
+
   return `${day}-${month}-${year}`;
 };
 
 /**
  * Create datetime-local input value from IST date
  * This is used for HTML datetime-local inputs
- * @param {Date|string} date - IST date
- * @returns {string} datetime-local format (YYYY-MM-DDTHH:MM)
  */
-export const toDateTimeLocal = (date) => {
+export const toDateTimeLocal = (date: DateInput | null | undefined): string => {
   if (!date) return '';
-  
-  const istDate = date instanceof Date ? date : new Date(date);
+
+  const istDate = toDate(date);
   const year = istDate.getFullYear();
   const month = String(istDate.getMonth() + 1).padStart(2, '0');
   const day = String(istDate.getDate()).padStart(2, '0');
   const hours = String(istDate.getHours()).padStart(2, '0');
   const minutes = String(istDate.getMinutes()).padStart(2, '0');
-  
+
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 /**
  * Create datetime-local input value with specific date and time
- * @param {Date|string} date - Base date
- * @param {string} timeString - Time in HH:MM format
- * @returns {string} datetime-local format
  */
-export const createDateTimeLocal = (date, timeString) => {
+export const createDateTimeLocal = (
+  date: DateInput | null | undefined,
+  timeString: string | null | undefined
+): string => {
   if (!date || !timeString) return '';
-  
+
   const baseDate = getISTDateString(date);
   return `${baseDate}T${timeString}`;
 };
 
 /**
  * Calculate work hours between two times
- * @param {Date|string} checkIn - Check-in time
- * @param {Date|string} checkOut - Check-out time
- * @returns {number} Work hours (decimal)
  */
-export const calculateWorkHours = (checkIn, checkOut) => {
+export const calculateWorkHours = (
+  checkIn: DateInput | null | undefined,
+  checkOut: DateInput | null | undefined
+): number => {
   if (!checkIn || !checkOut) return 0;
-  
-  const checkInTime = new Date(checkIn);
-  const checkOutTime = new Date(checkOut);
-  
-  const diffMs = checkOutTime - checkInTime;
+
+  const checkInTime = toDate(checkIn);
+  const checkOutTime = toDate(checkOut);
+
+  const diffMs = checkOutTime.getTime() - checkInTime.getTime();
   return Math.max(0, diffMs / (1000 * 60 * 60)); // Convert to hours
 };
 
 /**
  * Check if two dates are the same day (IST)
- * @param {Date|string} date1 - First date
- * @param {Date|string} date2 - Second date
- * @returns {boolean} True if same day
  */
-export const isSameDay = (date1, date2) => {
+export const isSameDay = (date1: DateInput, date2: DateInput): boolean => {
   return getISTDateString(date1) === getISTDateString(date2);
 };
 
 /**
  * Get month options for select dropdowns
- * @param {number} monthsBack - How many months back to show (default: 12)
- * @returns {Array} Array of {value, label, display} objects
  */
-export const getMonthOptions = (monthsBack = 12) => {
-  const options = [];
+export const getMonthOptions = (monthsBack: number = 12): MonthOption[] => {
+  const options: MonthOption[] = [];
   const today = getISTNow();
-  const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+  const monthShortNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ] as const;
+
   for (let i = 0; i < monthsBack; i++) {
     const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const monthShort = monthShortNames[date.getMonth()];
+    const monthShort = monthShortNames[date.getMonth()] ?? '';
     const yearShort = String(date.getFullYear()).slice(-2);
-    
+
     options.push({
       value,
       label: `${monthShort} ${date.getFullYear()}`,
       display: `${monthShort} '${yearShort}`
     });
   }
-  
+
   return options;
 };
 
@@ -248,26 +263,24 @@ export const BUSINESS_HOURS = {
   LATE_THRESHOLD: '09:55',
   HALF_DAY_END: '13:30',
   LATE_ARRIVAL: '10:00'
-};
+} as const;
 
 /**
  * Get all days in a month
- * @param {Date|string} date - Any date in the target month
- * @returns {Array<Date>} Array of all days in the month
  */
-export const getAllDaysInMonth = (date) => {
-  const targetDate = date instanceof Date ? date : new Date(date);
+export const getAllDaysInMonth = (date: DateInput): Date[] => {
+  const targetDate = toDate(date);
   const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
   const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-  
-  const days = [];
+
+  const days: Date[] = [];
   const currentDate = new Date(firstDay);
-  
+
   while (currentDate <= lastDay) {
     days.push(new Date(currentDate));
     currentDate.setDate(currentDate.getDate() + 1);
   }
-  
+
   return days;
 };
 

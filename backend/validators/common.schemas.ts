@@ -8,8 +8,8 @@ import { z } from 'zod';
 // MongoDB ObjectId validation
 export const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId format');
 
-// Email validation
-export const emailSchema = z.string().email('Invalid email format').toLowerCase();
+// Email validation (Zod 4 top-level string format API)
+export const emailSchema = z.email('Invalid email format').toLowerCase();
 
 // Password validation
 export const passwordSchema = z
@@ -52,6 +52,29 @@ export const paginationSchema = z.object({
 
 // Employee ID validation
 export const employeeIdSchema = z.string().min(1, 'Employee ID is required').toUpperCase();
+
+// Human name validation
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Name is required')
+  .max(100, 'Name cannot exceed 100 characters');
+
+// Free-text field with a sane upper bound (reasons, comments, descriptions)
+export const shortTextSchema = z.string().trim().max(500);
+export const longTextSchema = z.string().trim().max(5000);
+
+// Approve/reject decision shared by leave, WFH, regularization and expense flows
+export const reviewDecisionSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  reviewComment: shortTextSchema.optional(),
+});
+
+// ISO-ish date string accepted from clients (validated as parseable)
+export const dateStringSchema = z
+  .string()
+  .min(1, 'Date is required')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid date');
 
 // Status validation
 export const statusSchema = z.enum(['active', 'inactive', 'pending', 'approved', 'rejected']);

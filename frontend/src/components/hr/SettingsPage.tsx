@@ -65,9 +65,7 @@ const SettingsPage: React.FC = () => {
         },
         notifications: {
             hrEmails: [],
-            hrPhones: [],
             emailEnabled: true,
-            whatsappEnabled: false,
             pushEnabled: true,
             holidayReminderEnabled: true,
             holidayReminderDays: 1,
@@ -170,9 +168,7 @@ const SettingsPage: React.FC = () => {
             },
             notifications: {
                 hrEmails: response.notifications?.hrEmails || [],
-                hrPhones: response.notifications?.hrPhones || [],
                 emailEnabled: response.notifications?.emailEnabled ?? true,
-                whatsappEnabled: response.notifications?.whatsappEnabled ?? false,
                 pushEnabled: response.notifications?.pushEnabled ?? true,
                 holidayReminderEnabled: response.notifications?.holidayReminderEnabled ?? true,
                 holidayReminderDays: response.notifications?.holidayReminderDays ?? 1,
@@ -486,7 +482,6 @@ const SettingsPage: React.FC = () => {
                 const { details } = responseData;
                 const statusInfo = [];
                 if (details && details.emailReady) statusInfo.push('Email ✓');
-                if (details && details.whatsappReady) statusInfo.push('WhatsApp ✓');
                 if (details && details.pushReady) statusInfo.push('Push ✓');
 
                 if (statusInfo.length === 0) {

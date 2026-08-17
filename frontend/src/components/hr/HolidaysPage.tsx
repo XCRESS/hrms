@@ -1,6 +1,6 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../service/notificationService';
+import notificationService from '../../services/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { useHolidays, useCreateHoliday, useUpdateHoliday, useDeleteHoliday } from '@/hooks/queries';
 import { formatISTDate } from '@/utils/luxonUtils';

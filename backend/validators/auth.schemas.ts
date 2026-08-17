@@ -3,7 +3,14 @@
  */
 
 import { z } from 'zod';
-import { emailSchema, passwordSchema, roleSchema } from './common.schemas.js';
+import {
+  emailSchema,
+  passwordSchema,
+  roleSchema,
+  nameSchema,
+  employeeIdSchema,
+  objectIdSchema,
+} from './common.schemas.js';
 
 // Login schema
 export const loginSchema = z.object({
@@ -13,9 +20,22 @@ export const loginSchema = z.object({
 
 // Register schema
 export const registerSchema = z.object({
+  name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
   role: roleSchema.default('employee'),
+  employeeId: employeeIdSchema.optional(),
+});
+
+// Link a user account to an employee profile
+export const updateEmployeeIdSchema = z.object({
+  userId: objectIdSchema,
+  employeeId: employeeIdSchema,
+});
+
+// Unlink a user account from its employee profile
+export const unlinkEmployeeSchema = z.object({
+  userId: objectIdSchema,
 });
 
 // Change password schema
@@ -31,34 +51,16 @@ export const changePasswordSchema = z.object({
   }
 );
 
-// Request password reset schema
-export const requestPasswordResetSchema = z.object({
-  email: emailSchema,
-});
-
-// Reset password schema
-export const resetPasswordSchema = z.object({
-  token: z.string().min(1, 'Reset token is required'),
-  newPassword: passwordSchema,
-  confirmPassword: z.string().min(1, 'Confirm password is required'),
-}).refine(
-  (data) => data.newPassword === data.confirmPassword,
-  {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  }
-);
-
-// Verify token schema
-export const verifyTokenSchema = z.object({
-  token: z.string().min(1, 'Token is required'),
-});
+export type LoginInput = z.infer<typeof loginSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type UpdateEmployeeIdInput = z.infer<typeof updateEmployeeIdSchema>;
+export type UnlinkEmployeeInput = z.infer<typeof unlinkEmployeeSchema>;
 
 export default {
   loginSchema,
   registerSchema,
   changePasswordSchema,
-  requestPasswordResetSchema,
-  resetPasswordSchema,
-  verifyTokenSchema,
+  updateEmployeeIdSchema,
+  unlinkEmployeeSchema,
 };

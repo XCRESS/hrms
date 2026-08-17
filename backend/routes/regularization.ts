@@ -1,13 +1,18 @@
 import express, { type Router } from "express";
 import { requestRegularization, getMyRegularizations, getAllRegularizations, reviewRegularization } from "../controllers/regularization.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import {
+  createRegularizationSchema,
+  reviewRegularizationSchema,
+} from "../validators/request.schemas.js";
 import type { IAuthRequest } from "../types/index.js";
 import type { Response } from "express";
 
 const router: Router = express.Router();
 
 // Employee: submit a regularization request
-router.post("/request", authMiddleware(["employee", "hr", "admin"]), requestRegularization);
+router.post("/request", authMiddleware(["employee", "hr", "admin"]), validateBody(createRegularizationSchema), requestRegularization);
 
 // Employee: get own regularization requests
 router.get("/my", authMiddleware(["employee", "hr", "admin"]), getMyRegularizations);
@@ -26,6 +31,6 @@ router.get("/", authMiddleware(["employee", "hr", "admin"]), async (req: IAuthRe
 router.get("/all", authMiddleware(["hr", "admin"]), getAllRegularizations);
 
 // HR/Admin: review (approve/reject) a request
-router.post("/:id/review", authMiddleware(["hr", "admin"]), reviewRegularization);
+router.post("/:id/review", authMiddleware(["hr", "admin"]), validateBody(reviewRegularizationSchema), reviewRegularization);
 
 export default router;

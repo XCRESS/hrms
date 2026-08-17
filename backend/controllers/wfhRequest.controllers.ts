@@ -1,3 +1,4 @@
+import type { CreateWFHRequestInput, ReviewWFHRequestInput } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import WFHRequest from '../models/WFHRequest.model.js';
@@ -25,12 +26,7 @@ const buildTodayFilter = (date = new Date()) => {
 
 export const createWFHRequest = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { reason, latitude, longitude, capturedAt } = req.body as {
-      reason: string;
-      latitude?: number;
-      longitude?: number;
-      capturedAt: string;
-    };
+    const { reason, latitude, longitude, capturedAt } = req.body as CreateWFHRequestInput;
 
     if (!reason || reason.trim().length < 10) {
       throw new BusinessLogicError(
@@ -207,7 +203,7 @@ export const getWFHRequests = async (req: IAuthRequest, res: Response): Promise<
 export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { requestId } = req.params;
-    const { status, reviewComment } = req.body as { status: string; reviewComment?: string };
+    const { status, reviewComment } = req.body as ReviewWFHRequestInput;
 
     if (!['approved', 'rejected'].includes(status)) {
       throw new BusinessLogicError(

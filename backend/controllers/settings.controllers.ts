@@ -1,3 +1,4 @@
+import type { UpdateGlobalSettingsInput, UpdateDepartmentSettingsInput, CreateDepartmentInput, RenameDepartmentInput, AssignEmployeeToDepartmentInput } from '../validators/settings.schemas.js';
 import type { Response } from 'express';
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
@@ -45,11 +46,7 @@ export const getGlobalSettings = async (req: IAuthRequest, res: Response): Promi
 
 export const updateGlobalSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { attendance, notifications, general } = req.body as {
-      attendance?: Record<string, unknown>;
-      notifications?: Record<string, unknown>;
-      general?: Record<string, unknown>;
-    };
+    const { attendance, notifications, general } = req.body as UpdateGlobalSettingsInput;
 
     if (!attendance && !notifications && !general) {
       res.status(400).json(formatResponse(false, 'At least one settings section is required'));
@@ -138,10 +135,7 @@ export const getDepartmentSettings = async (req: IAuthRequest, res: Response): P
 export const updateDepartmentSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { department } = req.params;
-    const { attendance, general } = req.body as {
-      attendance?: Record<string, unknown>;
-      general?: Record<string, unknown>;
-    };
+    const { attendance, general } = req.body as UpdateDepartmentSettingsInput;
 
     if (!department) {
       res.status(400).json(formatResponse(false, 'Department parameter is required'));
@@ -245,7 +239,7 @@ export const getDepartments = async (req: IAuthRequest, res: Response): Promise<
 
 export const getDepartmentStats = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const departments = await Department.find({ isActive: true }).sort({ name: 1 });
+    const departments = await Department.find({ isActive: true }).sort({ name: 1 }).lean();
 
     const departmentStats = await Promise.all(
       departments.map(async (dept) => {
@@ -283,7 +277,7 @@ export const getDepartmentStats = async (req: IAuthRequest, res: Response): Prom
 
 export const addDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { name } = req.body as { name: string };
+    const { name } = req.body as CreateDepartmentInput;
 
     if (!name || !name.trim()) {
       res.status(400).json(formatResponse(false, 'Department name is required'));
@@ -327,7 +321,7 @@ export const addDepartment = async (req: IAuthRequest, res: Response): Promise<v
 export const renameDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { oldName } = req.params;
-    const { newName } = req.body as { newName: string };
+    const { newName } = req.body as RenameDepartmentInput;
 
     if (!oldName || !newName || !newName.trim()) {
       res.status(400).json(formatResponse(false, 'Both old and new department names are required'));
@@ -422,7 +416,7 @@ export const deleteDepartment = async (req: IAuthRequest, res: Response): Promis
 export const assignEmployeeToDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { departmentName } = req.params;
-    const { employeeId } = req.body as { employeeId: string };
+    const { employeeId } = req.body as AssignEmployeeToDepartmentInput;
 
     if (!departmentName || !employeeId) {
       res.status(400).json(formatResponse(false, 'Department name and employee ID are required'));

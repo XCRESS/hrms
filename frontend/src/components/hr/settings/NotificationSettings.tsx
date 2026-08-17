@@ -56,21 +56,6 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
         updateField('hrEmails', newEmails);
     };
 
-    const handleAddPhone = () => {
-        updateField('hrPhones', [...notifications.hrPhones, '']);
-    };
-
-    const handleRemovePhone = (index: number) => {
-        const newPhones = notifications.hrPhones.filter((_, i) => i !== index);
-        updateField('hrPhones', newPhones);
-    };
-
-    const handlePhoneChange = (index: number, value: string) => {
-        const newPhones = [...notifications.hrPhones];
-        newPhones[index] = value;
-        updateField('hrPhones', newPhones);
-    };
-
     return (
         <div className="space-y-6">
             {/* Action Buttons */}
@@ -97,7 +82,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             {/* HR Contact Information */}
             <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">HR Contact Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             HR Email Addresses
@@ -128,39 +113,6 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                                 className="w-full px-3 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
                             >
                                 + Add Email
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            HR WhatsApp Numbers
-                        </label>
-                        <div className="space-y-2">
-                            {notifications.hrPhones.map((phone, index) => (
-                                <div key={index} className="flex gap-2">
-                                    <input
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(e) => handlePhoneChange(index, e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100"
-                                        placeholder="+919876543210"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemovePhone(index)}
-                                        className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors text-sm"
-                                    >
-                                        <span className="hidden sm:inline">Remove</span>
-                                        <span className="sm:hidden">×</span>
-                                    </button>
-                                </div>
-                            ))}
-                            <button
-                                type="button"
-                                onClick={handleAddPhone}
-                                className="w-full px-3 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-                            >
-                                + Add Phone
                             </button>
                         </div>
                     </div>
@@ -200,18 +152,6 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                             type="checkbox"
                             checked={notifications.emailEnabled}
                             onChange={(e) => updateField('emailEnabled', e.target.checked)}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="font-medium text-slate-900 dark:text-slate-100">WhatsApp Notifications</h4>
-                            <p className="text-sm text-slate-600 dark:text-slate-400">Send instant alerts via WhatsApp</p>
-                        </div>
-                        <input
-                            type="checkbox"
-                            checked={notifications.whatsappEnabled}
-                            onChange={(e) => updateField('whatsappEnabled', e.target.checked)}
                             className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                         />
                     </div>
