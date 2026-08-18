@@ -89,21 +89,14 @@ class EmailService {
 
       logger.info('Initializing email service with Resend API...');
 
+      // No boot-time probe: the previous `domains.list()` health check cost an
+      // API call on every start, is forbidden to send-only keys, and told us
+      // nothing an actual send wouldn't. Key problems now surface in `send()`,
+      // which logs the Resend error and throws.
       this.resend = new Resend(process.env.RESEND_API_KEY);
       this.transporter = this.resend;
-
-      try {
-        await this.resend.domains.list();
-        this.initialized = true;
-        logger.info('Resend email service initialized successfully');
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error('Unknown error');
-        if (err.message.includes('API key')) {
-          throw err;
-        }
-        this.initialized = true;
-        logger.info('Resend email service initialized (domain verification skipped)');
-      }
+      this.initialized = true;
+      logger.info('Resend email service initialized');
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error');
       logger.error({ err }, 'Email service initialization failed');

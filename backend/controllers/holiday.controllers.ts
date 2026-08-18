@@ -95,7 +95,7 @@ const getHolidayName = (name?: string, title?: string): string | undefined => {
 export const createHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, name, date, isOptional, type, description } = req.body as HolidayInput;
-    const holidayName = getHolidayName(name, title);
+    const holidayName = getHolidayName(name ?? undefined, title ?? undefined);
 
     if (!holidayName || !date) {
       res.status(400).json({ success: false, message: 'Name/Title and date are required for a holiday.' });
@@ -119,8 +119,8 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
     const holiday = await Holiday.create({
       name: holidayName,
       date: holidayDate,
-      type: determineHolidayType(type, isOptional),
-      description
+      type: determineHolidayType(type ?? undefined, isOptional ?? undefined),
+      description: description ?? undefined
     });
 
     // Send notification (non-blocking)
@@ -196,15 +196,15 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
     }
 
     // Build update payload
-    const holidayName = getHolidayName(name, title);
+    const holidayName = getHolidayName(name ?? undefined, title ?? undefined);
     const updatePayload: { name?: string; date?: Date; type?: string; description?: string } = {};
 
     if (holidayName !== undefined) updatePayload.name = holidayName;
     if (newDateObj !== undefined) updatePayload.date = newDateObj;
-    if (type !== undefined || isOptional !== undefined) {
-      updatePayload.type = determineHolidayType(type, isOptional);
+    if (type != null || isOptional != null) {
+      updatePayload.type = determineHolidayType(type ?? undefined, isOptional ?? undefined);
     }
-    if (description !== undefined) updatePayload.description = description;
+    if (description != null) updatePayload.description = description;
 
     if (Object.keys(updatePayload).length === 0) {
       res.status(400).json({ success: false, message: 'No valid fields to update were provided.' });

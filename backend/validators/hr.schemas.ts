@@ -11,6 +11,8 @@ import {
   shortTextSchema,
   longTextSchema,
   dateStringSchema,
+  nullishPartial,
+  nullableDefault,
 } from './common.schemas.js';
 
 // ---------------------------------------------------------------------------
@@ -20,11 +22,11 @@ import {
 export const announcementSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(300),
   content: longTextSchema.min(1, 'Content is required'),
-  targetAudience: z.string().trim().max(100).optional(),
-  status: z.string().trim().max(50).optional(),
+  targetAudience: z.string().trim().max(100).nullish(),
+  status: z.string().trim().max(50).nullish(),
 });
 
-export const updateAnnouncementSchema = announcementSchema.partial();
+export const updateAnnouncementSchema = nullishPartial(announcementSchema);
 
 // ---------------------------------------------------------------------------
 // Holidays
@@ -33,12 +35,12 @@ export const updateAnnouncementSchema = announcementSchema.partial();
 // `title` and `name` are both accepted; the controller falls back between them.
 export const holidaySchema = z
   .object({
-    title: z.string().trim().max(200).optional(),
-    name: z.string().trim().max(200).optional(),
+    title: z.string().trim().max(200).nullish(),
+    name: z.string().trim().max(200).nullish(),
     date: dateStringSchema,
-    isOptional: z.boolean().optional(),
-    type: z.string().trim().max(50).optional(),
-    description: shortTextSchema.optional(),
+    isOptional: z.boolean().nullish(),
+    type: z.string().trim().max(50).nullish(),
+    description: shortTextSchema.nullish(),
   })
   .refine(
     (data) => Boolean(data.title || data.name),
@@ -46,12 +48,12 @@ export const holidaySchema = z
   );
 
 export const updateHolidaySchema = z.object({
-  title: z.string().trim().max(200).optional(),
-  name: z.string().trim().max(200).optional(),
-  date: dateStringSchema.optional(),
-  isOptional: z.boolean().optional(),
-  type: z.string().trim().max(50).optional(),
-  description: shortTextSchema.optional(),
+  title: z.string().trim().max(200).nullish(),
+  name: z.string().trim().max(200).nullish(),
+  date: dateStringSchema.nullish(),
+  isOptional: z.boolean().nullish(),
+  type: z.string().trim().max(50).nullish(),
+  description: shortTextSchema.nullish(),
 });
 
 // ---------------------------------------------------------------------------
@@ -61,18 +63,18 @@ export const updateHolidaySchema = z.object({
 export const submitInquirySchema = z.object({
   subject: z.string().trim().min(1, 'Subject is required').max(300),
   description: longTextSchema.min(1, 'Description is required'),
-  category: z.string().trim().max(100).optional(),
-  priority: z.string().trim().max(50).optional(),
+  category: z.string().trim().max(100).nullish(),
+  priority: z.string().trim().max(50).nullish(),
 });
 
 // Mirrors HelpStatus in models/Help.model.ts
 export const updateInquirySchema = z
   .object({
-    status: z.enum(['pending', 'in-progress', 'resolved']).optional(),
-    response: longTextSchema.optional(),
+    status: z.enum(['pending', 'in-progress', 'resolved']).nullish(),
+    response: longTextSchema.nullish(),
   })
   .refine(
-    (data) => data.status !== undefined || data.response !== undefined,
+    (data) => data.status != null || data.response != null,
     { message: 'Either status or response is required' }
   );
 
@@ -87,7 +89,7 @@ export const createPasswordResetRequestSchema = z.object({
 });
 
 export const rejectPasswordResetSchema = z.object({
-  remarks: shortTextSchema.optional(),
+  remarks: shortTextSchema.nullish(),
 });
 
 // ---------------------------------------------------------------------------
@@ -96,7 +98,7 @@ export const rejectPasswordResetSchema = z.object({
 
 export const uploadDocumentSchema = z.object({
   employeeId: z.string().trim().min(1, 'Employee ID is required'),
-  documentType: z.string().trim().max(100).default('document'),
+  documentType: nullableDefault(z.string().trim().max(100), 'document'),
 });
 
 export type AnnouncementInput = z.infer<typeof announcementSchema>;

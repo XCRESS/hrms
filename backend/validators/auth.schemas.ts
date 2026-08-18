@@ -10,6 +10,7 @@ import {
   nameSchema,
   employeeIdSchema,
   objectIdSchema,
+  nullableDefault,
 } from './common.schemas.js';
 
 // Login schema
@@ -23,8 +24,8 @@ export const registerSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
-  role: roleSchema.default('employee'),
-  employeeId: employeeIdSchema.optional(),
+  role: nullableDefault(roleSchema, 'employee'),
+  employeeId: employeeIdSchema.nullish(),
 });
 
 // Link a user account to an employee profile

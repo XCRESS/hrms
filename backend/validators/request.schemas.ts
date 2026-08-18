@@ -17,12 +17,12 @@ import {
 
 export const createLeaveSchema = z
   .object({
-    leaveMode: z.enum(['single', 'multi']).optional(),
+    leaveMode: z.enum(['single', 'multi']).nullish(),
     leaveType: z.string().trim().min(1, 'Leave type is required'),
-    startDate: dateStringSchema.optional(),
-    endDate: dateStringSchema.optional(),
+    startDate: dateStringSchema.nullish(),
+    endDate: dateStringSchema.nullish(),
     // Retained for backward compatibility with older clients
-    date: dateStringSchema.optional(),
+    date: dateStringSchema.nullish(),
     reason: shortTextSchema.min(1, 'Reason is required'),
   })
   .refine(
@@ -45,8 +45,8 @@ export const createWFHRequestSchema = z.object({
     .trim()
     .min(10, 'Please provide a detailed reason (at least 10 characters)')
     .max(500),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  latitude: z.number().min(-90).max(90).nullish(),
+  longitude: z.number().min(-180).max(180).nullish(),
   capturedAt: dateStringSchema,
 });
 
@@ -58,8 +58,8 @@ export const reviewWFHRequestSchema = reviewDecisionSchema;
 
 export const createRegularizationSchema = z.object({
   date: dateStringSchema,
-  requestedCheckIn: z.string().trim().optional(),
-  requestedCheckOut: z.string().trim().optional(),
+  requestedCheckIn: z.string().trim().nullish(),
+  requestedCheckOut: z.string().trim().nullish(),
   reason: shortTextSchema.min(1, 'Reason is required'),
 });
 
@@ -82,12 +82,12 @@ export const createExpenseSchema = z.object({
 
 export const updateExpenseSchema = z
   .object({
-    date: dateStringSchema.optional(),
-    item: z.string().trim().min(1).max(200).optional(),
-    amount: expenseAmountSchema.optional(),
+    date: dateStringSchema.nullish(),
+    item: z.string().trim().min(1).max(200).nullish(),
+    amount: expenseAmountSchema.nullish(),
   })
   .refine(
-    (data) => Object.values(data).some((value) => value !== undefined),
+    (data) => Object.values(data).some((value) => value != null),
     { message: 'At least one field must be provided' }
   );
 
