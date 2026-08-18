@@ -46,7 +46,7 @@ export const coordinatesSchema = z.object({
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
-  sortBy: z.string().optional(),
+  sortBy: z.string().nullish(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
@@ -67,7 +67,7 @@ export const longTextSchema = z.string().trim().max(5000);
 // Approve/reject decision shared by leave, WFH, regularization and expense flows
 export const reviewDecisionSchema = z.object({
   status: z.enum(['approved', 'rejected']),
-  reviewComment: shortTextSchema.optional(),
+  reviewComment: shortTextSchema.nullish(),
 });
 
 // ISO-ish date string accepted from clients (validated as parseable)
@@ -124,8 +124,8 @@ export const fileSchema = z.object({
   encoding: z.string(),
   mimetype: z.string(),
   size: z.number(),
-  buffer: z.instanceof(Buffer).optional(),
-  path: z.string().optional(),
+  buffer: z.instanceof(Buffer).nullish(),
+  path: z.string().nullish(),
 });
 
 // Image MIME types
@@ -167,3 +167,32 @@ export default {
   imageMimeTypes,
   documentMimeTypes,
 };
+
+/**
+ * Like `.partial()`, but every field also accepts an explicit `null`.
+ *
+ * Clients routinely send `null` for a cleared form field. Zod's `.optional()`
+ * only permits `undefined`, so a plain `.partial()` would 400 on those bodies.
+ */
+export function nullishPartial<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  // Cast the built shape rather than indexing field-by-field: under
+  // noUncheckedIndexedAccess, `schema.shape[key]` is `T[K] | undefined`.
+  const entries = Object.entries(schema.shape) as [string, z.ZodTypeAny][];
+  const shape = Object.fromEntries(
+    entries.map(([key, field]) => [key, field.nullish()])
+  ) as unknown as { [K in keyof T]: z.ZodOptional<z.ZodNullable<T[K]>> };
+  return z.object(shape);
+}
+
+/**
+ * A defaulted field that also tolerates an explicit `null`.
+ *
+ * `.default(x)` substitutes when the value is `undefined` but rejects `null`.
+ * For a defaulted field, a client sending `null` means "unspecified", so we
+ * fold null into undefined and let the default apply.
+ */
+export function nullableDefault<T extends z.ZodTypeAny>(schema: T, value: z.output<T>) {
+  // `.nullish().transform()` rather than `z.preprocess(...)`: preprocess erases
+  // the output type to `unknown`, which would push `any`-ish values into callers.
+  return schema.nullish().transform((v) => v ?? value) as unknown as z.ZodType<z.output<T>>;
+}

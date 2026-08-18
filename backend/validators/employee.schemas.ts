@@ -13,11 +13,12 @@ import {
   nameSchema,
   shortTextSchema,
   dateStringSchema,
+  nullishPartial,
 } from './common.schemas.js';
 
 /** Allow "" (field left blank) alongside a valid value. */
 const optionalOrBlank = <T extends z.ZodType<string>>(schema: T) =>
-  z.union([schema, z.literal('')]).optional();
+  z.union([schema, z.literal('')]).nullish();
 
 const phoneOrBlank = optionalOrBlank(
   z.string().regex(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits')
@@ -29,11 +30,11 @@ export const createEmployeeSchema = z.object({
   lastName: nameSchema,
   email: emailSchema,
 
-  gender: z.string().trim().max(20).optional(),
+  gender: z.string().trim().max(20).nullish(),
   dateOfBirth: optionalOrBlank(dateStringSchema),
-  maritalStatus: z.string().trim().max(20).optional(),
+  maritalStatus: z.string().trim().max(20).nullish(),
   phone: phoneOrBlank,
-  address: shortTextSchema.optional(),
+  address: shortTextSchema.nullish(),
 
   aadhaarNumber: optionalOrBlank(
     z.string().regex(/^[0-9]{12}$/, 'Aadhaar number must be exactly 12 digits')
@@ -42,18 +43,18 @@ export const createEmployeeSchema = z.object({
     z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN number format')
   ),
 
-  fatherName: z.string().trim().max(100).optional(),
-  motherName: z.string().trim().max(100).optional(),
+  fatherName: z.string().trim().max(100).nullish(),
+  motherName: z.string().trim().max(100).nullish(),
   fatherPhone: phoneOrBlank,
   motherPhone: phoneOrBlank,
 
-  officeAddress: z.string().trim().max(200).optional(),
-  companyName: z.string().trim().max(100).optional(),
-  department: z.string().trim().max(100).optional(),
-  position: z.string().trim().max(100).optional(),
+  officeAddress: z.string().trim().max(200).nullish(),
+  companyName: z.string().trim().max(100).nullish(),
+  department: z.string().trim().max(100).nullish(),
+  position: z.string().trim().max(100).nullish(),
 
-  paymentMode: z.string().trim().max(50).optional(),
-  bankName: z.string().trim().max(100).optional(),
+  paymentMode: z.string().trim().max(50).nullish(),
+  bankName: z.string().trim().max(100).nullish(),
   bankAccountNumber: optionalOrBlank(
     z.string().regex(/^[0-9]{9,18}$/, 'Bank account number must be 9-18 digits')
   ),
@@ -61,10 +62,10 @@ export const createEmployeeSchema = z.object({
     z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code format')
   ),
 
-  employmentType: z.string().trim().max(50).optional(),
-  reportingSupervisor: z.string().trim().max(100).optional(),
+  employmentType: z.string().trim().max(50).nullish(),
+  reportingSupervisor: z.string().trim().max(100).nullish(),
   joiningDate: optionalOrBlank(dateStringSchema),
-  emergencyContactName: z.string().trim().max(100).optional(),
+  emergencyContactName: z.string().trim().max(100).nullish(),
   emergencyContactNumber: phoneOrBlank,
 });
 
@@ -72,7 +73,7 @@ export const createEmployeeSchema = z.object({
  * Updates are a partial of create. The controller merges whatever is present,
  * so unknown keys are stripped rather than rejected.
  */
-export const updateEmployeeSchema = createEmployeeSchema.partial();
+export const updateEmployeeSchema = nullishPartial(createEmployeeSchema);
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;

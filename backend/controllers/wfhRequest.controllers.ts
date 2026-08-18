@@ -290,7 +290,7 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
     }
 
     request.status = status as WFHStatus;
-    request.reviewComment = reviewComment;
+    request.reviewComment = reviewComment ?? undefined;
     request.reviewedAt = new Date();
     request.approvedBy = req.user._id;
     await request.save();

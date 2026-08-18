@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { employeeIdSchema } from './common.schemas.js';
+import { employeeIdSchema, nullableDefault } from './common.schemas.js';
 
 /** Money amount: non-negative, bounded to catch typos/overflow. */
 const amountSchema = z
@@ -13,12 +13,12 @@ const amountSchema = z
 
 export const earningsSchema = z.object({
   basic: amountSchema.refine((v) => v > 0, 'Basic salary is required'),
-  hra: amountSchema.optional(),
-  conveyance: amountSchema.optional(),
-  medical: amountSchema.optional(),
-  lta: amountSchema.optional(),
-  specialAllowance: amountSchema.optional(),
-  mobileAllowance: amountSchema.optional(),
+  hra: amountSchema.nullish(),
+  conveyance: amountSchema.nullish(),
+  medical: amountSchema.nullish(),
+  lta: amountSchema.nullish(),
+  specialAllowance: amountSchema.nullish(),
+  mobileAllowance: amountSchema.nullish(),
 });
 
 export const monthSchema = z.coerce.number().int().min(1, 'Month must be 1-12').max(12, 'Month must be 1-12');
@@ -34,13 +34,12 @@ export const createSalarySlipSchema = z.object({
   month: monthSchema,
   year: yearSchema,
   earnings: earningsSchema,
-  deductions: z
-    .object({
-      customDeductions: z.array(z.unknown()).optional(),
-    })
-    .default({}),
-  taxRegime: z.enum(['old', 'new']).default('new'),
-  enableTaxDeduction: z.boolean().default(true),
+  deductions: nullableDefault(
+    z.object({ customDeductions: z.array(z.unknown()).nullish() }),
+    {}
+  ),
+  taxRegime: nullableDefault(z.enum(['old', 'new']), 'new'),
+  enableTaxDeduction: nullableDefault(z.boolean(), true),
 });
 
 /** Salary slips move between draft and finalized only. */

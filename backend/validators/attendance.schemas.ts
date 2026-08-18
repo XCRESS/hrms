@@ -10,29 +10,38 @@
 import { z } from 'zod';
 import { dateStringSchema } from './common.schemas.js';
 
-const coordinateInput = z.unknown().optional();
+const coordinateInput = z.unknown().nullish();
 
 export const checkInSchema = z.object({
   latitude: coordinateInput,
   longitude: coordinateInput,
   accuracy: coordinateInput,
-  capturedAt: z.string().optional(),
+  capturedAt: z.string().nullish(),
 });
 
 export const checkOutSchema = z.object({
-  tasks: z.array(z.unknown()).optional(),
+  tasks: z.array(z.unknown()).nullish(),
   latitude: coordinateInput,
   longitude: coordinateInput,
   accuracy: coordinateInput,
-  capturedAt: z.string().optional(),
+  capturedAt: z.string().nullish(),
 });
 
+/**
+ * Attendance record edit.
+ *
+ * checkIn/checkOut are `.nullish()`, not `.optional()`: the edit form sends an
+ * explicit `null` to CLEAR a time, and the controller relies on that
+ * distinction (`if (checkIn !== undefined)` means "field was provided";
+ * `null` then means "set it to empty"). Using `.optional()` here rejects null
+ * outright, and coercing null to undefined would silently drop the clear.
+ */
 export const updateAttendanceRecordSchema = z.object({
-  status: z.string().trim().optional(),
-  checkIn: z.string().optional(),
-  checkOut: z.string().optional(),
-  employeeId: z.string().trim().optional(),
-  date: dateStringSchema.optional(),
+  status: z.string().trim().nullish(),
+  checkIn: z.string().nullish(),
+  checkOut: z.string().nullish(),
+  employeeId: z.string().trim().nullish(),
+  date: dateStringSchema.nullish(),
 });
 
 export type CheckInInput = z.infer<typeof checkInSchema>;

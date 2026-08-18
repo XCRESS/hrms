@@ -79,8 +79,8 @@ export const updateExpense = asyncHandler(async (req: IAuthRequest, res: Respons
 
   // Apply updates
   if (date) expense.date = new Date(date);
-  if (item !== undefined) expense.item = item;
-  if (amount !== undefined) expense.amount = amount;
+  if (item != null) expense.item = item;
+  if (amount != null) expense.amount = amount;
 
   // If expense was rejected and is being edited, reset status to pending for re-review
   if (expense.status === 'rejected') {
@@ -168,7 +168,7 @@ export const updateExpenseStatus = asyncHandler(async (req: IAuthRequest, res: R
   }
 
   expense.status = status;
-  expense.reviewComment = reviewComment;
+  expense.reviewComment = reviewComment ?? undefined;
   if (status === 'approved') {
     expense.approvedBy = req.user?._id;
     expense.approvedAt = new Date();

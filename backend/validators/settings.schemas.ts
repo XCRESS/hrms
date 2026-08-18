@@ -13,9 +13,9 @@ const settingsSection = z.record(z.string(), z.unknown());
 
 export const updateGlobalSettingsSchema = z
   .object({
-    attendance: settingsSection.optional(),
-    notifications: settingsSection.optional(),
-    general: settingsSection.optional(),
+    attendance: settingsSection.nullish(),
+    notifications: settingsSection.nullish(),
+    general: settingsSection.nullish(),
   })
   .refine(
     (data) => Boolean(data.attendance || data.notifications || data.general),
@@ -24,8 +24,8 @@ export const updateGlobalSettingsSchema = z
 
 export const updateDepartmentSettingsSchema = z
   .object({
-    attendance: settingsSection.optional(),
-    general: settingsSection.optional(),
+    attendance: settingsSection.nullish(),
+    general: settingsSection.nullish(),
   })
   .refine(
     (data) => Boolean(data.attendance || data.general),
