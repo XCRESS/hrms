@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, GlobalSettings, DepartmentSettings, EffectiveSettings, DepartmentStats } from '@/types';
+import type { ApiResponse, GlobalSettings, DepartmentSettings, EffectiveSettings, DepartmentStats, AvailableEmployeesData } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -113,10 +113,10 @@ export const useUpdateDepartmentSettings = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ department, settingsData }: { department: string; settingsData: Partial<DepartmentSettings> }) => {
+    mutationFn: async ({ departmentName, settings }: { departmentName: string; settings: Partial<DepartmentSettings> }) => {
       const { data } = await axiosInstance.put<ApiResponse<DepartmentSettings>>(
-        API_ENDPOINTS.SETTINGS.DEPARTMENT(department),
-        settingsData
+        API_ENDPOINTS.SETTINGS.DEPARTMENT(departmentName),
+        settings
       );
       return data.data;
     },
@@ -168,13 +168,22 @@ export const useRenameDepartment = () => {
 /**
  * Delete department
  */
+export interface DeleteDepartmentResult {
+  departmentName: string;
+  employeesUpdated: number;
+  settingsDeleted: number;
+  affectedEmployees: number;
+}
+
 export const useDeleteDepartment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (name: string) => {
-      const { data } = await axiosInstance.delete<ApiResponse>(API_ENDPOINTS.SETTINGS.DELETE_DEPARTMENT(name));
-      return data;
+      const { data } = await axiosInstance.delete<ApiResponse<DeleteDepartmentResult>>(
+        API_ENDPOINTS.SETTINGS.DELETE_DEPARTMENT(name)
+      );
+      return data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.all() });
@@ -190,10 +199,10 @@ export const useAvailableEmployees = (departmentName?: string, options?: { enabl
     queryKey: [...queryKeys.settings.departments(), 'employees', departmentName],
     queryFn: async () => {
       if (!departmentName) return null;
-      const { data } = await axiosInstance.get<ApiResponse>(
-        `/settings/departments/${encodeURIComponent(departmentName)}/employees`
+      const { data } = await axiosInstance.get<ApiResponse<AvailableEmployeesData>>(
+        API_ENDPOINTS.SETTINGS.DEPARTMENT_EMPLOYEES(departmentName)
       );
-      return data.data;
+      return data.data ?? null;
     },
     enabled: options?.enabled !== undefined ? options.enabled : !!departmentName,
   });
@@ -208,7 +217,7 @@ export const useAssignEmployeeToDepartment = () => {
   return useMutation({
     mutationFn: async ({ departmentName, employeeId }: { departmentName: string; employeeId: string }) => {
       const { data } = await axiosInstance.post<ApiResponse>(
-        `/settings/departments/${encodeURIComponent(departmentName)}/employees`,
+        API_ENDPOINTS.SETTINGS.DEPARTMENT_EMPLOYEES(departmentName),
         { employeeId }
       );
       return data;
@@ -217,6 +226,35 @@ export const useAssignEmployeeToDepartment = () => {
       // Invalidate department queries and employee queries
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.departments() });
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
+    },
+  });
+};
+
+/**
+ * Reschedule the daily HR attendance report cron job.
+ * Call after saving settings that change the report's enabled state or send time.
+ */
+export const useRescheduleHrReport = () => {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await axiosInstance.post<ApiResponse>(
+        API_ENDPOINTS.SETTINGS.RESCHEDULE_HR_REPORT
+      );
+      return data;
+    },
+  });
+};
+
+/**
+ * Send a test daily HR attendance report to the configured HR emails.
+ */
+export const useTestHrReport = () => {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await axiosInstance.post<ApiResponse>(
+        API_ENDPOINTS.SETTINGS.TEST_HR_REPORT
+      );
+      return data;
     },
   });
 };

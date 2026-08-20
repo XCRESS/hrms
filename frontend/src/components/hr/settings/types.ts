@@ -1,4 +1,3 @@
-import { OfficeLocation } from '@/types';
 
 export interface OfficeFormData {
     name: string;

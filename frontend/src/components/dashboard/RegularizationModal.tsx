@@ -195,6 +195,9 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
               placeholder="Please provide a detailed reason for this attendance regularization request..."
               rows={4}
+              // Backend caps reason at 500 chars (shortTextSchema); without this
+              // a longer reason round-trips into an opaque 400.
+              maxLength={500}
               className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
               data-gramm="false"

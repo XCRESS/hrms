@@ -1,28 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, Plus, Edit2, Trash2, UserCheck, Eye, Users, AlertTriangle } from 'lucide-react';
 import { useAvailableEmployees, useAssignEmployeeToDepartment } from '@/hooks/queries';
-import type { Employee } from '@/types';
-
-interface DepartmentEmployee {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  employeeId: string;
-  email: string;
-  department?: string;
-}
-
-interface DepartmentStat {
-  name: string;
-  employeeCount: number;
-  employees: DepartmentEmployee[];
-}
-
-interface AvailableEmployeesData {
-  employeesInDepartment: DepartmentEmployee[];
-  employeesWithoutDepartment: DepartmentEmployee[];
-  employeesInOtherDepartments: DepartmentEmployee[];
-}
+import type { DepartmentEmployee, DepartmentStats as DepartmentStat } from '@/types';
 
 interface DepartmentManagementProps {
   departmentStats: DepartmentStat[];
@@ -45,7 +24,6 @@ interface DepartmentManagementProps {
   handleAddDepartment: () => void;
   handleRenameDepartment: () => void;
   handleDeleteDepartment: () => void;
-  resetMessages: () => void;
   fetchDepartmentStats?: () => Promise<void>;
   fetchDepartments?: () => Promise<void>;
 }
@@ -71,7 +49,6 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
   handleAddDepartment,
   handleRenameDepartment,
   handleDeleteDepartment,
-  resetMessages,
   fetchDepartmentStats,
   fetchDepartments
 }) => {
@@ -271,7 +248,6 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                 onClick={() => {
                   setShowAddDeptModal(false);
                   setNewDeptName('');
-                  resetMessages();
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
               >
@@ -322,7 +298,6 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                   setShowRenameDeptModal(false);
                   setNewDeptName('');
                   setSelectedDeptForAction(null);
-                  resetMessages();
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
               >
@@ -370,7 +345,6 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                 onClick={() => {
                   setShowDeleteDeptModal(false);
                   setSelectedDeptForAction(null);
-                  resetMessages();
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
               >

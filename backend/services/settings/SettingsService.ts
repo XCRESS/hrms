@@ -4,7 +4,7 @@
  */
 
 import Settings from '../../models/Settings.model.js';
-import { getISTNow, createISTDateTime, timeToDecimal, decimalToTime24, toIST } from '../../utils/timezone.js';
+import { getISTNow, createISTDateTime, timeToDecimal, toIST } from '../../utils/timezone.js';
 import type { DateTime } from 'luxon';
 import logger from '../../utils/logger.js';
 
@@ -21,11 +21,6 @@ interface AttendanceSettings {
   nonWorkingDays: number[];
   saturdayWorkType: string;
   saturdayHolidays: number[];
-}
-
-interface DefaultSettings {
-  attendance: AttendanceSettings;
-  scope: string;
 }
 
 interface BusinessHours {
@@ -101,24 +96,6 @@ export class SettingsService {
   }
 
   /**
-   * Convert time string to decimal hours for calculations
-   * @param timeString - Time in 24-hour format (HH:MM)
-   * @returns Decimal hours
-   */
-  timeToDecimal(timeString: string): number {
-    return timeToDecimal(timeString);
-  }
-
-  /**
-   * Convert decimal hours to time string
-   * @param decimal - Decimal hours
-   * @returns Time in 24-hour format (HH:MM)
-   */
-  decimalToTime(decimal: number): string {
-    return decimalToTime24(decimal);
-  }
-
-  /**
    * Clear cache for specific department or all
    * @param department - Department name (optional)
    */
@@ -183,10 +160,10 @@ export class SettingsService {
       workEnd: workEnd.toJSDate(),
       lateThreshold: lateThreshold.toJSDate(),
       halfDayEnd: halfDayEnd.toJSDate(),
-      workStartDecimal: this.timeToDecimal(attendanceSettings.workStartTime),
-      workEndDecimal: this.timeToDecimal(attendanceSettings.workEndTime),
-      lateThresholdDecimal: this.timeToDecimal(attendanceSettings.lateThreshold),
-      halfDayEndDecimal: this.timeToDecimal(attendanceSettings.halfDayEndTime)
+      workStartDecimal: timeToDecimal(attendanceSettings.workStartTime),
+      workEndDecimal: timeToDecimal(attendanceSettings.workEndTime),
+      lateThresholdDecimal: timeToDecimal(attendanceSettings.lateThreshold),
+      halfDayEndDecimal: timeToDecimal(attendanceSettings.halfDayEndTime)
     };
   }
 
@@ -214,7 +191,7 @@ export class SettingsService {
     // Special handling for Saturday - check if it's a holiday Saturday
     if (dayOfWeek === 6) {
       // Saturday
-      const saturdayWeek = this.getSaturdayWeekOfMonth(istDateTime.toJSDate());
+      const saturdayWeek = this.getSaturdayWeekOfMonth(istDateTime);
       if (attendanceSettings.saturdayHolidays && attendanceSettings.saturdayHolidays.includes(saturdayWeek)) {
         return false; // This Saturday is configured as a holiday
       }
@@ -224,26 +201,21 @@ export class SettingsService {
   }
 
   /**
-   * Determine which Saturday of the month a given date is
-   * @param date - Date to check (should be a Saturday)
-   * @returns 1, 2, 3, or 4 representing 1st, 2nd, 3rd, or 4th Saturday
+   * Determine which Saturday of the month a given date is.
+   *
+   * Takes an IST DateTime rather than a Date: the previous implementation used
+   * getDate()/getDay(), which read in the server's local zone and could land on
+   * the wrong day (and therefore the wrong week) near month boundaries when the
+   * host runs in UTC.
+   *
+   * @param date - IST DateTime to check (should be a Saturday)
+   * @returns 1-4 for the 1st-4th Saturday. A 5th Saturday clamps to 4, matching
+   *          the settings UI, which only exposes four checkboxes.
    */
-  getSaturdayWeekOfMonth(date: Date): number {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const dateNum = date.getDate();
+  getSaturdayWeekOfMonth(date: DateTime): number {
+    const saturdayWeek = Math.ceil(date.day / 7);
 
-    // Find the first Saturday of the month
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayWeekday = firstDayOfMonth.getDay();
-
-    // Calculate first Saturday date (0=Sunday, 6=Saturday)
-    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
-
-    // Calculate which Saturday this date is
-    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
-
-    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
+    return Math.max(1, Math.min(4, saturdayWeek));
   }
 
   /**

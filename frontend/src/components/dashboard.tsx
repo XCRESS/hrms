@@ -476,7 +476,24 @@ const HRMSDashboard: React.FC = () => {
             let description = "An unexpected error occurred.";
             let variant: "warning" | "error" | "success" | "default" = "warning";
 
-            const geofenceDetails = error?.data?.errors?.geofence || error?.data?.details?.geofence;
+            const errorDetails = error?.data?.errors || error?.data?.details;
+            const geofenceDetails = errorDetails?.geofence;
+
+            // An imprecise fix is not the same as being off-site, and must be
+            // handled before the WFH branch below - that error also carries
+            // canRequestWFH, so it would otherwise push the user to file a WFH
+            // request when all they need to do is retry with a better signal.
+            if (errorDetails?.locationInaccurate) {
+                toast({
+                    variant: "warning",
+                    title: "Location Not Precise Enough",
+                    description: error?.data?.message
+                        || "Your location isn't accurate enough to confirm you're at the office. Move outdoors or near a window and try again.",
+                    duration: 7000
+                });
+                return;
+            }
+
             if (geofenceDetails?.canRequestWFH && locationData) {
                 setAppState('pendingWFHContext', {
                     geofence: geofenceDetails,

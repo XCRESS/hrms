@@ -32,7 +32,7 @@ export default function PasswordResetForm({ className, ...props }: PasswordReset
           toast({
             title: "Password Reset Request Submitted",
             description: "Your request has been submitted for admin review. You will be contacted once approved.",
-            type: "success"
+            variant: "success"
           });
           setRequestSubmitted(true);
         },
@@ -41,7 +41,7 @@ export default function PasswordResetForm({ className, ...props }: PasswordReset
           toast({
             title: "Request Failed",
             description: error.message || "Unable to submit password reset request. Please try again.",
-            type: "error"
+            variant: "error"
           });
         }
       }

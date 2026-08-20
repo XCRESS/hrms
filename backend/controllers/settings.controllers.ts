@@ -1,31 +1,27 @@
-import type { UpdateGlobalSettingsInput, UpdateDepartmentSettingsInput, CreateDepartmentInput, RenameDepartmentInput, AssignEmployeeToDepartmentInput } from '../validators/settings.schemas.js';
+import type { UpdateGlobalSettingsInput, UpdateDepartmentSettingsInput, CreateDepartmentInput, RenameDepartmentInput, AssignEmployeeToDepartmentInput, GetEffectiveSettingsQuery } from '../validators/settings.schemas.js';
 import type { Response } from 'express';
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
 import Department from '../models/Department.model.js';
 import SchedulerService from '../services/schedulerService.js';
+import settingsService from '../services/settings/SettingsService.js';
 import { formatResponse } from '../utils/response.js';
+import { paramValue } from '../utils/helpers.js';
+import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
 const escapeRegex = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const deepMerge = (target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> => {
-  const output: Record<string, unknown> = { ...target };
-
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      const sourceValue = source[key];
-      if (sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
-        output[key] = deepMerge((target[key] as Record<string, unknown>) || {}, sourceValue as Record<string, unknown>);
-      } else {
-        output[key] = sourceValue;
-      }
-    }
-  }
-
-  return output;
-};
+/**
+ * Merge a validated partial settings section into the stored section.
+ * Delegates to the model's mergeSettings so there is one merge implementation.
+ */
+const mergeSection = <T>(existing: T, incoming: Record<string, unknown>): T =>
+  Settings.mergeSettings(
+    existing as unknown as Record<string, unknown>,
+    incoming
+  ) as unknown as T;
 
 export const getGlobalSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
@@ -68,30 +64,25 @@ export const updateGlobalSettings = async (req: IAuthRequest, res: Response): Pr
       settings = new Settings(newSettings);
     } else {
       if (attendance) {
-        settings.attendance = deepMerge(
-          settings.attendance as unknown as Record<string, unknown>,
-          attendance
-        ) as unknown as typeof settings.attendance;
+        settings.attendance = mergeSection(settings.attendance, attendance);
         settings.markModified('attendance');
       }
       if (notifications) {
-        settings.notifications = deepMerge(
-          settings.notifications as unknown as Record<string, unknown>,
-          notifications
-        ) as unknown as typeof settings.notifications;
+        settings.notifications = mergeSection(settings.notifications, notifications);
         settings.markModified('notifications');
       }
       if (general) {
-        settings.general = deepMerge(
-          settings.general as unknown as Record<string, unknown>,
-          general
-        ) as unknown as typeof settings.general;
+        settings.general = mergeSection(settings.general, general);
         settings.markModified('general');
       }
       settings.lastUpdatedBy = req.user?._id || settings.lastUpdatedBy;
     }
 
     const savedSettings = await settings.save();
+
+    // Global settings are the base of every department's merged result,
+    // so clear the entire cache - not just the global key.
+    settingsService.clearCache();
 
     res.json(formatResponse(true, 'Global settings updated successfully', savedSettings.toObject()));
   } catch (error) {
@@ -110,7 +101,7 @@ export const updateGlobalSettings = async (req: IAuthRequest, res: Response): Pr
 
 export const getDepartmentSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { department } = req.params;
+    const department = paramValue(req.params.department);
 
     if (!department) {
       res.status(400).json(formatResponse(false, 'Department parameter is required'));
@@ -134,7 +125,7 @@ export const getDepartmentSettings = async (req: IAuthRequest, res: Response): P
 
 export const updateDepartmentSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { department } = req.params;
+    const department = paramValue(req.params.department);
     const { attendance, general } = req.body as UpdateDepartmentSettingsInput;
 
     if (!department) {
@@ -156,23 +147,19 @@ export const updateDepartmentSettings = async (req: IAuthRequest, res: Response)
       settings = new Settings(newSettings);
     } else {
       if (attendance) {
-        settings.attendance = deepMerge(
-          settings.attendance as unknown as Record<string, unknown>,
-          attendance
-        ) as unknown as typeof settings.attendance;
+        settings.attendance = mergeSection(settings.attendance, attendance);
         settings.markModified('attendance');
       }
       if (general) {
-        settings.general = deepMerge(
-          settings.general as unknown as Record<string, unknown>,
-          general
-        ) as unknown as typeof settings.general;
+        settings.general = mergeSection(settings.general, general);
         settings.markModified('general');
       }
       settings.lastUpdatedBy = req.user?._id || settings.lastUpdatedBy;
     }
 
     await settings.save();
+
+    settingsService.clearCache(department);
 
     res.json(formatResponse(true, 'Department settings updated successfully', settings.toObject()));
   } catch (error) {
@@ -184,7 +171,7 @@ export const updateDepartmentSettings = async (req: IAuthRequest, res: Response)
 
 export const deleteDepartmentSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { department } = req.params;
+    const department = paramValue(req.params.department);
 
     if (!department) {
       res.status(400).json(formatResponse(false, 'Department parameter is required'));
@@ -198,6 +185,8 @@ export const deleteDepartmentSettings = async (req: IAuthRequest, res: Response)
       return;
     }
 
+    settingsService.clearCache(department);
+
     res.json(formatResponse(true, 'Department settings deleted successfully. Will use global settings.'));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
@@ -208,9 +197,28 @@ export const deleteDepartmentSettings = async (req: IAuthRequest, res: Response)
 
 export const getEffectiveSettings = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { department } = req.query;
+    const { department } = getValidatedQuery<GetEffectiveSettingsQuery>(req);
 
-    const effectiveSettings = await Settings.getEffectiveSettings(typeof department === 'string' ? department : undefined);
+    const effectiveSettings = await Settings.getEffectiveSettings(department);
+
+    // Employees only need the operational rules that drive check-in/check-out.
+    // The full document carries notifications.hrEmails and the report config,
+    // which must not leak to non-HR roles.
+    if (req.user?.role === 'employee') {
+      const { attendance, general } = effectiveSettings as {
+        attendance?: unknown;
+        general?: { locationSetting?: unknown; taskReportSetting?: unknown };
+      };
+
+      res.json(formatResponse(true, 'Effective settings retrieved successfully', {
+        attendance,
+        general: {
+          locationSetting: general?.locationSetting,
+          taskReportSetting: general?.taskReportSetting
+        }
+      }));
+      return;
+    }
 
     res.json(formatResponse(true, 'Effective settings retrieved successfully', effectiveSettings));
   } catch (error) {
@@ -239,26 +247,43 @@ export const getDepartments = async (req: IAuthRequest, res: Response): Promise<
 
 export const getDepartmentStats = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const departments = await Department.find({ isActive: true }).sort({ name: 1 }).lean();
+    // Two queries total, not one-per-department. Employees are fetched once
+    // and grouped in memory, which keeps this O(1) in round trips as the
+    // number of departments grows.
+    const [departments, employees] = await Promise.all([
+      Department.find({ isActive: true }).sort({ name: 1 }).lean(),
+      Employee.find(
+        { isActive: true, department: { $exists: true, $ne: null } },
+        { firstName: 1, lastName: 1, employeeId: 1, email: 1, joiningDate: 1, department: 1 }
+      )
+        .sort({ firstName: 1, lastName: 1 })
+        .lean(),
+    ]);
 
-    const departmentStats = await Promise.all(
-      departments.map(async (dept) => {
-        const employees = await Employee.find(
-          { department: dept.name, isActive: true },
-          { firstName: 1, lastName: 1, employeeId: 1, email: 1, joiningDate: 1 }
-        ).sort({ firstName: 1, lastName: 1 });
+    const employeesByDepartment = new Map<string, typeof employees>();
+    for (const employee of employees) {
+      const key = employee.department;
+      if (!key) continue;
+      const bucket = employeesByDepartment.get(key);
+      if (bucket) {
+        bucket.push(employee);
+      } else {
+        employeesByDepartment.set(key, [employee]);
+      }
+    }
 
-        return {
-          _id: dept._id,
-          name: dept.name,
-          isActive: dept.isActive,
-          createdAt: dept.createdAt,
-          updatedAt: dept.updatedAt,
-          employeeCount: employees.length,
-          employees: employees
-        };
-      })
-    );
+    const departmentStats = departments.map((dept) => {
+      const deptEmployees = employeesByDepartment.get(dept.name) ?? [];
+      return {
+        _id: dept._id,
+        name: dept.name,
+        isActive: dept.isActive,
+        createdAt: dept.createdAt,
+        updatedAt: dept.updatedAt,
+        employeeCount: deptEmployees.length,
+        employees: deptEmployees
+      };
+    });
 
     departmentStats.sort((a, b) => {
       if (b.employeeCount !== a.employeeCount) {
@@ -286,17 +311,26 @@ export const addDepartment = async (req: IAuthRequest, res: Response): Promise<v
 
     const trimmedName = name.trim();
 
+    // Match regardless of isActive: the unique index on name spans soft-deleted
+    // rows, so a previously deleted department must be reactivated rather than
+    // re-created (which would fail with a duplicate key error).
     const existingDepartment = await Department.findOne({
-      name: { $regex: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
-      isActive: true
+      name: { $regex: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') }
     });
 
-    if (existingDepartment) {
+    if (existingDepartment?.isActive) {
       res.status(409).json(formatResponse(false, 'Department already exists', { existingName: existingDepartment.name }));
       return;
     }
 
-    const department = await Department.create({ name: trimmedName });
+    let department;
+    if (existingDepartment) {
+      existingDepartment.isActive = true;
+      existingDepartment.name = trimmedName;
+      department = await existingDepartment.save();
+    } else {
+      department = await Department.create({ name: trimmedName });
+    }
 
     res.json(formatResponse(true, 'Department created successfully', {
       _id: department._id,
@@ -320,7 +354,7 @@ export const addDepartment = async (req: IAuthRequest, res: Response): Promise<v
 
 export const renameDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { oldName } = req.params;
+    const oldName = paramValue(req.params.oldName);
     const { newName } = req.body as RenameDepartmentInput;
 
     if (!oldName || !newName || !newName.trim()) {
@@ -330,36 +364,49 @@ export const renameDepartment = async (req: IAuthRequest, res: Response): Promis
 
     const trimmedNewName = newName.trim();
 
-    const conflictingDepartment = await Department.findOne({
-      name: { $regex: new RegExp(`^${escapeRegex(trimmedNewName)}$`, 'i') },
-      isActive: true
-    });
-
-    if (conflictingDepartment && conflictingDepartment.name !== oldName) {
-      res.status(409).json(formatResponse(false, 'Department name already exists', { existingName: conflictingDepartment.name }));
-      return;
-    }
-
+    // Resolve the target first so the conflict check can compare by _id.
+    // Comparing by name string mixed case-insensitive lookup with a
+    // case-sensitive guard, which let same-name-different-case slip through.
     const department = await Department.findOne({ name: oldName, isActive: true });
     if (!department) {
       res.status(404).json(formatResponse(false, 'Department not found', { requestedName: oldName }));
       return;
     }
 
+    // Spans soft-deleted rows for the same reason as addDepartment: the
+    // unique index on name does not respect isActive.
+    const conflictingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${escapeRegex(trimmedNewName)}$`, 'i') }
+    });
+
+    // A case-only rename of the department itself is allowed; a collision
+    // with any *other* department is not.
+    if (conflictingDepartment && !conflictingDepartment._id.equals(department._id)) {
+      res.status(409).json(formatResponse(false, 'Department name already exists', { existingName: conflictingDepartment.name }));
+      return;
+    }
+
+    const actualOldName = department.name;
+
     await Department.findByIdAndUpdate(department._id, { name: trimmedNewName });
 
     const employeeUpdateResult = await Employee.updateMany(
-      { department: oldName, isActive: true },
+      { department: actualOldName, isActive: true },
       { $set: { department: trimmedNewName } }
     );
 
     const settingsUpdateResult = await Settings.updateMany(
-      { scope: 'department', department: oldName },
+      { scope: 'department', department: actualOldName },
       { $set: { department: trimmedNewName } }
     );
 
+    // Both keys are now stale: the old one no longer exists, the new one
+    // may hold a pre-rename miss.
+    settingsService.clearCache(actualOldName);
+    settingsService.clearCache(trimmedNewName);
+
     res.json(formatResponse(true, 'Department renamed successfully', {
-      oldName,
+      oldName: actualOldName,
       newName: trimmedNewName,
       employeesUpdated: employeeUpdateResult.modifiedCount,
       settingsUpdated: settingsUpdateResult.modifiedCount
@@ -373,7 +420,7 @@ export const renameDepartment = async (req: IAuthRequest, res: Response): Promis
 
 export const deleteDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { name } = req.params;
+    const name = paramValue(req.params.name);
 
     if (!name) {
       res.status(400).json(formatResponse(false, 'Department name is required'));
@@ -388,7 +435,10 @@ export const deleteDepartment = async (req: IAuthRequest, res: Response): Promis
 
     const employeeCount = await Employee.countDocuments({ department: name, isActive: true });
 
-    await Department.findByIdAndDelete(department._id);
+    // Soft delete: every read path already filters on isActive, and this keeps
+    // the row recoverable. A hard delete here was unrecoverable and
+    // inconsistent with the rest of the model's lifecycle.
+    await Department.findByIdAndUpdate(department._id, { isActive: false });
 
     const employeeUpdateResult = await Employee.updateMany(
       { department: name, isActive: true },
@@ -399,6 +449,8 @@ export const deleteDepartment = async (req: IAuthRequest, res: Response): Promis
       scope: 'department',
       department: name
     });
+
+    settingsService.clearCache(name);
 
     res.json(formatResponse(true, 'Department deleted successfully', {
       departmentName: name,
@@ -415,7 +467,7 @@ export const deleteDepartment = async (req: IAuthRequest, res: Response): Promis
 
 export const assignEmployeeToDepartment = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { departmentName } = req.params;
+    const departmentName = paramValue(req.params.departmentName);
     const { employeeId } = req.body as AssignEmployeeToDepartmentInput;
 
     if (!departmentName || !employeeId) {
@@ -454,12 +506,14 @@ export const assignEmployeeToDepartment = async (req: IAuthRequest, res: Respons
 
 export const getAvailableEmployees = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { departmentName } = req.params;
+    const departmentName = paramValue(req.params.departmentName);
 
     const allEmployees = await Employee.find(
       { isActive: true },
       { employeeId: 1, firstName: 1, lastName: 1, email: 1, department: 1 }
-    ).sort({ firstName: 1, lastName: 1 });
+    )
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
 
     const employeesInDepartment = allEmployees.filter(emp => emp.department === departmentName);
     const employeesInOtherDepartments = allEmployees.filter(emp => emp.department && emp.department !== departmentName);

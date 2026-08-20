@@ -1,7 +1,11 @@
 import { createContext, useContext, useReducer, useCallback, ReactNode } from "react"
 import { X } from "lucide-react"
 
-type ToastVariant = 'default' | 'success' | 'error' | 'info' | 'warning';
+/**
+ * 'destructive' is an alias for 'error' - it is the shadcn convention and is
+ * what most call sites in this app already pass. Both render identically.
+ */
+type ToastVariant = 'default' | 'success' | 'error' | 'destructive' | 'info' | 'warning';
 
 interface ToastOptions {
   id?: string;
@@ -42,6 +46,7 @@ const toastVariants = (variant: ToastVariant = "default"): string => {
     default: "border bg-white/98 text-foreground dark:bg-slate-800/98 dark:border-slate-700 shadow-md",
     success: "success group border-green-500 bg-green-50/98 text-green-900 dark:bg-green-900/90 dark:text-green-50 dark:border-green-900/50 shadow-md",
     error: "error group border-red-500 bg-red-50/98 text-red-900 dark:bg-red-900/90 dark:text-red-50 dark:border-red-900/50 shadow-md",
+    destructive: "error group border-red-500 bg-red-50/98 text-red-900 dark:bg-red-900/90 dark:text-red-50 dark:border-red-900/50 shadow-md",
     info: "info group border-blue-500 bg-blue-50/98 text-blue-900 dark:bg-blue-900/90 dark:text-blue-50 dark:border-blue-900/50 shadow-md",
     warning: "warning group border-yellow-500 bg-yellow-50/98 text-yellow-900 dark:bg-yellow-900/90 dark:text-yellow-50 dark:border-yellow-900/50 shadow-md",
   }

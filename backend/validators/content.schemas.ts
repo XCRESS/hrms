@@ -3,7 +3,11 @@
  */
 
 import { z } from 'zod';
-import { longTextSchema, shortTextSchema, dateStringSchema, nullishPartial, nullableDefault } from './common.schemas.js';
+import { longTextSchema, shortTextSchema, dateStringSchema, nullishPartial, nullableDefault, latitudeSchema, longitudeSchema } from './common.schemas.js';
+import {
+  MIN_GEOFENCE_RADIUS_METERS,
+  MAX_GEOFENCE_RADIUS_METERS,
+} from '../models/OfficeLocation.model.js';
 
 // ---------------------------------------------------------------------------
 // Chat
@@ -30,9 +34,15 @@ export const clearConversationSchema = z.object({
 export const createOfficeLocationSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
   address: shortTextSchema.nullish(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  radius: z.number().positive().max(100_000).nullish(),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
+  // Bounds match the OfficeLocation model. They previously did not, so a radius
+  // the schema accepted could still fail Mongoose validation as a 500.
+  radius: z.coerce
+    .number()
+    .min(MIN_GEOFENCE_RADIUS_METERS)
+    .max(MAX_GEOFENCE_RADIUS_METERS)
+    .nullish(),
   isActive: nullableDefault(z.boolean(), true),
 });
 
@@ -77,8 +87,8 @@ export const updatePolicySchema = nullishPartial(createPolicySchema);
 export const updateOfficeLocationSchema = nullishPartial(createOfficeLocationSchema).extend({
   coordinates: z
     .object({
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
+      latitude: latitudeSchema,
+      longitude: longitudeSchema,
     })
     .nullish(),
 });
@@ -101,7 +111,14 @@ export const pushSubscriptionSchema = z.object({
   }),
 });
 
+// Endpoint identifies the single device to drop. Omitted means "this user's
+// devices", which is what a sign-out style unsubscribe wants.
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.url('Invalid subscription endpoint').nullish(),
+});
+
 export type UpdatePolicyInput = z.infer<typeof updatePolicySchema>;
 export type UpdateOfficeLocationInput = z.infer<typeof updateOfficeLocationSchema>;
 export type TestNotificationInput = z.infer<typeof testNotificationSchema>;
 export type PushSubscriptionInput = z.infer<typeof pushSubscriptionSchema>;
+export type PushUnsubscribeInput = z.infer<typeof pushUnsubscribeSchema>;

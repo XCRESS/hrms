@@ -99,6 +99,7 @@ export const queryKeys = {
     all: () => ['office-locations'] as const,
     list: (params?: OfficeLocationQueryParams) => ['office-locations', 'list', params] as const,
     active: () => ['office-locations', 'active'] as const,
+    detail: (id: string) => ['office-locations', 'detail', id] as const,
   },
 
   // Dashboard

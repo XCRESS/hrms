@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../ui/toast';
-import axiosInstance from '../../lib/axios';
-import { CheckCircle, XCircle } from 'lucide-react';
 import useAuth from '../../hooks/authjwt';
 
 import {
@@ -18,6 +16,9 @@ import {
     useCreateOfficeLocation,
     useUpdateOfficeLocation,
     useDeleteOfficeLocation,
+    useRescheduleHrReport,
+    useTestHrReport,
+    useTestNotification,
 } from '../../hooks/queries';
 
 import SettingsLayout from './settings/SettingsLayout';
@@ -28,15 +29,13 @@ import NotificationSettings from './settings/NotificationSettings';
 import GeneralSettings from './settings/GeneralSettings';
 import GeofenceSettings from './settings/GeofenceSettings';
 import { SettingsFormData, OfficeFormData, GeofenceSettings as GeofenceSettingsType } from './settings/types';
-import { OfficeLocation } from '@/types';
+import { OfficeLocation, GlobalSettings } from '@/types';
 
 const SettingsPage: React.FC = () => {
     const user = useAuth();
     const { toast } = useToast();
     const [activeSection, setActiveSection] = useState('attendance');
     const [selectedDepartment, setSelectedDepartment] = useState('');
-    const [error, setError] = useState<string | null>(null);
-    const [message, setMessage] = useState<{ type: string; content: string }>({ type: '', content: '' });
     const [isTestingHrReport, setIsTestingHrReport] = useState(false);
     const [testingNotification, setTestingNotification] = useState(false);
     const [creatingLocation, setCreatingLocation] = useState(false);
@@ -135,22 +134,22 @@ const SettingsPage: React.FC = () => {
     const createOfficeLocationMutation = useCreateOfficeLocation();
     const updateOfficeLocationMutation = useUpdateOfficeLocation();
     const deleteOfficeLocationMutation = useDeleteOfficeLocation();
+    const rescheduleHrReportMutation = useRescheduleHrReport();
+    const testHrReportMutation = useTestHrReport();
+    const testNotificationMutation = useTestNotification();
 
     const loading = selectedDepartment ? departmentSettingsLoading : globalSettingsLoading;
     const saving = updateGlobalSettingsMutation.isPending || updateDepartmentSettingsMutation.isPending;
 
-    const resetMessages = () => {
-        setError(null);
-        setMessage({ type: '', content: '' });
-    };
 
     // Sync React Query data to formData
     useEffect(() => {
         const settingsData = selectedDepartment ? departmentSettingsData : globalSettingsData;
         if (!settingsData) return;
 
-        // Type assertion or safe access - simplified for migration
-        const response = settingsData as any;
+        // Department settings carry no notifications section; the optional
+        // chaining below falls back to defaults for whatever is absent.
+        const response = settingsData as Partial<GlobalSettings>;
 
         setFormData({
             attendance: {
@@ -364,13 +363,17 @@ const SettingsPage: React.FC = () => {
 
     // --- Save / Reset ---
     const handleSave = async () => {
-        resetMessages();
 
         try {
             if (selectedDepartment) {
+                // The department endpoint only accepts attendance + general.
+                // Sending notifications would be silently stripped by Zod.
                 await updateDepartmentSettingsMutation.mutateAsync({
                     departmentName: selectedDepartment,
-                    settings: formData
+                    settings: {
+                        attendance: formData.attendance,
+                        general: formData.general
+                    }
                 });
                 toast({
                     variant: "success",
@@ -380,11 +383,9 @@ const SettingsPage: React.FC = () => {
             } else {
                 await updateGlobalSettingsMutation.mutateAsync(formData);
 
-                // Reschedule cron job if daily HR attendance report settings changed
-                if (formData.notifications.dailyHrAttendanceReport?.enabled) {
-                    // Using loose type for axiosInstance call
-                    await axiosInstance.post('/api/settings/reschedule-daily-hr-attendance-report');
-                }
+                // Reschedule the cron job so enabled/sendTime changes take effect
+                // immediately. Runs on disable too, so the job is torn down.
+                await rescheduleHrReportMutation.mutateAsync();
 
                 toast({
                     variant: "success",
@@ -409,7 +410,6 @@ const SettingsPage: React.FC = () => {
 
     const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedDepartment(e.target.value);
-        resetMessages();
     };
 
     // --- Testing Handlers ---
@@ -425,58 +425,37 @@ const SettingsPage: React.FC = () => {
 
         setIsTestingHrReport(true);
         try {
-            await axiosInstance.post('/api/settings/test-daily-hr-attendance-report');
+            await testHrReportMutation.mutateAsync();
             toast({
                 variant: "success",
                 title: "Test Report Sent",
                 description: `Test report sent successfully to ${formData.notifications.hrEmails.length} HR email(s)!`
             });
-        } catch (error) {
-            console.error('Failed to send test HR report:', error);
-            toast({
-                variant: "destructive",
-                title: "Test Failed",
-                description: "Failed to send test report. Please try again."
-            });
+        } catch (err: any) {
+            handleError(err, "Test Failed");
         } finally {
             setIsTestingHrReport(false);
         }
     };
 
     const handleTestNotification = async () => {
-        setTestingNotification(true);
-        resetMessages();
-        const token = localStorage.getItem('authToken');
-
-        if (!token) {
-            toast({
-                variant: "destructive",
-                title: "Authentication Required",
-                description: "Please log in again to test notifications"
-            });
-            setTestingNotification(false);
-            return;
-        }
-
-        if (!user || (user.role !== 'admin' && user.role !== 'hr')) {
+        if (!canManageSettings) {
             toast({
                 variant: "destructive",
                 title: "Access Denied",
                 description: "Only admin and HR users can test notifications"
             });
-            setTestingNotification(false);
             return;
         }
 
-        try {
-            // Test all notification types
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { data: hrData } = await axiosInstance.post('/api/notifications/test', { type: 'hr' });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { data: milestoneData } = await axiosInstance.post('/api/notifications/test', { type: 'milestone' });
-            const { data: holidayData } = await axiosInstance.post('/api/notifications/test', { type: 'holiday' });
+        setTestingNotification(true);
 
-            const responseData = holidayData;
+        try {
+            // Exercise each notification type in turn; the last response carries
+            // the service-readiness details we report below.
+            await testNotificationMutation.mutateAsync('hr');
+            await testNotificationMutation.mutateAsync('milestone');
+            const responseData = await testNotificationMutation.mutateAsync('holiday');
 
             if (responseData && responseData.success) {
                 const { details } = responseData;
@@ -515,20 +494,17 @@ const SettingsPage: React.FC = () => {
     const openAddModal = () => {
         setShowAddDeptModal(true);
         setNewDeptName('');
-        resetMessages();
     };
 
     const openRenameModal = (dept: any) => {
         setSelectedDeptForAction(dept);
         setNewDeptName(dept.name);
         setShowRenameDeptModal(true);
-        resetMessages();
     };
 
     const openDeleteModal = (dept: any) => {
         setSelectedDeptForAction(dept);
         setShowDeleteDeptModal(true);
-        resetMessages();
     };
 
     const handleAddDepartment = async () => {
@@ -566,7 +542,7 @@ const SettingsPage: React.FC = () => {
             toast({
                 variant: "success",
                 title: "Department Deleted",
-                description: `Department deleted successfully! ${response.affectedEmployees || 0} employees updated.`
+                description: `Department deleted successfully! ${response?.affectedEmployees ?? 0} employees updated.`
             });
             setShowDeleteDeptModal(false);
             setSelectedDeptForAction(null);
@@ -616,7 +592,6 @@ const SettingsPage: React.FC = () => {
                         handleAddDepartment={handleAddDepartment}
                         handleRenameDepartment={handleRenameDepartment}
                         handleDeleteDepartment={handleDeleteDepartment}
-                        resetMessages={resetMessages}
                     />
                 );
             case 'notifications':
@@ -659,6 +634,7 @@ const SettingsPage: React.FC = () => {
                         onSave={handleSave}
                         onReset={handleReset}
                         loading={loading}
+                        officeLoading={officeLoading}
                         saving={saving}
                         creatingLocation={creatingLocation}
                     />
@@ -673,27 +649,6 @@ const SettingsPage: React.FC = () => {
             activeSection={activeSection}
             onSectionChange={setActiveSection}
         >
-            {/* Messages */}
-            {(error || message.content) && (
-                <div className="mb-6">
-                    {error && (
-                        <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
-                            <XCircle className="w-5 h-5" />
-                            <span>{error}</span>
-                        </div>
-                    )}
-                    {message.content && (
-                        <div className={`flex items-center gap-2 p-4 rounded-lg ${message.type === 'success'
-                                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                                : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                            }`}>
-                            <CheckCircle className="w-5 h-5" />
-                            <span>{message.content}</span>
-                        </div>
-                    )}
-                </div>
-            )}
-
             {renderContent()}
         </SettingsLayout>
     );

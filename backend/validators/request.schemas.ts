@@ -9,6 +9,9 @@ import {
   shortTextSchema,
   dateStringSchema,
   reviewDecisionSchema,
+  capturedAtSchema,
+  latitudeSchema,
+  longitudeSchema,
 } from './common.schemas.js';
 
 // ---------------------------------------------------------------------------
@@ -45,9 +48,15 @@ export const createWFHRequestSchema = z.object({
     .trim()
     .min(10, 'Please provide a detailed reason (at least 10 characters)')
     .max(500),
-  latitude: z.number().min(-90).max(90).nullish(),
-  longitude: z.number().min(-180).max(180).nullish(),
-  capturedAt: dateStringSchema,
+  latitude: latitudeSchema.nullish(),
+  longitude: longitudeSchema.nullish(),
+  /**
+   * Constrained to ~now, not merely parseable: the controller derives
+   * `requestDate` from this value, so an unbounded timestamp would let an
+   * employee file a WFH request against any day - sidestepping the
+   * one-active-request-per-date rule and backdating attendance.
+   */
+  capturedAt: capturedAtSchema,
 });
 
 export const reviewWFHRequestSchema = reviewDecisionSchema;

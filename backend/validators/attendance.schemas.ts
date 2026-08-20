@@ -1,30 +1,35 @@
 /**
  * Validation schemas for attendance endpoints.
  *
- * Coordinates stay deliberately permissive (`unknown`): the controllers hand
- * them to `parseCoordinates`, which owns coercion, the required/optional rule
- * and the user-facing error messages. Validating them here would duplicate
- * (and could contradict) that logic.
+ * Coordinates are validated and coerced here, not in the controller. Whether
+ * location is REQUIRED still depends on runtime settings (geofence enforcement
+ * and `locationSetting`), so that rule stays in the controller - but the shape,
+ * range and numeric coercion belong in the schema.
  */
 
 import { z } from 'zod';
-import { dateStringSchema } from './common.schemas.js';
+import {
+  accuracySchema,
+  capturedAtSchema,
+  dateStringSchema,
+  latitudeSchema,
+  longitudeSchema,
+} from './common.schemas.js';
 
-const coordinateInput = z.unknown().nullish();
+const locationFields = {
+  latitude: latitudeSchema.nullish(),
+  longitude: longitudeSchema.nullish(),
+  accuracy: accuracySchema.nullish(),
+  capturedAt: capturedAtSchema.nullish(),
+};
 
 export const checkInSchema = z.object({
-  latitude: coordinateInput,
-  longitude: coordinateInput,
-  accuracy: coordinateInput,
-  capturedAt: z.string().nullish(),
+  ...locationFields,
 });
 
 export const checkOutSchema = z.object({
   tasks: z.array(z.unknown()).nullish(),
-  latitude: coordinateInput,
-  longitude: coordinateInput,
-  accuracy: coordinateInput,
-  capturedAt: z.string().nullish(),
+  ...locationFields,
 });
 
 /**
