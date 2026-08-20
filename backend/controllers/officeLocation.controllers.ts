@@ -1,6 +1,10 @@
 import type { CreateOfficeLocationInput, UpdateOfficeLocationInput } from '../validators/content.schemas.js';
 import type { Response } from 'express';
-import OfficeLocation from '../models/OfficeLocation.model.js';
+import OfficeLocation, {
+  DEFAULT_GEOFENCE_RADIUS_METERS,
+  MIN_GEOFENCE_RADIUS_METERS,
+  MAX_GEOFENCE_RADIUS_METERS,
+} from '../models/OfficeLocation.model.js';
 import { formatResponse } from '../utils/attendance/attendanceHelpers.js';
 import { BusinessLogicError } from '../utils/attendance/attendanceErrorHandler.js';
 import { HTTP_STATUS } from '../utils/attendance/attendanceConstants.js';
@@ -12,7 +16,54 @@ import type { IAuthRequest } from '../types/index.js';
 const getDefaultRadius = async (): Promise<number> => {
   const effectiveSettings = await settingsService.getEffectiveSettings();
   const general = effectiveSettings.general as { geofence?: { defaultRadius?: number } } | undefined;
-  return general?.geofence?.defaultRadius || 100;
+  const configured = general?.geofence?.defaultRadius;
+  // `??` not `||`: a configured 0 should fail validation loudly rather than be
+  // silently replaced by the built-in default.
+  return typeof configured === 'number' ? configured : DEFAULT_GEOFENCE_RADIUS_METERS;
+};
+
+/** Shape of an OfficeLocation as returned by `.lean()` (virtuals stripped). */
+interface LeanOfficeLocation {
+  location?: { type?: string; coordinates?: number[] };
+  [key: string]: unknown;
+}
+
+/**
+ * Reject a radius outside the model's bounds with a 400 rather than letting it
+ * reach Mongoose, which would surface the same problem as an opaque 500.
+ */
+const assertRadiusInRange = (radius: number): void => {
+  if (
+    !Number.isFinite(radius) ||
+    radius < MIN_GEOFENCE_RADIUS_METERS ||
+    radius > MAX_GEOFENCE_RADIUS_METERS
+  ) {
+    throw new BusinessLogicError(
+      `Radius must be between ${MIN_GEOFENCE_RADIUS_METERS} and ${MAX_GEOFENCE_RADIUS_METERS} meters`,
+      { radius, min: MIN_GEOFENCE_RADIUS_METERS, max: MAX_GEOFENCE_RADIUS_METERS }
+    );
+  }
+};
+
+/**
+ * Restore the `coordinates` shape on a lean document.
+ *
+ * `.lean()` skips virtuals, and `coordinates` is now a virtual over the stored
+ * GeoJSON `location`. Without this the list endpoints would return `location`
+ * and every client reading `coordinates` would see undefined. Reads stay lean
+ * per the project convention; only the response shape is reassembled here.
+ */
+const serializeLocation = (doc: LeanOfficeLocation) => {
+  const { location, ...rest } = doc;
+  const point = location?.coordinates;
+  const hasPoint = Array.isArray(point) && point.length === 2;
+
+  return {
+    ...rest,
+    coordinates: hasPoint
+      ? { latitude: point[1], longitude: point[0] }
+      : null,
+  };
 };
 
 export const getOfficeLocations = async (req: IAuthRequest, res: Response): Promise<void> => {
@@ -22,12 +73,14 @@ export const getOfficeLocations = async (req: IAuthRequest, res: Response): Prom
       filter.isActive = req.query.active === 'true';
     }
 
-    const locations = await OfficeLocation.find(filter)
+    const locations = (await OfficeLocation.find(filter)
       .sort({ createdAt: -1 })
-      .lean();
+      .lean()) as unknown as LeanOfficeLocation[];
 
     res.json(
-      formatResponse(true, 'Office locations retrieved', { locations })
+      formatResponse(true, 'Office locations retrieved', {
+        locations: locations.map(serializeLocation)
+      })
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
@@ -44,13 +97,13 @@ export const getOfficeLocations = async (req: IAuthRequest, res: Response): Prom
 
 export const getActiveOfficeLocations = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const locations = await OfficeLocation.find({ isActive: true })
+    const locations = (await OfficeLocation.find({ isActive: true })
       .sort({ name: 1 })
-      .lean();
+      .lean()) as unknown as LeanOfficeLocation[];
 
     res.json(
       formatResponse(true, 'Active office locations retrieved', {
-        locations
+        locations: locations.map(serializeLocation)
       })
     );
   } catch (error) {
@@ -86,7 +139,10 @@ export const createOfficeLocation = async (req: IAuthRequest, res: Response): Pr
       });
     }
 
-    const effectiveRadius = radius || (await getDefaultRadius());
+    // `??` not `||`: an explicit radius of 0 is invalid input to reject below,
+    // not a signal to fall back to the configured default.
+    const effectiveRadius = radius ?? (await getDefaultRadius());
+    assertRadiusInRange(effectiveRadius);
 
     const location = await OfficeLocation.create({
       name,
@@ -96,6 +152,8 @@ export const createOfficeLocation = async (req: IAuthRequest, res: Response): Pr
       isActive,
       createdBy: req.user?._id
     });
+
+    GeofenceService.invalidateOfficeCache();
 
     res
       .status(HTTP_STATUS.CREATED)
@@ -124,41 +182,51 @@ export const updateOfficeLocation = async (req: IAuthRequest, res: Response): Pr
     const { locationId } = req.params;
     const updates = { ...(req.body as UpdateOfficeLocationInput) };
 
-    if (updates.latitude !== undefined || updates.longitude !== undefined) {
-      const lat = Number(
-        updates.latitude ?? updates.coordinates?.latitude
-      );
-      const lng = Number(
-        updates.longitude ?? updates.coordinates?.longitude
-      );
-      if (!GeofenceService.validateCoordinates(lat, lng)) {
+    // Also fires when only a nested `coordinates` object was sent - the schema
+    // permits that form, and it must not bypass coordinate validation.
+    const hasCoordinateUpdate =
+      updates.latitude !== undefined ||
+      updates.longitude !== undefined ||
+      updates.coordinates !== undefined;
+
+    if (hasCoordinateUpdate) {
+      const lat = updates.latitude ?? updates.coordinates?.latitude;
+      const lng = updates.longitude ?? updates.coordinates?.longitude;
+
+      // A half-supplied pair would otherwise coerce to NaN and be rejected with
+      // a misleading "invalid coordinates"; say what is actually wrong.
+      if (lat === undefined || lat === null || lng === undefined || lng === null) {
+        throw new BusinessLogicError(
+          'Both latitude and longitude must be provided when updating coordinates',
+          { latitude: lat ?? null, longitude: lng ?? null }
+        );
+      }
+
+      if (!GeofenceService.validateCoordinates(Number(lat), Number(lng))) {
         throw new BusinessLogicError('Invalid coordinates provided', {
-          latitude: updates.latitude,
-          longitude: updates.longitude
+          latitude: lat,
+          longitude: lng
         });
       }
+
       updates.coordinates = {
-        latitude: lat,
-        longitude: lng
+        latitude: Number(lat),
+        longitude: Number(lng)
       };
       delete updates.latitude;
       delete updates.longitude;
     }
 
-    if (updates.radius !== undefined) {
+    if (updates.radius !== undefined && updates.radius !== null) {
       updates.radius = Number(updates.radius);
-      if (isNaN(updates.radius) || updates.radius < 50) {
-        throw new BusinessLogicError('Radius must be at least 50 meters', {
-          radius: updates.radius
-        });
-      }
+      assertRadiusInRange(updates.radius);
     }
 
-    const location = await OfficeLocation.findByIdAndUpdate(
-      locationId,
-      updates,
-      { new: true, runValidators: true }
-    );
+    // Load-and-save rather than findByIdAndUpdate: `coordinates` is a virtual
+    // over the stored GeoJSON, and query-level updates bypass virtual setters -
+    // the update would persist a stray `coordinates` field and leave the real
+    // `location` point untouched.
+    const location = await OfficeLocation.findById(locationId);
 
     if (!location) {
       res
@@ -170,6 +238,22 @@ export const updateOfficeLocation = async (req: IAuthRequest, res: Response): Pr
         );
       return;
     }
+
+    const { coordinates, ...scalarUpdates } = updates;
+
+    for (const [key, value] of Object.entries(scalarUpdates)) {
+      if (value !== undefined) {
+        location.set(key, value);
+      }
+    }
+
+    if (coordinates) {
+      location.set('coordinates', coordinates);
+    }
+
+    await location.save();
+
+    GeofenceService.invalidateOfficeCache();
 
     res.json(formatResponse(true, 'Office location updated', { location }));
   } catch (error) {
@@ -206,6 +290,8 @@ export const deleteOfficeLocation = async (req: IAuthRequest, res: Response): Pr
         );
       return;
     }
+
+    GeofenceService.invalidateOfficeCache();
 
     res.json(
       formatResponse(true, 'Office location removed', {

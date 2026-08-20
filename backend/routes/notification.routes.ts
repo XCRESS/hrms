@@ -1,6 +1,6 @@
 import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { testNotificationSchema, pushSubscriptionSchema } from "../validators/content.schemas.js";
-import type { TestNotificationInput, PushSubscriptionInput } from "../validators/content.schemas.js";
+import { testNotificationSchema, pushSubscriptionSchema, pushUnsubscribeSchema } from "../validators/content.schemas.js";
+import type { TestNotificationInput, PushSubscriptionInput, PushUnsubscribeInput } from "../validators/content.schemas.js";
 import express, { type Router, type Response } from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import NotificationService from "../services/notificationService.js";
@@ -117,7 +117,7 @@ router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), validateB
       return;
     }
 
-    PushService.addSubscription(userId, subscription);
+    await PushService.addSubscription(userId, subscription);
 
     res.json({
       success: true,
@@ -137,8 +137,9 @@ router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), validateB
 });
 
 // Unsubscribe from push notifications
-router.post('/unsubscribe', authMiddleware(['admin', 'hr', 'employee']), async (req: IAuthRequest, res: Response) => {
+router.post('/unsubscribe', authMiddleware(['admin', 'hr', 'employee']), validateBody(pushUnsubscribeSchema), async (req: IAuthRequest, res: Response) => {
   try {
+    const { endpoint } = req.body as PushUnsubscribeInput;
     const userId = req.user?._id?.toString();
 
     if (!userId) {
@@ -149,7 +150,7 @@ router.post('/unsubscribe', authMiddleware(['admin', 'hr', 'employee']), async (
       return;
     }
 
-    PushService.removeSubscription(userId);
+    await PushService.removeSubscription(userId, endpoint ?? undefined);
     
     res.json({
       success: true,

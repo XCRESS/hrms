@@ -111,8 +111,11 @@ const connectToMongoDB = async (): Promise<void> => {
   }
 };
 
-// Initial connection attempt
-connectToMongoDB();
+// Initial connection attempt. Awaited before app.listen() below, because the
+// listen callback schedules cron jobs that read Settings from Mongo — if the
+// connection is still pending, those reads sit in mongoose's buffer and throw
+// after bufferTimeoutMS, silently leaving the daily HR report unscheduled.
+const mongoReady = connectToMongoDB();
 
 // Connection event listeners with Pino logging
 mongoose.connection.on('error', (err) => {
@@ -156,6 +159,7 @@ import tetrisRoutes from "./features/tetris/tetris.routes.js";
 // Notification Services
 import NotificationService from "./services/notificationService.js";
 import SchedulerService from "./services/schedulerService.js";
+import GeofenceService from "./services/GeofenceService.js";
 
 // API health check endpoint
 app.get('/api', (req: Request, res: Response) => {
@@ -210,6 +214,10 @@ const initializeNotificationSystem = async (): Promise<void> => {
   try {
     logger.info('Initializing notification system...');
 
+    // Mongo must be connected first: scheduleDailyHrAttendanceReport() reads
+    // Settings to build its cron expression.
+    await mongoReady;
+
     // Initialize notification services
     await NotificationService.initialize();
 
@@ -230,6 +238,12 @@ const initializeNotificationSystem = async (): Promise<void> => {
 const server = app.listen(PORT, async () => {
   logger.info(`HRMS Server running on port ${PORT}`);
   logger.info(`API Base URL: http://localhost:${PORT}/api`);
+
+  // Build the OfficeLocation 2dsphere index up front rather than letting the
+  // first geofenced check-in race its creation.
+  mongoReady
+    .then(() => GeofenceService.ensureIndexes())
+    .catch((err) => logger.warn({ err }, 'Skipped geospatial index sync'));
 
   // Initialize notification system after server starts
   await initializeNotificationSystem();

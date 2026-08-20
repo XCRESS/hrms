@@ -14,6 +14,8 @@ interface GeofenceSettingsProps {
     onSave: () => void;
     onReset: () => void;
     loading: boolean;
+    /** Office locations are fetched separately from the settings document. */
+    officeLoading?: boolean;
     saving: boolean;
     creatingLocation: boolean;
 }
@@ -28,6 +30,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
     onSave,
     onReset,
     loading,
+    officeLoading = false,
     saving,
     creatingLocation
 }) => {
@@ -282,7 +285,9 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                         <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Saved Office Locations</h3>
                         <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{officeLocations.length} location{officeLocations.length !== 1 ? 's' : ''}</span>
                     </div>
-                    {officeLocations.length === 0 ? (
+                    {officeLoading ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Loading office locations...</p>
+                    ) : officeLocations.length === 0 ? (
                         <p className="text-sm text-slate-500 dark:text-slate-400">No office locations configured yet.</p>
                     ) : (
                         <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">

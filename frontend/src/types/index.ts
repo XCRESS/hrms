@@ -468,63 +468,136 @@ export interface Policy {
 // SETTINGS
 // ============================================================================
 
+/**
+ * Settings sections. These mirror backend/models/Settings.model.ts and the
+ * Zod schemas in backend/validators/settings.schemas.ts. Every field is
+ * optional because updates are PATCH-style partials that the server
+ * deep-merges into the stored document.
+ */
+export interface AttendanceSettingsSection {
+  lateThreshold?: string;
+  workStartTime?: string;
+  workEndTime?: string;
+  halfDayEndTime?: string;
+  minimumWorkHours?: number;
+  fullDayHours?: number;
+  workingDays?: number[];
+  nonWorkingDays?: number[];
+  saturdayWorkType?: 'full' | 'half';
+  saturdayHolidays?: number[];
+}
+
+export interface GeneralSettingsSection {
+  locationSetting?: 'na' | 'optional' | 'mandatory';
+  taskReportSetting?: 'na' | 'optional' | 'mandatory';
+  geofence?: {
+    enabled?: boolean;
+    enforceCheckIn?: boolean;
+    enforceCheckOut?: boolean;
+    defaultRadius?: number;
+    allowWFHBypass?: boolean;
+  };
+}
+
+export interface NotificationSettingsSection {
+  hrEmails?: string[];
+  emailEnabled?: boolean;
+  pushEnabled?: boolean;
+  hrEmailTypes?: {
+    leaveRequests?: boolean;
+    wfhRequests?: boolean;
+    regularizationRequests?: boolean;
+    helpRequests?: boolean;
+    employeeMilestones?: boolean;
+    expenseRequests?: boolean;
+  };
+  holidayReminderEnabled?: boolean;
+  holidayReminderDays?: number;
+  milestoneAlertsEnabled?: boolean;
+  milestoneTypes?: {
+    threeMonths?: boolean;
+    sixMonths?: boolean;
+    oneYear?: boolean;
+  };
+  dailyHrAttendanceReport?: {
+    enabled?: boolean;
+    sendTime?: string;
+    includeAbsentees?: boolean;
+    subjectLine?: string;
+  };
+}
+
 export interface GlobalSettings {
   _id: string;
-  companyName: string;
-  companyLogo?: string;
-  workingHours: {
-    start: string;
-    end: string;
-  };
-  checkInGracePeriod: number;
-  halfDayThreshold: number;
-  weekendDays: number[];
-  timezone: string;
-  general?: {
-    locationSetting?: string;
-    geofence?: {
-      enabled?: boolean;
-      enforceCheckIn?: boolean;
-      enforceCheckOut?: boolean;
-      allowWFHBypass?: boolean;
-      message?: string;
-    };
-    taskReportSetting?: string;
-  };
-  attendance?: {
-    nonWorkingDays?: number[];
-    workingDays?: number[];
-    saturdayHolidays?: number[];
-    workStartTime?: string;
-    workEndTime?: string;
-    halfDayEndTime?: string;
-  };
+  scope: 'global' | 'department';
+  attendance?: AttendanceSettingsSection;
+  notifications?: NotificationSettingsSection;
+  general?: GeneralSettingsSection;
+  lastUpdatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+/**
+ * Department-scoped settings. The API accepts only attendance + general here;
+ * notifications are global-only.
+ */
 export interface DepartmentSettings {
   _id: string;
+  scope: 'department';
   department: string;
-  workingHours?: {
-    start: string;
-    end: string;
-  };
-  checkInGracePeriod?: number;
-  halfDayThreshold?: number;
-  employees?: string[];
+  attendance?: AttendanceSettingsSection;
+  general?: GeneralSettingsSection;
+  lastUpdatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface EffectiveSettings extends GlobalSettings {
+/**
+ * Merged department-over-global result. Employees receive a reduced payload:
+ * attendance plus the two general flags, with notifications withheld.
+ */
+export interface EffectiveSettings {
+  attendance?: AttendanceSettingsSection;
+  general?: GeneralSettingsSection;
+  notifications?: NotificationSettingsSection;
+  scope?: 'global' | 'department';
+  department?: string;
+}
+
+/** Employee subset projected by the department-stats endpoint. */
+export interface DepartmentEmployee {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  employeeId: string;
+  email: string;
+  joiningDate?: string;
   department?: string;
 }
 
 export interface DepartmentStats {
-  department: string;
+  _id: string;
+  name: string;
+  isActive: boolean;
   employeeCount: number;
-  hasCustomSettings: boolean;
+  employees: DepartmentEmployee[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload of GET /settings/departments/:name/employees */
+export interface AvailableEmployeesData {
+  departmentName: string;
+  employeesInDepartment: DepartmentEmployee[];
+  employeesInOtherDepartments: DepartmentEmployee[];
+  employeesWithoutDepartment: DepartmentEmployee[];
+  totals: {
+    inDepartment: number;
+    inOtherDepartments: number;
+    withoutDepartment: number;
+    total: number;
+  };
 }
 
 export interface AttendanceRangeData {
@@ -951,14 +1024,17 @@ export interface CreateAnnouncementDto {
 export interface UpdateAnnouncementDto extends Partial<CreateAnnouncementDto> { }
 
 // Office Location DTOs
+/**
+ * Matches createOfficeLocationSchema on the backend, which takes flat
+ * latitude/longitude - not a nested `coordinates` object. The model stores
+ * them nested; the API does not accept them that way on create.
+ */
 export interface CreateOfficeLocationDto {
   name: string;
-  address: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
-  radius: number;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  radius?: number;
   isActive?: boolean;
 }
 

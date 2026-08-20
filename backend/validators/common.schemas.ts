@@ -37,10 +37,42 @@ export const panSchema = z
 export const dateSchema = z.coerce.date();
 
 // Coordinates validation
+export const latitudeSchema = z.coerce.number().min(-90).max(90);
+export const longitudeSchema = z.coerce.number().min(-180).max(180);
+
+/** GPS accuracy radius in meters, as reported by the Geolocation API. */
+export const accuracySchema = z.coerce.number().min(0).max(1_000_000);
+
 export const coordinatesSchema = z.object({
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
 });
+
+/**
+ * How far a client-supplied capture timestamp may sit from server time.
+ *
+ * `capturedAt` decides which business day an attendance or WFH record lands on,
+ * so an unbounded value lets a client backdate or postdate a record at will.
+ * The window absorbs ordinary clock skew and the seconds between acquiring a
+ * GPS fix and the request landing - nothing more.
+ */
+export const CAPTURED_AT_MAX_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * An ISO timestamp captured on the client, constrained to roughly "now".
+ *
+ * Rejects unparseable values and anything outside CAPTURED_AT_MAX_SKEW_MS in
+ * either direction. Callers that treat the field as optional should append
+ * `.nullish()`.
+ */
+export const capturedAtSchema = z
+  .string()
+  .min(1, 'Capture time is required')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid capture time')
+  .refine((value) => {
+    const skew = Math.abs(Date.parse(value) - Date.now());
+    return skew <= CAPTURED_AT_MAX_SKEW_MS;
+  }, 'Capture time is too far from the current time');
 
 // Pagination schema
 export const paginationSchema = z.object({

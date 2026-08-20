@@ -43,6 +43,63 @@ interface HeadingOptions {
 
 const APP_URL = process.env.APP_URL || 'https://hr.intakesense.com';
 
+// ---------------------------------------------------------------------------
+// Send retry policy
+// ---------------------------------------------------------------------------
+
+/**
+ * Resend returns errors as a value (`{ data, error }`) rather than throwing, so
+ * we wrap it to carry the original payload through the retry loop and out to
+ * callers, who previously received a stringified Error.
+ */
+class ResendSendError extends Error {
+  readonly resendError: unknown;
+  readonly statusCode: number | null;
+
+  constructor(resendError: unknown) {
+    super(`Email sending failed: ${JSON.stringify(resendError)}`);
+    this.name = 'ResendSendError';
+    this.resendError = resendError;
+    const code = (resendError as { statusCode?: unknown } | null)?.statusCode;
+    this.statusCode = typeof code === 'number' ? code : null;
+  }
+}
+
+const SEND_MAX_ATTEMPTS = 3;
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * 200ms then 600ms, each with up to 100ms of jitter. Combined with the 1000ms
+ * gap callers already leave between recipients, three attempts stay inside
+ * Resend's 2 req/sec limit.
+ */
+const retryBackoffMs = (attempt: number): number =>
+  200 * Math.pow(3, attempt - 1) + Math.floor(Math.random() * 100);
+
+/**
+ * Retry only failures that a second attempt could plausibly fix.
+ *
+ * A null/absent statusCode means the HTTP request never got a response at all —
+ * DNS or TLS failed. That is the case this policy exists for: on 2026-08-20 the
+ * first recipient of the daily HR report died this way at 19:00:00.934 IST while
+ * the same process reached the same host successfully 16 seconds later, so the
+ * whole day's report was lost to a cold-connection blip.
+ *
+ * Deliberately NOT retried: 401/403 (bad key) and 422 (bad payload) fail
+ * identically on every attempt, and 429 needs the caller's rate-limit pacing
+ * rather than a tighter loop.
+ */
+const isRetryableSendError = (error: unknown): boolean => {
+  if (error instanceof ResendSendError) {
+    if (error.statusCode === null) return true;
+    return error.statusCode >= 500;
+  }
+  // A thrown exception (undici network error, abort, socket hang up) never made
+  // it to a response either.
+  return error instanceof Error;
+};
+
 /**
  * Design tokens. Kept flat and literal so every value that lands in an inline
  * style is greppable — email clients strip <style> rules we cannot inline.
@@ -117,26 +174,52 @@ class EmailService {
       throw new Error('Email service not initialized');
     }
 
-    try {
-      const { data, error } = await this.resend.emails.send({
-        from: process.env.EMAIL_FROM || 'HRMS System <onboarding@resend.dev>',
-        to: [to],
-        subject,
-        html: htmlContent
-      });
+    let lastError: unknown;
 
-      if (error) {
-        logger.error({ error }, `Failed to send email to ${to}`);
-        throw new Error(`Email sending failed: ${JSON.stringify(error)}`);
+    for (let attempt = 1; attempt <= SEND_MAX_ATTEMPTS; attempt++) {
+      try {
+        const { data, error } = await this.resend.emails.send({
+          from: process.env.EMAIL_FROM || 'HRMS System <onboarding@resend.dev>',
+          to: [to],
+          subject,
+          html: htmlContent
+        });
+
+        if (error) {
+          throw new ResendSendError(error);
+        }
+
+        if (attempt > 1) {
+          logger.info(`Email to ${to} succeeded on attempt ${attempt}/${SEND_MAX_ATTEMPTS}`);
+        }
+        logger.info(`Email sent to ${to} via Resend: ${data?.id}`);
+        return { data, error };
+      } catch (error) {
+        lastError = error;
+
+        const retryable = isRetryableSendError(error);
+        const attemptsLeft = attempt < SEND_MAX_ATTEMPTS;
+
+        if (!retryable || !attemptsLeft) {
+          logger.error(
+            { err: error, attempt, retryable },
+            `Failed to send email to ${to}`
+          );
+          break;
+        }
+
+        const delay = retryBackoffMs(attempt);
+        logger.warn(
+          { err: error, attempt, nextRetryInMs: delay },
+          `Transient failure sending email to ${to} - retrying (${attempt}/${SEND_MAX_ATTEMPTS})`
+        );
+        await sleep(delay);
       }
-
-      logger.info(`Email sent to ${to} via Resend: ${data?.id}`);
-      return { data, error };
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, `Failed to send email to ${to}`);
-      throw error;
     }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`Email sending failed: ${JSON.stringify(lastError)}`);
   }
 
   async sendToMultiple(emails: string[], subject: string, htmlContent: string): Promise<EmailBatchResult[]> {
@@ -279,11 +362,15 @@ class EmailService {
 
     @media only screen and (max-width: 620px) {
       .shell { padding: 0 !important; }
-      .card { border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; }
+      .card { width: 100% !important; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; }
       .px { padding-left: 24px !important; padding-right: 24px !important; }
       .title { font-size: 20px !important; }
       .stack { display: block !important; width: 100% !important; text-align: left !important; padding-left: 0 !important; }
       .stack-value { text-align: left !important; padding-top: 2px !important; }
+      /* KPI row stays 3-up on mobile — only the numeral shrinks. It must NOT
+         use .stack, which would break each stat onto its own line. */
+      .stat-value { font-size: 22px !important; }
+      .rpt-cell { font-size: 12px !important; }
     }
   </style>
 </head>
@@ -731,16 +818,33 @@ class EmailService {
           absentEmployees: Array<{ name: string }>;
         }>) || [];
 
-        const stat = (label: string, value: number, color: string) => `
-          <td class="stack" width="33%" style="padding: 0 12px 0 0; vertical-align: top;">
-            <p style="margin: 0; font-family: ${T.mono}; font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; color: ${color};">${value}</p>
-            <p style="margin: 6px 0 0; font-family: ${T.font}; font-size: 12px; color: ${T.muted};">${label}</p>
+        // Column widths are declared on both the <th> and the table so that
+        // `table-layout: fixed` has something to work with. Without fixed
+        // layout the name column overflows into the time columns on narrow
+        // screens ("Noor Jahan Khatoon09:34").
+        const COL = { name: '46%', time: '27%' } as const;
+
+        // Three-up KPI row. Deliberately not `class="stack"` — that rule is for
+        // the two-column info card and would drop each stat onto its own line.
+        const stat = (label: string, value: number, color: string, last = false) => `
+          <td width="33%" style="width: 33%; padding: 0 ${last ? '0' : '12px'} 0 0; vertical-align: top;">
+            <p class="stat-value" style="margin: 0; font-family: ${T.font}; font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; color: ${color};">${value}</p>
+            <p style="margin: 6px 0 0; font-family: ${T.font}; font-size: 12px; line-height: 1.4; color: ${T.muted};">${label}</p>
           </td>
         `;
 
-        const th = (label: string, align = 'left') => `
-          <th align="${align}" style="padding: 0 0 8px; border-bottom: 1px solid ${T.border}; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: ${T.muted}; text-align: ${align};">${label}</th>
+        const th = (label: string, width: string, align = 'left') => `
+          <th width="${width}" align="${align}" style="width: ${width}; padding: 0 ${align === 'left' ? '8px' : '0'} 8px 0; border-bottom: 1px solid ${T.border}; font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: ${T.muted}; text-align: ${align}; white-space: nowrap;">${label}</th>
         `;
+
+        // `width` as an attribute alone is dropped by some mobile clients, which
+        // collapses these to content width — hence the inline style as well.
+        // The trailing margin separates a table from whatever follows it inside
+        // the group; the last table in a group leaves it off so the section
+        // divider keeps its own rhythm.
+        const tableStyle = (gap: boolean) => `width: 100%; table-layout: fixed; margin: 0 0 ${gap ? '20px' : '0'};`;
+        const nameCell = `padding: 9px 8px 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; line-height: 1.4; color: ${T.ink}; word-break: break-word;`;
+        const timeCell = `padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 12px; line-height: 1.4; text-align: right; white-space: nowrap;`;
 
         const sections = officeGroups.map(group => `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 0; border-top: 1px solid ${T.border};">
@@ -751,26 +855,26 @@ class EmailService {
 
                 ${group.presentEmployees.length > 0 ? `
                 <p style="margin: 0 0 10px; font-family: ${T.font}; font-size: 13px; font-weight: 500; color: ${T.body};">Present &middot; ${group.presentEmployees.length}</p>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${tableStyle(group.absentEmployees.length > 0)}">
                   <tr>
-                    ${th('Name')}${th('In', 'right')}${th('Out', 'right')}
+                    ${th('Name', COL.name)}${th('In', COL.time, 'right')}${th('Out', COL.time, 'right')}
                   </tr>
                   ${group.presentEmployees.map(emp => `
                   <tr>
-                    <td style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; color: ${T.ink};">${emp.name}</td>
-                    <td align="right" style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.mono}; font-size: 12px; color: ${T.body}; text-align: right;">${emp.checkIn || '—'}</td>
-                    <td align="right" style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.mono}; font-size: 12px; color: ${emp.checkOut ? T.body : TONES.warning.text}; text-align: right;">${emp.checkOut || 'Open'}</td>
+                    <td class="rpt-cell" style="${nameCell}">${emp.name}</td>
+                    <td class="rpt-cell" align="right" style="${timeCell} color: ${T.body};">${emp.checkIn || '&mdash;'}</td>
+                    <td class="rpt-cell" align="right" style="${timeCell} color: ${emp.checkOut ? T.body : TONES.warning.text};">${emp.checkOut || 'Open'}</td>
                   </tr>`).join('')}
                 </table>` : `
                 <p style="margin: 0 0 20px; font-family: ${T.font}; font-size: 13px; color: ${T.muted};">No employees marked present.</p>`}
 
                 ${group.absentEmployees.length > 0 ? `
                 <p style="margin: 0 0 10px; font-family: ${T.font}; font-size: 13px; font-weight: 500; color: ${T.body};">Absent &middot; ${group.absentEmployees.length}</p>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                  <tr>${th('Name')}</tr>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${tableStyle(false)}">
+                  <tr>${th('Name', '100%')}</tr>
                   ${group.absentEmployees.map(emp => `
                   <tr>
-                    <td style="padding: 9px 0; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; color: ${T.ink};">${emp.name}</td>
+                    <td class="rpt-cell" style="${nameCell}">${emp.name}</td>
                   </tr>`).join('')}
                 </table>` : ''}
               </td>
@@ -787,11 +891,11 @@ class EmailService {
               lede: data.reportDateFormatted as string
             })}
 
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; table-layout: fixed; margin: 28px 0 0;">
               <tr>
                 ${stat('Employees', data.totalEmployees as number, T.ink)}
                 ${stat('Present', data.totalPresent as number, TONES.positive.text)}
-                ${stat('Absent', data.totalAbsent as number, (data.totalAbsent as number) > 0 ? TONES.negative.text : T.faint)}
+                ${stat('Absent', data.totalAbsent as number, (data.totalAbsent as number) > 0 ? TONES.negative.text : T.faint, true)}
               </tr>
             </table>
 

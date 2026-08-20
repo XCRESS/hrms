@@ -365,7 +365,7 @@ class NotificationService {
    */
   async sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
     try {
-      await axiosInstance.post('/notifications/subscribe', subscription);
+      await axiosInstance.post('/notifications/subscribe', { subscription });
       logger.log('Subscription sent to backend successfully');
     } catch (error) {
       logger.error('Failed to send subscription to backend:', error);
@@ -402,7 +402,17 @@ class NotificationService {
     try {
       const subscription = await this.registration.pushManager.getSubscription();
       if (subscription) {
+        // Tell the backend first, while we still have the endpoint — otherwise
+        // the row survives and we keep pushing to a dead endpoint until it 410s.
+        const { endpoint } = subscription;
         await subscription.unsubscribe();
+
+        try {
+          await axiosInstance.post('/notifications/unsubscribe', { endpoint });
+        } catch (error) {
+          logger.error('Failed to remove subscription on backend:', error);
+        }
+
         logger.log('Unsubscribed from push notifications');
         return true;
       }

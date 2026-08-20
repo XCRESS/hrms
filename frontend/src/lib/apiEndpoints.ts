@@ -42,6 +42,7 @@ export const API_ENDPOINTS = {
   OFFICE_LOCATIONS: {
     BASE: '/office-locations',
     ACTIVE: '/office-locations/active',
+    CREATE: '/office-locations',
     UPDATE: (id: string) => `/office-locations/${encodeURIComponent(id)}`,
     DELETE: (id: string) => `/office-locations/${encodeURIComponent(id)}`,
   },
@@ -215,6 +216,9 @@ export const API_ENDPOINTS = {
     ADD_DEPARTMENT: '/settings/departments',
     RENAME_DEPARTMENT: (oldName: string) => `/settings/departments/${encodeURIComponent(oldName)}/rename`,
     DELETE_DEPARTMENT: (name: string) => `/settings/departments/${encodeURIComponent(name)}`,
+    DEPARTMENT_EMPLOYEES: (name: string) => `/settings/departments/${encodeURIComponent(name)}/employees`,
+    RESCHEDULE_HR_REPORT: '/settings/daily-hr-attendance-report/reschedule',
+    TEST_HR_REPORT: '/settings/daily-hr-attendance-report/test',
   },
 
   // Notifications

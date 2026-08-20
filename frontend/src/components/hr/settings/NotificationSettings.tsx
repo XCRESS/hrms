@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TestTube, Send, Save, RotateCcw, XCircle, CheckCircle } from 'lucide-react';
+import React from 'react';
+import { TestTube, Send, Save, RotateCcw } from 'lucide-react';
 import { NotificationSettingsData } from './types';
 
 interface NotificationSettingsProps {

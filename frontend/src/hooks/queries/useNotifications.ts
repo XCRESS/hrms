@@ -53,7 +53,7 @@ export const useSubscribeNotifications = () => {
     mutationFn: async (subscription: PushSubscription) => {
       const { data } = await axiosInstance.post<ApiResponse>(
         API_ENDPOINTS.NOTIFICATIONS.SUBSCRIBE,
-        subscription
+        { subscription }
       );
       return data;
     },
@@ -83,12 +83,29 @@ export const useUnsubscribeNotifications = () => {
 };
 
 /**
- * Test notification (Admin only)
+ * Test notification (Admin/HR only).
+ * `type` must be one of: hr, all, milestone, holiday — matching testNotificationSchema.
  */
+export type NotificationTestType = 'hr' | 'all' | 'milestone' | 'holiday';
+
+/**
+ * The test route returns `details` at the top level of the envelope,
+ * alongside success/message - not nested under `data`.
+ */
+export interface TestNotificationResponse extends ApiResponse {
+  details?: {
+    emailReady?: boolean;
+    pushReady?: boolean;
+  };
+}
+
 export const useTestNotification = () => {
   return useMutation({
-    mutationFn: async (message: string) => {
-      const { data } = await axiosInstance.post<ApiResponse>(API_ENDPOINTS.NOTIFICATIONS.TEST, { message });
+    mutationFn: async (type: NotificationTestType) => {
+      const { data } = await axiosInstance.post<TestNotificationResponse>(
+        API_ENDPOINTS.NOTIFICATIONS.TEST,
+        { type }
+      );
       return data;
     },
   });

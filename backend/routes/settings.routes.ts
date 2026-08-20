@@ -1,5 +1,5 @@
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { updateGlobalSettingsSchema, updateDepartmentSettingsSchema, createDepartmentSchema, renameDepartmentSchema, assignEmployeeToDepartmentSchema } from "../validators/settings.schemas.js";
+import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
+import { updateGlobalSettingsSchema, updateDepartmentSettingsSchema, createDepartmentSchema, renameDepartmentSchema, assignEmployeeToDepartmentSchema, getEffectiveSettingsQuerySchema } from "../validators/settings.schemas.js";
 import { Router } from "express";
 import {
   getGlobalSettings,
@@ -32,7 +32,7 @@ router.put("/department/:department", authMiddleware(["admin", "hr"]), validateB
 router.delete("/department/:department", authMiddleware(["admin", "hr"]), deleteDepartmentSettings);
 
 // Effective settings (merged department + global) - can be used by all roles
-router.get("/effective", authMiddleware(["admin", "hr", "employee"]), getEffectiveSettings);
+router.get("/effective", authMiddleware(["admin", "hr", "employee"]), validateQuery(getEffectiveSettingsQuerySchema), getEffectiveSettings);
 
 // Utility routes
 router.get("/departments/list", authMiddleware(["admin", "hr"]), getDepartments);

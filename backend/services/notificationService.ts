@@ -1,5 +1,6 @@
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
+import User from '../models/User.model.js';
 import EmailService from './emailService.js';
 import PushService from './pushService.js';
 import logger from '../utils/logger.js';
@@ -79,7 +80,7 @@ class NotificationService {
       }
 
       if (settings.notifications.pushEnabled) {
-        const hrSubscriptions = PushService.getHRSubscriptions();
+        const hrSubscriptions = await PushService.getHRSubscriptions();
         if (hrSubscriptions.length > 0) {
           promises.push(
             PushService.sendNotification(type, data, hrSubscriptions)
@@ -126,7 +127,7 @@ class NotificationService {
       }
 
       if (settings.notifications.pushEnabled) {
-        const allSubscriptions = PushService.getAllSubscriptions();
+        const allSubscriptions = await PushService.getAllSubscriptions();
         if (allSubscriptions.length > 0) {
           promises.push(
             PushService.sendNotification(type, data, allSubscriptions)
@@ -170,10 +171,17 @@ class NotificationService {
       }
 
       if (settings.notifications.pushEnabled) {
-        const allSubscriptions = PushService.getAllSubscriptions();
-        if (allSubscriptions.length > 0) {
+        // Only this employee's own devices. This used to fan out to every
+        // stored subscription, so one person's leave decision would have been
+        // pushed to the whole company once delivery actually worked.
+        const user = await User.findOne({ employeeId, isActive: true }).select('_id').lean();
+        const subscriptions = user
+          ? await PushService.getSubscriptionsForUser(user._id.toString())
+          : [];
+
+        if (subscriptions.length > 0) {
           promises.push(
-            PushService.sendNotification(type, data, allSubscriptions)
+            PushService.sendNotification(type, data, subscriptions)
               .catch((error: unknown) => {
                 const err = error instanceof Error ? error : new Error('Unknown error');
                 logger.error({ err }, 'Push notification failed');
