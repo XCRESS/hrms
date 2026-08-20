@@ -1,61 +1,44 @@
 import React, { useState } from 'react';
 import { Building2, Plus, Edit2, Trash2, UserCheck, Eye, Users, AlertTriangle } from 'lucide-react';
-import { useAvailableEmployees, useAssignEmployeeToDepartment } from '@/hooks/queries';
+import {
+  useAvailableEmployees,
+  useAssignEmployeeToDepartment,
+  useDepartmentStats,
+  useAddDepartment,
+  useRenameDepartment,
+  useDeleteDepartment,
+} from '@/hooks/queries';
+import { useToast } from '../../ui/toast';
 import type { DepartmentEmployee, DepartmentStats as DepartmentStat } from '@/types';
 
 interface DepartmentManagementProps {
-  departmentStats: DepartmentStat[];
-  loadingDeptStats: boolean;
-  expandedDept: string | null;
-  setExpandedDept: (deptName: string | null) => void;
-  openAddModal: () => void;
-  openRenameModal: (dept: DepartmentStat) => void;
-  openDeleteModal: (dept: DepartmentStat) => void;
-  showAddDeptModal: boolean;
-  showRenameDeptModal: boolean;
-  showDeleteDeptModal: boolean;
-  setShowAddDeptModal: (show: boolean) => void;
-  setShowRenameDeptModal: (show: boolean) => void;
-  setShowDeleteDeptModal: (show: boolean) => void;
-  newDeptName: string;
-  setNewDeptName: (name: string) => void;
-  selectedDeptForAction: DepartmentStat | null;
-  setSelectedDeptForAction: (dept: DepartmentStat | null) => void;
-  handleAddDepartment: () => void;
-  handleRenameDepartment: () => void;
-  handleDeleteDepartment: () => void;
-  fetchDepartmentStats?: () => Promise<void>;
-  fetchDepartments?: () => Promise<void>;
+  /** Gate the stats query on tab visibility. */
+  enabled: boolean;
+  /** Called when a rename/delete changes the currently selected scope. */
+  onDepartmentRenamed?: (oldName: string, newName: string) => void;
+  onDepartmentDeleted?: (name: string) => void;
 }
 
 const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
-  departmentStats,
-  loadingDeptStats,
-  expandedDept,
-  setExpandedDept,
-  openAddModal,
-  openRenameModal,
-  openDeleteModal,
-  showAddDeptModal,
-  showRenameDeptModal,
-  showDeleteDeptModal,
-  setShowAddDeptModal,
-  setShowRenameDeptModal,
-  setShowDeleteDeptModal,
-  newDeptName,
-  setNewDeptName,
-  selectedDeptForAction,
-  setSelectedDeptForAction,
-  handleAddDepartment,
-  handleRenameDepartment,
-  handleDeleteDepartment,
-  fetchDepartmentStats,
-  fetchDepartments
+  enabled,
+  onDepartmentRenamed,
+  onDepartmentDeleted,
 }) => {
+  const { toast } = useToast();
+
+  const [expandedDept, setExpandedDept] = useState<string | null>(null);
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+  const [showRenameDeptModal, setShowRenameDeptModal] = useState(false);
+  const [showDeleteDeptModal, setShowDeleteDeptModal] = useState(false);
+  const [selectedDeptForAction, setSelectedDeptForAction] = useState<DepartmentStat | null>(null);
+  const [newDeptName, setNewDeptName] = useState('');
+
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [selectedDeptForEmployees, setSelectedDeptForEmployees] = useState<DepartmentStat | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [employeeToAssign, setEmployeeToAssign] = useState<DepartmentEmployee | null>(null);
+
+  const { data: departmentStats = [], isLoading: loadingDeptStats } = useDepartmentStats({ enabled });
 
   // Fetch available employees using React Query
   const { data: availableEmployees, isLoading: loadingEmployees } = useAvailableEmployees(
@@ -65,6 +48,82 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
 
   // Use mutation for assigning employees
   const assignEmployeeMutation = useAssignEmployeeToDepartment();
+  const addDepartmentMutation = useAddDepartment();
+  const renameDepartmentMutation = useRenameDepartment();
+  const deleteDepartmentMutation = useDeleteDepartment();
+
+  const showError = (err: unknown, title: string) => {
+    const message = err instanceof Error ? err.message : 'Action failed';
+    toast({ variant: 'destructive', title, description: message });
+  };
+
+  const openAddModal = () => {
+    setNewDeptName('');
+    setShowAddDeptModal(true);
+  };
+
+  const openRenameModal = (dept: DepartmentStat) => {
+    setSelectedDeptForAction(dept);
+    setNewDeptName(dept.name);
+    setShowRenameDeptModal(true);
+  };
+
+  const openDeleteModal = (dept: DepartmentStat) => {
+    setSelectedDeptForAction(dept);
+    setShowDeleteDeptModal(true);
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDeptName.trim()) {
+      toast({ variant: 'warning', title: 'Validation Error', description: 'Department name is required' });
+      return;
+    }
+    try {
+      await addDepartmentMutation.mutateAsync({ name: newDeptName.trim() });
+      toast({ variant: 'success', title: 'Department Added', description: 'Department added successfully!' });
+      setShowAddDeptModal(false);
+      setNewDeptName('');
+    } catch (err) {
+      showError(err, 'Add Failed');
+    }
+  };
+
+  const handleRenameDepartment = async () => {
+    if (!newDeptName.trim() || !selectedDeptForAction) {
+      toast({ variant: 'warning', title: 'Validation Error', description: 'Department name is required' });
+      return;
+    }
+    const oldName = selectedDeptForAction.name;
+    const nextName = newDeptName.trim();
+    try {
+      await renameDepartmentMutation.mutateAsync({ oldName, newName: nextName });
+      toast({ variant: 'success', title: 'Department Renamed', description: 'Department renamed successfully!' });
+      setShowRenameDeptModal(false);
+      setNewDeptName('');
+      setSelectedDeptForAction(null);
+      onDepartmentRenamed?.(oldName, nextName);
+    } catch (err) {
+      showError(err, 'Rename Failed');
+    }
+  };
+
+  const handleDeleteDepartment = async () => {
+    if (!selectedDeptForAction) return;
+    const name = selectedDeptForAction.name;
+    try {
+      const response = await deleteDepartmentMutation.mutateAsync(name);
+      toast({
+        variant: 'success',
+        title: 'Department Deleted',
+        description: `Department deleted successfully! ${response?.affectedEmployees ?? 0} employees updated.`,
+      });
+      setShowDeleteDeptModal(false);
+      setSelectedDeptForAction(null);
+      onDepartmentDeleted?.(name);
+    } catch (err) {
+      showError(err, 'Delete Failed');
+    }
+  };
 
   const openEmployeeModal = (dept: DepartmentStat) => {
     setSelectedDeptForEmployees(dept);
@@ -91,21 +150,14 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
         employeeId: employee.employeeId
       });
 
-      // Close modals
+      // Close modals. The mutation invalidates the department queries, so the
+      // list refreshes without an explicit refetch here.
       setShowEmployeeModal(false);
       setShowConfirmModal(false);
       setEmployeeToAssign(null);
       setSelectedDeptForEmployees(null);
-
-      // Refresh department data without page reload
-      if (fetchDepartmentStats && typeof fetchDepartmentStats === 'function') {
-        await fetchDepartmentStats();
-      }
-      if (fetchDepartments && typeof fetchDepartments === 'function') {
-        await fetchDepartments();
-      }
-    } catch (error) {
-      console.error('Error assigning employee:', error);
+    } catch (err) {
+      showError(err, 'Assignment Failed');
     }
   };
 

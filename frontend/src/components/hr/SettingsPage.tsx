@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '../ui/toast';
 import useAuth from '../../hooks/authjwt';
 
@@ -8,14 +8,6 @@ import {
     useUpdateGlobalSettings,
     useUpdateDepartmentSettings,
     useDepartments,
-    useDepartmentStats,
-    useAddDepartment,
-    useRenameDepartment,
-    useDeleteDepartment,
-    useOfficeLocations,
-    useCreateOfficeLocation,
-    useUpdateOfficeLocation,
-    useDeleteOfficeLocation,
     useRescheduleHrReport,
     useTestHrReport,
     useTestNotification,
@@ -27,9 +19,13 @@ import DepartmentManagement from './settings/DepartmentManagement';
 import AppearanceSettings from './settings/AppearanceSettings';
 import NotificationSettings from './settings/NotificationSettings';
 import GeneralSettings from './settings/GeneralSettings';
-import GeofenceSettings from './settings/GeofenceSettings';
-import { SettingsFormData, OfficeFormData, GeofenceSettings as GeofenceSettingsType } from './settings/types';
-import { OfficeLocation, GlobalSettings } from '@/types';
+import GeofenceSection from './settings/GeofenceSection';
+import type { GeofenceSettings as GeofenceSettingsType } from './settings/types';
+import {
+    useSettingsForm,
+    DEPARTMENT_SECTIONS,
+    type SettingsSection,
+} from './settings/useSettingsForm';
 
 const SettingsPage: React.FC = () => {
     const user = useAuth();
@@ -38,102 +34,24 @@ const SettingsPage: React.FC = () => {
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [isTestingHrReport, setIsTestingHrReport] = useState(false);
     const [testingNotification, setTestingNotification] = useState(false);
-    const [creatingLocation, setCreatingLocation] = useState(false);
 
-    // Department management state
-    const [showAddDeptModal, setShowAddDeptModal] = useState(false);
-    const [showRenameDeptModal, setShowRenameDeptModal] = useState(false);
-    const [showDeleteDeptModal, setShowDeleteDeptModal] = useState(false);
-    const [selectedDeptForAction, setSelectedDeptForAction] = useState<any | null>(null);
-    const [newDeptName, setNewDeptName] = useState('');
-    const [expandedDept, setExpandedDept] = useState<string | null>(null);
+    const canManageSettings = !!user && (user.role === 'admin' || user.role === 'hr');
 
-    // Form data state
-    const [formData, setFormData] = useState<SettingsFormData>({
-        attendance: {
-            lateThreshold: '',
-            workStartTime: '',
-            workEndTime: '',
-            halfDayEndTime: '',
-            minimumWorkHours: 4,
-            fullDayHours: 8,
-            workingDays: [1, 2, 3, 4, 5, 6],
-            nonWorkingDays: [0],
-            saturdayWorkType: 'full',
-            saturdayHolidays: []
-        },
-        notifications: {
-            hrEmails: [],
-            emailEnabled: true,
-            pushEnabled: true,
-            holidayReminderEnabled: true,
-            holidayReminderDays: 1,
-            milestoneAlertsEnabled: true,
-            milestoneTypes: {
-                threeMonths: true,
-                sixMonths: true,
-                oneYear: true
-            },
-            dailyHrAttendanceReport: {
-                enabled: false,
-                sendTime: '19:00',
-                includeAbsentees: true,
-                subjectLine: 'Daily Attendance Report - {date}'
-            },
-            hrEmailTypes: {
-                leaveRequests: true,
-                wfhRequests: true,
-                regularizationRequests: true,
-                helpRequests: true,
-                employeeMilestones: true,
-                expenseRequests: true
-            }
-        },
-        general: {
-            locationSetting: 'na',
-            taskReportSetting: 'na',
-            geofence: {
-                enabled: true,
-                enforceCheckIn: true,
-                enforceCheckOut: true,
-                defaultRadius: 100,
-                allowWFHBypass: true
-            }
-        }
+    // Queries
+    const { data: globalSettingsData, isLoading: globalSettingsLoading } = useGlobalSettings({
+        enabled: canManageSettings && !selectedDepartment
     });
 
-    const canManageSettings = user && (user.role === 'admin' || user.role === 'hr');
+    const { data: departmentSettingsData, isLoading: departmentSettingsLoading } = useDepartmentSettings(
+        selectedDepartment,
+        { enabled: canManageSettings && !!selectedDepartment }
+    );
 
-    // React Query hooks
-    const { data: globalSettingsData, isLoading: globalSettingsLoading, refetch: refetchGlobalSettings } = useGlobalSettings({
-        enabled: !!canManageSettings && !selectedDepartment
-    });
-
-    const { data: departmentSettingsData, isLoading: departmentSettingsLoading, refetch: refetchDepartmentSettings } = useDepartmentSettings(selectedDepartment, {
-        enabled: !!canManageSettings && !!selectedDepartment
-    });
-
-    const { data: departments = [] } = useDepartments({ enabled: !!canManageSettings });
-
-    const shouldFetchDeptStats = activeSection === 'departments' && !!canManageSettings;
-    const { data: departmentStats = [], isLoading: loadingDeptStats } = useDepartmentStats({
-        enabled: shouldFetchDeptStats
-    });
-
-    const shouldFetchOfficeLocations = activeSection === 'geofence' && !!canManageSettings;
-    const { data: officeLocations = [], isLoading: officeLoading } = useOfficeLocations({
-        enabled: shouldFetchOfficeLocations
-    });
+    const { data: departments = [] } = useDepartments({ enabled: canManageSettings });
 
     // Mutations
     const updateGlobalSettingsMutation = useUpdateGlobalSettings();
     const updateDepartmentSettingsMutation = useUpdateDepartmentSettings();
-    const addDepartmentMutation = useAddDepartment();
-    const renameDepartmentMutation = useRenameDepartment();
-    const deleteDepartmentMutation = useDeleteDepartment();
-    const createOfficeLocationMutation = useCreateOfficeLocation();
-    const updateOfficeLocationMutation = useUpdateOfficeLocation();
-    const deleteOfficeLocationMutation = useDeleteOfficeLocation();
     const rescheduleHrReportMutation = useRescheduleHrReport();
     const testHrReportMutation = useTestHrReport();
     const testNotificationMutation = useTestNotification();
@@ -141,284 +59,149 @@ const SettingsPage: React.FC = () => {
     const loading = selectedDepartment ? departmentSettingsLoading : globalSettingsLoading;
     const saving = updateGlobalSettingsMutation.isPending || updateDepartmentSettingsMutation.isPending;
 
+    const {
+        formData,
+        dirty,
+        setSection,
+        patchSection,
+        resetSection,
+        markSaved,
+    } = useSettingsForm({
+        serverData: selectedDepartment ? departmentSettingsData : globalSettingsData,
+        scopeKey: selectedDepartment || 'global',
+    });
 
-    // Sync React Query data to formData
-    useEffect(() => {
-        const settingsData = selectedDepartment ? departmentSettingsData : globalSettingsData;
-        if (!settingsData) return;
-
-        // Department settings carry no notifications section; the optional
-        // chaining below falls back to defaults for whatever is absent.
-        const response = settingsData as Partial<GlobalSettings>;
-
-        setFormData({
-            attendance: {
-                ...response.attendance,
-                workingDays: response.attendance?.workingDays || [1, 2, 3, 4, 5, 6],
-                nonWorkingDays: response.attendance?.nonWorkingDays || [0],
-                saturdayHolidays: response.attendance?.saturdayHolidays || [],
-                lateThreshold: response.attendance?.lateThreshold || '',
-                workStartTime: response.attendance?.workStartTime || '',
-                workEndTime: response.attendance?.workEndTime || '',
-                halfDayEndTime: response.attendance?.halfDayEndTime || '',
-                minimumWorkHours: response.attendance?.minimumWorkHours || 4,
-                fullDayHours: response.attendance?.fullDayHours || 8,
-                saturdayWorkType: response.attendance?.saturdayWorkType || 'full',
-            },
-            notifications: {
-                hrEmails: response.notifications?.hrEmails || [],
-                emailEnabled: response.notifications?.emailEnabled ?? true,
-                pushEnabled: response.notifications?.pushEnabled ?? true,
-                holidayReminderEnabled: response.notifications?.holidayReminderEnabled ?? true,
-                holidayReminderDays: response.notifications?.holidayReminderDays ?? 1,
-                milestoneAlertsEnabled: response.notifications?.milestoneAlertsEnabled ?? true,
-                milestoneTypes: {
-                    threeMonths: response.notifications?.milestoneTypes?.threeMonths ?? true,
-                    sixMonths: response.notifications?.milestoneTypes?.sixMonths ?? true,
-                    oneYear: response.notifications?.milestoneTypes?.oneYear ?? true
-                },
-                dailyHrAttendanceReport: {
-                    enabled: response.notifications?.dailyHrAttendanceReport?.enabled ?? false,
-                    sendTime: response.notifications?.dailyHrAttendanceReport?.sendTime ?? '19:00',
-                    includeAbsentees: response.notifications?.dailyHrAttendanceReport?.includeAbsentees ?? true,
-                    subjectLine: response.notifications?.dailyHrAttendanceReport?.subjectLine ?? 'Daily Attendance Report - {date}'
-                },
-                hrEmailTypes: {
-                    leaveRequests: response.notifications?.hrEmailTypes?.leaveRequests ?? true,
-                    wfhRequests: response.notifications?.hrEmailTypes?.wfhRequests ?? true,
-                    regularizationRequests: response.notifications?.hrEmailTypes?.regularizationRequests ?? true,
-                    helpRequests: response.notifications?.hrEmailTypes?.helpRequests ?? true,
-                    employeeMilestones: response.notifications?.hrEmailTypes?.employeeMilestones ?? true,
-                    expenseRequests: response.notifications?.hrEmailTypes?.expenseRequests ?? true
-                }
-            },
-            general: {
-                locationSetting: response.general?.locationSetting ?? 'na',
-                taskReportSetting: response.general?.taskReportSetting ?? 'na',
-                geofence: {
-                    enabled: response.general?.geofence?.enabled ?? true,
-                    enforceCheckIn: response.general?.geofence?.enforceCheckIn ?? true,
-                    enforceCheckOut: response.general?.geofence?.enforceCheckOut ?? true,
-                    defaultRadius: response.general?.geofence?.defaultRadius ?? 100,
-                    allowWFHBypass: response.general?.geofence?.allowWFHBypass ?? true
-                }
-            }
-        });
-    }, [globalSettingsData, departmentSettingsData, selectedDepartment]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
-        // Checkbox specific logic
-        const checked = (e.target as HTMLInputElement).checked;
-
-        const keys = name.split('.');
-
-        if (keys.length === 2) {
-            const [section, field] = keys as [keyof SettingsFormData, string];
-
-            // Need to cast to any to handle dynamic nested update
-            setFormData(prev => ({
-                ...prev,
-                [section]: {
-                    ...(prev[section] as any),
-                    [field]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
-                }
-            }));
-        }
+    const showError = (err: unknown, title: string) => {
+        const message = err instanceof Error ? err.message : 'Action failed';
+        toast({ variant: 'destructive', title, description: message });
     };
 
-    const handleError = (err: any, customTitle: string) => {
-        const errorMsg = err.message || err.data?.message || 'Action failed';
-        toast({
-            variant: "destructive",
-            title: customTitle,
-            description: errorMsg
-        });
-    };
-
-    // --- Geofence Handlers ---
-    const handleUpdateGeofence = (newSettings: GeofenceSettingsType) => {
-        setFormData(prev => ({
-            ...prev,
-            general: {
-                ...prev.general,
-                geofence: newSettings
-            }
-        }));
-    };
-
-    const handleCreateOfficeLocation = async (data: OfficeFormData) => {
-        setCreatingLocation(true);
-        try {
-            await createOfficeLocationMutation.mutateAsync({
-                name: data.name,
-                address: data.address,
-                latitude: typeof data.latitude === 'string' ? parseFloat(data.latitude) : data.latitude,
-                longitude: typeof data.longitude === 'string' ? parseFloat(data.longitude) : data.longitude,
-                radius: data.radius,
-                isActive: data.isActive
-            });
-            toast({
-                variant: "success",
-                title: "Office Location Added",
-                description: `${data.name} has been saved.`
-            });
-            // Reset form happens in GeofenceSettings now (controlled) or manually reset there.
-        } catch (err: any) {
-            handleError(err, "Failed to save location");
-        } finally {
-            setCreatingLocation(false);
-        }
-    };
-
-    const handleToggleOfficeStatus = async (location: OfficeLocation) => {
-        try {
-            await updateOfficeLocationMutation.mutateAsync({
-                locationId: location._id,
-                updates: { isActive: !location.isActive }
-            });
-            toast({
-                variant: "success",
-                title: "Office Updated",
-                description: `${location.name} is now ${!location.isActive ? 'active' : 'inactive'}.`
-            });
-        } catch (err: any) {
-            handleError(err, "Failed to update office");
-        }
-    };
-
-    const handleDeleteOfficeLocation = async (locationId: string) => {
-        if (!window.confirm('Are you sure you want to remove this office location?')) return;
-        try {
-            await deleteOfficeLocationMutation.mutateAsync(locationId);
-            toast({
-                variant: "success",
-                title: "Office Removed",
-                description: "The office location has been deleted."
-            });
-        } catch (err: any) {
-            handleError(err, "Failed to delete office");
-        }
-    };
-
-    // --- Attendance Handlers ---
-    const handleWorkingDayChange = (day: number, isWorking: boolean) => {
-        setFormData(prev => {
-            const currentWorkingDays = [...prev.attendance.workingDays];
-            const currentNonWorkingDays = [...(prev.attendance.nonWorkingDays || [])];
-
-            if (isWorking) {
-                if (!currentWorkingDays.includes(day)) {
-                    currentWorkingDays.push(day);
-                }
-                const nonWorkingIndex = currentNonWorkingDays.indexOf(day);
-                if (nonWorkingIndex > -1) {
-                    currentNonWorkingDays.splice(nonWorkingIndex, 1);
-                }
-            } else {
-                const workingIndex = currentWorkingDays.indexOf(day);
-                if (workingIndex > -1) {
-                    currentWorkingDays.splice(workingIndex, 1);
-                }
-                if (!currentNonWorkingDays.includes(day)) {
-                    currentNonWorkingDays.push(day);
-                }
-            }
-
-            return {
-                ...prev,
-                attendance: {
-                    ...prev.attendance,
-                    workingDays: currentWorkingDays.sort(),
-                    nonWorkingDays: currentNonWorkingDays.sort()
-                }
-            };
-        });
-    };
-
-    const handleSaturdayHolidayChange = (saturdayNumber: number, isHoliday: boolean) => {
-        setFormData(prev => {
-            const currentSaturdayHolidays = [...prev.attendance.saturdayHolidays];
-
-            if (isHoliday) {
-                if (!currentSaturdayHolidays.includes(saturdayNumber)) {
-                    currentSaturdayHolidays.push(saturdayNumber);
-                }
-            } else {
-                const index = currentSaturdayHolidays.indexOf(saturdayNumber);
-                if (index > -1) {
-                    currentSaturdayHolidays.splice(index, 1);
-                }
-            }
-
-            return {
-                ...prev,
-                attendance: {
-                    ...prev.attendance,
-                    saturdayHolidays: currentSaturdayHolidays.sort()
-                }
-            };
-        });
-    };
-
-    // --- Save / Reset ---
-    const handleSave = async () => {
-
+    /**
+     * Save only the section the user is editing. Sending the whole document
+     * from every tab is what allowed concurrent editors to clobber each other.
+     */
+    const saveSection = async (section: SettingsSection) => {
         try {
             if (selectedDepartment) {
-                // The department endpoint only accepts attendance + general.
-                // Sending notifications would be silently stripped by Zod.
+                if (!DEPARTMENT_SECTIONS.includes(section)) {
+                    toast({
+                        variant: 'warning',
+                        title: 'Global Setting',
+                        description: 'Notifications are configured globally. Switch scope to "Global" to change them.'
+                    });
+                    return;
+                }
                 await updateDepartmentSettingsMutation.mutateAsync({
                     departmentName: selectedDepartment,
-                    settings: {
-                        attendance: formData.attendance,
-                        general: formData.general
-                    }
+                    settings: { [section]: formData[section] }
                 });
+                markSaved([section]);
                 toast({
-                    variant: "success",
-                    title: "Settings Saved",
-                    description: `Department settings updated successfully for ${selectedDepartment}!`
+                    variant: 'success',
+                    title: 'Settings Saved',
+                    description: `Department settings updated for ${selectedDepartment}.`
                 });
-            } else {
-                await updateGlobalSettingsMutation.mutateAsync(formData);
-
-                // Reschedule the cron job so enabled/sendTime changes take effect
-                // immediately. Runs on disable too, so the job is torn down.
-                await rescheduleHrReportMutation.mutateAsync();
-
-                toast({
-                    variant: "success",
-                    title: "Settings Saved",
-                    description: "Global settings updated successfully!"
-                });
+                return;
             }
-        } catch (err: any) {
-            handleError(err, "Save Failed");
+
+            await updateGlobalSettingsMutation.mutateAsync({ [section]: formData[section] });
+            markSaved([section]);
+
+            // The report's schedule lives in the notifications section, so only
+            // that save needs to rebuild the cron job. Runs on disable too.
+            if (section === 'notifications') {
+                await rescheduleHrReportMutation.mutateAsync();
+            }
+
+            toast({
+                variant: 'success',
+                title: 'Settings Saved',
+                description: 'Global settings updated successfully!'
+            });
+        } catch (err) {
+            showError(err, 'Save Failed');
         }
     };
 
-    const handleReset = () => {
-        if (window.confirm('Discard all unsaved changes and reload settings?')) {
-            if (selectedDepartment) {
-                refetchDepartmentSettings();
-            } else {
-                refetchGlobalSettings();
-            }
+    const handleResetSection = (section: SettingsSection) => {
+        if (!dirty[section]) return;
+        if (window.confirm('Discard unsaved changes in this section?')) {
+            resetSection(section);
         }
     };
 
     const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setSelectedDepartment(e.target.value);
+        const next = e.target.value;
+        if (dirty.attendance || dirty.notifications || dirty.general) {
+            if (!window.confirm('You have unsaved changes. Switch scope and discard them?')) {
+                return;
+            }
+        }
+        setSelectedDepartment(next);
     };
 
-    // --- Testing Handlers ---
+    // --- Attendance handlers ---
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        const checked = (e.target as HTMLInputElement).checked;
+        const [section, field] = name.split('.');
+
+        if (section !== 'attendance' || !field) return;
+
+        let nextValue: string | number | boolean;
+        if (type === 'checkbox') {
+            nextValue = checked;
+        } else if (type === 'number') {
+            // An emptied number input parses to NaN, which serialises to null
+            // and would wipe the stored value. Treat it as 0 instead.
+            const parsed = parseFloat(value);
+            nextValue = Number.isNaN(parsed) ? 0 : parsed;
+        } else {
+            nextValue = value;
+        }
+
+        patchSection('attendance', { [field]: nextValue } as never);
+    };
+
+    const handleWorkingDayChange = (day: number, isWorking: boolean) => {
+        const workingDays = new Set(formData.attendance.workingDays);
+        const nonWorkingDays = new Set(formData.attendance.nonWorkingDays ?? []);
+
+        if (isWorking) {
+            workingDays.add(day);
+            nonWorkingDays.delete(day);
+        } else {
+            workingDays.delete(day);
+            nonWorkingDays.add(day);
+        }
+
+        patchSection('attendance', {
+            workingDays: [...workingDays].sort((a, b) => a - b),
+            nonWorkingDays: [...nonWorkingDays].sort((a, b) => a - b)
+        });
+    };
+
+    const handleSaturdayHolidayChange = (saturdayNumber: number, isHoliday: boolean) => {
+        const holidays = new Set(formData.attendance.saturdayHolidays);
+        if (isHoliday) {
+            holidays.add(saturdayNumber);
+        } else {
+            holidays.delete(saturdayNumber);
+        }
+        patchSection('attendance', { saturdayHolidays: [...holidays].sort((a, b) => a - b) });
+    };
+
+    const handleUpdateGeofence = (geofence: GeofenceSettingsType) => {
+        patchSection('general', { geofence });
+    };
+
+    // --- Testing handlers ---
     const handleTestDailyHrAttendanceReport = async () => {
-        if (!formData.notifications.hrEmails || formData.notifications.hrEmails.length === 0) {
+        if (formData.notifications.hrEmails.length === 0) {
             toast({
-                variant: "destructive",
-                title: "Configuration Required",
-                description: "Please configure HR emails first"
+                variant: 'destructive',
+                title: 'Configuration Required',
+                description: 'Please configure HR emails first'
             });
             return;
         }
@@ -427,12 +210,12 @@ const SettingsPage: React.FC = () => {
         try {
             await testHrReportMutation.mutateAsync();
             toast({
-                variant: "success",
-                title: "Test Report Sent",
+                variant: 'success',
+                title: 'Test Report Sent',
                 description: `Test report sent successfully to ${formData.notifications.hrEmails.length} HR email(s)!`
             });
-        } catch (err: any) {
-            handleError(err, "Test Failed");
+        } catch (err) {
+            showError(err, 'Test Failed');
         } finally {
             setIsTestingHrReport(false);
         }
@@ -441,15 +224,14 @@ const SettingsPage: React.FC = () => {
     const handleTestNotification = async () => {
         if (!canManageSettings) {
             toast({
-                variant: "destructive",
-                title: "Access Denied",
-                description: "Only admin and HR users can test notifications"
+                variant: 'destructive',
+                title: 'Access Denied',
+                description: 'Only admin and HR users can test notifications'
             });
             return;
         }
 
         setTestingNotification(true);
-
         try {
             // Exercise each notification type in turn; the last response carries
             // the service-readiness details we report below.
@@ -457,186 +239,111 @@ const SettingsPage: React.FC = () => {
             await testNotificationMutation.mutateAsync('milestone');
             const responseData = await testNotificationMutation.mutateAsync('holiday');
 
-            if (responseData && responseData.success) {
-                const { details } = responseData;
-                const statusInfo = [];
-                if (details && details.emailReady) statusInfo.push('Email ✓');
-                if (details && details.pushReady) statusInfo.push('Push ✓');
-
-                if (statusInfo.length === 0) {
-                    toast({
-                        variant: "warning",
-                        title: "Test Completed",
-                        description: "No notification services are configured."
-                    });
-                } else {
-                    toast({
-                        variant: "success",
-                        title: "All Tests Successful",
-                        description: `All notification tests passed! Services ready: ${statusInfo.join(', ')}.`
-                    });
-                }
-            } else {
+            if (!responseData?.success) {
                 toast({
-                    variant: "destructive",
-                    title: "Test Failed",
+                    variant: 'destructive',
+                    title: 'Test Failed',
                     description: `Server returned: ${responseData?.message || 'Unknown response format'}`
                 });
+                return;
             }
-        } catch (err: any) {
-            handleError(err, "Test Failed");
+
+            const statusInfo: string[] = [];
+            if (responseData.details?.emailReady) statusInfo.push('Email ✓');
+            if (responseData.details?.pushReady) statusInfo.push('Push ✓');
+
+            if (statusInfo.length === 0) {
+                toast({
+                    variant: 'warning',
+                    title: 'Test Completed',
+                    description: 'No notification services are configured.'
+                });
+            } else {
+                toast({
+                    variant: 'success',
+                    title: 'All Tests Successful',
+                    description: `All notification tests passed! Services ready: ${statusInfo.join(', ')}.`
+                });
+            }
+        } catch (err) {
+            showError(err, 'Test Failed');
         } finally {
             setTestingNotification(false);
         }
     };
 
-    // --- Department Actions ---
-    const openAddModal = () => {
-        setShowAddDeptModal(true);
-        setNewDeptName('');
-    };
-
-    const openRenameModal = (dept: any) => {
-        setSelectedDeptForAction(dept);
-        setNewDeptName(dept.name);
-        setShowRenameDeptModal(true);
-    };
-
-    const openDeleteModal = (dept: any) => {
-        setSelectedDeptForAction(dept);
-        setShowDeleteDeptModal(true);
-    };
-
-    const handleAddDepartment = async () => {
-        if (!newDeptName.trim()) {
-            toast({ variant: "warning", title: "Validation Error", description: "Department name is required" });
-            return;
-        }
-        try {
-            await addDepartmentMutation.mutateAsync({ name: newDeptName.trim() });
-            toast({ variant: "success", title: "Department Added", description: "Department added successfully!" });
-            setShowAddDeptModal(false);
-            setNewDeptName('');
-        } catch (err: any) { handleError(err, "Add Failed"); }
-    };
-
-    const handleRenameDepartment = async () => {
-        if (!newDeptName.trim() || !selectedDeptForAction) {
-            toast({ variant: "warning", title: "Validation Error", description: "Department name is required" });
-            return;
-        }
-        try {
-            await renameDepartmentMutation.mutateAsync({ oldName: selectedDeptForAction.name, newName: newDeptName.trim() });
-            toast({ variant: "success", title: "Department Renamed", description: "Department renamed successfully!" });
-            setShowRenameDeptModal(false);
-            setNewDeptName('');
-            setSelectedDeptForAction(null);
-            if (selectedDepartment === selectedDeptForAction.name) setSelectedDepartment(newDeptName.trim());
-        } catch (err: any) { handleError(err, "Rename Failed"); }
-    };
-
-    const handleDeleteDepartment = async () => {
-        if (!selectedDeptForAction) return;
-        try {
-            const response = await deleteDepartmentMutation.mutateAsync(selectedDeptForAction.name);
-            toast({
-                variant: "success",
-                title: "Department Deleted",
-                description: `Department deleted successfully! ${response?.affectedEmployees ?? 0} employees updated.`
-            });
-            setShowDeleteDeptModal(false);
-            setSelectedDeptForAction(null);
-            if (selectedDepartment === selectedDeptForAction.name) setSelectedDepartment('');
-        } catch (err: any) { handleError(err, "Delete Failed"); }
-    };
-
-    // --- Render Content ---
     const renderContent = () => {
         switch (activeSection) {
             case 'attendance':
                 return (
                     <AttendanceSettings
-                        formData={formData} // Matches AttendanceSettings structure largely (mapped in types.ts now)
+                        formData={formData}
                         selectedDepartment={selectedDepartment}
                         departments={departments}
                         loading={loading}
                         saving={saving}
+                        isDirty={dirty.attendance}
                         onInputChange={handleInputChange}
                         onWorkingDayChange={handleWorkingDayChange}
                         onSaturdayHolidayChange={handleSaturdayHolidayChange}
-                        onSave={handleSave}
-                        onReset={handleReset}
+                        onSave={() => saveSection('attendance')}
+                        onReset={() => handleResetSection('attendance')}
                         onDepartmentChange={handleDepartmentChange}
                     />
                 );
             case 'departments':
                 return (
                     <DepartmentManagement
-                        departmentStats={departmentStats}
-                        loadingDeptStats={loadingDeptStats}
-                        expandedDept={expandedDept}
-                        setExpandedDept={setExpandedDept}
-                        openAddModal={openAddModal}
-                        openRenameModal={openRenameModal}
-                        openDeleteModal={openDeleteModal}
-                        showAddDeptModal={showAddDeptModal}
-                        showRenameDeptModal={showRenameDeptModal}
-                        showDeleteDeptModal={showDeleteDeptModal}
-                        setShowAddDeptModal={setShowAddDeptModal}
-                        setShowRenameDeptModal={setShowRenameDeptModal}
-                        setShowDeleteDeptModal={setShowDeleteDeptModal}
-                        newDeptName={newDeptName}
-                        setNewDeptName={setNewDeptName}
-                        selectedDeptForAction={selectedDeptForAction}
-                        setSelectedDeptForAction={setSelectedDeptForAction}
-                        handleAddDepartment={handleAddDepartment}
-                        handleRenameDepartment={handleRenameDepartment}
-                        handleDeleteDepartment={handleDeleteDepartment}
+                        enabled={canManageSettings}
+                        onDepartmentRenamed={(oldName, newName) => {
+                            if (selectedDepartment === oldName) setSelectedDepartment(newName);
+                        }}
+                        onDepartmentDeleted={(name) => {
+                            if (selectedDepartment === name) setSelectedDepartment('');
+                        }}
                     />
                 );
             case 'notifications':
                 return (
                     <NotificationSettings
                         notifications={formData.notifications}
-                        onUpdate={(newNotes) => setFormData(prev => ({ ...prev, notifications: newNotes }))}
+                        onUpdate={(next) => setSection('notifications', next)}
                         onTestNotification={handleTestNotification}
                         testingNotification={testingNotification}
                         onTestHrReport={handleTestDailyHrAttendanceReport}
                         testingHrReport={isTestingHrReport}
-                        onSave={handleSave}
-                        onReset={handleReset}
+                        onSave={() => saveSection('notifications')}
+                        onReset={() => handleResetSection('notifications')}
                         loading={loading}
                         saving={saving}
+                        isDirty={dirty.notifications}
+                        scopeIsDepartment={!!selectedDepartment}
                     />
                 );
             case 'general':
                 return (
                     <GeneralSettings
                         generalSettings={formData.general}
-                        onUpdate={(newGen) => setFormData(prev => ({ ...prev, general: newGen }))}
-                        onSave={handleSave}
-                        onReset={handleReset}
+                        onUpdate={(next) => setSection('general', next)}
+                        onSave={() => saveSection('general')}
+                        onReset={() => handleResetSection('general')}
                         loading={loading}
                         saving={saving}
+                        isDirty={dirty.general}
                     />
                 );
             case 'appearance':
                 return <AppearanceSettings />;
             case 'geofence':
                 return (
-                    <GeofenceSettings
+                    <GeofenceSection
                         geofenceSettings={formData.general.geofence}
-                        officeLocations={officeLocations}
                         onUpdateGeofence={handleUpdateGeofence}
-                        onCreateLocation={handleCreateOfficeLocation}
-                        onDeleteLocation={handleDeleteOfficeLocation}
-                        onToggleLocation={handleToggleOfficeStatus}
-                        onSave={handleSave}
-                        onReset={handleReset}
+                        onSave={() => saveSection('general')}
+                        onReset={() => handleResetSection('general')}
                         loading={loading}
-                        officeLoading={officeLoading}
                         saving={saving}
-                        creatingLocation={creatingLocation}
+                        enabled={canManageSettings && activeSection === 'geofence'}
                     />
                 );
             default:

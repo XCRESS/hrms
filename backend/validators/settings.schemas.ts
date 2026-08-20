@@ -12,6 +12,10 @@
 
 import { z } from 'zod';
 import { employeeIdSchema, nameSchema } from './common.schemas.js';
+import {
+  MIN_GEOFENCE_RADIUS_METERS,
+  MAX_GEOFENCE_RADIUS_METERS,
+} from '../models/OfficeLocation.model.js';
 
 /** HH:MM, 24-hour. */
 const timeString = z
@@ -105,7 +109,13 @@ const generalSection = z
         enabled: z.boolean().optional(),
         enforceCheckIn: z.boolean().optional(),
         enforceCheckOut: z.boolean().optional(),
-        defaultRadius: z.number().min(50).max(1000).optional(),
+        // Bounds mirror the OfficeLocation model: this value seeds office
+        // creation, so a wider range here would yield an unsaveable default.
+        defaultRadius: z
+          .number()
+          .min(MIN_GEOFENCE_RADIUS_METERS)
+          .max(MAX_GEOFENCE_RADIUS_METERS)
+          .optional(),
         allowWFHBypass: z.boolean().optional(),
       })
       .strict()
