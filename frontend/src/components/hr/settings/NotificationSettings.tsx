@@ -13,6 +13,13 @@ interface NotificationSettingsProps {
     onReset: () => void;
     loading: boolean;
     saving: boolean;
+    /** Enables Save/Reset only when this section has unsaved edits. */
+    isDirty?: boolean;
+    /**
+     * Notifications are global-only - the department endpoint does not accept
+     * them. When a department scope is selected the section is read-only.
+     */
+    scopeIsDepartment?: boolean;
 }
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({
@@ -25,7 +32,9 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     onSave,
     onReset,
     loading,
-    saving
+    saving,
+    isDirty = false,
+    scopeIsDepartment = false
 }) => {
     const updateField = (field: keyof NotificationSettingsData, value: any) => {
         onUpdate({ ...notifications, [field]: value });
@@ -58,11 +67,24 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 
     return (
         <div className="space-y-6">
+            {scopeIsDepartment && (
+                <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm">
+                    Notification settings are configured globally and cannot be overridden per
+                    department. Switch the scope to &ldquo;Global&rdquo; on the Attendance tab to
+                    change them.
+                </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-2">
+                {isDirty && !scopeIsDepartment && (
+                    <span className="mr-auto text-sm text-amber-600 dark:text-amber-400">
+                        Unsaved changes
+                    </span>
+                )}
                 <button
                     onClick={onReset}
-                    disabled={loading || saving}
+                    disabled={loading || saving || !isDirty || scopeIsDepartment}
                     className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Discard changes and reload"
                 >
@@ -71,7 +93,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                 </button>
                 <button
                     onClick={onSave}
-                    disabled={saving || loading}
+                    disabled={saving || loading || !isDirty || scopeIsDepartment}
                     className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                 >
                     <Save className="w-4 h-4" />

@@ -223,8 +223,10 @@ export const useAssignEmployeeToDepartment = () => {
       return data;
     },
     onSuccess: () => {
-      // Invalidate department queries and employee queries
+      // Invalidate department queries and employee queries. Stats carry the
+      // per-department employee lists, so they go stale on assignment too.
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.departments() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.departmentStats() });
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
     },
   });

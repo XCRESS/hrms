@@ -1,15 +1,17 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, Flag, type LucideIcon } from 'lucide-react';
+import type { ThemeMode, CustomTheme } from '@/types';
 
-interface ThemeMode {
-  value: 'light' | 'dark' | 'system';
+/** Renderable option rows. Named *Option to avoid shadowing the value types. */
+interface ThemeModeOption {
+  value: ThemeMode;
   label: string;
   icon: LucideIcon;
 }
 
-interface CustomTheme {
-  value: string;
+interface CustomThemeOption {
+  value: CustomTheme;
   label: string;
   icon: LucideIcon;
   colors: string[];
@@ -19,13 +21,13 @@ interface CustomTheme {
 const AppearanceSettings: React.FC = () => {
   const { themeMode, customTheme, setThemeMode, setCustomTheme } = useTheme();
 
-  const THEME_MODES: ThemeMode[] = [
+  const THEME_MODES: ThemeModeOption[] = [
     { value: 'light', label: 'Light', icon: Sun },
     { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'Auto', icon: Monitor }
   ];
 
-  const CUSTOM_THEMES: CustomTheme[] = [
+  const CUSTOM_THEMES: CustomThemeOption[] = [
     {
       value: 'default',
       label: 'Default',

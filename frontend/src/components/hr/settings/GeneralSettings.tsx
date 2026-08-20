@@ -9,6 +9,8 @@ interface GeneralSettingsProps {
     onReset: () => void;
     loading: boolean;
     saving: boolean;
+    /** Enables Save/Reset only when this section has unsaved edits. */
+    isDirty?: boolean;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = ({
@@ -17,7 +19,8 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
     onSave,
     onReset,
     loading,
-    saving
+    saving,
+    isDirty = false
 }) => {
     const handleChange = (field: keyof GeneralSettingsData, value: string) => {
         onUpdate({ ...generalSettings, [field]: value });
@@ -27,9 +30,14 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         <div className="space-y-6">
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-2">
+                {isDirty && (
+                    <span className="mr-auto text-sm text-amber-600 dark:text-amber-400">
+                        Unsaved changes
+                    </span>
+                )}
                 <button
                     onClick={onReset}
-                    disabled={loading || saving}
+                    disabled={loading || saving || !isDirty}
                     className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Discard changes and reload"
                 >
@@ -38,7 +46,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
                 </button>
                 <button
                     onClick={onSave}
-                    disabled={saving || loading}
+                    disabled={saving || loading || !isDirty}
                     className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                 >
                     <Save className="w-4 h-4" />
