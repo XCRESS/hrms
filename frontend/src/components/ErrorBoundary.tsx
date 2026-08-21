@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Bug, Copy, Info } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, ChevronDown } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -11,7 +11,6 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   showDetails: boolean;
-  showDebugInfo: boolean;
 }
 
 interface ApiError {
@@ -29,31 +28,6 @@ interface ReactErrorLog {
   timestamp: string;
   url: string;
   userAgent: string;
-  props: unknown;
-}
-
-interface DebugInfo {
-  currentError: {
-    message?: string;
-    stack?: string;
-    componentStack?: string;
-    timestamp: string;
-  };
-  environment: {
-    url: string;
-    userAgent: string;
-    timestamp: string;
-    localStorage: {
-      hasAuthToken: boolean;
-      authTokenLength: number;
-    };
-  };
-  apiErrors: ApiError[];
-  networkErrors: unknown[];
-  loginErrors: unknown[];
-  profileErrors: unknown[];
-  reactErrors: ReactErrorLog[];
-  lastAuthError: unknown;
 }
 
 // Extend the Window interface to include custom error logs
@@ -68,6 +42,23 @@ declare global {
   }
 }
 
+/**
+ * Top-level error boundary.
+ *
+ * Renders two different screens. Users get a calm, plain-language page with one
+ * obvious way out. Developers additionally get the message, stack and component
+ * stack inline, gated on `import.meta.env.DEV` — the same gate DebugPanel uses.
+ *
+ * The previous version showed everyone four competing coloured buttons, a stack
+ * trace, and a "Copy Debug Info" that put component props and auth-token
+ * metadata on the clipboard. It also claimed the error "has been logged", which
+ * was not true: nothing is reported anywhere. Neither belongs in front of an
+ * employee who just wants to check in.
+ *
+ * NOTE: this component sits outside <BrowserRouter> in main.tsx, so it cannot
+ * use <Link> or router hooks — navigation here has to go through
+ * window.location.
+ */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -76,7 +67,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       error: null,
       errorInfo: null,
       showDetails: false,
-      showDebugInfo: false
     };
   }
 
@@ -85,27 +75,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
+    this.setState({ error, errorInfo });
 
-    // Enhanced error logging for debugging
-    console.error('🚨 React Error Boundary caught an error:', error);
-    console.error('🔍 Error Info:', errorInfo);
-    console.error('📍 Component Stack:', errorInfo.componentStack);
+    console.error('React Error Boundary caught an error:', error);
+    console.error('Component Stack:', errorInfo.componentStack);
 
-    // Store error in global error log for debugging
+    // Kept for the in-browser debug log DebugPanel reads. `props` is
+    // deliberately not recorded: it is the entire React subtree, which can
+    // carry employee data, and nothing reads it back.
     if (!window.reactErrors) window.reactErrors = [];
     window.reactErrors.push({
       error: error.toString(),
       message: error.message,
       stack: error.stack,
-      componentStack: errorInfo.componentStack,
+      componentStack: errorInfo.componentStack ?? '',
       timestamp: new Date().toISOString(),
       url: window.location.href,
       userAgent: navigator.userAgent,
-      props: this.props
     });
 
     // Keep only last 20 errors to prevent memory issues
@@ -120,206 +106,111 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       error: null,
       errorInfo: null,
       showDetails: false,
-      showDebugInfo: false
     });
-    // Force a re-render by updating the key prop if provided
     if (this.props.onRetry) {
       this.props.onRetry();
     }
   };
 
-  copyErrorToClipboard = (): void => {
-    const debugInfo = this.getDebugInfo();
-
-    navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))
-      .then(() => {
-        alert('Debug information copied to clipboard! Please share this with support.');
-      })
-      .catch(err => {
-        console.error('Failed to copy to clipboard:', err);
-        // Fallback: create a text area and select its content
-        const textArea = document.createElement('textarea');
-        textArea.value = JSON.stringify(debugInfo, null, 2);
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert('Debug information copied to clipboard! Please share this with support.');
-      });
-  };
-
-  getDebugInfo = (): DebugInfo => {
-    return {
-      // Current error details
-      currentError: {
-        message: this.state.error?.message,
-        stack: this.state.error?.stack,
-        componentStack: this.state.errorInfo?.componentStack,
-        timestamp: new Date().toISOString()
-      },
-      // Environment info
-      environment: {
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString(),
-        localStorage: {
-          hasAuthToken: !!localStorage.getItem('authToken'),
-          authTokenLength: localStorage.getItem('authToken')?.length || 0
-        }
-      },
-      // API error logs
-      apiErrors: window.apiErrorLog || [],
-      networkErrors: window.networkErrors || [],
-      loginErrors: window.loginErrors || [],
-      profileErrors: window.profileErrors || [],
-      reactErrors: window.reactErrors || [],
-      lastAuthError: window.lastAuthError || null
-    };
-  };
-
   render(): ReactNode {
-    if (this.state.hasError) {
-      const debugInfo = this.getDebugInfo();
-      const hasApiErrors = debugInfo.apiErrors.length > 0 || debugInfo.networkErrors.length > 0;
-
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center p-4">
-          <div className="max-w-4xl w-full bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-8 border border-neutral-200 dark:border-neutral-700">
-            <div className="text-center mb-8">
-              <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
-              </div>
-
-              <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-4">
-                Something went wrong
-              </h2>
-
-              <p className="text-neutral-600 dark:text-neutral-300 mb-6">
-                We're sorry, but something unexpected happened. This error has been logged for debugging.
-              </p>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3 justify-center mb-6">
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 hover:scale-105 shadow-lg flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh Page
-                </button>
-
-                <button
-                  onClick={this.handleRetry}
-                  className="px-6 py-3 bg-neutral-200 dark:bg-neutral-600 text-neutral-800 dark:text-neutral-200 rounded-xl font-semibold hover:bg-neutral-300 dark:hover:bg-neutral-500 transition-all duration-200 hover:scale-105"
-                >
-                  Try Again
-                </button>
-
-                <button
-                  onClick={() => this.setState({ showDetails: !this.state.showDetails })}
-                  className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-200 hover:scale-105 flex items-center gap-2"
-                >
-                  <Bug className="w-4 h-4" />
-                  {this.state.showDetails ? 'Hide' : 'Show'} Details
-                </button>
-
-                <button
-                  onClick={this.copyErrorToClipboard}
-                  className="px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all duration-200 hover:scale-105 flex items-center gap-2"
-                >
-                  <Copy className="w-4 h-4" />
-                  Copy Debug Info
-                </button>
-              </div>
-
-              {/* Debug Information Toggle */}
-              <button
-                onClick={() => this.setState({ showDebugInfo: !this.state.showDebugInfo })}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 mx-auto"
-              >
-                <Info className="w-4 h-4" />
-                {this.state.showDebugInfo ? 'Hide' : 'Show'} Debug Summary
-              </button>
-            </div>
-
-            {/* Debug Summary */}
-            {this.state.showDebugInfo && (
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-3">Debug Summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700 dark:text-blue-300">
-                  <div>
-                    <p><strong>Error Type:</strong> {this.state.error?.name || 'Unknown'}</p>
-                    <p><strong>Timestamp:</strong> {new Date().toLocaleString()}</p>
-                    <p><strong>Auth Token:</strong> {debugInfo.environment.localStorage.hasAuthToken ? 'Present' : 'Missing'}</p>
-                  </div>
-                  <div>
-                    <p><strong>Recent API Errors:</strong> {debugInfo.apiErrors.length}</p>
-                    <p><strong>Network Errors:</strong> {debugInfo.networkErrors.length}</p>
-                    <p><strong>React Errors:</strong> {debugInfo.reactErrors.length}</p>
-                  </div>
-                </div>
-                {hasApiErrors && (
-                  <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded text-sm text-yellow-800 dark:text-yellow-300">
-                    ⚠️ Recent API/Network errors detected. This may be related to server connectivity issues.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Detailed Error Information */}
-            {this.state.showDetails && this.state.error && (
-              <div className="text-left space-y-4">
-                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">Error Details</h3>
-                  <div className="text-sm text-red-700 dark:text-red-300 space-y-2">
-                    <p><strong>Message:</strong> {this.state.error.message}</p>
-                    <details>
-                      <summary className="cursor-pointer font-medium">Stack Trace</summary>
-                      <pre className="mt-2 text-xs overflow-auto max-h-48 whitespace-pre-wrap bg-red-100 dark:bg-red-900/30 p-2 rounded">
-                        {this.state.error.stack}
-                      </pre>
-                    </details>
-                    {this.state.errorInfo?.componentStack && (
-                      <details>
-                        <summary className="cursor-pointer font-medium">Component Stack</summary>
-                        <pre className="mt-2 text-xs overflow-auto max-h-48 whitespace-pre-wrap bg-red-100 dark:bg-red-900/30 p-2 rounded">
-                          {this.state.errorInfo.componentStack}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recent API Errors */}
-                {debugInfo.apiErrors.length > 0 && (
-                  <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                    <h3 className="font-semibold text-orange-800 dark:text-orange-200 mb-2">
-                      Recent API Errors ({debugInfo.apiErrors.length})
-                    </h3>
-                    <div className="max-h-48 overflow-auto">
-                      {debugInfo.apiErrors.slice(-5).map((error, index) => (
-                        <div key={index} className="text-sm text-orange-700 dark:text-orange-300 mb-2 p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
-                          <p><strong>{error.endpoint}</strong> - {error.status} - {error.message}</p>
-                          <p className="text-xs opacity-75">{error.timestamp}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-600 text-center">
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                If this problem persists, please copy the debug information and contact support.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
+    if (!this.state.hasError) {
+      return this.props.children;
     }
 
-    return this.props.children;
+    const isDev = import.meta.env.DEV;
+    // Only offer "Try again" when a parent passed a way to actually reset the
+    // subtree. Without one it just re-renders the same broken tree and fails
+    // again, which reads as the button being broken.
+    const canRetry = Boolean(this.props.onRetry);
+
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <AlertTriangle className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+          </div>
+
+          <h1 className="text-xl font-semibold text-foreground mb-2">
+            This page didn't load
+          </h1>
+
+          <p className="text-sm text-muted-foreground mb-8">
+            Something went wrong on our end. Reloading usually fixes it — your
+            data hasn't been affected.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Reload page
+            </button>
+
+            {canRetry && (
+              <button
+                type="button"
+                onClick={this.handleRetry}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-input bg-background px-5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Try again
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/dashboard'; }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Home className="h-4 w-4" aria-hidden="true" />
+              Go to dashboard
+            </button>
+          </div>
+
+          {/* Developer-only. Production users get nothing below this line. */}
+          {isDev && this.state.error && (
+            <details
+              open={this.state.showDetails}
+              onToggle={(e) => this.setState({ showDetails: e.currentTarget.open })}
+              className="mt-10 text-left"
+            >
+              <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                <ChevronDown className="h-3.5 w-3.5 transition-transform [details[open]_&]:rotate-180" aria-hidden="true" />
+                Developer details
+              </summary>
+
+              <div className="mt-3 space-y-3 rounded-lg border border-border bg-muted/40 p-4">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">
+                    {this.state.error.name}
+                  </p>
+                  <p className="mt-1 font-mono text-xs wrap-break-word text-muted-foreground">
+                    {this.state.error.message}
+                  </p>
+                </div>
+
+                {this.state.error.stack && (
+                  <pre className="max-h-48 overflow-auto rounded bg-background p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                    {this.state.error.stack}
+                  </pre>
+                )}
+
+                {this.state.errorInfo?.componentStack && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-foreground">Component stack</p>
+                    <pre className="max-h-48 overflow-auto rounded bg-background p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                      {this.state.errorInfo.componentStack}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
+        </div>
+      </div>
+    );
   }
 }
 
