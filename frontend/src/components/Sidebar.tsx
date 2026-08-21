@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sidebar, SidebarBody, SidebarLink } from "./ui/sidebar";
+import { Sidebar, SidebarBody, SidebarLink, SIDEBAR_WIDTH_COLLAPSED } from "./ui/sidebar";
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, Navigate, useLocation } from "react-router";
 import useAuth from "../hooks/authjwt";
 import { Outlet } from "react-router";
+import { tokenStorage } from "@/lib/tokenStorage";
 
 interface User {
   name?: string;
@@ -33,14 +34,19 @@ interface LinkItem {
   icon: React.ReactNode;
 }
 
-export default function SidebarDemo() {
+/**
+ * Layout route for every authenticated page: renders the persistent sidebar
+ * once and swaps only the <Outlet />. Was named `SidebarDemo`, a leftover from
+ * the component this was originally adapted from.
+ */
+export default function AppLayout() {
   // All hooks must be called at the top level, before any conditional returns.
   const location = useLocation();
   const navigate = useNavigate();
   const userObject = useAuth() as User | null;
   const [open, setOpen] = useState(false);
 
-  const token = localStorage.getItem("authToken");
+  const token = tokenStorage.get();
   if (!token) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
@@ -49,7 +55,7 @@ export default function SidebarDemo() {
   // wait for user object to be populated or for token to be removed triggering above redirect.
   if (!userObject) {
     // Re-check token after useAuth has processed it (in case it was removed due to expiration)
-    const currentToken = localStorage.getItem("authToken");
+    const currentToken = tokenStorage.get();
     if (!currentToken) {
       return <Navigate to="/auth/login" state={{ from: location }} replace />;
     }
@@ -66,11 +72,18 @@ export default function SidebarDemo() {
   const user = userObject;
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    // Use setTimeout to ensure token is cleared before navigation
-    setTimeout(() => {
-      navigate("/");
-    }, 0);
+    // Goes through tokenStorage rather than localStorage directly: the raw
+    // call left `authTokenExpiresAt` behind, so isExpired() kept reading a
+    // stale expiry after logout. tokenStorage.remove() clears both keys and
+    // swallows the quota/permission errors localStorage can throw in private
+    // browsing.
+    //
+    // The setTimeout(0) that used to wrap this navigate() was unnecessary —
+    // localStorage writes are synchronous and already committed here. All it
+    // did was leave one frame where the app rendered logged-out but had not
+    // navigated yet.
+    tokenStorage.remove();
+    navigate("/");
   };
 
   const iconClass = "h-5 w-5 shrink-0 text-sidebar-foreground transition-colors duration-200";
@@ -197,7 +210,9 @@ export default function SidebarDemo() {
     <div
       className={cn(
         "mx-auto flex w-full flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-        "h-screen",
+        // h-dvh, not h-screen: 100vh ignores mobile browser chrome, so the
+        // layout ran taller than the visible area while the URL bar showed.
+        "h-dvh",
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
@@ -220,7 +235,14 @@ export default function SidebarDemo() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0 md:ml-[80px] transition-all duration-300">
+      {/* Offset matches the collapsed rail. The rail expands on hover/focus as
+          an overlay above the content rather than pushing it, so this stays
+          fixed at the collapsed width — previously it was a hardcoded 80px
+          that silently assumed the same thing. */}
+      <div
+        className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 min-w-0 transition-all duration-300 md:ml-(--sidebar-offset)"
+        style={{ '--sidebar-offset': `${SIDEBAR_WIDTH_COLLAPSED}px` } as React.CSSProperties}
+      >
         <Outlet />
       </div>
     </div>

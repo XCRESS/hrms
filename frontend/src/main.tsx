@@ -10,7 +10,7 @@ import Signup from "./components/signup-form";
 import ForgotPassword from "./components/ForgotPassword";
 
 import NotFound from './components/NotFoundPage';
-import SidebarDemo from './components/Sidebar';
+import AppLayout from './components/Sidebar';
 import LoaderGate from './components/LoadingAnimation';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/toast';
@@ -98,9 +98,9 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
 
                                         {/* HRMS Application Routes.
-                                            One pathless layout route holds the single <SidebarDemo />
+                                            One pathless layout route holds the single <AppLayout />
                                             for every authenticated page. Previously each path declared
-                                            its own <SidebarDemo /> element, so navigating between them
+                                            its own layout element, so navigating between them
                                             unmounted and remounted the sidebar — resetting its open
                                             state and flashing useAuth's "Authenticating..." screen on
                                             every navigation. Sharing one element keeps it mounted and
@@ -108,7 +108,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
 
                                             RequireRole now wraps the individual leaf elements rather
                                             than the layout, since the layout is shared by all roles. */}
-                                        <Route element={<SidebarDemo />}>
+                                        <Route element={<AppLayout />}>
                                             <Route path="/dashboard" element={<HRMSDashboard />} />
 
                                             <Route path="/employees">
