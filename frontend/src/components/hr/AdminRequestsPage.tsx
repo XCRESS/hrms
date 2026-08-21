@@ -422,21 +422,11 @@ const AdminRequestsPage = () => {
     }
   };
 
-  if (!isAdminOrHR) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          <BackButton label="Back to Dashboard" variant="ghost" />
-          <div className="text-center py-12">
-            <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-red-500" />
-            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-300 mb-2">Access Denied</h2>
-            <p className="text-slate-500 dark:text-slate-400">You don't have permission to view this page.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // No local authorization branch here: both /admin/* routes are wrapped in
+  // <RequireRole roles={HR_ONLY}>, which decodes the JWT synchronously during
+  // render and redirects before this component mounts. The branch that used to
+  // live here could only ever fire as a false alarm, flashing "Access Denied"
+  // for a frame while useAuth resolved. The backend remains the real boundary.
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">

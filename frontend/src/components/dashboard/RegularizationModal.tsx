@@ -1,5 +1,12 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { X, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useRequestRegularization } from "@/hooks/queries";
 import * as dateFnsTz from 'date-fns-tz';
 
@@ -70,8 +77,6 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
     }
   }, [isOpen, prefillData]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage(null);
@@ -125,18 +130,14 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-foreground">Regularize Attendance</h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-red-500 dark:text-muted-foreground dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-muted"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg bg-white p-6 md:p-8 dark:bg-card">
+        <DialogHeader className="mb-6 pr-8 text-left">
+          <DialogTitle className="text-2xl font-semibold text-foreground">Regularize Attendance</DialogTitle>
+          <DialogDescription className="sr-only">
+            Submit a request to correct your attendance record.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -232,7 +233,7 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

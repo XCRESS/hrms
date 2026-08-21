@@ -14,10 +14,9 @@ import { Label } from "../../../components/ui/label";
 import { useDepartments, useCreateEmployee } from "../../../hooks/queries";
 import { useToast } from "../../../components/ui/toast";
 import BackButton from "../../../components/ui/BackButton";
-import EnhancedDOBPicker from "../../../components/ui/enhanced-dob-picker";
-import EnhancedJoiningPicker from "../../../components/ui/enhanced-joining-picker";
+import EnhancedDateField from "../../../components/ui/enhanced-date-field";
 import { cn } from "../../../lib/utils";
-import { CreateEmployeeDto } from "../../../types";
+import { ApiError, CreateEmployeeDto } from "../../../types";
 
 interface EmployeeFormData {
     employeeId: string;
@@ -100,12 +99,12 @@ const AddEmployee: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleDateOfBirthChange = (date: Date | undefined) => {
-        setFormData(prev => ({ ...prev, dateOfBirth: date || null }));
+    const handleDateOfBirthChange = (date: Date | null) => {
+        setFormData(prev => ({ ...prev, dateOfBirth: date }));
     };
 
-    const handleJoiningDateChange = (date: Date | undefined) => {
-        setFormData(prev => ({ ...prev, joiningDate: date || null }));
+    const handleJoiningDateChange = (date: Date | null) => {
+        setFormData(prev => ({ ...prev, joiningDate: date }));
     };
 
     const handleSubmit = (e: FormEvent) => {
@@ -177,19 +176,19 @@ const AddEmployee: React.FC = () => {
                 });
                 navigate("/employees");
             },
-            onError: (error: any) => {
+            onError: (error: ApiError) => {
                 let errorMessage = "Failed to create employee.";
 
                 // The axios interceptor transforms errors into ApiError with validationDetails
                 if (error?.validationDetails && Array.isArray(error.validationDetails) && error.validationDetails.length > 0) {
-                    errorMessage = error.validationDetails.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
+                    errorMessage = error.validationDetails.map((d) => d.message || `${d.field} is invalid`).join(', ');
                 } else if (error?.message && error.message !== 'An error occurred') {
                     errorMessage = error.message;
                 } else if (error?.response?.data) {
                     // Fallback for non-intercepted errors
                     const data = error.response.data;
                     if (data.details && Array.isArray(data.details) && data.details.length > 0) {
-                        errorMessage = data.details.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
+                        errorMessage = data.details.map((d) => d.message || `${d.field} is invalid`).join(', ');
                     } else if (data.message) {
                         errorMessage = data.message;
                     }
@@ -269,8 +268,9 @@ const AddEmployee: React.FC = () => {
                             </LabelInputContainer>
                             <LabelInputContainer>
                                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                                <EnhancedDOBPicker
-                                    value={formData.dateOfBirth || undefined} // Expects Date | undefined
+                                <EnhancedDateField
+                                    variant="dob"
+                                    value={formData.dateOfBirth}
                                     onChange={handleDateOfBirthChange}
                                     required
                                 />
@@ -433,8 +433,9 @@ const AddEmployee: React.FC = () => {
                         <CardContent className="space-y-4">
                             <LabelInputContainer>
                                 <Label htmlFor="joiningDate">Joining Date</Label>
-                                <EnhancedJoiningPicker
-                                    value={formData.joiningDate || undefined}
+                                <EnhancedDateField
+                                    variant="joining"
+                                    value={formData.joiningDate}
                                     onChange={handleJoiningDateChange}
                                     required
                                 />

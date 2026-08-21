@@ -14,6 +14,7 @@ import SidebarDemo from './components/Sidebar';
 import LoaderGate from './components/LoadingAnimation';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/toast';
+import { ConfirmProvider } from './components/ui/confirm-dialog';
 import ErrorBoundary from './components/ErrorBoundary';
 import DebugPanel from './components/DebugPanel';
 import RequireRole from './components/auth/RequireRole';
@@ -50,17 +51,19 @@ const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 // redirected to /dashboard instead of rendering a shell that 403s on every call.
 const HR_ONLY = ['admin', 'hr'] as const;
 
-// 🚀 PHASE 2 OPTIMIZATION: Enhanced loading component with skeleton
+// Shown for route-to-route navigations into a chunk that isn't cached yet.
+// On the *initial* load LoaderGate's overlay sits on top of this, so the two
+// never read as two sequential loaders — see LoadingAnimation.tsx.
 const PageLoader = () => (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto"></div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 animate-pulse">Loading...</div>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
+            <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
             {/* Skeleton loading for better UX */}
             <div className="hidden sm:block space-y-2 w-64">
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+                <div className="h-2 bg-muted rounded animate-pulse"></div>
+                <div className="h-2 bg-muted rounded animate-pulse w-3/4"></div>
+                <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
             </div>
         </div>
     </div>
@@ -81,6 +84,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                 <Toaster>
                     <QueryClientProvider client={queryClient}>
                         <ThemeProvider>
+                            <ConfirmProvider>
                             <BrowserRouter>
                                 <Suspense fallback={<PageLoader />}>
                                     <Routes>
@@ -93,67 +97,63 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                         <Route path="/auth/signup" element={<Signup />} />
                                         <Route path="/auth/forgotPassword" element={<ForgotPassword />} />
 
-                                        {/* HRMS Application Routes */}
-                                        <Route path="/dashboard" element={<SidebarDemo />}>
-                                            <Route index element={<HRMSDashboard />} />
-                                        </Route>
-                                        <Route path="/employees" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
-                                            <Route index element={<EmployeeDirectory />} />
-                                            <Route path=":employeeId" element={<EmployeeDirectory />} />
-                                            <Route path="add" element={<AddEmployee />} />
-                                            <Route path="link" element={<EmployeeLink />} />
-                                        </Route>
-                                        <Route path="/holidays" element={<SidebarDemo />}>
-                                            <Route index element={<HolidayManagementPage />} />
-                                        </Route>
-                                        <Route path="/announcements" element={<SidebarDemo />}>
-                                            <Route index element={<AnnouncementsPage />} />
-                                        </Route>
-                                        <Route path="/policies" element={<SidebarDemo />}>
-                                            <Route index element={<PoliciesPage />} />
-                                        </Route>
-                                        <Route path="/settings" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
-                                            <Route index element={<SettingsPage />} />
-                                        </Route>
-                                        <Route path="/appearance" element={<SidebarDemo />}>
-                                            <Route index element={<AppearancePage />} />
-                                        </Route>
-                                        <Route path="/attendance" element={<SidebarDemo />}>
-                                            <Route path="my" element={<MyAttendance />} />
-                                        </Route>
-                                        {/* Mixed access: the index/generate views are HR-only,
-                                            but every role reaches the "my" views. */}
-                                        <Route path="/task-reports" element={<SidebarDemo />}>
-                                            <Route index element={<RequireRole roles={HR_ONLY}><TaskReportsManage /></RequireRole>} />
-                                            <Route path="generate" element={<RequireRole roles={HR_ONLY}><TaskReportGenerator /></RequireRole>} />
-                                            <Route path="my" element={<MyTaskReports />} />
-                                        </Route>
-                                        <Route path="/salary-slips" element={<SidebarDemo />}>
-                                            <Route index element={<RequireRole roles={HR_ONLY}><SalarySlipManagement /></RequireRole>} />
-                                            <Route path="my" element={<MySalarySlips />} />
-                                        </Route>
-                                        <Route path="/profile" element={<SidebarDemo />}>
-                                            <Route index element={<GetProfile />} />
-                                            <Route path="documents" element={<DocumentsPage />} />
-                                        </Route>
-                                        <Route path="/salary" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
-                                            <Route index element={<SalaryHub />} />
-                                        </Route>
-                                        <Route path="/salary-structures" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
-                                            <Route index element={<SalaryStructureManagement />} />
-                                        </Route>
-                                        <Route path="/requests" element={<SidebarDemo />}>
-                                            <Route index element={<MyRequests />} />
-                                        </Route>
-                                        <Route path="/expenses" element={<SidebarDemo />}>
-                                            <Route path="my" element={<MyExpenses />} />
-                                        </Route>
-                                        <Route path="/admin" element={<RequireRole roles={HR_ONLY}><SidebarDemo /></RequireRole>}>
-                                            <Route path="requests" element={<AdminRequestsPage />} />
-                                            <Route path="expenses" element={<ExpenseManagement />} />
-                                        </Route>
-                                        <Route path="/chatbot" element={<SidebarDemo />}>
-                                            <Route index element={<ChatBot />} />
+                                        {/* HRMS Application Routes.
+                                            One pathless layout route holds the single <SidebarDemo />
+                                            for every authenticated page. Previously each path declared
+                                            its own <SidebarDemo /> element, so navigating between them
+                                            unmounted and remounted the sidebar — resetting its open
+                                            state and flashing useAuth's "Authenticating..." screen on
+                                            every navigation. Sharing one element keeps it mounted and
+                                            swaps only the <Outlet />.
+
+                                            RequireRole now wraps the individual leaf elements rather
+                                            than the layout, since the layout is shared by all roles. */}
+                                        <Route element={<SidebarDemo />}>
+                                            <Route path="/dashboard" element={<HRMSDashboard />} />
+
+                                            <Route path="/employees">
+                                                <Route index element={<RequireRole roles={HR_ONLY}><EmployeeDirectory /></RequireRole>} />
+                                                <Route path=":employeeId" element={<RequireRole roles={HR_ONLY}><EmployeeDirectory /></RequireRole>} />
+                                                <Route path="add" element={<RequireRole roles={HR_ONLY}><AddEmployee /></RequireRole>} />
+                                                <Route path="link" element={<RequireRole roles={HR_ONLY}><EmployeeLink /></RequireRole>} />
+                                            </Route>
+
+                                            <Route path="/holidays" element={<HolidayManagementPage />} />
+                                            <Route path="/announcements" element={<AnnouncementsPage />} />
+                                            <Route path="/policies" element={<PoliciesPage />} />
+                                            <Route path="/settings" element={<RequireRole roles={HR_ONLY}><SettingsPage /></RequireRole>} />
+                                            <Route path="/appearance" element={<AppearancePage />} />
+                                            <Route path="/attendance/my" element={<MyAttendance />} />
+
+                                            {/* Mixed access: the index/generate views are HR-only,
+                                                but every role reaches the "my" views. */}
+                                            <Route path="/task-reports">
+                                                <Route index element={<RequireRole roles={HR_ONLY}><TaskReportsManage /></RequireRole>} />
+                                                <Route path="generate" element={<RequireRole roles={HR_ONLY}><TaskReportGenerator /></RequireRole>} />
+                                                <Route path="my" element={<MyTaskReports />} />
+                                            </Route>
+
+                                            <Route path="/salary-slips">
+                                                <Route index element={<RequireRole roles={HR_ONLY}><SalarySlipManagement /></RequireRole>} />
+                                                <Route path="my" element={<MySalarySlips />} />
+                                            </Route>
+
+                                            <Route path="/profile">
+                                                <Route index element={<GetProfile />} />
+                                                <Route path="documents" element={<DocumentsPage />} />
+                                            </Route>
+
+                                            <Route path="/salary" element={<RequireRole roles={HR_ONLY}><SalaryHub /></RequireRole>} />
+                                            <Route path="/salary-structures" element={<RequireRole roles={HR_ONLY}><SalaryStructureManagement /></RequireRole>} />
+                                            <Route path="/requests" element={<MyRequests />} />
+                                            <Route path="/expenses/my" element={<MyExpenses />} />
+
+                                            <Route path="/admin">
+                                                <Route path="requests" element={<RequireRole roles={HR_ONLY}><AdminRequestsPage /></RequireRole>} />
+                                                <Route path="expenses" element={<RequireRole roles={HR_ONLY}><ExpenseManagement /></RequireRole>} />
+                                            </Route>
+
+                                            <Route path="/chatbot" element={<ChatBot />} />
                                         </Route>
 
                                         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -163,6 +163,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                             </BrowserRouter>
                             <DebugPanel />
                             <ReactQueryDevtools initialIsOpen={false} />
+                            </ConfirmProvider>
                         </ThemeProvider>
                     </QueryClientProvider>
                 </Toaster>

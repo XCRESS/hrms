@@ -5,6 +5,13 @@ import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, Calenda
 import { useHolidays, useCreateHoliday, useUpdateHoliday, useDeleteHoliday } from '@/hooks/queries';
 import { formatISTDate } from '@/utils/luxonUtils';
 import type { Holiday, User } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Message {
   type: 'success' | 'error' | '';
@@ -337,12 +344,16 @@ const HolidaysPage = (): JSX.Element => {
       </div>
 
       {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all my-8">
-            <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100">
-              {isEditing ? 'Edit Holiday' : 'Add New Holiday'}
-            </h3>
+      <Dialog open={showModal} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="max-w-md p-6">
+            <DialogHeader className="mb-4 pr-8 text-left">
+              <DialogTitle className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+                {isEditing ? 'Edit Holiday' : 'Add New Holiday'}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {isEditing ? 'Edit this holiday.' : 'Add a new company holiday.'}
+              </DialogDescription>
+            </DialogHeader>
             <form onSubmit={handleSaveHoliday} className="space-y-4">
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -423,19 +434,22 @@ const HolidaysPage = (): JSX.Element => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && holidayToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm transform transition-all">
-            <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-100">Confirm Deletion</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-              Are you sure you want to delete the holiday "<strong>{holidayToDelete.title}</strong>" on{' '}
-              {formatISTDate(holidayToDelete.date, { customFormat: 'dd MMM yyyy' })}?
-            </p>
+      <Dialog
+        open={showDeleteConfirm && !!holidayToDelete}
+        onOpenChange={(open) => !open && closeDeleteConfirm()}
+      >
+        <DialogContent className="max-w-sm p-6">
+            <DialogHeader className="mb-2 pr-8 text-left">
+              <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">Confirm Deletion</DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to delete the holiday "<strong>{holidayToDelete?.title}</strong>" on{' '}
+                {holidayToDelete && formatISTDate(holidayToDelete.date, { customFormat: 'dd MMM yyyy' })}?
+              </DialogDescription>
+            </DialogHeader>
             {message.content && message.type === 'error' && (
               <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md flex items-center text-sm">
                 <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
@@ -457,9 +471,8 @@ const HolidaysPage = (): JSX.Element => {
                 {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

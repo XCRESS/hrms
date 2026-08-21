@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { ArrowLeft, FileText, User, Shield, GraduationCap, Building2, Upload, Eye, Download, Plus, X } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, FileText, User, Shield, GraduationCap, Upload, Eye, Plus, X } from 'lucide-react';
 import { useToast } from '../../ui/toast';
+import BusyOverlay from '../../ui/BusyOverlay';
 import { useEmployeeDocuments, useUploadDocument, useDeleteDocument } from '@/hooks/queries';
 import { Document, DocumentType } from '@/types';
 import { LucideIcon } from 'lucide-react';
@@ -241,14 +242,10 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ employeeProfile, onBa
           })}
         </div>
 
-        {(uploadMutation.isPending || deleteMutation.isPending) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
-              <span className="text-gray-900 dark:text-white">Uploading...</span>
-            </div>
-          </div>
-        )}
+        <BusyOverlay
+          show={uploadMutation.isPending || deleteMutation.isPending}
+          message="Uploading..."
+        />
       </div>
     </div>
   );

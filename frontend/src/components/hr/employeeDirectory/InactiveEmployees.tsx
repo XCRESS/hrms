@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { UserX, Calendar, Mail, Phone, Building, User, RotateCcw, AlertTriangle, Eye, X } from 'lucide-react';
 import { useEmployees, useEmployee, useToggleEmployeeStatus } from '../../../hooks/queries';
 import { useToast } from '../../ui/toast';
+import { useConfirm } from '../../ui/confirm-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { formatDate } from '../../../utils/istUtils';
 import { Employee } from '../../../types';
 
@@ -10,6 +18,7 @@ const InactiveEmployees: React.FC = () => {
     const [viewModalOpen, setViewModalOpen] = useState(false);
     const [activatingId, setActivatingId] = useState<string | null>(null);
     const { toast } = useToast();
+    const confirm = useConfirm();
 
     // Fetch inactive employees
     const { data: inactiveEmployees = [], isLoading: loading } = useEmployees({ status: 'inactive' });
@@ -29,8 +38,13 @@ const InactiveEmployees: React.FC = () => {
         setSelectedEmployeeId(null);
     };
 
-    const handleReactivateEmployee = (employeeId: string, employeeName: string) => {
-        if (!window.confirm(`Are you sure you want to reactivate ${employeeName}? This will restore their access to the system.`)) {
+    const handleReactivateEmployee = async (employeeId: string, employeeName: string) => {
+        const confirmed = await confirm({
+            title: 'Reactivate employee?',
+            description: `Are you sure you want to reactivate ${employeeName}? This will restore their access to the system.`,
+            confirmText: 'Reactivate',
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -218,21 +232,17 @@ const InactiveEmployees: React.FC = () => {
             </div>
 
             {/* Employee Details Modal */}
-            {viewModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <Dialog open={viewModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
+                <DialogContent className="max-w-4xl max-h-[90vh] gap-0 overflow-y-auto p-0">
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+                            <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
                                 Employee Details
-                            </h2>
-                            <button
-                                onClick={handleCloseModal}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
+                            </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                Details for this deactivated employee.
+                            </DialogDescription>
+                        </DialogHeader>
 
                         {/* Modal Content */}
                         <div className="p-6">
@@ -386,9 +396,8 @@ const InactiveEmployees: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

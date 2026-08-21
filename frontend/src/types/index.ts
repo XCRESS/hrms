@@ -841,6 +841,9 @@ export interface ApiError {
     data?: {
       message?: string;
       error?: string;
+      /** Raw per-field validation errors, before the interceptor lifts them
+       *  onto `validationDetails`. Present on non-intercepted errors. */
+      details?: Array<{ field: string; message: string }>;
     };
   };
   // Properties from second definition

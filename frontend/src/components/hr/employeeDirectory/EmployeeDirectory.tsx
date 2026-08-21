@@ -16,6 +16,7 @@ import LeaveSection from './LeaveSection';
 import InactiveEmployees from './InactiveEmployees';
 import { Edit, Users, UserX, ToggleLeft, ToggleRight, PlusCircle, Link2, Link2Off, FileText } from 'lucide-react';
 import { useToast } from '../../../components/ui/toast';
+import { useConfirm } from '../../../components/ui/confirm-dialog';
 import DocumentManager from './DocumentManager';
 import { sanitizeText } from '../../../utils/sanitization';
 import { validateUpdateEmployee, validateField } from '../../../schemas/employeeValidation';
@@ -26,6 +27,7 @@ export default function EmployeeDirectory() {
     const { employeeId: urlEmployeeId } = useParams();
     const userObject = useAuth();
     const { toast } = useToast();
+    const confirm = useConfirm();
 
     // Local UI state
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(urlEmployeeId || null);
@@ -107,12 +109,16 @@ export default function EmployeeDirectory() {
             })
         , [employees, search]);
 
+    // Authorization is enforced by <RequireRole roles={HR_ONLY}> on the route,
+    // which decodes the JWT synchronously during render. By the time this
+    // component mounts the role is already known to be hr/admin.
+    //
+    // useAuth() is *not* a usable authorization source here: it starts at null
+    // and only decodes the token in a useEffect, i.e. after first paint. Gating
+    // on it made an unresolved auth state render as a denial, which flashed
+    // "Not authorized to view this page." for a frame on every visit. Render
+    // the neutral loading state until it resolves instead.
     if (!userObject) return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Loading user data...</div>;
-    const user = userObject;
-
-    if (user.role !== 'hr' && user.role !== 'admin') {
-        return <div className="p-6 text-center text-red-500">Not authorized to view this page.</div>;
-    }
 
     const isEmployeeLinked = (employeeId: string) => {
         return users.some(u => u.employeeId === employeeId);
@@ -128,11 +134,17 @@ export default function EmployeeDirectory() {
         return linked ? linked.name : '';
     };
 
-    const handleUnlinkEmployee = (employeeId: string, employeeName: string) => {
+    const handleUnlinkEmployee = async (employeeId: string, employeeName: string) => {
         const userId = getLinkedUserId(employeeId);
         if (!userId) return;
         const linkedUserName = getLinkedUserName(employeeId);
-        if (!window.confirm(`Unlink "${linkedUserName}" from ${employeeName}? This will revoke their login access.`)) return;
+        const confirmed = await confirm({
+            title: 'Unlink user account?',
+            description: `Unlink "${linkedUserName}" from ${employeeName}? This will revoke their login access.`,
+            confirmText: 'Unlink',
+            destructive: true,
+        });
+        if (!confirmed) return;
         unlinkMutation.mutate({ userId }, {
             onSuccess: () => {
                 toast({ title: 'Unlinked', description: `${linkedUserName} has been unlinked from ${employeeName}.` });
@@ -224,13 +236,19 @@ export default function EmployeeDirectory() {
         );
     };
 
-    const handleToggleEmployeeStatus = (employeeId: string, currentStatus: boolean, employeeName?: string) => {
+    const handleToggleEmployeeStatus = async (employeeId: string, currentStatus: boolean, employeeName?: string) => {
         const action = currentStatus ? 'deactivate' : 'activate';
         const confirmMessage = currentStatus
             ? `Are you sure you want to deactivate ${employeeName}? This will prevent them from logging in and remove them from active employee lists.`
             : `Are you sure you want to activate ${employeeName}? This will restore their access to the system.`;
 
-        if (!window.confirm(confirmMessage)) {
+        const confirmed = await confirm({
+            title: currentStatus ? 'Deactivate employee?' : 'Activate employee?',
+            description: confirmMessage,
+            confirmText: currentStatus ? 'Deactivate' : 'Activate',
+            destructive: currentStatus,
+        });
+        if (!confirmed) {
             return;
         }
 

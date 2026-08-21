@@ -1,8 +1,14 @@
-import { useState, useEffect, useRef, useMemo, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent, ChangeEvent } from 'react';
 import { Button } from '../ui/button';
 import { PlusCircle, XCircle, Clock, CheckCircle, AlertCircle, Coffee, Sunset, User, Calendar, Timer } from 'lucide-react';
 import useAuth from '../../hooks/authjwt';
 import { useEffectiveSettings, useMyAttendance } from '@/hooks/queries';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface TaskReportModalProps {
   isOpen: boolean;
@@ -30,7 +36,6 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
   const [isMobile, setIsMobile] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const modalRef = useRef<HTMLDivElement>(null);
   const user = useAuth();
 
   // Calculate today's date range
@@ -169,15 +174,8 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         setPostLunchTasks(['']);
       }
 
-      // Prevent background scroll
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
     }
-
-    return () => {
-      document.body.style.overflow = '';
-    };
+    // Dialog handles background scroll locking.
   }, [isOpen]);
 
   // Auto-save tasks
@@ -319,8 +317,6 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
     onClose();
   };
 
-  if (!isOpen) return null;
-
   // Calculate modal height based on device and keyboard state
   const getModalHeight = () => {
     if (isMobile && isKeyboardVisible) return '70vh';
@@ -331,21 +327,30 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
   const isLikelyPostLunch = currentTime.getHours() >= 14;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={handleClose}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // A mandatory report must not be dismissable by Escape or a click
+        // outside — the user has to submit it or use the explicit skip action.
+        if (!open && isOptional) handleClose();
+      }}
     >
       {/* Modal Container - Fixed Height with Flexbox Layout */}
-      <div
-        ref={modalRef}
-        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col ${isMobile ? 'mx-2' : ''
-          }`}
+      <DialogContent
+        hideCloseButton
+        className={`max-w-2xl flex flex-col gap-0 rounded-2xl border-0 bg-white p-0 dark:bg-gray-800 ${isMobile ? 'mx-2' : ''}`}
         style={{
           height: getModalHeight(),
           maxHeight: getModalHeight(),
         }}
-        onClick={(e) => e.stopPropagation()}
+        onEscapeKeyDown={(e) => !isOptional && e.preventDefault()}
+        onInteractOutside={(e) => !isOptional && e.preventDefault()}
       >
+        <DialogTitle className="sr-only">Daily Task Report</DialogTitle>
+        <DialogDescription className="sr-only">
+          Record the tasks you completed today before checking out.
+        </DialogDescription>
+
         {/* HEADER - Fixed at top, never scrolls */}
         <div className="flex-shrink-0 px-6 py-5 border-b border-border">
           <div className="flex items-center justify-between">
@@ -707,8 +712,8 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
               </div>
             )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

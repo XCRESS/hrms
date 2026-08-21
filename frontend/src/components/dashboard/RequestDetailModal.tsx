@@ -1,6 +1,14 @@
 import { useState, ReactElement } from 'react';
-import { X, Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck, MapPin, LucideIcon } from 'lucide-react';
+import { Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck, MapPin, LucideIcon } from 'lucide-react';
 import { formatDate } from '@/utils/istUtils';
+import { useToast } from '@/components/ui/toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   useUpdateLeaveStatus,
   useUpdateHelpInquiry,
@@ -79,6 +87,7 @@ interface StatusConfig {
 const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetailModalProps) => {
   const [reviewComment, setReviewComment] = useState('');
   const [helpResponse, setHelpResponse] = useState('');
+  const { toast } = useToast();
 
   // Mutations
   const updateLeaveMutation = useUpdateLeaveStatus();
@@ -98,7 +107,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
     updateWFHMutation.isPending ||
     updateExpenseMutation.isPending;
 
-  if (!isOpen || !request) return null;
+  if (!request) return null;
 
   const formatDateTime = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -165,7 +174,12 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
       onClose();
     } catch (error) {
       console.error('Error updating request:', error);
-      alert('Error updating request status');
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description:
+          (error as { message?: string })?.message || 'Error updating request status',
+      });
     }
   };
 
@@ -442,30 +456,22 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
   })();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden mx-2 sm:mx-0">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[95vh] sm:max-h-[90vh] gap-0 overflow-hidden bg-card p-0">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-border">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <div className="p-2 bg-muted rounded-lg flex-shrink-0">
-              {request.icon}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight break-words [overflow-wrap:anywhere]">
-                {request.title}
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Request Details & Review
-              </p>
-            </div>
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 p-4 sm:p-6 pr-14 border-b border-border text-left">
+          <div className="p-2 bg-muted rounded-lg flex-shrink-0">
+            {request.icon}
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-muted-foreground hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 rounded-lg bg-neutral-50 hover:bg-muted dark:hover:bg-neutral-600 border border-border dark:border-border shadow-sm hover:shadow transition-all duration-200 flex-shrink-0"
-          >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="text-lg sm:text-xl font-bold text-foreground leading-tight break-words [overflow-wrap:anywhere]">
+              {request.title}
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+              Request Details &amp; Review
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)]">
@@ -597,8 +603,8 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
             )}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -1,6 +1,13 @@
 import React, { useEffect, useState, FormEvent } from 'react';
-import { Edit3, X, Save } from 'lucide-react';
+import { Edit3, Save } from 'lucide-react';
 import { useUpdateAttendanceRecord } from '../../../../hooks/queries';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import TimeInput from './TimeInput';
 import { AttendanceRecord, Employee } from '../../../../types';
 
@@ -140,23 +147,19 @@ const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({ isOpen, onClo
         );
     };
 
-    if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
-                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md gap-0 p-0">
+                <DialogHeader className="p-6 pr-14 border-b border-slate-200 dark:border-slate-700 text-left">
+                    <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <Edit3 className="w-5 h-5 text-cyan-600" />
                         Edit Attendance
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Edit the check-in and check-out times for this attendance record.
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (
@@ -240,8 +243,8 @@ const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({ isOpen, onClo
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

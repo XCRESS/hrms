@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useHolidays, useEmployeeAttendanceWithAbsents, useUpdateAttendanceRecord } from '../../../../hooks/queries';
-import { CheckCircle, AlertCircle, XCircle, Clock, ChevronLeft, ChevronRight, Calendar, MapPin, Eye, Edit3, X, Save } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Clock, ChevronLeft, ChevronRight, Calendar, MapPin, Eye, Edit3, Save } from 'lucide-react';
 import TimeInput from './TimeInput';
 import LocationMapModal from '../../../ui/LocationMapModal';
 import { formatTime, formatDate } from '../../../../utils/istUtils';
 import AttendanceAnalytics, { AttendanceStatistics } from './AttendanceAnalytics';
 import { AttendanceRecord, Employee } from '../../../../types';
+import { useToast } from '@/components/ui/toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 interface AttendanceTableProps {
     employeeId: string | undefined;
@@ -96,23 +104,18 @@ const BulkEditAttendanceModal: React.FC<BulkEditModalProps> = ({ isOpen, onClose
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
-                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md gap-0 p-0">
+                <DialogHeader className="p-6 pr-14 border-b border-slate-200 dark:border-slate-700 text-left">
+                    <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <Edit3 className="w-5 h-5 text-cyan-600" />
                         Update Attendance
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Update the attendance record for this day.
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (
@@ -193,8 +196,8 @@ const BulkEditAttendanceModal: React.FC<BulkEditModalProps> = ({ isOpen, onClose
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 
@@ -206,6 +209,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
     onEditAttendance,
     updateTrigger
 }) => {
+    const { toast } = useToast();
+
     // Core data states
     const [allAttendanceData, setAllAttendanceData] = useState<ProcessedAttendanceRecord[]>([]); // Pre-loaded data for entire range
     const [displayedData, setDisplayedData] = useState<ProcessedAttendanceRecord[]>([]); // Current window of data
@@ -603,7 +608,13 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
             refetchAttendance();
         } catch (err) {
             console.error('Failed to bulk update attendance:', err);
-            alert('Failed to update attendance records. Please try again.');
+            toast({
+                variant: 'destructive',
+                title: 'Bulk Update Failed',
+                description:
+                    (err as { message?: string })?.message ||
+                    'Failed to update attendance records. Please try again.',
+            });
         }
     };
 

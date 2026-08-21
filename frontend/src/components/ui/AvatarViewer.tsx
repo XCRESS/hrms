@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Camera, Trash2, User, Loader2 } from 'lucide-react';
+import { Camera, Trash2, User, Loader2 } from 'lucide-react';
 import { useToast } from './toast';
 import { useUploadDocument, useDeleteDocument } from '@/hooks/queries';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -36,30 +41,12 @@ const AvatarViewer = ({
   const deleteMutation = useDeleteDocument();
   const busy = uploadMutation.isPending || deleteMutation.isPending;
 
-  // Close on Escape and lock background scrolling while open.
-  useEffect(() => {
-    if (!open) return;
-
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape' && !busy) onClose();
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open, onClose, busy]);
+  // Dialog handles Escape, scroll locking, focus trapping and the portal.
 
   // Reset the confirmation prompt whenever the viewer is reopened.
   useEffect(() => {
     if (!open) setConfirmingRemove(false);
   }, [open]);
-
-  if (!open) return null;
 
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
@@ -126,35 +113,32 @@ const AvatarViewer = ({
 
   const initial = name?.trim().charAt(0).toUpperCase() || '';
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${name} profile picture`}
-      className="fixed inset-0 z-[100] flex flex-col bg-black/95 animate-in fade-in duration-200"
-      onClick={() => !busy && onClose()}
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Ignore dismissals while an upload or delete is in flight.
+        if (!next && !busy) onClose();
+      }}
     >
-      {/* Top bar */}
-      <div
-        className="flex items-center gap-4 px-4 py-4 text-white"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        // Full-screen lightbox rather than a centered card.
+        className="max-w-none w-screen h-screen translate-x-0 translate-y-0 left-0 top-0 flex flex-col gap-0 rounded-none border-0 bg-black/95 p-0 sm:rounded-none"
+        onEscapeKeyDown={(e) => busy && e.preventDefault()}
+        onInteractOutside={(e) => busy && e.preventDefault()}
       >
-        <button
-          onClick={onClose}
-          disabled={busy}
-          aria-label="Close"
-          className="p-2 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
-        >
-          <X size={22} />
-        </button>
-        <p className="text-lg font-medium truncate">{name}</p>
-      </div>
+        {/* Top bar */}
+        <div className="flex items-center gap-4 px-4 py-4 pr-16 text-white">
+          <DialogTitle className="text-lg font-medium truncate text-white">
+            {name}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {`Profile picture for ${name}.`}
+          </DialogDescription>
+        </div>
 
-      {/* Image */}
-      <div
-        className="flex-1 flex items-center justify-center px-4 min-h-0"
-        onClick={(e) => e.stopPropagation()}
-      >
+        {/* Image */}
+        <div className="flex-1 flex items-center justify-center px-4 min-h-0">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -174,7 +158,7 @@ const AvatarViewer = ({
 
       {/* Actions */}
       {canEdit && (
-        <div className="px-4 py-6" onClick={(e) => e.stopPropagation()}>
+        <div className="px-4 py-6">
           {confirmingRemove ? (
             <div className="flex flex-col items-center gap-4">
               <p className="text-white text-sm">Remove this profile picture?</p>
@@ -238,8 +222,8 @@ const AvatarViewer = ({
           />
         </div>
       )}
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 };
 

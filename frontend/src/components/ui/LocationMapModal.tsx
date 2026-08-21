@@ -2,7 +2,14 @@ import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, MapPin, Clock, User, AlertCircle } from 'lucide-react';
+import { MapPin, Clock, User, AlertCircle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Fix for default markers in React Leaflet
 // @ts-expect-error - Leaflet type definitions don't include _getIconUrl
@@ -68,8 +75,6 @@ const LocationMapModal = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const hasLocation = attendanceRecord?.location?.latitude && attendanceRecord?.location?.longitude;
   const latitude = attendanceRecord?.location?.latitude || 0;
   const longitude = attendanceRecord?.location?.longitude || 0;
@@ -103,30 +108,22 @@ const LocationMapModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Check-in Location
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {formatDate(attendanceRecord?.date)}
-              </p>
-            </div>
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 p-6 pr-14 border-b border-slate-200 dark:border-slate-700 text-left">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+            <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          <div>
+            <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Check-in Location
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-400">
+              {formatDate(attendanceRecord?.date)}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Employee Info */}
         <div className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-b border-slate-200 dark:border-slate-700">
@@ -259,10 +256,8 @@ const LocationMapModal = ({
             </div>
           )}
         </div>
-
-
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
