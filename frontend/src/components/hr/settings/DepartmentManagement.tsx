@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { Building2, Plus, Edit2, Trash2, UserCheck, Eye, Users, AlertTriangle } from 'lucide-react';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   useAvailableEmployees,
   useAssignEmployeeToDepartment,
   useDepartmentStats,
@@ -272,13 +279,20 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
       </div>
 
       {/* Add Department Modal */}
-      {showAddDeptModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add Department</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Create a new department</p>
-            </div>
+      <Dialog
+        open={showAddDeptModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddDeptModal(false);
+            setNewDeptName('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md gap-0 p-0">
+          <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">Add Department</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-1">Create a new department</DialogDescription>
+          </DialogHeader>
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -314,20 +328,21 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                 Add Department
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Rename Department Modal */}
-      {showRenameDeptModal && selectedDeptForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rename Department</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                Rename "{selectedDeptForAction.name}"
-              </p>
-            </div>
+      <Dialog
+        open={showRenameDeptModal && !!selectedDeptForAction}
+        onOpenChange={(open) => !open && setShowRenameDeptModal(false)}
+      >
+        <DialogContent className="max-w-md gap-0 p-0">
+          <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">Rename Department</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Rename "{selectedDeptForAction?.name}"
+            </DialogDescription>
+          </DialogHeader>
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -358,34 +373,35 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
               <button
                 type="button"
                 onClick={handleRenameDepartment}
-                disabled={!newDeptName.trim() || newDeptName.trim() === selectedDeptForAction.name}
+                disabled={!newDeptName.trim() || newDeptName.trim() === selectedDeptForAction?.name}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Rename Department
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Department Modal */}
-      {showDeleteDeptModal && selectedDeptForAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-red-700 dark:text-red-400">Delete Department</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                This action cannot be undone
-              </p>
-            </div>
+      <Dialog
+        open={showDeleteDeptModal && !!selectedDeptForAction}
+        onOpenChange={(open) => !open && setShowDeleteDeptModal(false)}
+      >
+        <DialogContent className="max-w-md gap-0 p-0">
+          <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+            <DialogTitle className="text-lg font-semibold text-red-700 dark:text-red-400">Delete Department</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              This action cannot be undone
+            </DialogDescription>
+          </DialogHeader>
             <div className="p-6 space-y-4">
               <p className="text-gray-700 dark:text-gray-300">
-                Are you sure you want to delete <strong>"{selectedDeptForAction.name}"</strong>?
+                Are you sure you want to delete <strong>"{selectedDeptForAction?.name}"</strong>?
               </p>
-              {selectedDeptForAction.employeeCount > 0 && (
+              {(selectedDeptForAction?.employeeCount ?? 0) > 0 && (
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong>Warning:</strong> This department has {selectedDeptForAction.employeeCount} employee{selectedDeptForAction.employeeCount !== 1 ? 's' : ''}.
+                    <strong>Warning:</strong> This department has {selectedDeptForAction?.employeeCount} employee{selectedDeptForAction?.employeeCount !== 1 ? 's' : ''}.
                     Their department field will be cleared.
                   </p>
                 </div>
@@ -410,22 +426,23 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                 Delete Department
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Employee Assignment Modal */}
-      {showEmployeeModal && selectedDeptForEmployees && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
-                Manage Employees - {selectedDeptForEmployees.name}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
-                Assign employees to this department
-              </p>
-            </div>
+      <Dialog
+        open={showEmployeeModal && !!selectedDeptForEmployees}
+        onOpenChange={(open) => !open && setShowEmployeeModal(false)}
+      >
+        <DialogContent className="max-w-4xl max-h-[95vh] sm:max-h-[90vh] gap-0 overflow-hidden p-0">
+          <DialogHeader className="p-4 sm:p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+            <DialogTitle className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
+              Manage Employees - {selectedDeptForEmployees?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Assign employees to this department
+            </DialogDescription>
+          </DialogHeader>
 
             <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)] overflow-y-auto">
               {loadingEmployees ? (
@@ -454,7 +471,7 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                               </span>
                             </div>
                             <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                              Already in {selectedDeptForEmployees.name}
+                              Already in {selectedDeptForEmployees?.name}
                             </div>
                           </div>
                         ))}
@@ -559,25 +576,34 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
                 Close
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation Modal for Changing Department */}
-      {showConfirmModal && employeeToAssign && selectedDeptForEmployees && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Confirm Department Change
-              </h3>
-            </div>
+      <Dialog
+        open={showConfirmModal && !!employeeToAssign && !!selectedDeptForEmployees}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowConfirmModal(false);
+            setEmployeeToAssign(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md gap-0 p-0">
+          <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+            <DialogTitle className="text-lg font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Confirm Department Change
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Confirm moving this employee to a different department.
+            </DialogDescription>
+          </DialogHeader>
             <div className="p-6 space-y-4">
               <p className="text-gray-700 dark:text-gray-300">
-                Are you sure you want to change <strong>{employeeToAssign.firstName} {employeeToAssign.lastName}</strong> department from{' '}
-                <strong className="text-red-600 dark:text-red-400">{employeeToAssign.department}</strong> to{' '}
-                <strong className="text-green-600 dark:text-green-400">{selectedDeptForEmployees.name}</strong>?
+                Are you sure you want to change <strong>{employeeToAssign?.firstName} {employeeToAssign?.lastName}</strong> department from{' '}
+                <strong className="text-red-600 dark:text-red-400">{employeeToAssign?.department}</strong> to{' '}
+                <strong className="text-green-600 dark:text-green-400">{selectedDeptForEmployees?.name}</strong>?
               </p>
             </div>
             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
@@ -593,16 +619,15 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => assignEmployee(employeeToAssign)}
+                onClick={() => employeeToAssign && assignEmployee(employeeToAssign)}
                 disabled={assignEmployeeMutation.isPending}
                 className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
               >
                 {assignEmployeeMutation.isPending ? 'Moving...' : 'Yes, Move Employee'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

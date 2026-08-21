@@ -1,5 +1,13 @@
 import { useState, FormEvent, ChangeEvent } from "react";
-import { X, UploadCloud } from "lucide-react";
+import { UploadCloud } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface HelpDeskData {
   title: string;
@@ -24,8 +32,6 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [category, setCategory] = useState("technical");
   const [priority, setPriority] = useState("medium");
-
-  if (!isOpen) return null;
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -52,18 +58,14 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Submit an Inquiry</h2>
-           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg p-6 md:p-8">
+        <DialogHeader className="mb-6 pr-8 text-left">
+          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Submit an Inquiry</DialogTitle>
+          <DialogDescription className="sr-only">
+            Submit a help desk inquiry to HR.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -169,8 +171,8 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

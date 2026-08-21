@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useUsers, useEmployees, useLinkEmployeeToUser, useUnlinkEmployeeFromUser, useDeleteUser } from "@/hooks/queries";
 import { User } from "@/types";
 import { Link2, Link2Off, AlertTriangle, Trash2, UserX } from "lucide-react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface Employee {
   _id: string;
@@ -19,6 +20,7 @@ const EmployeeLink: React.FC = () => {
   const [unlinkingUserId, setUnlinkingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   // Fetch all users and employees
   const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useUsers();
@@ -77,8 +79,14 @@ const EmployeeLink: React.FC = () => {
     );
   };
 
-  const handleUnlink = (userId: string, userName: string): void => {
-    if (!window.confirm(`Are you sure you want to unlink "${userName}"? They will lose login access to the employee portal.`)) {
+  const handleUnlink = async (userId: string, userName: string): Promise<void> => {
+    const confirmed = await confirm({
+      title: 'Unlink this user?',
+      description: `Are you sure you want to unlink "${userName}"? They will lose login access to the employee portal.`,
+      confirmText: 'Unlink',
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
     setUnlinkingUserId(userId);
@@ -100,10 +108,15 @@ const EmployeeLink: React.FC = () => {
     );
   };
 
-  const handleDeleteUser = (userId: string, userName: string): void => {
-    if (!window.confirm(
-      `Permanently delete the account "${userName}"?\n\nThis cannot be undone. The user will need a new account to access the system.`
-    )) return;
+  const handleDeleteUser = async (userId: string, userName: string): Promise<void> => {
+    const confirmed = await confirm({
+      title: `Permanently delete "${userName}"?`,
+      description:
+        'This cannot be undone. The user will need a new account to access the system.',
+      confirmText: 'Delete permanently',
+      destructive: true,
+    });
+    if (!confirmed) return;
     setDeletingUserId(userId);
     setMessage(null);
     deleteMutation.mutate(userId, {

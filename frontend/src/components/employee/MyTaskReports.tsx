@@ -3,6 +3,13 @@ import { FileText, Calendar, Eye, X, Plus, Send, Edit, Save, Trash2, PlusCircle 
 import { useToast } from "../ui/toast";
 import { formatISTDate } from "../../utils/luxonUtils";
 import { useMyTaskReports, useSubmitTaskReport } from '@/hooks/queries';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Interface for task report from API
 interface TaskReport {
@@ -552,18 +559,14 @@ export default function MyTaskReports() {
       </button>
 
       {/* Task Submission Modal */}
-      {showSubmitModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center animate-fadeIn">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 w-full max-w-md m-4 transform transition-all duration-300">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Submit Task Report</h2>
-              <button
-                onClick={() => setShowSubmitModal(false)}
-                className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+      <Dialog open={showSubmitModal} onOpenChange={(open) => !open && setShowSubmitModal(false)}>
+        <DialogContent className="max-w-md p-6 lg:p-8">
+            <DialogHeader className="mb-4 pr-8 text-left">
+              <DialogTitle className="text-xl font-bold text-gray-800 dark:text-gray-100">Submit Task Report</DialogTitle>
+              <DialogDescription className="sr-only">
+                Record the tasks you completed for this day.
+              </DialogDescription>
+            </DialogHeader>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -635,35 +638,28 @@ export default function MyTaskReports() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Task Details Modal */}
-      {showTaskModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+      <Dialog
+        open={showTaskModal && !!selectedReport}
+        onOpenChange={(open) => !open && closeModal()}
+      >
+        <DialogContent className="max-w-2xl max-h-[80vh] gap-0 overflow-hidden p-0">
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Tasks for {formatISTDate(selectedReport.submissionDate, { customFormat: 'dd MMMM yyyy' })}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {selectedReport.tasks?.length || 0} tasks completed
-                </p>
-              </div>
-              <button
-                onClick={closeModal}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
+            <DialogHeader className="p-6 pr-14 border-b border-gray-200 dark:border-gray-700 text-left">
+              <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Tasks for {selectedReport && formatISTDate(selectedReport.submissionDate, { customFormat: 'dd MMMM yyyy' })}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedReport?.tasks?.length || 0} tasks completed
+              </DialogDescription>
+            </DialogHeader>
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {selectedReport.tasks && selectedReport.tasks.length > 0 ? (
+              {selectedReport?.tasks && selectedReport.tasks.length > 0 ? (
                 <div className="space-y-3">
                   {selectedReport.tasks.map((task, index) => (
                     <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
@@ -687,9 +683,8 @@ export default function MyTaskReports() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

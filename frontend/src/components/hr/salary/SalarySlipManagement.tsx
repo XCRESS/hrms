@@ -11,6 +11,7 @@ import {
     ChevronRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import useAuth from "../../../hooks/authjwt";
 import BackButton from "../../ui/BackButton";
 import SalarySlipForm from "./SalarySlipForm";
@@ -52,6 +53,7 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
     });
 
     const { toast } = useToast();
+    const confirm = useConfirm();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const user = useAuth();
 
@@ -120,7 +122,13 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
     };
 
     const handleDelete = async (slip: SalarySlip) => {
-        if (!window.confirm('Are you sure you want to delete this salary slip?')) {
+        const confirmed = await confirm({
+            title: 'Delete salary slip?',
+            description: 'Are you sure you want to delete this salary slip? This action cannot be undone.',
+            confirmText: 'Delete',
+            destructive: true,
+        });
+        if (!confirmed) {
             return;
         }
 

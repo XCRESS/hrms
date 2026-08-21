@@ -13,42 +13,59 @@ interface JwtPayload {
   exp?: number;
 }
 
+/**
+ * Decode the stored token into a user, or null if absent/expired/invalid.
+ * Pure and synchronous so it can seed state during the first render.
+ */
+function readUserFromToken(): JwtPayload | null {
+  const token = localStorage.getItem("authToken");
+  if (!token) return null;
+
+  try {
+    const decoded = jwtDecode<JwtPayload>(token);
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 export default function useAuth() {
-  const [user, setUser] = useState<JwtPayload | null>(null);
+  // Seeded from the token during the first render rather than left null until
+  // an effect runs. Consumers gate their UI on this value, and starting at null
+  // meant "not resolved yet" was indistinguishable from "not permitted" — pages
+  // flashed an Access Denied screen for a frame before auth resolved, and
+  // queries gated on the role were disabled on that first pass.
+  const [user, setUser] = useState<JwtPayload | null>(readUserFromToken);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkAndSetUser = () => {
       const token = localStorage.getItem("authToken");
-      if (token) {
-        try {
-          const decoded = jwtDecode<JwtPayload>(token);
-
-          // Check if token has expired
-          if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-            console.warn("Token has expired, redirecting to login");
-            localStorage.removeItem("authToken");
-            setUser(null);
-            navigate("/auth/login", { replace: true });
-            return;
-          }
-
-          // Only update user if it actually changed to prevent unnecessary re-renders
-          setUser(prev => {
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(decoded)) {
-              return decoded;
-            }
-            return prev;
-          });
-        } catch (error) {
-          console.error("Invalid token, redirecting to login", error);
-          localStorage.removeItem("authToken");
-          setUser(null);
-          navigate("/auth/login", { replace: true });
-        }
-      } else {
+      if (!token) {
         setUser(null);
+        return;
       }
+
+      const decoded = readUserFromToken();
+
+      // readUserFromToken returns null for both an expired and a malformed
+      // token; either way the stored token is no longer usable.
+      if (!decoded) {
+        console.warn("Token expired or invalid, redirecting to login");
+        localStorage.removeItem("authToken");
+        setUser(null);
+        navigate("/auth/login", { replace: true });
+        return;
+      }
+
+      // Only update user if it actually changed to prevent unnecessary re-renders
+      setUser(prev => {
+        if (!prev || JSON.stringify(prev) !== JSON.stringify(decoded)) {
+          return decoded;
+        }
+        return prev;
+      });
     };
 
     // Listen for token refresh events from API

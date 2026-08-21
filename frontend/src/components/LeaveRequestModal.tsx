@@ -1,5 +1,13 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { X, ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
+import { ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { LeaveType, LeaveMode } from "@/types";
 import { usePreviewLeaveDays } from "@/hooks/queries/useLeaves";
 
@@ -39,8 +47,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
     }
   }, [leaveMode, startDate]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit({
@@ -60,18 +66,14 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Request Leave</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg p-6 md:p-8">
+        <DialogHeader className="mb-6 pr-8 text-left">
+          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Request Leave</DialogTitle>
+          <DialogDescription className="sr-only">
+            Submit a leave request for approval.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Leave Mode Toggle */}
@@ -234,8 +236,8 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

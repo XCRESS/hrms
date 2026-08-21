@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { format, parse, isValid } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
 
@@ -29,17 +29,21 @@ export default function EnhancedDatePicker({
   className,
   required = false,
 }: EnhancedDatePickerProps) {
-  const [date, setDate] = useState<Date | null>(value || null);
-  const [inputValue, setInputValue] = useState("");
+  const [date, setDate] = useState<Date | null>(value ?? null);
+  const [inputValue, setInputValue] = useState(value ? format(value, "dd/MM/yyyy") : "");
   const [isOpen, setIsOpen] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Update local state when value prop changes
-  useEffect(() => {
-    setDate(value || null);
+  // Sync local state when the `value` prop changes, adjusting during render
+  // rather than in an effect — an effect here would cascade an extra render on
+  // every keystroke, since typing calls onChange which flows back in as `value`.
+  const [lastValue, setLastValue] = useState<Date | null>(value ?? null);
+  if ((value ?? null)?.getTime() !== lastValue?.getTime()) {
+    setLastValue(value ?? null);
+    setDate(value ?? null);
     setInputValue(value ? format(value, "dd/MM/yyyy") : "");
-  }, [value]);
+  }
 
   // Format date for display
   const formatDisplayDate = (date: Date | null) => {
@@ -169,9 +173,10 @@ export default function EnhancedDatePicker({
             onFocus={handleInputFocus}
             onKeyDown={handleKeyDown}
             disabled={disabled}
+            required={required}
             className={cn(
               "pr-20", // Space for icons
-              isInputFocused && "ring-2 ring-primary",
+              isInputFocused && "ring-2 ring-ring",
               className
             )}
           />
@@ -206,7 +211,7 @@ export default function EnhancedDatePicker({
         <PopoverContent className="w-auto p-0" align="start">
           <EnhancedCalendar
             mode="single"
-            selected={date}
+            selected={date ?? undefined}
             onSelect={handleCalendarSelect}
             disabled={isDateDisabled}
             defaultMonth={date || new Date()}

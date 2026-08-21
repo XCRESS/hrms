@@ -2,6 +2,13 @@ import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, ChevronLeft, ChevronRight, Heart, Edit3, X, Save, Calendar } from 'lucide-react';
 import { formatTime, formatISTDate, getISTDateString, getMonthOptions, getAllDaysInMonth } from '@/utils/luxonUtils';
 import { useAdminAttendanceRange, useEffectiveSettings, useUpdateAttendanceRecord } from '@/hooks/queries';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Types
 interface TimeState {
@@ -328,23 +335,18 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile }: 
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md gap-0 bg-white p-0 dark:bg-card">
+        <DialogHeader className="p-6 pr-14 border-b border-border text-left">
+          <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Edit3 className="w-5 h-5 text-cyan-600" />
             Edit Attendance
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Edit the check-in and check-out times for this attendance record.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
@@ -428,8 +430,8 @@ const EditAttendanceModal = memo(({ isOpen, onClose, record, employeeProfile }: 
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 });
 

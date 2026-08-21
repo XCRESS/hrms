@@ -1,30 +1,24 @@
 import React from 'react';
 import { FileText, User, Shield, GraduationCap, Plus, Eye, X, Upload, LucideIcon } from 'lucide-react';
 import { useToast } from '../ui/toast';
+import BusyOverlay from '../ui/BusyOverlay';
 import { useEmployeeDocuments, useUploadDocument, useDeleteDocument } from '@/hooks/queries';
 import useAuth from '../../hooks/authjwt';
+import { Document, DocumentType } from '@/types';
 
-// Types
-interface DocumentType {
-  key: string;
+/** One selectable document slot in the UI. */
+interface DocumentKind {
+  key: DocumentType;
   label: string;
   icon: LucideIcon;
   accept: string;
-}
-
-interface Document {
-  _id: string;
-  documentType: string;
-  fileName: string;
-  s3Url: string;
-  createdAt: string;
 }
 
 const MyDocuments: React.FC = () => {
   const userObject = useAuth();
   const { toast } = useToast();
 
-  const documentTypes: DocumentType[] = [
+  const documentTypes: DocumentKind[] = [
     { key: 'profile_picture', label: 'Profile Photo', icon: User, accept: 'image/*' },
     { key: 'aadhaar', label: 'Aadhaar Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
     { key: 'pan', label: 'PAN Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
@@ -41,13 +35,15 @@ const MyDocuments: React.FC = () => {
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
 
-  const handleFileUpload = (docType: string, file: File): void => {
-    const formData = new FormData();
-    formData.append('document', file);
-    formData.append('employeeId', userObject!.employeeId);
-    formData.append('documentType', docType);
+  const handleFileUpload = (docType: DocumentType, file: File): void => {
+    const employeeId = userObject?.employeeId;
+    if (!employeeId) return;
 
-    uploadMutation.mutate(formData, {
+    uploadMutation.mutate({
+      employeeId,
+      documentType: docType,
+      file,
+    }, {
       onSuccess: () => {
         toast({
           title: "Success",
@@ -65,8 +61,15 @@ const MyDocuments: React.FC = () => {
     });
   };
 
-  const handleFileDelete = (documentId: string): void => {
-    deleteMutation.mutate(documentId, {
+  const handleFileDelete = (documentId: string, documentType: DocumentType): void => {
+    const employeeId = userObject?.employeeId;
+    if (!employeeId) return;
+
+    deleteMutation.mutate({
+      documentId,
+      employeeId,
+      documentType,
+    }, {
       onSuccess: () => {
         toast({
           title: "Success",
@@ -172,8 +175,9 @@ const MyDocuments: React.FC = () => {
                       View
                     </a>
                     <button
-                      onClick={() => handleFileDelete(existingDoc._id)}
-                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
+                      onClick={() => handleFileDelete(existingDoc._id, docType.key)}
+                      aria-label={`Delete ${docType.label}`}
+                      className="px-3 py-2 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-md transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -228,14 +232,10 @@ const MyDocuments: React.FC = () => {
         })}
         </div>
 
-        {(uploadMutation.isPending || deleteMutation.isPending) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
-              <span className="text-gray-900 dark:text-white">Uploading...</span>
-            </div>
-          </div>
-        )}
+        <BusyOverlay
+          show={uploadMutation.isPending || deleteMutation.isPending}
+          message="Uploading..."
+        />
       </div>
     </div>
   );

@@ -599,6 +599,13 @@ html[data-theme='independence'] ::selection {
     @apply bg-background text-foreground;
     font-family: 'Nunito', sans-serif;
   }
+
+  /* Hide native password reveal/clear controls — we render our own toggle,
+     otherwise Edge/IE show a second eye and Safari a duplicate clear button. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 /* Christmas Festive Fonts */

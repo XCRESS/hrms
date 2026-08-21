@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../ui/toast';
+import { useConfirm } from '../ui/confirm-dialog';
 import useAuth from '../../hooks/authjwt';
 
 import {
@@ -30,6 +31,7 @@ import {
 const SettingsPage: React.FC = () => {
     const user = useAuth();
     const { toast } = useToast();
+    const confirm = useConfirm();
     const [activeSection, setActiveSection] = useState('attendance');
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [isTestingHrReport, setIsTestingHrReport] = useState(false);
@@ -123,17 +125,31 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleResetSection = (section: SettingsSection) => {
+    const handleResetSection = async (section: SettingsSection) => {
         if (!dirty[section]) return;
-        if (window.confirm('Discard unsaved changes in this section?')) {
+        const confirmed = await confirm({
+            title: 'Discard changes?',
+            description: 'Discard unsaved changes in this section?',
+            confirmText: 'Discard',
+            destructive: true,
+        });
+        if (confirmed) {
             resetSection(section);
         }
     };
 
-    const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleDepartmentChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        // Read the value before awaiting — the select is controlled, so it
+        // snaps back to `selectedDepartment` while the dialog is open.
         const next = e.target.value;
         if (dirty.attendance || dirty.notifications || dirty.general) {
-            if (!window.confirm('You have unsaved changes. Switch scope and discard them?')) {
+            const confirmed = await confirm({
+                title: 'Discard unsaved changes?',
+                description: 'You have unsaved changes. Switch scope and discard them?',
+                confirmText: 'Switch and discard',
+                destructive: true,
+            });
+            if (!confirmed) {
                 return;
             }
         }

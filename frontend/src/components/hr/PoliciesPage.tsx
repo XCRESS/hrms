@@ -20,6 +20,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import useAuth from '../../hooks/authjwt';
 import BackButton from '../ui/BackButton';
 import {
@@ -105,6 +106,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   });
 
   const { toast } = useToast();
+  const confirm = useConfirm();
   const user = useAuth() as User | null;
 
   // Fetch policies using React Query
@@ -173,7 +175,13 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handleDelete = async (policy: Policy): Promise<void> => {
-    if (!window.confirm(`Are you sure you want to deactivate the policy "${policy.title}"?`)) {
+    const confirmed = await confirm({
+      title: 'Deactivate policy?',
+      description: `Are you sure you want to deactivate the policy "${policy.title}"?`,
+      confirmText: 'Deactivate',
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -195,7 +203,12 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handleRestore = async (policy: Policy): Promise<void> => {
-    if (!window.confirm(`Are you sure you want to activate the policy "${policy.title}"?`)) {
+    const confirmed = await confirm({
+      title: 'Activate policy?',
+      description: `Are you sure you want to activate the policy "${policy.title}"?`,
+      confirmText: 'Activate',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -220,20 +233,20 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handlePermanentDelete = async (policy: Policy): Promise<void> => {
-    if (
-      !window.confirm(
-        `⚠️ WARNING: This will permanently delete the policy "${policy.title}" from the database. This action CANNOT be undone. Are you absolutely sure?`
-      )
-    ) {
-      return;
-    }
-
-    // Double confirmation for permanent deletion
-    if (
-      !window.confirm(
-        `This is your final warning. The policy "${policy.title}" will be PERMANENTLY DELETED. Type "DELETE" in the next prompt to confirm.`
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Permanently delete this policy?',
+      description: (
+        <>
+          This will permanently delete the policy{' '}
+          <strong>"{policy.title}"</strong> from the database. This action{' '}
+          <strong>cannot be undone</strong>. You will be asked to type DELETE to
+          confirm.
+        </>
+      ),
+      confirmText: 'Continue',
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
 

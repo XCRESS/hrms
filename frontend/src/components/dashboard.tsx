@@ -1043,6 +1043,7 @@ const HRMSDashboard: React.FC = () => {
             />
 
             <WFHRequestModal
+                key={String(showWFHModal)}
                 isOpen={showWFHModal}
                 onClose={handleWFHModalClose}
                 onSubmit={handleWFHRequestSubmit}

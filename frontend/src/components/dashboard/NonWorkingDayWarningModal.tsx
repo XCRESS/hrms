@@ -1,4 +1,12 @@
-import { AlertTriangle, Calendar, X } from 'lucide-react';
+import { AlertTriangle, Calendar } from 'lucide-react';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface WarningData {
   reason: string;
@@ -25,30 +33,25 @@ interface NonWorkingDayWarningModalProps {
 }
 
 const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }: NonWorkingDayWarningModalProps) => {
-  if (!isOpen || !warningData) return null;
+  if (!warningData) return null;
 
   const { reason, dayName, saturdayWeek, holidayTitle, holidayType, message } = warningData;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full border border-border animate-in fade-in duration-200">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md gap-0 rounded-2xl border-border bg-card p-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-100 dark:bg-amber-900/30 p-2.5 rounded-xl">
-              <AlertTriangle className="text-amber-600 dark:text-amber-400" size={24} />
-            </div>
-            <h2 className="text-xl font-bold text-foreground">
-              Non-Working Day
-            </h2>
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 p-6 pr-14 border-b border-border text-left">
+          <div className="bg-amber-100 dark:bg-amber-900/30 p-2.5 rounded-xl">
+            <AlertTriangle className="text-amber-600 dark:text-amber-400" size={24} />
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted"
-          >
-            <X size={20} />
-          </button>
-        </div>
+          <DialogTitle className="text-xl font-bold text-foreground">
+            Non-Working Day
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            You are checking in on a non-working day. Confirm before continuing.
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-4">
@@ -109,8 +112,8 @@ const NonWorkingDayWarningModal = ({ isOpen, onClose, onConfirm, warningData }: 
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

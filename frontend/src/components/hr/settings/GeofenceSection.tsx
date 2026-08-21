@@ -13,6 +13,7 @@ import {
   useDeleteOfficeLocation,
 } from '@/hooks/queries';
 import { useToast } from '../../ui/toast';
+import { useConfirm } from '../../ui/confirm-dialog';
 import type { OfficeLocation } from '@/types';
 import GeofenceSettings from './GeofenceSettings';
 import type { GeofenceSettings as GeofenceSettingsType, OfficeFormData } from './types';
@@ -38,6 +39,7 @@ const GeofenceSection: React.FC<GeofenceSectionProps> = ({
   enabled,
 }) => {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [creatingLocation, setCreatingLocation] = useState(false);
 
   const { data: officeLocations = [], isLoading: officeLoading } = useOfficeLocations({ enabled });
@@ -91,7 +93,13 @@ const GeofenceSection: React.FC<GeofenceSectionProps> = ({
   };
 
   const handleDeleteLocation = async (locationId: string) => {
-    if (!window.confirm('Are you sure you want to remove this office location?')) return;
+    const confirmed = await confirm({
+      title: 'Remove office location?',
+      description: 'Are you sure you want to remove this office location? Employees will no longer be able to check in from this geofence.',
+      confirmText: 'Remove',
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteOfficeLocation.mutateAsync(locationId);
       toast({
