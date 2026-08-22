@@ -20,7 +20,36 @@ import { useConfirm } from '../../../components/ui/confirm-dialog';
 import DocumentManager from './DocumentManager';
 import { sanitizeText } from '../../../utils/sanitization';
 import { validateUpdateEmployee, validateField } from '../../../schemas/employeeValidation';
+import { Avatar, AvatarImage, AvatarFallback } from '../../../components/ui/avatar';
 import { Employee, User, AttendanceRecord, Leave } from '../../../types';
+
+// Deterministic fallback tint so an employee without a photo keeps the same
+// colour across renders. Mirrors ui/avatarIcon, which can only ever render the
+// *logged-in* user's picture and so is not reusable for a list of employees.
+const AVATAR_TINTS = [
+    'bg-red-500',
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-yellow-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+];
+
+function EmployeeAvatar({ name, src }: { name: string; src?: string }) {
+    const trimmed = name.trim();
+    const initial = trimmed.charAt(0).toUpperCase();
+    const tint = AVATAR_TINTS[(trimmed.charCodeAt(0) || 0) % AVATAR_TINTS.length];
+
+    return (
+        <Avatar className="size-9 shrink-0">
+            {src && <AvatarImage src={src} alt="" />}
+            <AvatarFallback className={`${tint} text-white text-sm font-medium`}>
+                {initial}
+            </AvatarFallback>
+        </Avatar>
+    );
+}
 
 export default function EmployeeDirectory() {
     const navigate = useNavigate();
@@ -485,9 +514,15 @@ export default function EmployeeDirectory() {
                                                 navigate(`/employees/${e._id}`);
                                             }}
                                         >
-                                            <div className="flex justify-between items-center">
-                                                <span>{e.name || `${e.firstName} ${e.lastName}`}</span>
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex justify-between items-center gap-2">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <EmployeeAvatar
+                                                        name={e.name || `${e.firstName} ${e.lastName}`}
+                                                        src={e.profilePicture}
+                                                    />
+                                                    <span className="truncate">{e.name || `${e.firstName} ${e.lastName}`}</span>
+                                                </div>
+                                            <div className="flex items-center gap-1 shrink-0">
                                                     <span className={`text-xs px-2 py-0.5 rounded-full ${isEmployeeLinked(e.employeeId) ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
                                                         {isEmployeeLinked(e.employeeId) ? 'Linked' : 'Unlinked'}
                                                     </span>

@@ -129,7 +129,8 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
       panNumber: employee.panNumber,
       joiningDate: employee.joiningDate,
       companyName: employee.companyName,
-      isActive: employee.isActive
+      isActive: employee.isActive,
+      profilePicture: employee.profilePicture
     }));
     res.json(formatResponse(true, 'Employees fetched successfully', { employees: employeeList }));
   } catch (err) {

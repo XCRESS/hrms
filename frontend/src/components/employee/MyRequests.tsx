@@ -270,7 +270,7 @@ const MyRequests = () => {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -365,7 +365,7 @@ const MyRequests = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-6">
@@ -376,7 +376,7 @@ const MyRequests = () => {
               onClick={loadRequests}
               variant="outline"
               disabled={loading}
-              className="border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              className="border-border text-muted-foreground"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -385,14 +385,14 @@ const MyRequests = () => {
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <FileText className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+              <div className="p-2 bg-muted rounded-lg">
+                <FileText className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-700 dark:text-slate-200">
+                <h1 className="text-2xl font-bold text-foreground">
                   My Requests
                 </h1>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-muted-foreground">
                   View and manage all your requests in one place
                 </p>
               </div>
@@ -401,21 +401,21 @@ const MyRequests = () => {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={() => handleNewRequest('leave')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 New Leave
               </Button>
               <Button
                 onClick={() => handleNewRequest('help')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <HelpCircle className="h-4 w-4 mr-2" />
                 Help Request
               </Button>
               <Button
                 onClick={() => handleNewRequest('regularization')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Regularization
@@ -432,7 +432,7 @@ const MyRequests = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-slate-200 dark:border-slate-700">
+        <div className="border-b border-border">
           <nav className="flex space-x-8 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -443,8 +443,8 @@ const MyRequests = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     isActive
-                      ? 'border-slate-500 text-slate-600 dark:text-slate-300'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -460,17 +460,17 @@ const MyRequests = () => {
         <div>
           {loading ? (
             <div className="text-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
-              <p className="text-slate-600 dark:text-slate-400">Loading requests...</p>
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Loading requests...</p>
             </div>
           ) : filteredRequests.length === 0 ? (
-            <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800">
+            <Card className="border-0 shadow-sm bg-muted">
               <CardContent className="p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   No requests found
                 </h3>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-muted-foreground">
                   Start by creating your first request using the buttons above.
                 </p>
               </CardContent>
@@ -480,26 +480,26 @@ const MyRequests = () => {
               {filteredRequests.map((request) => {
                 const Icon = getTypeIcon(request.type);
                 return (
-                  <Card key={`${request.type}-${request._id}`} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-800">
+                  <Card key={`${request.type}-${request._id}`} className="border-border shadow-sm hover:shadow-md transition-shadow bg-card">
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-4">
                         <div className="flex items-start gap-3">
                           <div className={`p-2 rounded-lg ${
-                            request.type === 'leave' ? 'bg-slate-100 dark:bg-slate-700' :
-                            request.type === 'help' ? 'bg-slate-100 dark:bg-slate-700' :
-                            request.type === 'regularization' ? 'bg-slate-100 dark:bg-slate-700' :
-                            'bg-slate-100 dark:bg-slate-700'
+                            request.type === 'leave' ? 'bg-muted' :
+                            request.type === 'help' ? 'bg-muted' :
+                            request.type === 'regularization' ? 'bg-muted' :
+                            'bg-muted'
                           }`}>
                             <Icon className={`h-4 w-4 ${
-                              request.type === 'leave' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'help' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'regularization' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'expense' ? 'text-slate-600 dark:text-slate-400' :
-                              'text-slate-600 dark:text-slate-400'
+                              request.type === 'leave' ? 'text-muted-foreground' :
+                              request.type === 'help' ? 'text-muted-foreground' :
+                              request.type === 'regularization' ? 'text-muted-foreground' :
+                              request.type === 'expense' ? 'text-muted-foreground' :
+                              'text-muted-foreground'
                             }`} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-slate-700 dark:text-slate-100 mb-1 text-sm">
+                            <h3 className="font-semibold text-foreground mb-1 text-sm">
                               {request.title}
                             </h3>
                             <Badge className={`${getStatusColor(request.status)} text-xs`}>
@@ -508,11 +508,11 @@ const MyRequests = () => {
                           </div>
                         </div>
 
-                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3">
+                        <p className="text-sm text-muted-foreground line-clamp-3">
                           {request.description}
                         </p>
 
-                        <div className="flex flex-col gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <div className="flex flex-col gap-2 text-xs text-muted-foreground">
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
@@ -524,7 +524,7 @@ const MyRequests = () => {
                             </span>
                           </div>
                           {request.type === 'regularization' && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded">
+                            <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                               <span className="font-medium">Attendance Date:</span> {formatDateLocal(request.date)} |
                               <span className="font-medium ml-2">Request Submitted:</span> {formatISTDate(new Date(request.createdAt), { customFormat: 'dd-MM-yy' })}
                             </div>
@@ -538,7 +538,7 @@ const MyRequests = () => {
                         </div>
 
                         {request.reviewComment && (
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                          <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
                             {request.reviewComment}
                           </p>
                         )}

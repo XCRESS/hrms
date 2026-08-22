@@ -20,7 +20,7 @@ import {
 } from "../hooks/queries";
 import { useCreateExpense } from "../hooks/queries/useExpenses";
 import LeaveRequestModal from "./LeaveRequestModal";
-import HelpDeskModal from "./HelpDeskModal";
+import HelpDeskModal, { type HelpDeskData } from "./HelpDeskModal";
 import ExpenseModal from "./ExpenseModal";
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast";
@@ -50,7 +50,7 @@ const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 import { getNonWorkingDayWarning, type NonWorkingDayWarning } from "@/utils/workingDay";
 
 // Types
-import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto } from "@/types";
+import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto, CreateHelpInquiryDto } from "@/types";
 
 
 interface DashboardModals {
@@ -774,9 +774,9 @@ const HRMSDashboard: React.FC = () => {
         }
     };
 
-    const handleHelpInquirySubmit = async (data: any) => {
+    const handleHelpInquirySubmit = async (data: HelpDeskData) => {
         try {
-            const helpData = {
+            const helpData: CreateHelpInquiryDto = {
                 subject: data.title,
                 description: data.message,
                 category: data.category,
@@ -864,7 +864,7 @@ const HRMSDashboard: React.FC = () => {
         <div className="bg-background text-foreground min-h-screen">
             <div className="flex flex-col h-full">
                 <ChristmasBanner username={employeeFirstName} />
-                <NewYearBanner username={employeeFirstName} />
+                <NewYearBanner />
                 <IndependenceDayBanner username={employeeFirstName} />
                 <Header
                     username={username}
