@@ -77,6 +77,8 @@ const STATUS_FILTERS_BY_TYPE: Record<string, { value: string; label: string }[]>
 
 const ALL_STATUSES = { value: 'all', label: 'All statuses' };
 
+const ANY_MONTH = 'any';
+
 // Help requests move through a triage flow; everything else is approve/reject.
 const STATUS_OPTIONS = {
   approval: [
@@ -228,7 +230,9 @@ const AdminRequestsPage = () => {
     expenseQuery.isError && 'expense',
   ].filter(Boolean) as string[];
 
-  const hasActiveFilters = Boolean(monthParam || employeeFilter || searchParams.get('status') || searchParams.get('type'));
+  // The tab is navigation, not a filter — including it here would put a
+  // "Clear filters" button on every tab the user simply clicked into.
+  const hasActiveFilters = Boolean(monthParam || employeeFilter || searchParams.get('status'));
 
   // On "All", every type's statuses are reachable, so show the union.
   const statusOptions = (() => {
@@ -308,9 +312,10 @@ const AdminRequestsPage = () => {
       date: new Date(help.createdAt || fallbackTime),
       createdAt: new Date(help.createdAt || fallbackTime),
       status: (help.status || 'pending') as RequestStatus,
-      user: typeof help.userId === 'object' && help.userId !== null
-        ? { name: help.userId.name, email: help.userId.email }
-        : null,
+      user: {
+        name: help.employeeName ?? '',
+        email: typeof help.userId === 'object' && help.userId !== null ? help.userId.email : '',
+      },
       category: help.category,
       priority: help.priority
     }));
@@ -388,6 +393,9 @@ const AdminRequestsPage = () => {
     if (OPEN_STATUSES.has(r.status)) openCountsByType[r.type] = (openCountsByType[r.type] ?? 0) + 1;
   }
   const totalOpen = Object.values(openCountsByType).reduce((sum, n) => sum + n, 0);
+
+  const activeTabLabel = tabs.find(t => t.id === activeTab)?.label ?? 'requests';
+  const tabOpenCount = activeTab === 'all' ? totalOpen : openCountsByType[activeTab] ?? 0;
 
   const needle = employeeFilter.trim().toLowerCase();
   const filteredRequests = requests.filter(request => {
@@ -594,31 +602,19 @@ const AdminRequestsPage = () => {
     <div className="min-h-screen bg-background p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-muted p-2">
-              <FileText className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Manage Requests</h1>
-              <p className="text-sm text-muted-foreground">
-                {totalOpen > 0
-                  ? `${totalOpen} request${totalOpen === 1 ? '' : 's'} awaiting review`
-                  : 'Nothing awaiting review'}
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-muted p-2">
+            <FileText className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           </div>
-
-          <Button
-            onClick={refetchAll}
-            variant="ghost"
-            size="icon"
-            disabled={loading}
-            aria-label="Refresh requests"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Manage Requests</h1>
+            <p className="text-sm text-muted-foreground">
+              {tabOpenCount > 0
+                ? `${tabOpenCount} request${tabOpenCount === 1 ? '' : 's'} awaiting review`
+                : 'Nothing awaiting review'}
+              {activeTab !== 'all' && ` in ${activeTabLabel.toLowerCase()}`}
+            </p>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -677,33 +673,41 @@ const AdminRequestsPage = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <select
-                  aria-label="Filter by status"
+                <Select
                   value={statusFilter}
-                  onChange={(e) => setParam('status', e.target.value === 'open' ? null : e.target.value)}
-                  className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onValueChange={(v) => setParam('status', v === 'open' ? null : v)}
                 >
-                  {statusOptions.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-37.5" aria-label="Filter by status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <select
-                  aria-label="Filter by month"
-                  value={monthParam}
-                  onChange={(e) => setParam('month', e.target.value)}
-                  className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <Select
+                  value={monthParam || ANY_MONTH}
+                  onValueChange={(v) => setParam('month', v === ANY_MONTH ? null : v)}
                 >
-                  <option value="">Any month</option>
-                  {getMonthOptions(12).map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.display}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-40" aria-label="Filter by month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Radix treats "" as "no selection", so the catch-all needs
+                        a real value of its own. */}
+                    <SelectItem value={ANY_MONTH}>Any month</SelectItem>
+                    {getMonthOptions(12).map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.display}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xs">
@@ -774,12 +778,20 @@ const AdminRequestsPage = () => {
               <CardContent className="p-8 text-center">
                 <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" aria-hidden="true" />
                 <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  {hasActiveFilters ? 'No matching requests' : 'You are all caught up'}
+                  {hasActiveFilters
+                    ? 'No matching requests'
+                    : activeTab === 'all'
+                      ? 'You are all caught up'
+                      : `No open ${activeTabLabel.toLowerCase()}`}
                 </h3>
                 <p className="text-muted-foreground">
                   {hasActiveFilters
                     ? 'No requests match the current filters. Try widening them.'
-                    : 'Nothing is waiting for review right now.'}
+                    : activeTab === 'all'
+                      ? 'Nothing is waiting for review right now.'
+                      : totalOpen > 0
+                        ? `Nothing here needs review. ${totalOpen} request${totalOpen === 1 ? '' : 's'} awaiting review on other tabs.`
+                        : 'Nothing is waiting for review right now.'}
                 </p>
                 {hasActiveFilters && (
                   <Button
@@ -867,7 +879,7 @@ const AdminRequestsPage = () => {
                           </div>
                         </div>
 
-                        <div className="flex flex-col sm:items-end gap-2">
+                        <div className="flex flex-row flex-wrap items-start gap-2 sm:flex-col sm:items-end">
                           <Badge className={getStatusColor(request.status)}>
                             {request.status === 'in-progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </Badge>

@@ -1,6 +1,7 @@
 import { useState, FormEvent, ChangeEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { UploadCloud } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import {
   Dialog,
@@ -13,8 +14,6 @@ import {
 export interface HelpDeskData {
   title: string;
   message: string;
-  file: File | null;
-  isAnonymous: boolean;
   category: string;
   priority: 'low' | 'medium' | 'high';
 }
@@ -29,31 +28,19 @@ interface HelpDeskModalProps {
 const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalProps) => {
   const [inquiryTitle, setInquiryTitle] = useState("");
   const [inquiryMessage, setInquiryMessage] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [category, setCategory] = useState("technical");
   const [priority, setPriority] = useState<HelpDeskData['priority']>("medium");
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit({
       title: inquiryTitle,
       message: inquiryMessage,
-      file: selectedFile,
-      isAnonymous,
       category,
       priority
     });
     setInquiryTitle("");
     setInquiryMessage("");
-    setSelectedFile(null);
-    setIsAnonymous(false);
     setCategory("technical");
     setPriority("medium");
   };
@@ -71,7 +58,7 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="inquiryTitleModal" className="block text-sm font-medium text-foreground mb-1">Title</label>
-            <input
+            <Input
               id="inquiryTitleModal"
               type="text"
               value={inquiryTitle}
@@ -84,28 +71,33 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="inquiryCategoryModal" className="block text-sm font-medium text-foreground mb-1">Category</label>
-              <select
-                id="inquiryCategoryModal"
-                value={category}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
-              >
-                <option value="technical">Technical</option>
-                <option value="hr">HR</option>
-                <option value="payroll">Payroll</option>
-                <option value="other">Other</option>
-              </select>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger id="inquiryCategoryModal">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="hr">HR</SelectItem>
+                  <SelectItem value="payroll">Payroll</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label htmlFor="inquiryPriorityModal" className="block text-sm font-medium text-foreground mb-1">Priority</label>
-              <select
-                id="inquiryPriorityModal"
+              <Select
                 value={priority}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setPriority(e.target.value as HelpDeskData['priority'])}
+                onValueChange={(v) => setPriority(v as HelpDeskData['priority'])}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+                <SelectTrigger id="inquiryPriorityModal">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -120,35 +112,6 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
               required
               data-gramm="false"
             />
-          </div>
-
-          <div>
-            <label htmlFor="fileAttachmentModal" className="block text-sm font-medium text-foreground mb-1">Attach File (Optional)</label>
-            <label
-              htmlFor="fileAttachmentInputModal"
-              className="flex flex-col items-center justify-center w-full h-28 border-2 border-border border-dashed rounded-lg cursor-pointer bg-muted hover:bg-accent transition-colors"
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
-                <p className="mb-1 text-sm text-muted-foreground">
-                  <span className="font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-xs text-muted-foreground">PNG, JPG, PDF (MAX. 5MB)</p>
-              </div>
-              <input id="fileAttachmentInputModal" type="file" className="hidden" onChange={handleFileChange} />
-            </label>
-            {selectedFile && <p className="mt-2 text-xs text-muted-foreground">Selected: {selectedFile.name}</p>}
-          </div>
-
-          <div className="flex items-center">
-            <input
-              id="anonymousCheckModal"
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setIsAnonymous(e.target.checked)}
-              className="w-4 h-4 text-primary bg-muted border-border rounded focus:ring-2 focus:ring-ring"
-            />
-            <label htmlFor="anonymousCheckModal" className="ml-2 text-sm font-medium text-foreground">Submit Anonymously</label>
           </div>
 
           <div className="flex justify-end items-center gap-3 pt-4">

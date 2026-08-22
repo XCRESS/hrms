@@ -667,8 +667,10 @@ export interface OfficeLocation {
 export interface HelpInquiry {
   _id: string;
   /** Populated with `name email` by the admin list endpoint; a raw id elsewhere. */
-  userId: string | { _id?: string; name: string; email: string };
+  userId: string | { _id?: string; name: string; email: string; employeeId?: string };
   employeeId: string;
+  /** Resolved from the Employee record by the admin list endpoint. */
+  employeeName?: string;
   subject: string;
   description: string;
   message?: string; // legacy compatibility
