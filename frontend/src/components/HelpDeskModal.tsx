@@ -1,4 +1,5 @@
 import { useState, FormEvent, ChangeEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { UploadCloud } from "lucide-react";
 
 import {
@@ -9,13 +10,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface HelpDeskData {
+export interface HelpDeskData {
   title: string;
   message: string;
   file: File | null;
   isAnonymous: boolean;
   category: string;
-  priority: string;
+  priority: 'low' | 'medium' | 'high';
 }
 
 interface HelpDeskModalProps {
@@ -31,7 +32,7 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [category, setCategory] = useState("technical");
-  const [priority, setPriority] = useState("medium");
+  const [priority, setPriority] = useState<HelpDeskData['priority']>("medium");
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -61,7 +62,7 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg p-6 md:p-8">
         <DialogHeader className="mb-6 pr-8 text-left">
-          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Submit an Inquiry</DialogTitle>
+          <DialogTitle className="text-2xl font-semibold text-foreground">Submit an Inquiry</DialogTitle>
           <DialogDescription className="sr-only">
             Submit a help desk inquiry to HR.
           </DialogDescription>
@@ -69,26 +70,24 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="inquiryTitleModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Title</label>
+            <label htmlFor="inquiryTitleModal" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
               id="inquiryTitleModal"
               type="text"
               value={inquiryTitle}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setInquiryTitle(e.target.value)}
               placeholder="e.g., Payroll issue, IT support"
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="inquiryCategoryModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Category</label>
+              <label htmlFor="inquiryCategoryModal" className="block text-sm font-medium text-foreground mb-1">Category</label>
               <select
                 id="inquiryCategoryModal"
                 value={category}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               >
                 <option value="technical">Technical</option>
                 <option value="hr">HR</option>
@@ -97,12 +96,11 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
               </select>
             </div>
             <div>
-              <label htmlFor="inquiryPriorityModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Priority</label>
+              <label htmlFor="inquiryPriorityModal" className="block text-sm font-medium text-foreground mb-1">Priority</label>
               <select
                 id="inquiryPriorityModal"
                 value={priority}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setPriority(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setPriority(e.target.value as HelpDeskData['priority'])}
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -112,35 +110,34 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
           </div>
 
           <div>
-            <label htmlFor="inquiryMessageModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Message</label>
-            <textarea
+            <label htmlFor="inquiryMessageModal" className="block text-sm font-medium text-foreground mb-1">Message</label>
+            <Textarea
               id="inquiryMessageModal"
               value={inquiryMessage}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInquiryMessage(e.target.value)}
               placeholder="Describe your issue or question in detail..."
               rows={4}
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
               data-gramm="false"
             />
           </div>
 
           <div>
-            <label htmlFor="fileAttachmentModal" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Attach File (Optional)</label>
+            <label htmlFor="fileAttachmentModal" className="block text-sm font-medium text-foreground mb-1">Attach File (Optional)</label>
             <label
               htmlFor="fileAttachmentInputModal"
-              className="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600/70 transition-colors"
+              className="flex flex-col items-center justify-center w-full h-28 border-2 border-border border-dashed rounded-lg cursor-pointer bg-muted hover:bg-accent transition-colors"
             >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-8 h-8 mb-2 text-gray-500 dark:text-slate-400" />
-                <p className="mb-1 text-sm text-gray-500 dark:text-slate-400">
+                <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                <p className="mb-1 text-sm text-muted-foreground">
                   <span className="font-semibold">Click to upload</span> or drag and drop
                 </p>
-                <p className="text-xs text-gray-500 dark:text-slate-500">PNG, JPG, PDF (MAX. 5MB)</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG, PDF (MAX. 5MB)</p>
               </div>
               <input id="fileAttachmentInputModal" type="file" className="hidden" onChange={handleFileChange} />
             </label>
-            {selectedFile && <p className="mt-2 text-xs text-gray-600 dark:text-slate-400">Selected: {selectedFile.name}</p>}
+            {selectedFile && <p className="mt-2 text-xs text-muted-foreground">Selected: {selectedFile.name}</p>}
           </div>
 
           <div className="flex items-center">
@@ -149,16 +146,16 @@ const HelpDeskModal = ({ isOpen, onClose, onSubmit, isLoading }: HelpDeskModalPr
               type="checkbox"
               checked={isAnonymous}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setIsAnonymous(e.target.checked)}
-              className="w-4 h-4 text-cyan-600 bg-gray-100 border-gray-300 rounded focus:ring-cyan-500 dark:focus:ring-cyan-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
+              className="w-4 h-4 text-primary bg-muted border-border rounded focus:ring-2 focus:ring-ring"
             />
-            <label htmlFor="anonymousCheckModal" className="ml-2 text-sm font-medium text-gray-900 dark:text-slate-300">Submit Anonymously</label>
+            <label htmlFor="anonymousCheckModal" className="ml-2 text-sm font-medium text-foreground">Submit Anonymously</label>
           </div>
 
           <div className="flex justify-end items-center gap-3 pt-4">
              <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700/80 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600/80 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-500 transition-colors"
+              className="px-5 py-2.5 text-sm font-medium text-foreground bg-card/80 border border-border rounded-lg hover:bg-accent focus:ring-4 focus:outline-none focus:ring-ring transition-colors"
             >
               Cancel
             </button>

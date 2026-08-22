@@ -1,4 +1,5 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
 import notificationService from '../../services/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
@@ -303,12 +304,12 @@ const HolidaysPage = (): JSX.Element => {
                     {holiday.title}
                   </h4>
                   <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    <Calendar size={12} className="flex-shrink-0" />
+                    <Calendar size={12} className="shrink-0" />
                     <span>{formatISTDate(holiday.date, { customFormat: 'dd MMM yyyy, EEEE' })}</span>
                   </div>
                 </div>
                 <span
-                  className={`ml-2 flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                  className={`ml-2 shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full ${
                     holiday.isOptional
                       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100'
@@ -390,14 +391,14 @@ const HolidaysPage = (): JSX.Element => {
                 >
                   Description
                 </label>
-                <textarea
+                <Textarea
                   name="description"
                   id="description"
                   value={currentHoliday?.description || ''}
                   onChange={handleInputChange}
                   rows={3}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50"
-                ></textarea>
+                  className="mt-1"
+                ></Textarea>
               </div>
               <div className="flex items-center">
                 <input
@@ -414,7 +415,7 @@ const HolidaysPage = (): JSX.Element => {
               </div>
               {message.content && message.type === 'error' && !showDeleteConfirm && (
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md flex items-center text-sm">
-                  <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                  <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
                 </div>
               )}
               <div className="flex justify-end space-x-3 pt-2">
@@ -452,7 +453,7 @@ const HolidaysPage = (): JSX.Element => {
             </DialogHeader>
             {message.content && message.type === 'error' && (
               <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <div className="flex justify-end space-x-3">

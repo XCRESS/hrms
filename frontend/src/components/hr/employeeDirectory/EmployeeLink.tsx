@@ -415,7 +415,7 @@ const EmployeeLink: React.FC = () => {
 
             {/* Combined notice */}
             <div className="mt-4 flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-700/40 rounded-lg border border-slate-200 dark:border-slate-600">
-              <AlertTriangle className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 <strong>Unlink</strong> removes portal access but keeps the account — you can re-link later.&nbsp;
                 <strong>Delete</strong> permanently removes the account and cannot be undone.

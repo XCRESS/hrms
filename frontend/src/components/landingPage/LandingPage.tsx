@@ -244,7 +244,7 @@ const LandingPage: React.FC = () => {
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.7 + index * 0.05, duration: 0.4 }}
                                     >
-                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shrink-0">
                                             <item.icon className="w-5 h-5 text-white" />
                                         </div>
                                         <div>

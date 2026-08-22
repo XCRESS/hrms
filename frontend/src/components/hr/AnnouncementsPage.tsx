@@ -1,4 +1,5 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
 import notificationService from '../../services/notificationService';
 import {
@@ -287,7 +288,7 @@ const AnnouncementsPage = (): JSX.Element => {
             </DialogHeader>
             {message.content && message.type === 'error' && !showDeleteConfirm && (
               <div className="mb-4 p-3 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-200 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <form onSubmit={handleSaveAnnouncement} className="space-y-4">
@@ -302,22 +303,22 @@ const AnnouncementsPage = (): JSX.Element => {
                   value={currentAnnouncement?.title || ''}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                 />
               </div>
               <div>
                 <label htmlFor="content" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Content
                 </label>
-                <textarea
+                <Textarea
                   name="content"
                   id="content"
                   value={currentAnnouncement?.content || ''}
                   onChange={handleInputChange}
                   required
                   rows={6}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                ></textarea>
+                  className="mt-1"
+                ></Textarea>
               </div>
               <div>
                 <label
@@ -331,7 +332,7 @@ const AnnouncementsPage = (): JSX.Element => {
                   id="targetAudience"
                   value={currentAnnouncement?.targetAudience || 'all'}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                 >
                   {targetAudienceOptions.map((opt) => (
                     <option key={opt} value={opt} className="capitalize">
@@ -350,7 +351,7 @@ const AnnouncementsPage = (): JSX.Element => {
                     id="status"
                     value={currentAnnouncement?.status || 'published'}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                   >
                     {statusOptions.map((opt) => (
                       <option key={opt} value={opt} className="capitalize">
@@ -394,7 +395,7 @@ const AnnouncementsPage = (): JSX.Element => {
             </DialogHeader>
             {message.content && message.type === 'error' && (
               <div className="mb-3 p-3 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-200 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <div className="flex justify-end space-x-3">

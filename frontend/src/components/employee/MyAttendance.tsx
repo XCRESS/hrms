@@ -555,7 +555,7 @@ export default function MyAttendance() {
       {effectiveDateRange && effectiveDateRange.requestedStartDate !== effectiveDateRange.effectiveStartDate && (
         <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
           <div className="flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
             <div className="text-sm">
               <p className="text-blue-800 dark:text-blue-200 font-medium">Date range adjusted</p>
               <p className="text-blue-700 dark:text-blue-300">

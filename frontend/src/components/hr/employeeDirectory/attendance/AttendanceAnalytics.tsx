@@ -122,7 +122,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendance, s
                                         </p>
                                     )}
                                 </div>
-                                <div className="flex-shrink-0 ml-2">
+                                <div className="shrink-0 ml-2">
                                     <div className={`p-3 rounded-xl bg-white/50 dark:bg-black/20 ${card.iconColor} group-hover:scale-110 transition-transform duration-200`}>
                                         <IconComponent className="w-6 h-6" />
                                     </div>

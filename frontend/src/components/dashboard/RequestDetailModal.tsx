@@ -1,4 +1,5 @@
 import { useState, ReactElement } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import { Clock, User, FileText, CheckCircle, XCircle, AlertCircle, Play, CheckCheck, MapPin, LucideIcon } from 'lucide-react';
 import { formatDate } from '@/utils/istUtils';
 import { useToast } from '@/components/ui/toast';
@@ -37,11 +38,9 @@ interface Request {
 
   // Leave request fields
   leaveType?: string;
-  leaveDate?: string;
   startDate?: string;
   endDate?: string;
   numberOfDays?: number;
-  leaveReason?: string;
 
   // Help request fields
   subject?: string;
@@ -58,7 +57,6 @@ interface Request {
   // Password reset fields
   email?: string;
   name?: string;
-  resetTokenExpires?: string;
 
   // WFH request fields
   nearestOffice?: string;
@@ -227,7 +225,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
                 <div>
                   <label className="text-xs sm:text-sm font-medium text-muted-foreground">Leave Date</label>
                   <p className="text-sm sm:text-base text-foreground mt-1">
-                    {formatDate(request.leaveDate || request.startDate, false, 'DD MMMM YYYY')}
+                    {formatDate(request.startDate || request.date, false, 'DD MMMM YYYY')}
                   </p>
                 </div>
               )}
@@ -244,7 +242,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
             )}
             <div>
               <label className="text-xs sm:text-sm font-medium text-muted-foreground">Reason</label>
-              <p className="text-sm sm:text-base text-foreground mt-1 leading-relaxed">{request.leaveReason}</p>
+              <p className="text-sm sm:text-base text-foreground mt-1 leading-relaxed">{request.description}</p>
             </div>
           </div>
         );
@@ -436,31 +434,16 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
     }
   };
 
-  const shouldShowCommentField = (() => {
-    if (request.type === 'password') {
-      const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
-      const isRequestExpired = request.status === 'expired' || isTokenExpired;
-      return request.status === 'pending' && !isRequestExpired;
-    }
-    return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
-  })();
-
-  const shouldShowActionButtons = (() => {
-    if (request.type === 'password') {
-      const isTokenExpired = request.resetTokenExpires && new Date(request.resetTokenExpires) < new Date();
-      const isRequestExpired = request.status === 'expired' || isTokenExpired;
-      const canTakeAction = request.status === 'pending' && !isRequestExpired;
-      return canTakeAction;
-    }
-    return request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress');
-  })();
+  const canActOnRequest =
+    request.status === 'pending' ||
+    (request.type === 'help' && request.status === 'in-progress');
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[95vh] sm:max-h-[90vh] gap-0 overflow-hidden bg-card p-0">
         {/* Header */}
         <DialogHeader className="flex-row items-start gap-3 space-y-0 p-4 sm:p-6 pr-14 border-b border-border text-left">
-          <div className="p-2 bg-muted rounded-lg flex-shrink-0">
+          <div className="p-2 bg-muted rounded-lg shrink-0">
             {request.icon}
           </div>
           <div className="min-w-0 flex-1">
@@ -479,13 +462,13 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
           <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <User className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+                <User className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground text-sm sm:text-base truncate">{request.employee}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">Employee</p>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
+              <div className="text-right shrink-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Submitted</p>
                 <p className="text-xs sm:text-sm font-medium text-foreground">
                   {formatDateTime(request.date || request.createdAt)}
@@ -513,17 +496,16 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
           </div>
 
           {/* Response/Comment Field */}
-          {shouldShowCommentField && (
+          {canActOnRequest && (
             <div className="mb-4 sm:mb-6">
               {request.type === 'help' ? (
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-muted-foreground mb-2">
                     Response Message (Required for resolution)
                   </label>
-                  <textarea
+                  <Textarea
                     value={helpResponse}
                     onChange={(e) => setHelpResponse(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                     rows={4}
                     placeholder="Provide a detailed response to help the employee..."
                   />
@@ -533,10 +515,9 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
                   <label className="block text-xs sm:text-sm font-medium text-muted-foreground mb-2">
                     Review Comment (Optional)
                   </label>
-                  <textarea
+                  <Textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-white dark:bg-card text-foreground placeholder-neutral-500 dark:placeholder-neutral-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                     rows={3}
                     placeholder="Add a comment for this review..."
                   />
@@ -547,7 +528,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
         </div>
 
         {/* Footer */}
-        {shouldShowActionButtons && (
+        {canActOnRequest && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-border bg-muted/50">
             <button
               onClick={onClose}

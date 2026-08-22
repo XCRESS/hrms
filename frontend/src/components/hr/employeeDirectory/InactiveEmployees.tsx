@@ -171,22 +171,22 @@ const InactiveEmployees: React.FC = () => {
                                         {/* Contact and Job Info Grid */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                                             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                                                <Mail className="w-4 h-4 flex-shrink-0" />
+                                                <Mail className="w-4 h-4 shrink-0" />
                                                 <span className="truncate">{employee.email}</span>
                                             </div>
 
                                             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                                                <Phone className="w-4 h-4 flex-shrink-0" />
+                                                <Phone className="w-4 h-4 shrink-0" />
                                                 <span>{employee.phone}</span>
                                             </div>
 
                                             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                                                <Building className="w-4 h-4 flex-shrink-0" />
+                                                <Building className="w-4 h-4 shrink-0" />
                                                 <span className="truncate">{employee.department}</span>
                                             </div>
 
                                             <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                                                <Calendar className="w-4 h-4 flex-shrink-0" />
+                                                <Calendar className="w-4 h-4 shrink-0" />
                                                 <span>Joined {formatDate(employee.joiningDate, false, 'DD MMM YYYY')}</span>
                                             </div>
                                         </div>
@@ -197,7 +197,7 @@ const InactiveEmployees: React.FC = () => {
                                     </div>
 
                                     {/* Action Buttons */}
-                                    <div className="flex-shrink-0 space-y-2 sm:space-y-0 sm:space-x-2 sm:flex sm:flex-row">
+                                    <div className="shrink-0 space-y-2 sm:space-y-0 sm:space-x-2 sm:flex sm:flex-row">
                                         <button
                                             onClick={() => handleViewEmployee(employee._id)}
                                             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 w-full sm:w-auto justify-center"

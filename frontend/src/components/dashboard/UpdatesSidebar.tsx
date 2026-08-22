@@ -132,10 +132,10 @@ const UpdatesSidebar = ({
                   >
                     <div className="flex justify-between items-start mb-1">
                       <div className="flex items-start gap-2">
-                        <FileText className="h-3 w-3 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <FileText className="h-3 w-3 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                         <h4 className="font-semibold text-foreground text-xs sm:text-sm leading-snug">{policy.title}</h4>
                       </div>
-                      <span className={`ml-2 flex-shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(policy.priority)}`}>
+                      <span className={`ml-2 shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(policy.priority)}`}>
                         {policy.priority}
                       </span>
                     </div>
@@ -202,14 +202,14 @@ const UpdatesSidebar = ({
                     onClick={() => handleAnnouncementClick(announcement)}
                   >
                     <div className="flex items-start gap-2 sm:gap-3.5">
-                      <div className="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 text-xs sm:text-sm font-semibold shadow-sm">
+                      <div className="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 text-xs sm:text-sm font-semibold shadow-sm">
                         <Bell size={14} />
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="font-semibold text-foreground text-xs sm:text-sm leading-snug">{announcement.title}</h4>
                           {announcement.priority && (
-                            <span className={`ml-2 flex-shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(announcement.priority)}`}>
+                            <span className={`ml-2 shrink-0 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-medium ${getPriorityColor(announcement.priority)}`}>
                               {announcement.priority}
                             </span>
                           )}

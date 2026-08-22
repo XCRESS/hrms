@@ -1,4 +1,5 @@
 import { useState, ChangeEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { MapPin, AlertCircle, Send } from "lucide-react";
 import {
   Dialog,
@@ -87,7 +88,7 @@ const WFHRequestModal = ({
         {isLocationUnavailable ? (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-4">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Location Unavailable</p>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
@@ -120,14 +121,14 @@ const WFHRequestModal = ({
           </div>
         )}
 
-        <label className="block text-sm font-medium text-foreground mb-2">
+        <label htmlFor="wfh-reason" className="block text-sm font-medium text-foreground mb-2">
           Reason for Work From Home
         </label>
-        <textarea
+        <Textarea
+          id="wfh-reason"
           value={reason}
           onChange={handleTextChange}
           rows={4}
-          className="w-full rounded-xl border border-border bg-white dark:bg-slate-900 text-foreground px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400"
           placeholder="Share a brief reason (e.g., client visit, internet outage, commute disruption)..."
         />
         <p className="text-xs text-muted-foreground mt-1">

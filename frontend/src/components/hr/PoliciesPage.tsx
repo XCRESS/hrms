@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -406,8 +407,8 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
                 {/* Content */}
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300">Policy Content *</Label>
-                  <textarea
-                    className="w-full h-40 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 resize-vertical"
+                  <Textarea
+                    className="h-40 resize-y"
                     placeholder="Enter detailed policy content..."
                     value={policyForm.content}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleFormChange('content', e.target.value)}

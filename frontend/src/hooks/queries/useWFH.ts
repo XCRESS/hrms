@@ -11,22 +11,23 @@ import type { ApiResponse, WFHRequest, CreateWFHRequestDto, WFHRequestQueryParam
 /**
  * Get all WFH requests (Admin/HR)
  */
-export const useWFHRequests = (params?: WFHRequestQueryParams) => {
+export const useWFHRequests = (params?: WFHRequestQueryParams, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.wfh.list(params),
     queryFn: async () => {
       // Backend returns { success, data: { requests } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.WFH.BASE, params || {});
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.WFH.BASE, (params || {}) as Record<string, string | number | boolean>);
       const { data } = await axiosInstance.get<ApiResponse<{ requests: WFHRequest[] }>>(endpoint);
       return data.data?.requests || [];
     },
+    enabled: options?.enabled ?? true,
   });
 };
 
 /**
  * Get my WFH requests (Employee)
  */
-export const useMyWFHRequests = () => {
+export const useMyWFHRequests = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.wfh.my(),
     queryFn: async () => {
@@ -34,6 +35,7 @@ export const useMyWFHRequests = () => {
       const { data } = await axiosInstance.get<ApiResponse<{ requests: WFHRequest[] }>>(API_ENDPOINTS.WFH.MY);
       return data.data?.requests || [];
     },
+    enabled: options?.enabled ?? true,
   });
 };
 

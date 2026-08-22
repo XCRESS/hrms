@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
 
 import {
@@ -135,7 +136,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                 type="date"
                 value={startDate}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                 required
               />
             </div>
@@ -154,7 +154,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                       setEndDate(e.target.value);
                     }
                   }}
-                  className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                   required
                 />
               </div>
@@ -166,7 +165,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                   value={endDate}
                   min={startDate || undefined}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                   required
                 />
               </div>
@@ -184,7 +182,7 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
               ) : preview ? (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Info size={16} className="text-cyan-600 dark:text-cyan-400 flex-shrink-0" />
+                    <Info size={16} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
                     <span className="text-sm font-semibold text-cyan-800 dark:text-cyan-200">
                       {preview.workingDays} working day{preview.workingDays !== 1 ? 's' : ''} will be deducted
                     </span>
@@ -206,13 +204,12 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
 
           <div>
             <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason <span className="text-gray-400 font-normal">(optional)</span></label>
-            <textarea
+            <Textarea
               id="reason"
               value={reason}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
               placeholder="Provide a brief reason for your leave..."
               rows={4}
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               maxLength={500}
               data-gramm="false"
             />

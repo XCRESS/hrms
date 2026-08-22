@@ -1,10 +1,11 @@
 import express, { type Router } from "express";
 import { requestRegularization, getMyRegularizations, getAllRegularizations, reviewRegularization } from "../controllers/regularization.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
 import {
   createRegularizationSchema,
   reviewRegularizationSchema,
+  requestListQuerySchema,
 } from "../validators/request.schemas.js";
 import type { IAuthRequest } from "../types/index.js";
 import type { Response } from "express";
@@ -18,7 +19,7 @@ router.post("/request", authMiddleware(["employee", "hr", "admin"]), validateBod
 router.get("/my", authMiddleware(["employee", "hr", "admin"]), getMyRegularizations);
 
 // Get regularizations - returns appropriate regularizations based on user role
-router.get("/", authMiddleware(["employee", "hr", "admin"]), async (req: IAuthRequest, res: Response) => {
+router.get("/", authMiddleware(["employee", "hr", "admin"]), validateQuery(requestListQuerySchema), async (req: IAuthRequest, res: Response) => {
   // If user is admin/hr, return all regularizations, otherwise return their own regularizations
   if (req.user?.role === 'admin' || req.user?.role === 'hr') {
     return getAllRegularizations(req, res);
@@ -28,7 +29,7 @@ router.get("/", authMiddleware(["employee", "hr", "admin"]), async (req: IAuthRe
 });
 
 // HR/Admin: get all regularization requests
-router.get("/all", authMiddleware(["hr", "admin"]), getAllRegularizations);
+router.get("/all", authMiddleware(["hr", "admin"]), validateQuery(requestListQuerySchema), getAllRegularizations);
 
 // HR/Admin: review (approve/reject) a request
 router.post("/:id/review", authMiddleware(["hr", "admin"]), validateBody(reviewRegularizationSchema), reviewRegularization);

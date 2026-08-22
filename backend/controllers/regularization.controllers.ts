@@ -1,4 +1,4 @@
-import type { CreateRegularizationInput, ReviewRegularizationInput } from '../validators/request.schemas.js';
+import type { CreateRegularizationInput, ReviewRegularizationInput, RequestListQuery } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import RegularizationRequest from '../models/Regularization.model.js';
@@ -11,6 +11,7 @@ import { invalidateAttendanceCache, invalidateDashboardCache } from '../utils/ca
 import { AttendanceBusinessService } from '../services/attendance/AttendanceBusinessService.js';
 import NotificationService from '../services/notificationService.js';
 import logger from '../utils/logger.js';
+import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
 import type { RegularizationStatus } from '../types/index.js';
 
@@ -159,17 +160,34 @@ export const getAllRegularizations = async (req: IAuthRequest, res: Response): P
       return;
     }
 
-    const { startDate, endDate } = req.query;
-    const filter: { createdAt?: { $gte?: Date; $lte?: Date } } = {};
+    const { startDate, endDate, status, page, limit } = getValidatedQuery<RequestListQuery>(req);
+    const filter: { status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
+    if (status) {
+      filter.status = status;
+    }
     if (startDate || endDate) {
       filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
-      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
 
-    const regs = await RegularizationRequest.find(filter)
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 });
+    // Counts ignore the status filter so the UI can badge every status at once.
+    const countFilter = { ...filter };
+    delete countFilter.status;
+
+    const [regs, total, statusCounts] = await Promise.all([
+      RegularizationRequest.find(filter)
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      RegularizationRequest.countDocuments(filter),
+      RegularizationRequest.aggregate<{ _id: string; count: number }>([
+        { $match: countFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+    ]);
 
     // Resolve employee names from Employee model (more reliable than User.name)
     const employeeIds = [...new Set(regs.map(r => r.employeeId).filter(Boolean))];
@@ -177,11 +195,16 @@ export const getAllRegularizations = async (req: IAuthRequest, res: Response): P
     const employeeMap = new Map(employees.map(e => [`${e.employeeId}`, `${e.firstName} ${e.lastName}`]));
 
     const regsWithNames = regs.map(reg => ({
-      ...reg.toObject(),
-      employeeName: employeeMap.get(reg.employeeId) || (reg.user as any)?.name || 'Unknown User',
+      ...reg,
+      employeeName: employeeMap.get(reg.employeeId) || (reg.user as { name?: string } | undefined)?.name || 'Unknown User',
     }));
 
-    res.json({ success: true, regs: regsWithNames });
+    res.json({
+      success: true,
+      regs: regsWithNames,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      statusCounts: Object.fromEntries(statusCounts.map((s) => [s._id, s.count])),
+    });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error({ err: error }, 'Failed to fetch all regularization requests');

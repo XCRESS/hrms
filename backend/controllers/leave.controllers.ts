@@ -1,4 +1,4 @@
-import type { CreateLeaveInput, UpdateLeaveStatusInput } from '../validators/request.schemas.js';
+import type { CreateLeaveInput, UpdateLeaveStatusInput, RequestListQuery } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import Leave from '../models/Leave.model.js';
 import User from '../models/User.model.js';
@@ -8,6 +8,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import { calculateWorkingDays } from '../utils/calculateWorkingDays.js';
 import logger from '../utils/logger.js';
+import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
 import type { LeaveStatus } from '../types/index.js';
 
@@ -160,29 +161,50 @@ export const getMyLeaves = asyncHandler(async (req: IAuthRequest, res: Response)
 
 export const getAllLeaves = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, startDate, endDate } = req.query;
-    const filter: { employee?: unknown; createdAt?: { $gte?: Date; $lte?: Date } } = {};
+    const { employeeId, startDate, endDate, status, page, limit } =
+      getValidatedQuery<RequestListQuery>(req);
+    const filter: { employee?: unknown; status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
 
-    if (employeeId && typeof employeeId === 'string') {
-      const employee = await Employee.findOne({ employeeId });
+    if (employeeId) {
+      const employee = await Employee.findOne({ employeeId }).select('_id').lean();
       if (employee) {
         filter.employee = employee._id;
       }
     }
 
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
-      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
+    if (status) {
+      filter.status = status;
     }
 
-    const leaves = await Leave.find(filter)
-      .populate('employee', 'firstName lastName employeeId department')
-      .sort({ createdAt: -1 });
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+
+    // Counts ignore the status filter so the UI can badge every status at once.
+    const countFilter = { ...filter };
+    delete countFilter.status;
+
+    const [leaves, total, statusCounts] = await Promise.all([
+      Leave.find(filter)
+        .populate('employee', 'firstName lastName employeeId department')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      Leave.countDocuments(filter),
+      Leave.aggregate<{ _id: string; count: number }>([
+        { $match: countFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+    ]);
 
     res.json({
       success: true,
-      leaves
+      leaves,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      statusCounts: Object.fromEntries(statusCounts.map((s) => [s._id, s.count])),
     });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');

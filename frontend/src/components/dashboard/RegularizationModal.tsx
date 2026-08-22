@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { Clock } from "lucide-react";
 import {
   Dialog,
@@ -149,7 +150,6 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
               type="date"
               value={date}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
-              className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
             />
           </div>
@@ -167,7 +167,6 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
                 type="time"
                 value={checkIn}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setCheckIn(e.target.value)}
-                className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               />
             </div>
 
@@ -183,14 +182,13 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
                 type="time"
                 value={checkOut}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setCheckOut(e.target.value)}
-                className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               />
             </div>
           </div>
 
           <div>
             <label htmlFor="reason" className="block text-sm font-medium text-foreground mb-1">Reason for Regularization</label>
-            <textarea
+            <Textarea
               id="reason"
               value={reason}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
@@ -199,7 +197,6 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
               // Backend caps reason at 500 chars (shortTextSchema); without this
               // a longer reason round-trips into an opaque 400.
               maxLength={500}
-              className="w-full bg-muted border border-border text-foreground text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               required
               data-gramm="false"
             />
