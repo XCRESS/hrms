@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, FormEvent, ChangeEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from '../ui/button';
 import { PlusCircle, XCircle, Clock, CheckCircle, AlertCircle, Coffee, Sunset, User, Calendar, Timer } from 'lucide-react';
 import useAuth from '../../hooks/authjwt';
@@ -352,7 +353,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         </DialogDescription>
 
         {/* HEADER - Fixed at top, never scrolls */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-border">
+        <div className="shrink-0 px-6 py-5 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className={`p-3 rounded-full ${isHalfDay
@@ -394,14 +395,14 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
 
         {/* WORK SESSION INFO - Fixed section, shows work details */}
         {checkInTime && (
-          <div className="flex-shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
+          <div className="shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground truncate">{user?.name}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground">
                   {currentTime.toLocaleDateString('en-US', {
                     month: 'short',
@@ -410,13 +411,13 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground">
                   In: {formatTime(checkInTime)}
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <Timer className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className={`font-medium ${isHalfDay ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                   }`}>
                   {workDuration}
@@ -427,7 +428,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
             {isHalfDay && (
               <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">
                     Half Day Session - Simplified task reporting
                   </span>
@@ -441,7 +442,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         <div className="flex-1 min-h-0 flex flex-col">
           <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
             {/* Tasks Section Header */}
-            <div className="flex-shrink-0 px-6 pt-6 pb-4">
+            <div className="shrink-0 px-6 pt-6 pb-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-foreground">
                   {isHalfDay ? 'Tasks Completed Today' : 'Tasks & Accomplishments'}
@@ -465,15 +466,16 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                     {tasks.map((task, index) => (
                       <div key={index} className="group">
                         <div className="flex items-start space-x-3 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-white dark:bg-gray-800">
-                          <div className="mt-2 flex-shrink-0">
+                          <div className="mt-2 shrink-0">
                             <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
                           </div>
 
-                          <textarea
+                          <Textarea
                             placeholder={`Task ${index + 1}: What did you accomplish?`}
                             value={task}
                             onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleTaskChange(index, e.target.value)}
-                            className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
+                            variant="bare"
+                            className="flex-1"
                             rows={2}
                             style={{
                               minHeight: '48px',
@@ -491,7 +493,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                             <button
                               type="button"
                               onClick={() => handleRemoveTask(index)}
-                              className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                              className="opacity-0 group-hover:opacity-100 shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                             >
                               <XCircle className="h-4 w-4" />
                             </button>
@@ -530,15 +532,16 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                         {preLunchTasks.map((task, index) => (
                           <div key={`pre-${index}`} className="group">
                             <div className="flex items-start space-x-3 p-4 border-2 border-green-200 dark:border-green-700 rounded-xl hover:border-green-300 dark:hover:border-green-500 focus-within:border-green-500 dark:focus-within:border-green-400 transition-colors bg-green-50 dark:bg-green-900/10">
-                              <div className="mt-2 flex-shrink-0">
+                              <div className="mt-2 shrink-0">
                                 <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
                               </div>
 
-                              <textarea
+                              <Textarea
                                 placeholder={`Morning Task ${index + 1}: What did you accomplish before lunch?`}
                                 value={task}
                                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handlePreLunchTaskChange(index, e.target.value)}
-                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
+                                variant="bare"
+                            className="flex-1"
                                 rows={2}
                                 style={{
                                   minHeight: '48px',
@@ -555,7 +558,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                                 <button
                                   type="button"
                                   onClick={() => handleRemovePreLunchTask(index)}
-                                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                  className="opacity-0 group-hover:opacity-100 shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </button>
@@ -592,15 +595,16 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                         {postLunchTasks.map((task, index) => (
                           <div key={`post-${index}`} className="group">
                             <div className="flex items-start space-x-3 p-4 border-2 border-blue-200 dark:border-blue-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-500 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors bg-blue-50 dark:bg-blue-900/10">
-                              <div className="mt-2 flex-shrink-0">
+                              <div className="mt-2 shrink-0">
                                 <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
                               </div>
 
-                              <textarea
+                              <Textarea
                                 placeholder={`Afternoon Task ${index + 1}: What did you accomplish after lunch?`}
                                 value={task}
                                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handlePostLunchTaskChange(index, e.target.value)}
-                                className="flex-1 bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-foreground font-medium leading-relaxed"
+                                variant="bare"
+                            className="flex-1"
                                 rows={2}
                                 style={{
                                   minHeight: '48px',
@@ -617,7 +621,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                                 <button
                                   type="button"
                                   onClick={() => handleRemovePostLunchTask(index)}
-                                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                  className="opacity-0 group-hover:opacity-100 shrink-0 p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </button>
@@ -643,7 +647,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
                 {/* Error Message - Inside scrollable area */}
                 {error && (
                   <div className="flex items-center space-x-3 p-4 mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                    <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0" />
+                    <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400 shrink-0" />
                     <p className="text-sm text-red-700 dark:text-red-300 font-medium">
                       {error}
                     </p>
@@ -655,7 +659,7 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
         </div>
 
         {/* FOOTER - Fixed at bottom, never scrolls, always accessible */}
-        <div className="flex-shrink-0 px-6 py-5 border-t border-border bg-muted/50 rounded-b-2xl">
+        <div className="shrink-0 px-6 py-5 border-t border-border bg-muted/50 rounded-b-2xl">
           <div className={`flex gap-3 ${isMobile ? 'flex-col-reverse' : 'flex-row justify-end'}`}>
             <Button
               type="button"

@@ -170,7 +170,8 @@ export interface AttendanceQueryParams {
 
 export interface Leave {
   _id: string;
-  employee: string;
+  /** Populated with `firstName lastName employeeId department` by the list endpoints. */
+  employee: string | { _id?: string; firstName?: string; lastName?: string; employeeId?: string };
   employeeName: string;
   leaveType: LeaveType;
   startDate: string;
@@ -193,6 +194,7 @@ export interface WFHRequest {
   _id: string;
   userId: string;
   employeeId: string;
+  employeeName?: string;
   date: string;
   reason: string;
   status: WFHStatus;
@@ -210,7 +212,10 @@ export interface WFHRequest {
 export interface RegularizationRequest {
   _id: string;
   userId: string;
+  /** Populated with `name email` by the admin list endpoint. */
+  user?: { _id?: string; name: string; email: string };
   employeeId: string;
+  employeeName?: string;
   date: string;
   reason: string;
   requestedCheckIn?: string;
@@ -661,7 +666,8 @@ export interface OfficeLocation {
 
 export interface HelpInquiry {
   _id: string;
-  userId: string;
+  /** Populated with `name email` by the admin list endpoint; a raw id elsewhere. */
+  userId: string | { _id?: string; name: string; email: string };
   employeeId: string;
   subject: string;
   description: string;
@@ -1191,12 +1197,27 @@ export interface LeaveQueryParams {
   employeeId?: string;
   startDate?: string;
   endDate?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
 }
 
 // Regularization list query params (Admin/HR)
 export interface RegularizationQueryParams {
   startDate?: string;
   endDate?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** Counts per status, ignoring any active status filter. */
+export type StatusCounts = Record<string, number>;
+
+/** What the admin request-list endpoints return alongside their rows. */
+export interface RequestListMeta {
+  pagination?: { page: number; limit: number; total: number; totalPages: number };
+  statusCounts?: StatusCounts;
 }
 
 // WFH request query params

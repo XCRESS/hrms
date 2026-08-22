@@ -663,7 +663,7 @@ export default function MyTaskReports() {
                 <div className="space-y-3">
                   {selectedReport.tasks.map((task, index) => (
                     <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                      <div className="flex-shrink-0 w-6 h-6 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                      <div className="shrink-0 w-6 h-6 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
                           {index + 1}
                         </span>

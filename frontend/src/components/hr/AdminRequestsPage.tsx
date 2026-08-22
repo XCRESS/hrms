@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Calendar,
   HelpCircle,
@@ -6,23 +6,22 @@ import {
   Key,
   RefreshCw,
   FileText,
+  Filter,
   User,
   Clock4,
   AlertTriangle,
   Receipt
 } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { useToast } from "../ui/toast";
-import { useQueryClient } from '@tanstack/react-query';
 import useAuth from "../../hooks/authjwt";
-import BackButton from "../ui/BackButton";
 import { formatTime, formatISTDate, getISTDateString, getMonthOptions } from '../../utils/luxonUtils';
 import {
-  useUsers,
   useAllLeaves,
   useAllHelpInquiries,
   useRegularizationRequests,
@@ -35,9 +34,62 @@ import {
   useUpdateHelpInquiry,
   useReviewRegularization
 } from "../../hooks/queries";
-import type { User as UserType } from '@/types';
+import type {
+  Expense,
+  HelpInquiryQueryParams,
+  PasswordResetQueryParams,
+  ExpenseQueryParams,
+} from '@/types';
 
 type RequestType = 'leave' | 'help' | 'regularization' | 'password' | 'expense';
+
+/** Statuses that still need someone to act. Drives the default view and badges. */
+const OPEN_STATUSES = new Set<RequestStatus>(['pending', 'in-progress']);
+
+/** Whole days since submission — the queue's most useful sort signal. */
+const daysWaiting = (createdAt: Date): number =>
+  Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000));
+
+/**
+ * Only `help` has a triage flow, and only `password` can expire, so a flat
+ * status list would offer options that match nothing on most tabs. "Open"
+ * covers pending + in-progress, which is why there is no separate "Pending".
+ */
+const STATUS_FILTERS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
+  help: [
+    { value: 'open', label: 'Open' },
+    { value: 'in-progress', label: 'In progress' },
+    { value: 'resolved', label: 'Resolved' },
+  ],
+  password: [
+    { value: 'open', label: 'Open' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'completed', label: 'Completed' },
+  ],
+  default: [
+    { value: 'open', label: 'Open' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+  ],
+};
+
+const ALL_STATUSES = { value: 'all', label: 'All statuses' };
+
+// Help requests move through a triage flow; everything else is approve/reject.
+const STATUS_OPTIONS = {
+  approval: [
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+  ],
+  help: [
+    { value: 'pending', label: 'Pending' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'resolved', label: 'Resolved' },
+  ],
+} as const;
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'resolved' | 'expired' | 'completed' | 'in-progress';
 
 interface BaseRequest {
@@ -57,8 +109,6 @@ interface PasswordRequest extends BaseRequest {
   type: 'password';
   email: string;
   name: string;
-  resetTokenExpires?: string;
-  isTokenExpired?: boolean;
 }
 
 interface HelpRequest extends BaseRequest {
@@ -93,38 +143,49 @@ interface Tab {
 }
 
 const AdminRequestsPage = () => {
-  const [activeTab, setActiveTab] = useState('all');
-  const [employeeFilter, setEmployeeFilter] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  // Filters live in the URL so a view can be linked, bookmarked, and undone
+  // with the browser back button.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('type') ?? 'all';
+  // Default to the open queue: this is an approvals inbox, not an archive.
+  const statusFilter = searchParams.get('status') ?? 'open';
+  const monthParam = searchParams.get('month') ?? '';
+  const employeeFilter = searchParams.get('q') ?? '';
+
+  const setParam = (key: string, value: string | null) => {
+    setSearchParams((prev: URLSearchParams) => {
+      const next = new URLSearchParams(prev);
+      if (value === null || value === '') next.delete(key);
+      else next.set(key, value);
+      return next;
+    }, { replace: true });
+  };
 
   // Edit states for different request types
   const [editing, setEditing] = useState<EditState>({});
   const [actionLoading, setActionLoading] = useState<ActionLoadingState>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const user = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const isAdminOrHR = user?.role === 'admin' || user?.role === 'hr';
 
-  // React Query hooks - conditionally fetch based on active tab
-  const { data: usersData } = useUsers();
-  const users: UserType[] = usersData || [];
+  // No month selected means the whole queue: a request pending since last month
+  // must not vanish when the calendar rolls over.
+  const dateRange = monthParam
+    ? (() => {
+        const [year, month] = monthParam.split('-').map(Number);
+        return {
+          startDate: getISTDateString(new Date(year, month - 1, 1)),
+          endDate: getISTDateString(new Date(year, month, 0)),
+        };
+      })()
+    : {};
 
-  // Only load the selected month's requests by default - keeps the page fast and avoids
-  // pulling every request ever made into the browser at once.
-  const dateRange = useMemo(() => {
-    const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-    const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
-    return {
-      startDate: getISTDateString(firstDay),
-      endDate: getISTDateString(lastDay)
-    };
-  }, [selectedMonth]);
-
-  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
-    const [year, month] = event.target.value.split('-');
-    setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-  };
+  // 'open' is a UI concept spanning each type's own in-flight statuses, so it
+  // is resolved client-side; a concrete status is pushed down to the API.
+  const statusParam = statusFilter === 'open' || statusFilter === 'all' ? undefined : statusFilter;
+  const queryParams = { ...dateRange, ...(statusParam ? { status: statusParam } : {}) };
 
   const shouldFetchLeaves = activeTab === 'all' || activeTab === 'leave';
   const shouldFetchHelp = activeTab === 'all' || activeTab === 'help';
@@ -132,13 +193,62 @@ const AdminRequestsPage = () => {
   const shouldFetchPassword = activeTab === 'all' || activeTab === 'password';
   const shouldFetchExpense = activeTab === 'all' || activeTab === 'expense';
 
-  const { data: leavesData, isLoading: leavesLoading } = useAllLeaves({ params: dateRange, enabled: isAdminOrHR && shouldFetchLeaves });
-  const { data: helpData, isLoading: helpLoading } = useAllHelpInquiries({ params: dateRange, enabled: isAdminOrHR && shouldFetchHelp });
-  const { data: regData, isLoading: regLoading } = useRegularizationRequests({ params: dateRange, enabled: isAdminOrHR && shouldFetchReg });
-  const { data: passwordData, isLoading: passwordLoading } = usePasswordResetRequests({ params: dateRange, enabled: isAdminOrHR && shouldFetchPassword });
-  const { data: expenseData, isLoading: expenseLoading } = useAllExpenses(dateRange, { enabled: isAdminOrHR && shouldFetchExpense });
+  // Each endpoint narrows `status` to its own union; the page-level filter is a
+  // plain string, so it is narrowed per call rather than cast at the source.
+  const leavesQuery = useAllLeaves({ params: queryParams, enabled: isAdminOrHR && shouldFetchLeaves });
+  const helpQuery = useAllHelpInquiries({
+    params: queryParams as HelpInquiryQueryParams,
+    enabled: isAdminOrHR && shouldFetchHelp,
+  });
+  const regQuery = useRegularizationRequests({ params: queryParams, enabled: isAdminOrHR && shouldFetchReg });
+  const passwordQuery = usePasswordResetRequests({
+    params: queryParams as PasswordResetQueryParams,
+    enabled: isAdminOrHR && shouldFetchPassword,
+  });
+  const expenseQuery = useAllExpenses(queryParams as ExpenseQueryParams, {
+    enabled: isAdminOrHR && shouldFetchExpense,
+  });
 
-  const loading = leavesLoading || helpLoading || regLoading || passwordLoading || expenseLoading;
+  const leavesData = leavesQuery.data;
+  const helpData = helpQuery.data;
+  const regData = regQuery.data;
+  const passwordData = passwordQuery.data;
+  const expenseData = expenseQuery.data;
+
+  const loading = leavesQuery.isLoading || helpQuery.isLoading || regQuery.isLoading ||
+    passwordQuery.isLoading || expenseQuery.isLoading;
+
+  // A partial failure must be visible: otherwise a list that is missing an
+  // entire request type looks indistinguishable from a complete one.
+  const failedSources = [
+    leavesQuery.isError && 'leave',
+    helpQuery.isError && 'help desk',
+    regQuery.isError && 'regularization',
+    passwordQuery.isError && 'password reset',
+    expenseQuery.isError && 'expense',
+  ].filter(Boolean) as string[];
+
+  const hasActiveFilters = Boolean(monthParam || employeeFilter || searchParams.get('status') || searchParams.get('type'));
+
+  // On "All", every type's statuses are reachable, so show the union.
+  const statusOptions = (() => {
+    if (activeTab === 'all') {
+      const seen = new Map<string, { value: string; label: string }>();
+      for (const list of Object.values(STATUS_FILTERS_BY_TYPE)) {
+        for (const opt of list) if (!seen.has(opt.value)) seen.set(opt.value, opt);
+      }
+      return [...seen.values(), ALL_STATUSES];
+    }
+    return [...(STATUS_FILTERS_BY_TYPE[activeTab] ?? STATUS_FILTERS_BY_TYPE.default), ALL_STATUSES];
+  })();
+
+  const refetchAll = () => {
+    if (shouldFetchLeaves) leavesQuery.refetch();
+    if (shouldFetchHelp) helpQuery.refetch();
+    if (shouldFetchReg) regQuery.refetch();
+    if (shouldFetchPassword) passwordQuery.refetch();
+    if (shouldFetchExpense) expenseQuery.refetch();
+  };
 
   // Mutations
   const updateLeaveStatusMutation = useUpdateLeaveStatus();
@@ -157,34 +267,33 @@ const AdminRequestsPage = () => {
     { id: 'expense', label: 'Expenses', icon: Receipt }
   ];
 
-  // Format requests from React Query data using useMemo
-  const requests: UnifiedRequest[] = useMemo(() => {
+  const requests: UnifiedRequest[] = (() => {
     if (!isAdminOrHR) return [];
 
     const allRequests: UnifiedRequest[] = [];
+    // Not Date.now(): impure during render, and undated rows would sort to the top.
+    const fallbackTime = 0;
 
     // Format leave requests
     const leaves = leavesData || [];
     const formattedLeaves = leaves.map((leave): BaseRequest => {
-      const userInfo = users.find(u => u.employeeId === leave.employeeId);
-      const startDate = leave.startDate || leave.leaveDate || leave.date;
-      const endDate = leave.endDate || startDate;
+      const { startDate, endDate } = leave;
       const isMultiDay = startDate && endDate && new Date(startDate).toDateString() !== new Date(endDate).toDateString();
       const numberOfDays = leave.numberOfDays;
       const daysLabel = numberOfDays ? ` (${numberOfDays} working day${numberOfDays !== 1 ? 's' : ''})` : '';
       const title = isMultiDay
         ? `${leave.leaveType} Leave${daysLabel}`
         : `${leave.leaveType} Leave`;
-      const description = leave.leaveReason || leave.reason || '';
       return {
         ...leave,
         type: 'leave' as const,
         title,
-        description,
+        description: leave.reason || '',
         date: new Date(startDate),
-        createdAt: new Date(leave.createdAt || leave.requestDate || Date.now()),
+        createdAt: new Date(leave.createdAt || fallbackTime),
         status: (leave.status || 'pending') as RequestStatus,
-        user: userInfo ? { name: userInfo.name, email: userInfo.email } : null
+        // The leave endpoint populates `employee` without an email.
+        user: { name: leave.employeeName, email: '' }
       };
     });
     allRequests.push(...formattedLeaves);
@@ -194,12 +303,14 @@ const AdminRequestsPage = () => {
     const formattedHelp = helpRequests.map((help): HelpRequest => ({
       ...help,
       type: 'help' as const,
-      title: help.subject || help.title || 'Help Request',
+      title: help.subject || 'Help Request',
       description: help.description || help.message || '',
-      date: new Date(help.createdAt || Date.now()),
-      createdAt: new Date(help.createdAt || Date.now()),
+      date: new Date(help.createdAt || fallbackTime),
+      createdAt: new Date(help.createdAt || fallbackTime),
       status: (help.status || 'pending') as RequestStatus,
-      user: help.userId ? { name: help.userId.name, email: help.userId.email } : null,
+      user: typeof help.userId === 'object' && help.userId !== null
+        ? { name: help.userId.name, email: help.userId.email }
+        : null,
       category: help.category,
       priority: help.priority
     }));
@@ -227,7 +338,7 @@ const AdminRequestsPage = () => {
         title: 'Attendance Regularization',
         description: timeInfo || 'No details provided',
         date: new Date(reg.date),
-        createdAt: new Date(reg.createdAt || Date.now()),
+        createdAt: new Date(reg.createdAt || fallbackTime),
         status: (reg.status || 'pending') as RequestStatus,
         user: reg.user ? { name: reg.user.name, email: reg.user.email } : null
       };
@@ -236,33 +347,28 @@ const AdminRequestsPage = () => {
 
     // Format password reset requests
     const passwordRequests = passwordData || [];
-    const formattedPassword = passwordRequests.map((pwd): PasswordRequest => {
-      const isTokenExpired = pwd.resetTokenExpires && new Date(pwd.resetTokenExpires) < new Date();
-      const effectiveStatus = isTokenExpired && pwd.status === 'pending' ? 'expired' : (pwd.status || 'pending');
-
-      return {
-        ...pwd,
-        type: 'password' as const,
-        title: 'Password Reset Request',
-        description: `User: ${pwd.email || 'Unknown'}${isTokenExpired ? ' (Token Expired)' : ''}`,
-        date: new Date(pwd.createdAt || Date.now()),
-        createdAt: new Date(pwd.createdAt || Date.now()),
-        status: effectiveStatus as RequestStatus,
-        isTokenExpired,
-        user: { name: pwd.name, email: pwd.email }
-      };
-    });
+    // PasswordResetRequest has no token-expiry field; the API decides the status.
+    const formattedPassword = passwordRequests.map((pwd): PasswordRequest => ({
+      ...pwd,
+      type: 'password' as const,
+      title: 'Password Reset Request',
+      description: `User: ${pwd.email}`,
+      date: new Date(pwd.createdAt || fallbackTime),
+      createdAt: new Date(pwd.createdAt || fallbackTime),
+      status: pwd.status as RequestStatus,
+      user: { name: pwd.name, email: pwd.email }
+    }));
     allRequests.push(...formattedPassword);
 
     // Format expense requests
     const expenses = expenseData || [];
-    const formattedExpenses = expenses.map((exp: any): ExpenseRequest => ({
+    const formattedExpenses = expenses.map((exp: Expense): ExpenseRequest => ({
       ...exp,
       type: 'expense' as const,
       title: `Expense: ${exp.item || 'Reimbursement'}`,
       description: `Amount: ₹${Number(exp.amount || 0).toLocaleString()}`,
-      date: new Date(exp.date || exp.createdAt || Date.now()),
-      createdAt: new Date(exp.createdAt || Date.now()),
+      date: new Date(exp.date || exp.createdAt || fallbackTime),
+      createdAt: new Date(exp.createdAt || fallbackTime),
       status: (exp.status || 'pending') as RequestStatus,
       user: exp.employeeName ? { name: exp.employeeName, email: '' } : 
             (exp.employee && typeof exp.employee === 'object' && 'firstName' in exp.employee ? 
@@ -273,14 +379,29 @@ const AdminRequestsPage = () => {
 
     // Sort by most recent first
     return allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [isAdminOrHR, leavesData, helpData, regData, passwordData, expenseData, users]);
+  })();
 
+  // Counts drive the tab badges, and are taken before the status filter so
+  // each tab shows how much work it holds without switching to it.
+  const openCountsByType: Record<string, number> = {};
+  for (const r of requests) {
+    if (OPEN_STATUSES.has(r.status)) openCountsByType[r.type] = (openCountsByType[r.type] ?? 0) + 1;
+  }
+  const totalOpen = Object.values(openCountsByType).reduce((sum, n) => sum + n, 0);
+
+  const needle = employeeFilter.trim().toLowerCase();
   const filteredRequests = requests.filter(request => {
-    const matchesTab = activeTab === 'all' || request.type === activeTab;
-    const matchesEmployee = employeeFilter === 'all' ||
-      (request.user?.name && request.user.name.toLowerCase().includes(employeeFilter.toLowerCase())) ||
-      (request.user?.email && request.user.email.toLowerCase().includes(employeeFilter.toLowerCase()));
-    return matchesTab && matchesEmployee;
+    if (activeTab !== 'all' && request.type !== activeTab) return false;
+
+    if (statusFilter === 'open' && !OPEN_STATUSES.has(request.status)) return false;
+    if (statusFilter !== 'open' && statusFilter !== 'all' && request.status !== statusFilter) return false;
+
+    if (!needle) return true;
+    return (
+      request.user?.name?.toLowerCase().includes(needle) ||
+      request.user?.email?.toLowerCase().includes(needle) ||
+      request.title.toLowerCase().includes(needle)
+    ) ?? false;
   });
 
   const getTypeIcon = (type: RequestType) => {
@@ -300,10 +421,10 @@ const AdminRequestsPage = () => {
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'expired': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      case 'expired': return 'bg-muted text-muted-foreground';
       case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       case 'in-progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -311,7 +432,7 @@ const AdminRequestsPage = () => {
   const formatDateLocal = (date: Date | string): string => {
     try {
       return formatISTDate(date, { dateOnly: true });
-    } catch (e) {
+    } catch {
       return 'N/A';
     }
   };
@@ -390,6 +511,48 @@ const AdminRequestsPage = () => {
     }
   };
 
+  // Password and help requests need a reason or a triage status, so they are
+  // excluded from bulk approve/reject.
+  const bulkEligible = filteredRequests.filter(
+    r => r.status === 'pending' && r.type !== 'password' && r.type !== 'help'
+  );
+  const selectedRequests = bulkEligible.filter(r => selected.has(`${r.type}-${r._id}`));
+
+  const toggleSelected = (key: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (status: 'approved' | 'rejected') => {
+    const targets = [...selectedRequests];
+    setSelected(new Set());
+
+    const results = await Promise.allSettled(
+      targets.map(request => {
+        if (request.type === 'leave') {
+          return updateLeaveStatusMutation.mutateAsync({ leaveId: request._id, status });
+        }
+        if (request.type === 'regularization') {
+          return reviewRegularizationMutation.mutateAsync({ requestId: request._id, status, comment: '' });
+        }
+        return updateExpenseStatusMutation.mutateAsync({ id: request._id, status, reviewComment: '' });
+      })
+    );
+
+    const failed = results.filter(r => r.status === 'rejected').length;
+    toast({
+      variant: failed ? 'error' : 'success',
+      title: failed ? 'Some updates failed' : `${targets.length} request${targets.length === 1 ? '' : 's'} updated`,
+      description: failed
+        ? `${targets.length - failed} succeeded, ${failed} failed.`
+        : `Marked as ${status}.`,
+    });
+  };
+
   const handlePasswordAction = async (requestId: string, action: 'approve' | 'reject') => {
     setActionLoading(prev => ({ ...prev, [`${requestId}_${action}`]: true }));
     try {
@@ -428,57 +591,80 @@ const AdminRequestsPage = () => {
   // live here could only ever fire as a false alarm, flashing "Access Denied"
   // for a frame while useAuth resolved. The backend remains the real boundary.
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <BackButton label="Back" variant="ghost" className="w-auto" />
-
-            <Button
-              onClick={() => queryClient.invalidateQueries()}
-              variant="outline"
-              disabled={loading}
-              className="border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-              <FileText className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+            <div className="rounded-lg bg-muted p-2">
+              <FileText className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-700 dark:text-slate-200">
-                Manage Requests
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400">
-                Review and manage all employee requests
+              <h1 className="text-2xl font-bold text-foreground">Manage Requests</h1>
+              <p className="text-sm text-muted-foreground">
+                {totalOpen > 0
+                  ? `${totalOpen} request${totalOpen === 1 ? '' : 's'} awaiting review`
+                  : 'Nothing awaiting review'}
               </p>
             </div>
           </div>
+
+          <Button
+            onClick={refetchAll}
+            variant="ghost"
+            size="icon"
+            disabled={loading}
+            aria-label="Refresh requests"
+            title="Refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+          </Button>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-slate-200 dark:border-slate-700">
-          <nav className="flex space-x-8 overflow-x-auto">
+        <div className="border-b border-border">
+          <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Request type">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              const count = tab.id === 'all' ? totalOpen : openCountsByType[tab.id] ?? 0;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  onClick={() => {
+                    // Reset a status the new tab cannot offer, or the list
+                    // would silently come back empty.
+                    const allowed = tab.id === 'all'
+                      ? null
+                      : (STATUS_FILTERS_BY_TYPE[tab.id] ?? STATUS_FILTERS_BY_TYPE.default);
+                    const keepStatus =
+                      statusFilter === 'open' || statusFilter === 'all' ||
+                      !allowed || allowed.some(o => o.value === statusFilter);
+
+                    setSearchParams((prev: URLSearchParams) => {
+                      const next = new URLSearchParams(prev);
+                      if (tab.id === 'all') next.delete('type');
+                      else next.set('type', tab.id);
+                      if (!keepStatus) next.delete('status');
+                      return next;
+                    }, { replace: true });
+                    setSelected(new Set());
+                  }}
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     isActive
-                      ? 'border-slate-500 text-slate-600 dark:text-slate-300'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" aria-hidden="true" />
                   <span>{tab.label}</span>
+                  {count > 0 && (
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -486,16 +672,32 @@ const AdminRequestsPage = () => {
         </div>
 
         {/* Filters */}
-        <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-slate-500" />
+                <Filter className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <select
-                  value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
-                  onChange={handleMonthChange}
-                  className="text-sm bg-background text-foreground border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Filter by status"
+                  value={statusFilter}
+                  onChange={(e) => setParam('status', e.target.value === 'open' ? null : e.target.value)}
+                  className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
+                  {statusOptions.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <select
+                  aria-label="Filter by month"
+                  value={monthParam}
+                  onChange={(e) => setParam('month', e.target.value)}
+                  className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">Any month</option>
                   {getMonthOptions(12).map(option => (
                     <option key={option.value} value={option.value}>
                       {option.display}
@@ -503,21 +705,25 @@ const AdminRequestsPage = () => {
                   ))}
                 </select>
               </div>
-              <User className="h-4 w-4 text-slate-500" />
-              <Input
-                placeholder="Filter by employee name or email..."
-                value={employeeFilter === 'all' ? '' : employeeFilter}
-                onChange={(e) => setEmployeeFilter(e.target.value || 'all')}
-                className="max-w-sm border-slate-200 dark:border-slate-700"
-              />
-              {employeeFilter !== 'all' && (
+
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xs">
+                <User className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  aria-label="Search by employee or request"
+                  placeholder="Search employee or request..."
+                  value={employeeFilter}
+                  onChange={(e) => setParam('q', e.target.value)}
+                />
+              </div>
+
+              {hasActiveFilters && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setEmployeeFilter('all')}
-                  className="text-slate-500 hover:text-slate-700"
+                  onClick={() => setSearchParams({}, { replace: true })}
+                  className="text-muted-foreground hover:text-foreground"
                 >
-                  Clear
+                  Clear filters
                 </Button>
               )}
             </div>
@@ -525,23 +731,66 @@ const AdminRequestsPage = () => {
         </Card>
 
 
+        {failedSources.length > 0 && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="font-medium text-foreground">This list is incomplete</p>
+              <p className="text-muted-foreground">
+                Could not load {failedSources.join(', ')} requests. Others are shown below.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={refetchAll}>Retry</Button>
+          </div>
+        )}
+
+        {selectedRequests.length > 0 && (
+          <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+            <span className="text-sm font-medium text-foreground">
+              {selectedRequests.length} selected
+            </span>
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+              <Button size="sm" variant="destructive" onClick={() => handleBulkAction('rejected')}>
+                Reject
+              </Button>
+              <Button size="sm" onClick={() => handleBulkAction('approved')}>Approve</Button>
+            </div>
+          </div>
+        )}
+
         {/* Requests List */}
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
-              <p className="text-slate-500 dark:text-slate-400">Loading requests...</p>
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Loading requests...</p>
             </div>
           ) : filteredRequests.length === 0 ? (
-            <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800">
+            <Card className="border-border shadow-sm">
               <CardContent className="p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">
-                  No requests found
+                <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" aria-hidden="true" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
+                  {hasActiveFilters ? 'No matching requests' : 'You are all caught up'}
                 </h3>
-                <p className="text-slate-500 dark:text-slate-400">
-                  No requests to review at the moment.
+                <p className="text-muted-foreground">
+                  {hasActiveFilters
+                    ? 'No requests match the current filters. Try widening them.'
+                    : 'Nothing is waiting for review right now.'}
                 </p>
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setSearchParams({}, { replace: true })}
+                  >
+                    Clear filters
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -551,20 +800,35 @@ const AdminRequestsPage = () => {
               const isPasswordRequest = request.type === 'password';
               const passwordReq = isPasswordRequest ? (request as PasswordRequest) : null;
 
+              const rowKey = `${request.type}-${request._id}`;
+              const isSelectable = request.status === 'pending' && !isPasswordRequest && request.type !== 'help';
+              const age = daysWaiting(request.createdAt);
+
               return (
-                <Card key={`${request.type}-${request._id}`} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-800">
+                <Card key={rowKey} className="border-border shadow-sm hover:shadow-md transition-shadow bg-card">
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex items-start gap-4 flex-1">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
-                            <Icon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                          {isSelectable ? (
+                            <input
+                              type="checkbox"
+                              checked={selected.has(rowKey)}
+                              onChange={() => toggleSelected(rowKey)}
+                              aria-label={`Select ${request.title}`}
+                              className="mt-3 h-4 w-4 shrink-0 rounded border-border accent-primary"
+                            />
+                          ) : (
+                            <span className="mt-3 h-4 w-4 shrink-0" aria-hidden="true" />
+                          )}
+                          <div className="p-2 rounded-lg bg-muted">
+                            <Icon className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-slate-700 dark:text-slate-100 mb-1">
+                            <h3 className="font-semibold text-foreground mb-1">
                               {request.title}
                             </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                            <p className="text-sm text-muted-foreground mb-2">
                               {request.description}
                             </p>
                             {request.type === 'help' && (request as HelpRequest).category && (
@@ -574,7 +838,17 @@ const AdminRequestsPage = () => {
                                 </Badge>
                               </div>
                             )}
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
+                            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                              {OPEN_STATUSES.has(request.status) && age >= 3 && (
+                                <span
+                                  className={`flex items-center gap-1 font-medium ${
+                                    age >= 7 ? 'text-destructive' : 'text-yellow-600 dark:text-yellow-500'
+                                  }`}
+                                >
+                                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                                  Waiting {age}d
+                                </span>
+                              )}
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 <span className="font-medium">For:</span> {formatDateLocal(request.date)}
@@ -598,10 +872,10 @@ const AdminRequestsPage = () => {
                             {request.status === 'in-progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </Badge>
                           {request.type === 'help' && (request as HelpRequest).priority && (
-                            <Badge variant="outline" className={
+                            <Badge variant="secondary" className={
                               (request as HelpRequest).priority === 'high' ? 'border-red-300 text-red-700 dark:border-red-700 dark:text-red-400' :
                               (request as HelpRequest).priority === 'medium' ? 'border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400' :
-                              'border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-400'
+                              'border-border text-muted-foreground'
                             }>
                               {(request as HelpRequest).priority!.charAt(0).toUpperCase() + (request as HelpRequest).priority!.slice(1)} Priority
                             </Badge>
@@ -612,30 +886,8 @@ const AdminRequestsPage = () => {
                       {/* Action buttons and editing interface */}
                       {isPasswordRequest && passwordReq ? (
                         <>
-                          {/* Show expiration info if expired */}
-                          {passwordReq.isTokenExpired && (
-                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-800">
-                                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                                <span className="text-sm text-red-700 dark:text-red-300 font-medium">
-                                  Token Expired - Cannot be approved
-                                </span>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Show token expiration info for all password requests */}
-                          {passwordReq.resetTokenExpires && (
-                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                <strong>Token Expires:</strong> {new Date(passwordReq.resetTokenExpires).toLocaleString()}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Action buttons - only show for pending non-expired requests */}
-                          {request.status === 'pending' && !passwordReq.isTokenExpired && (
-                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                          {request.status === 'pending' && (
+                            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
                               <Button
                                 onClick={() => handlePasswordAction(request._id, 'approve')}
                                 disabled={actionLoading[`${request._id}_approve`]}
@@ -647,7 +899,7 @@ const AdminRequestsPage = () => {
                               <Button
                                 onClick={() => handlePasswordAction(request._id, 'reject')}
                                 disabled={actionLoading[`${request._id}_reject`]}
-                                className="bg-red-600 hover:bg-red-700 text-white"
+                                variant="destructive"
                                 size="sm"
                               >
                                 {actionLoading[`${request._id}_reject`] ? 'Rejecting...' : 'Reject'}
@@ -658,7 +910,7 @@ const AdminRequestsPage = () => {
                       ) : (
                         <>
                           {isEditing ? (
-                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                            <div className="pt-3 border-t border-border space-y-3">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Select
                                   value={editing[request._id]?.status || request.status}
@@ -668,31 +920,9 @@ const AdminRequestsPage = () => {
                                     <SelectValue placeholder="Select status" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {request.type === 'leave' ? (
-                                      <>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="approved">Approved</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                      </>
-                                    ) : request.type === 'help' ? (
-                                      <>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="in-progress">In Progress</SelectItem>
-                                        <SelectItem value="resolved">Resolved</SelectItem>
-                                      </>
-                                    ) : request.type === 'expense' ? (
-                                      <>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="approved">Approved</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="approved">Approved</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                      </>
-                                    )}
+                                    {STATUS_OPTIONS[request.type === 'help' ? 'help' : 'approval'].map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
 
@@ -705,11 +935,11 @@ const AdminRequestsPage = () => {
                                 )}
                               </div>
 
-                              <div className="flex gap-2">
+                              <div className="flex justify-end gap-2">
                                 <Button
                                   onClick={() => handleSave(request)}
                                   disabled={actionLoading[request._id]}
-                                  className="bg-slate-600 hover:bg-slate-700 text-white"
+                                  variant="secondary"
                                   size="sm"
                                 >
                                   {actionLoading[request._id] ? 'Saving...' : 'Save'}
@@ -725,10 +955,10 @@ const AdminRequestsPage = () => {
                             </div>
                           ) : (
                             (request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
-                              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                              <div className="flex justify-end border-t border-border pt-3">
                                 <Button
                                   onClick={() => handleStartEdit(request)}
-                                  className="bg-slate-600 hover:bg-slate-700 text-white"
+                                  variant="secondary"
                                   size="sm"
                                 >
                                   {request.status === 'in-progress' ? 'Update Request' : 'Review Request'}
@@ -738,8 +968,8 @@ const AdminRequestsPage = () => {
                           )}
 
                           {(request.response || request.reviewComment) && !isEditing && (
-                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                            <div className="pt-3 border-t border-border">
+                              <p className="text-sm text-muted-foreground">
                                 <span className="font-medium">Response:</span> {request.response || request.reviewComment}
                               </p>
                             </div>

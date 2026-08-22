@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requestLeave, getMyLeaves, getAllLeaves, updateLeaveStatus, previewLeaveDays } from "../controllers/leave.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { createLeaveSchema, updateLeaveStatusSchema } from "../validators/request.schemas.js";
+import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
+import { createLeaveSchema, updateLeaveStatusSchema, requestListQuerySchema } from "../validators/request.schemas.js";
 import type { IAuthRequest } from "../types/index.js";
 import type { Response } from "express";
 
@@ -16,7 +16,7 @@ router.post("/request", authMiddleware(), validateBody(createLeaveSchema), reque
 router.get("/my", authMiddleware(), getMyLeaves);
 
 // Get leaves - returns appropriate leaves based on user role
-router.get("/", authMiddleware(), async (req: IAuthRequest, res: Response) => {
+router.get("/", authMiddleware(), validateQuery(requestListQuerySchema), async (req: IAuthRequest, res: Response) => {
   // If user is admin/hr, return all leaves, otherwise return their own leaves
   if (req.user?.role === 'admin' || req.user?.role === 'hr') {
     return (getAllLeaves as any)(req, res);
@@ -26,7 +26,7 @@ router.get("/", authMiddleware(), async (req: IAuthRequest, res: Response) => {
 });
 
 // Admin/HR can view all leaves and approve/reject
-router.get("/all", authMiddleware(["admin", "hr"]), getAllLeaves);
+router.get("/all", authMiddleware(["admin", "hr"]), validateQuery(requestListQuerySchema), getAllLeaves);
 router.put("/:leaveId/status", authMiddleware(["admin", "hr"]), validateBody(updateLeaveStatusSchema), updateLeaveStatus);
 
 export default router;

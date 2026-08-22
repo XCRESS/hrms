@@ -106,6 +106,27 @@ export const bulkExpenseStatusSchema = reviewDecisionSchema.extend({
   ids: z.array(objectIdSchema).min(1, 'At least one expense must be selected'),
 });
 
+/**
+ * Shared query shape for the admin request-list endpoints.
+ * `startDate`/`endDate` are optional: omitting them returns the full open
+ * queue rather than a single month, so pending items never age out of view.
+ */
+export const requestListQuerySchema = z.object({
+  status: z.string().min(1).nullish(),
+  employeeId: z.string().min(1).nullish(),
+  startDate: dateStringSchema.nullish(),
+  endDate: dateStringSchema.nullish(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(200).default(50),
+});
+
+export const bulkRequestStatusSchema = reviewDecisionSchema.extend({
+  ids: z.array(objectIdSchema).min(1, 'At least one request must be selected'),
+});
+
+export type RequestListQuery = z.infer<typeof requestListQuerySchema>;
+export type BulkRequestStatusInput = z.infer<typeof bulkRequestStatusSchema>;
+
 export type CreateLeaveInput = z.infer<typeof createLeaveSchema>;
 export type UpdateLeaveStatusInput = z.infer<typeof updateLeaveStatusSchema>;
 export type CreateWFHRequestInput = z.infer<typeof createWFHRequestSchema>;

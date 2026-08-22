@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, ReactElement } from 'react';
 import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key, MapPin, IndianRupee } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import RequestDetailModal from './RequestDetailModal';
@@ -13,13 +13,15 @@ import {
 } from '@/hooks/queries';
 
 // Types
+type RequestStatus = 'pending' | 'approved' | 'rejected' | 'in-progress' | 'resolved' | 'expired' | 'completed';
+
 interface BaseRequest {
   _id?: string;
-  status?: string;
+  status: RequestStatus;
   createdAt?: string;
   date?: string;
-  type: string;
-  icon: JSX.Element;
+  type: 'leave' | 'help' | 'regularization' | 'password' | 'wfh' | 'expense';
+  icon: ReactElement<{ className?: string }>;
   title: string;
   description: string;
   employee: string;
@@ -37,9 +39,8 @@ interface LeaveRequest extends BaseRequest {
 interface HelpRequest extends BaseRequest {
   type: 'help';
   subject?: string;
-  userId?: {
-    name?: string;
-  };
+  /** Populated with `name email` by the admin list endpoint; a raw id elsewhere. */
+  userId?: string | { _id?: string; name: string; email: string };
 }
 
 interface RegularizationRequest extends BaseRequest {
@@ -78,7 +79,7 @@ const AdminPendingRequests = () => {
 
   // Fetch all pending requests using React Query hooks
   const { data: leavesData, isLoading: leavesLoading, refetch: refetchLeaves } = useAllLeaves();
-  const { data: helpData, isLoading: helpLoading, refetch: refetchHelp } = useAllHelpInquiries({ status: 'pending' });
+  const { data: helpData, isLoading: helpLoading, refetch: refetchHelp } = useAllHelpInquiries({ params: { status: 'pending' } });
   const { data: regData, isLoading: regLoading, refetch: refetchReg } = useRegularizationRequests();
   const { data: passwordData, isLoading: passwordLoading, refetch: refetchPassword } = usePasswordResetRequests();
   const { data: wfhData, isLoading: wfhLoading, refetch: refetchWFH } = useWFHRequests({ status: 'pending' });
@@ -92,8 +93,8 @@ const AdminPendingRequests = () => {
 
     // Process leaves - leavesData is an array directly from useAllLeaves
     if (leavesData && Array.isArray(leavesData)) {
-      const pendingLeaves = leavesData.filter((leave: any) => leave.status === 'pending');
-      allRequests.push(...pendingLeaves.map((leave: any): LeaveRequest => ({
+      const pendingLeaves = leavesData.filter((leave) => leave.status === 'pending');
+      allRequests.push(...pendingLeaves.map((leave): LeaveRequest => ({
         ...leave,
         type: 'leave',
         icon: <Calendar className="w-5 h-5 text-blue-500" />,
@@ -106,23 +107,23 @@ const AdminPendingRequests = () => {
 
     // Process help inquiries (already filtered by status: pending)
     if (helpData) {
-      const inquiries = helpData.inquiries || helpData;
-      allRequests.push(...inquiries.map((help: any): HelpRequest => ({
+      allRequests.push(...helpData.map((help): HelpRequest => ({
         ...help,
         type: 'help',
         icon: <HelpCircle className="w-5 h-5 text-purple-500" />,
         title: help.subject,
         description: help.description,
-        employee: help.userId?.name || 'Unknown User',
+        employee: typeof help.userId === 'object' && help.userId !== null
+          ? help.userId.name
+          : 'Unknown User',
         date: help.createdAt
       })));
     }
 
     // Process regularizations
     if (regData) {
-      const regs = regData.regs || regData;
-      const pendingRegs = regs.filter((reg: any) => reg.status === 'pending');
-      allRequests.push(...pendingRegs.map((reg: any): RegularizationRequest => ({
+      const pendingRegs = regData.filter((reg) => reg.status === 'pending');
+      allRequests.push(...pendingRegs.map((reg): RegularizationRequest => ({
         ...reg,
         type: 'regularization',
         icon: <Clock className="w-5 h-5 text-orange-500" />,
@@ -135,9 +136,8 @@ const AdminPendingRequests = () => {
 
     // Process password resets
     if (passwordData) {
-      const requests = passwordData.requests || passwordData;
-      const pendingPasswords = requests.filter((req: any) => req.status === 'pending');
-      allRequests.push(...pendingPasswords.map((req: any): PasswordRequest => ({
+      const pendingPasswords = passwordData.filter((req) => req.status === 'pending');
+      allRequests.push(...pendingPasswords.map((req): PasswordRequest => ({
         ...req,
         type: 'password',
         icon: <Key className="w-5 h-5 text-cyan-500" />,
@@ -150,8 +150,7 @@ const AdminPendingRequests = () => {
 
     // Process WFH requests (already filtered by status: pending)
     if (wfhData) {
-      const wfhRequests = wfhData.requests || wfhData;
-      allRequests.push(...wfhRequests.map((request: any): WFHRequest => ({
+      allRequests.push(...wfhData.map((request): WFHRequest => ({
         ...request,
         type: 'wfh',
         icon: <MapPin className="w-5 h-5 text-green-500" />,
@@ -164,8 +163,7 @@ const AdminPendingRequests = () => {
 
     // Process Expense requests (already filtered by status: pending)
     if (expensesData) {
-      const expenses = expensesData.expenses || expensesData;
-      allRequests.push(...expenses.map((exp: any): ExpenseRequest => ({
+      allRequests.push(...expensesData.map((exp): ExpenseRequest => ({
         ...exp,
         type: 'expense',
         icon: <IndianRupee className="w-5 h-5 text-emerald-500" />,
@@ -259,7 +257,7 @@ const AdminPendingRequests = () => {
             className="group border border-border rounded-lg p-3 sm:p-4 hover:bg-muted hover:border-cyan-300 dark:hover:border-cyan-600 transition-all duration-200 hover:shadow-md cursor-pointer"
           >
             <div className="flex items-start gap-3 mb-3">
-              <div className="flex-shrink-0 p-1.5 sm:p-2 bg-muted rounded-lg group-hover:bg-card transition-colors">
+              <div className="shrink-0 p-1.5 sm:p-2 bg-muted rounded-lg group-hover:bg-card transition-colors">
                 {React.cloneElement(request.icon, { className: "w-4 h-4 sm:w-5 sm:h-5" })}
               </div>
               <div className="flex-1 min-w-0">
@@ -267,7 +265,7 @@ const AdminPendingRequests = () => {
                   <h4 className="min-w-0 font-semibold text-foreground text-sm leading-tight break-words [overflow-wrap:anywhere]">
                     {request.title}
                   </h4>
-                  <span className="flex-shrink-0 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                  <span className="shrink-0 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
                     {formatISTDate(request.date!, { customFormat: 'dd MMM yyyy' })}
                   </span>
                 </div>

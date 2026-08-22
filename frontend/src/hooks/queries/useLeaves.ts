@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, Leave, LeaveRequestDto, LeaveStatus, LeaveQueryParams } from '@/types';
+import type { ApiResponse, Leave, LeaveRequestDto, LeaveStatus, LeaveQueryParams, RequestListMeta } from '@/types';
 
 // ============================================================================
 // TYPES
@@ -48,6 +48,22 @@ export const useAllLeaves = (options?: { params?: LeaveQueryParams; enabled?: bo
       const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, (options?.params || {}) as Record<string, string | number | boolean>);
       const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] }>(endpoint);
       return data.leaves || [];
+    },
+    enabled: options?.enabled ?? true,
+  });
+};
+
+/**
+ * Same endpoint as useAllLeaves, but keeps `pagination` and `statusCounts`.
+ * Use where the UI needs totals or per-status badges.
+ */
+export const useAllLeavesWithMeta = (options?: { params?: LeaveQueryParams; enabled?: boolean }) => {
+  return useQuery({
+    queryKey: [...queryKeys.leaves.allLeaves(options?.params), 'meta'],
+    queryFn: async () => {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, (options?.params || {}) as Record<string, string | number | boolean>);
+      const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] } & RequestListMeta>(endpoint);
+      return { rows: data.leaves || [], pagination: data.pagination, statusCounts: data.statusCounts ?? {} };
     },
     enabled: options?.enabled ?? true,
   });

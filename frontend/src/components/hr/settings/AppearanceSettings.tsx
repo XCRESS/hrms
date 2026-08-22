@@ -208,7 +208,7 @@ const AppearanceSettings: React.FC = () => {
 
         {/* Info */}
         <div className="flex gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
-          <Sparkles className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
+          <Sparkles className="h-4 w-4 text-accent mt-0.5 shrink-0" />
           <div className="text-xs text-foreground/80">
             <span className="font-medium">Tip:</span> Seasonal themes (Christmas, New Year & Independence Day) auto-activate based on date. Change anytime here.
           </div>

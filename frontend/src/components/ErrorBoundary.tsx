@@ -47,7 +47,7 @@ declare global {
  *
  * Renders two different screens. Users get a calm, plain-language page with one
  * obvious way out. Developers additionally get the message, stack and component
- * stack inline, gated on `import.meta.env.DEV` — the same gate DebugPanel uses.
+ * stack inline, gated on `import.meta.env.DEV`.
  *
  * The previous version showed everyone four competing coloured buttons, a stack
  * trace, and a "Copy Debug Info" that put component props and auth-token
@@ -77,27 +77,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ error, errorInfo });
 
+    // The console is the only sink now. A window.reactErrors ring buffer used
+    // to be maintained here for DebugPanel to render; with that panel gone
+    // nothing read it back, so it was retaining error objects for no one.
     console.error('React Error Boundary caught an error:', error);
     console.error('Component Stack:', errorInfo.componentStack);
-
-    // Kept for the in-browser debug log DebugPanel reads. `props` is
-    // deliberately not recorded: it is the entire React subtree, which can
-    // carry employee data, and nothing reads it back.
-    if (!window.reactErrors) window.reactErrors = [];
-    window.reactErrors.push({
-      error: error.toString(),
-      message: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack ?? '',
-      timestamp: new Date().toISOString(),
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-    });
-
-    // Keep only last 20 errors to prevent memory issues
-    if (window.reactErrors.length > 20) {
-      window.reactErrors = window.reactErrors.slice(-20);
-    }
   }
 
   handleRetry = (): void => {

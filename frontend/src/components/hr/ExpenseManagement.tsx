@@ -445,7 +445,7 @@ const ExpenseManagement = () => {
                         <tr className="bg-red-50/60 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30 animate-in fade-in slide-in-from-top-1 duration-200">
                           <td colSpan={6} className="px-4 py-3">
                             <div className="flex items-center gap-3 max-w-2xl ml-auto">
-                              <MessageSquare size={16} className="text-red-400 flex-shrink-0" />
+                              <MessageSquare size={16} className="text-red-400 shrink-0" />
                               <Input
                                 placeholder="Rejection reason (optional)..."
                                 value={rejectComment}
@@ -461,7 +461,7 @@ const ExpenseManagement = () => {
                               <Button
                                 size="sm"
                                 onClick={() => handleRejectConfirm(expense._id)}
-                                className="bg-red-600 hover:bg-red-700 text-white h-9 px-4 gap-1.5 flex-shrink-0"
+                                className="bg-red-600 hover:bg-red-700 text-white h-9 px-4 gap-1.5 shrink-0"
                                 disabled={updateStatusMutation.isPending}
                               >
                                 <Send size={14} />
@@ -474,7 +474,7 @@ const ExpenseManagement = () => {
                                   setRejectingExpenseId(null);
                                   setRejectComment('');
                                 }}
-                                className="text-slate-400 hover:text-slate-600 h-9 w-9 p-0 flex-shrink-0"
+                                className="text-slate-400 hover:text-slate-600 h-9 w-9 p-0 shrink-0"
                               >
                                 <X size={16} />
                               </Button>

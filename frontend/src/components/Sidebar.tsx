@@ -14,6 +14,16 @@ import {
   Settings,
   Palette
 } from "lucide-react";
+import {
+  IconLayoutDashboard,
+  IconLayoutDashboardFilled,
+  IconUser,
+  IconUserFilled,
+  IconFileText,
+  IconFileTextFilled,
+  IconCalendarMonth,
+  IconCalendarMonthFilled,
+} from "@tabler/icons-react";
 import Avatar from "./ui/avatarIcon";
 import { cn } from "@/lib/utils";
 import { useNavigate, Navigate, useLocation } from "react-router";
@@ -32,6 +42,7 @@ interface LinkItem {
   href?: string;
   onClick?: () => void;
   icon: React.ReactNode;
+  activeIcon?: React.ReactNode;
 }
 
 /**
@@ -86,7 +97,23 @@ export default function AppLayout() {
     navigate("/");
   };
 
-  const iconClass = "h-5 w-5 shrink-0 text-sidebar-foreground transition-colors duration-200";
+  // No text-* colour: the icon inherits currentColor so active/hover reach it.
+  const iconClass = "h-5 w-5 shrink-0 transition-colors duration-200";
+  const tabIcon = "h-6 w-6 shrink-0";
+
+  // Three highest-traffic destinations per role; the rest live in "More".
+  const isHR = user?.role === "hr" || user?.role === "admin";
+  const mobileTabs: LinkItem[] = isHR
+    ? [
+        { label: "Dashboard", href: "/dashboard", icon: <IconLayoutDashboard className={tabIcon} />, activeIcon: <IconLayoutDashboardFilled className={tabIcon} /> },
+        { label: "Employees", href: "/employees", icon: <IconUser className={tabIcon} />, activeIcon: <IconUserFilled className={tabIcon} /> },
+        { label: "Requests", href: "/admin/requests", icon: <IconFileText className={tabIcon} />, activeIcon: <IconFileTextFilled className={tabIcon} /> },
+      ]
+    : [
+        { label: "Dashboard", href: "/dashboard", icon: <IconLayoutDashboard className={tabIcon} />, activeIcon: <IconLayoutDashboardFilled className={tabIcon} /> },
+        { label: "Attendance", href: "/attendance/my", icon: <IconCalendarMonth className={tabIcon} />, activeIcon: <IconCalendarMonthFilled className={tabIcon} /> },
+        { label: "Requests", href: "/requests", icon: <IconFileText className={tabIcon} />, activeIcon: <IconFileTextFilled className={tabIcon} /> },
+      ];
 
   const links: LinkItem[] = [
     {
@@ -209,19 +236,38 @@ export default function AppLayout() {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
+        "mx-auto flex w-full flex-1 flex-col overflow-hidden bg-gray-100 md:flex-row dark:bg-neutral-800",
+        // Rounded corners and a border only from md up. On mobile the fixed
+        // bottom nav is clipped by this container's overflow-hidden, so the
+        // rounding cut its corners and the border left a visible gutter down
+        // each side — the bar read as a floating island rather than an edge.
+        "md:rounded-md md:border md:border-neutral-200 dark:md:border-neutral-700",
         // h-dvh, not h-screen: 100vh ignores mobile browser chrome, so the
         // layout ran taller than the visible area while the URL bar showed.
         "h-dvh",
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-4 z-50 border-r-1">
+        {/* No border class here: this className reaches both the desktop rail
+            and the mobile bottom bar, and each needs its own edge (right vs
+            top). They set their own in ui/sidebar.tsx. */}
+        <SidebarBody className="justify-between gap-4 z-50" tabs={mobileTabs}>
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hide min-h-0">
             <div className="mt-4 flex flex-col gap-0.5">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
+              {links.map((link, idx) => {
+                // Destinations already in the mobile bottom bar are hidden from
+                // the "More" drawer, which otherwise repeats them one tap away
+                // from where the user just was. The desktop rail still shows
+                // every link, since it has no bottom bar.
+                const inMobileTabs = mobileTabs.some((t) => t.href === link.href);
+                return (
+                  <SidebarLink
+                    key={idx}
+                    link={link}
+                    className={inMobileTabs ? "max-md:hidden" : undefined}
+                  />
+                );
+              })}
             </div>
           </div>
           <div className="shrink-0 pt-2 border-t border-sidebar-border">
@@ -244,6 +290,16 @@ export default function AppLayout() {
         style={{ '--sidebar-offset': `${SIDEBAR_WIDTH_COLLAPSED}px` } as React.CSSProperties}
       >
         <Outlet />
+        {/* Spacer for the fixed mobile bottom bar. Without it the last rows of
+            every scrollable page sit underneath the tabs and cannot be reached.
+            Padding on this container would not work — it scrolls, so the pad
+            would scroll away with the content.
+            Height tracks the bar: min-h-14 (3.5rem) plus its bottom inset. */}
+        <div
+          aria-hidden="true"
+          className="md:hidden"
+          style={{ height: 'calc(3.5rem + max(0.25rem, env(safe-area-inset-bottom)))' }}
+        />
       </div>
     </div>
   );

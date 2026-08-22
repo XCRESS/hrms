@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext } from "react";
-import { IconMenu2 } from "@tabler/icons-react";
+import { IconDots } from "@tabler/icons-react";
 import { NavLink } from "react-router";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Dialog, DialogPortal, DialogOverlay } from "./dialog";
@@ -21,6 +21,9 @@ interface Links {
   label: string;
   href?: string; // href is optional for non-navigation links like logout
   icon: React.JSX.Element | React.ReactNode;
+  /** Solid variant shown on the active route. Must be a real filled asset
+   *  (e.g. Tabler's `*Filled`), not the outline icon with fill forced on. */
+  activeIcon?: React.JSX.Element | React.ReactNode;
   onClick?: () => void;
 }
 
@@ -83,11 +86,15 @@ export const Sidebar = ({
   );
 };
 
-export const SidebarBody = (props: React.ComponentProps<"div">) => {
+export const SidebarBody = ({
+  tabs,
+  ...props
+}: React.ComponentProps<"div"> & { tabs?: Links[] }) => {
   return (
     <>
+      {/* `tabs` is mobile-only: the desktop rail shows every link already. */}
       <DesktopSidebar {...props} />
-      <MobileSidebar {...props} />
+      <MobileSidebar tabs={tabs} {...props} />
     </>
   );
 };
@@ -146,37 +153,76 @@ export const DesktopSidebar = ({
   );
 };
 
+/**
+ * Mobile navigation: a fixed bottom tab bar plus an overflow drawer.
+ *
+ * `tabs` are the primary destinations, one tap each in the thumb zone;
+ * `children` is the full link list, shown in the drawer behind "More".
+ */
 export const MobileSidebar = ({
   className,
   children,
+  tabs = [],
   ...props
-}: React.ComponentProps<"div">) => {
+}: React.ComponentProps<"div"> & { tabs?: Links[] }) => {
   const { open, setOpen } = useSidebar();
   return (
     <div
       className={cn(
-        // h-10 with py-4 meant the padding exceeded the declared height. The
-        // bar is now sized by its content and clears the status bar on an
-        // installed PWA (display: standalone + black-translucent status bar).
-        "flex flex-row md:hidden items-center justify-between bg-sidebar border-b border-sidebar-border w-full px-2 py-1",
+        // Fixed to the bottom so it stays in the thumb zone while content
+        // scrolls. AppLayout reserves matching space so nothing hides beneath.
+        "fixed inset-x-0 bottom-0 z-50 flex flex-row md:hidden items-stretch bg-sidebar border-t border-sidebar-border",
         className
       )}
-      style={{ paddingTop: 'max(0.25rem, env(safe-area-inset-top))' }}
+      // Clears the home indicator on notched devices; falls back to a small
+      // pad where there is no inset.
+      style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
       {...props}
     >
       <Dialog open={open} onOpenChange={setOpen}>
-        <div className="flex justify-end w-full">
-          {/* Was a bare <IconMenu2 onClick>: an SVG with no role, no tabIndex
-              and no accessible name. Since this is the only way to navigate on
-              mobile, keyboard and screen reader users could not move around the
-              app at all. It is a real button now, at a 44px WCAG/HIG target. */}
-          <DialogPrimitive.Trigger
-            aria-label="Open navigation menu"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        {tabs.map((tab) => (
+          <NavLink
+            key={tab.href}
+            to={tab.href ?? '#'}
+            className={({ isActive }) =>
+              cn(
+                // min-h-14 keeps the full tab (icon + label) above the 44px
+                // HIG/Material target, well clear of the WCAG 2.5.8 floor.
+                "flex flex-1 items-center justify-center min-h-14 px-1 transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+                isActive
+                  ? "text-sidebar-foreground"
+                  : "text-sidebar-foreground/45"
+              )
+            }
           >
-            <IconMenu2 aria-hidden="true" />
-          </DialogPrimitive.Trigger>
-        </div>
+            {({ isActive }) => (
+              <>
+                {/* Instagram's pattern: no pill, no background — the icon
+                    swaps from its outline asset to its solid one. */}
+                {isActive && tab.activeIcon ? tab.activeIcon : tab.icon}
+                {/* Icon-only visually, but the name still has to reach screen
+                    readers — an unlabelled link announces as just "link". */}
+                <span className="sr-only">{tab.label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+
+        {/* Opens the drawer holding every destination that is not a tab. */}
+        <DialogPrimitive.Trigger
+          aria-label="More navigation options"
+          className={cn(
+            "flex flex-1 items-center justify-center min-h-14 px-1 transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+            // Matches the tabs so the bar reads as one row of four.
+            open
+              ? "text-sidebar-foreground"
+              : "text-sidebar-foreground/45"
+          )}
+        >
+          <IconDots className="h-6 w-6 shrink-0" aria-hidden="true" />
+        </DialogPrimitive.Trigger>
 
         {/* Radix supplies the focus trap, ESC handling, scroll lock, inert
             background and aria-modal that the hand-rolled overlay lacked. */}
@@ -185,27 +231,23 @@ export const MobileSidebar = ({
           <DialogPrimitive.Content
             aria-describedby={undefined}
             className={cn(
-              "fixed inset-y-0 left-0 z-100 flex h-full w-[85%] max-w-sm flex-col justify-between overflow-y-auto bg-sidebar p-6 shadow-xl md:hidden",
+              // Slides up from the bottom, matching where the trigger lives.
+              "fixed inset-x-0 bottom-0 z-100 flex max-h-[85dvh] flex-col overflow-y-auto rounded-t-2xl bg-sidebar p-6 shadow-xl md:hidden",
               "duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out",
-              "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left"
+              "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
             )}
-            style={{
-              paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
-              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
-            }}
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
           >
             {/* Required for aria-modal labelling; visually hidden because the
                 drawer shows navigation, not a heading. */}
             <DialogPrimitive.Title className="sr-only">
               Navigation menu
             </DialogPrimitive.Title>
-            <DialogPrimitive.Close
-              aria-label="Close navigation menu"
-              className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-              style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
-            >
-              <span aria-hidden="true" className="text-xl leading-none">&times;</span>
-            </DialogPrimitive.Close>
+            {/* Grab handle: the affordance that says "this sheet dismisses". */}
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-sidebar-foreground/20"
+            />
             {children}
           </DialogPrimitive.Content>
         </DialogPortal>
@@ -239,17 +281,14 @@ export const SidebarLink = ({
   const linkContent = (
     <>
       {link.icon}
-      {/* Fades with the rail via group-hover/group-focus-within rather than by
-          reading `open`, so no React state sits between the pointer and the
-          animation. Inside the mobile drawer there is no rail to key off, so
-          `max-md:opacity-100` pins it visible there.
-
-          The label stays in the DOM and is never aria-hidden: it is only
-          transparent and clipped, so it still gives every collapsed link an
-          accessible name. The original animated `display`, which cannot
-          transition and did remove the name from the a11y tree. */}
+      {/* Fades with the rail via CSS, so no React state sits between the
+          pointer and the animation. Never aria-hidden — it stays transparent
+          rather than hidden, so collapsed links keep an accessible name.
+          `max-md:opacity-100` pins it visible inside the mobile drawer, where
+          there is no rail to key off. */}
       <span className={cn(
-        "text-sidebar-foreground text-sm whitespace-pre inline-block p-0! m-0!",
+        // No text-* colour: inherits from the row so active/hover states apply.
+        "text-sm whitespace-pre inline-block p-0! m-0!",
         "opacity-0 max-md:opacity-100",
         // Mirrors the rail's own trigger pair exactly — if these drift, the
         // labels fade on a different condition than the width animates.
@@ -263,17 +302,15 @@ export const SidebarLink = ({
 
   const linkClasses = (isActive: boolean) =>
     cn(
-      // min-h-11 keeps every row at the 44px touch target recommended by
-      // Apple HIG / Material, comfortably above the WCAG 2.5.8 24px floor.
-      //
-      // Padding is constant. It previously switched px-4 -> px-3 on open,
-      // which nudged every icon sideways mid-animation and added to the
-      // layout thrash that made the rail oscillate. transition-colors rather
-      // than transition-all for the same reason: no geometry animates here.
-      "flex items-center justify-start gap-3 group/sidebar min-h-11 py-2.5 px-4 rounded-xl transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-      {
-        "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm": isActive,
-      },
+      // min-h-11 = 44px touch target (Apple HIG / Material).
+      // Padding and transition stay geometry-free so nothing shifts while the
+      // rail animates its width.
+      "flex items-center justify-start gap-3 group/sidebar min-h-11 py-2.5 px-4 rounded-xl transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+      // Tint derives from the foreground, not --sidebar-accent: accent is
+      // oklch(0.97) on a 0.985 sidebar, a 1.04:1 ratio that reads as nothing.
+      isActive
+        ? "bg-sidebar-foreground/10 text-sidebar-foreground font-semibold"
+        : "text-sidebar-foreground/70 hover:bg-sidebar-foreground/5 hover:text-sidebar-foreground",
       className
     );
 

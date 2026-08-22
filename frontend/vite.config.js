@@ -22,7 +22,9 @@ const VENDOR_CHUNKS = {
   'auth-vendor': ['jwt-decode'],
   'utils-vendor': ['clsx', 'tailwind-merge'],
   'map-vendor': ['leaflet', 'react-leaflet'],
-  'office-vendor': ['xlsx', 'jspdf'],
+  // jspdf was removed: nothing imported it. Salary slip PDFs go through
+  // utils/pdfGenerator.ts, which builds HTML and calls window.print().
+  'office-vendor': ['xlsx'],
 };
 
 // https://vite.dev/config/
@@ -70,6 +72,12 @@ export default defineConfig(({ mode }) => ({
         // module ids against the package name so only real node_modules matches
         // are grouped — a substring test alone would also catch app files whose
         // path happens to contain the dependency name.
+        //
+        // Still worth keeping under Rolldown (measured 2026-08-21): with these
+        // groups removed, Rolldown inlines shared vendors into every route that
+        // imports them rather than splitting them out — EmployeeDirectory went
+        // 93 kB -> 308 kB and TaskReportGenerator -> 291 kB, because xlsx and
+        // leaflet were duplicated per route instead of cached once.
         advancedChunks: {
           groups: Object.entries(VENDOR_CHUNKS).map(([name, packages]) => ({
             name,

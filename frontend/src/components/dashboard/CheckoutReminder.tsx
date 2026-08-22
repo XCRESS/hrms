@@ -56,7 +56,7 @@ const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
           <div className="flex items-center space-x-2 min-w-0 flex-1">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="text-xs sm:text-sm font-medium text-amber-800 dark:text-amber-200 truncate">
               {missingCheckouts.length} missing checkout{missingCheckouts.length > 1 ? 's' : ''} require attention
             </span>
@@ -76,7 +76,7 @@ const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss
     <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 sm:p-6 mb-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
         <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 dark:bg-amber-800 rounded-full flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
             </div>
@@ -119,11 +119,11 @@ const CheckoutReminder = ({ missingCheckouts, onRegularizationRequest, onDismiss
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                 <div className="flex items-center space-x-2 text-muted-foreground">
-                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <Calendar className="w-4 h-4 shrink-0" />
                   <span className="font-medium text-sm sm:text-base">{formatDate(attendance.date)}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-muted-foreground">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
+                  <Clock className="w-4 h-4 shrink-0" />
                   <span className="text-sm sm:text-base">Check-in: {formatTime(attendance.checkIn)}</span>
                 </div>
                 <div className="text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-medium">

@@ -16,15 +16,13 @@ function EnhancedCalendar({
     props.defaultMonth || new Date()
   );
 
-  // Generate years array (from 1900 to current year + 10)
+  // Generate years array (from 1900 to current year + 10).
+  // Not memoized: the React Compiler handles it.
   const currentYear = new Date().getFullYear();
-  const years = React.useMemo(() => {
-    const yearList = [];
-    for (let year = 1900; year <= currentYear + 10; year++) {
-      yearList.push(year);
-    }
-    return yearList;
-  }, [currentYear]);
+  const years: number[] = [];
+  for (let year = 1900; year <= currentYear + 10; year++) {
+    years.push(year);
+  }
 
   // Month names
   const months = [
@@ -62,13 +60,15 @@ function EnhancedCalendar({
       <div className="flex flex-col gap-2 mb-4">
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={handlePreviousMonth}
+            aria-label="Previous month"
             className={cn(
               buttonVariants({ variant: "outline" }),
               "size-7 bg-transparent p-0 opacity-50 hover:opacity-100"
             )}
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-4" aria-hidden="true" />
           </button>
           
           <div className="flex items-center gap-2">
@@ -106,13 +106,15 @@ function EnhancedCalendar({
           </div>
 
           <button
+            type="button"
             onClick={handleNextMonth}
+            aria-label="Next month"
             className={cn(
               buttonVariants({ variant: "outline" }),
               "size-7 bg-transparent p-0 opacity-50 hover:opacity-100"
             )}
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-4" aria-hidden="true" />
           </button>
         </div>
       </div>

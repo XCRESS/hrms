@@ -1,4 +1,3 @@
-import React from 'react';
 import useProfilePicture from '../../hooks/useProfilePicture';
 
 const Avatar = ({ name }: { name: string }) => {

@@ -31,7 +31,7 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
           <div className="px-4 sm:px-6">
             <div className="flex items-center gap-4 sm:gap-6 py-3 sm:py-4">
               {/* Settings Title - Hidden on mobile for space */}
-              <h1 className="hidden sm:block text-lg font-semibold text-foreground flex-shrink-0">
+              <h1 className="hidden sm:block text-lg font-semibold text-foreground shrink-0">
                 Settings
               </h1>
 
@@ -54,7 +54,7 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
                           : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted'
                       }`}
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <Icon className="w-4 h-4 shrink-0" />
                       <span className="hidden sm:inline">{item.label}</span>
                       <span className="sm:hidden text-xs">{item.label.split(' ')[0]}</span>
                     </button>

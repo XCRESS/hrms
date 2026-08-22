@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
 import Login from "./components/login-form";
 import Signup from "./components/signup-form";
@@ -16,7 +15,6 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from './components/ui/toast';
 import { ConfirmProvider } from './components/ui/confirm-dialog';
 import ErrorBoundary from './components/ErrorBoundary';
-import DebugPanel from './components/DebugPanel';
 import RequireRole from './components/auth/RequireRole';
 
 // Lazy load heavy components
@@ -161,8 +159,6 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                     </Routes>
                                 </Suspense>
                             </BrowserRouter>
-                            <DebugPanel />
-                            <ReactQueryDevtools initialIsOpen={false} />
                             </ConfirmProvider>
                         </ThemeProvider>
                     </QueryClientProvider>

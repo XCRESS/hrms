@@ -9,7 +9,6 @@ import {
   Clock4,
   MapPin,
   RefreshCw,
-  Download,
   IndianRupee,
   Receipt
 } from 'lucide-react';
@@ -20,7 +19,7 @@ import { useToast } from "../ui/toast";
 import useAuth from "../../hooks/authjwt";
 import BackButton from "../ui/BackButton";
 import LeaveRequestModal from "../LeaveRequestModal";
-import HelpDeskModal from "../HelpDeskModal";
+import HelpDeskModal, { type HelpDeskData } from "../HelpDeskModal";
 import RegularizationModal from "../dashboard/RegularizationModal";
 import ExpenseModal from "../ExpenseModal";
 import { formatTime, formatISTDate } from '../../utils/luxonUtils';
@@ -40,6 +39,7 @@ import {
   useCreateExpense
 } from '@/hooks/queries';
 import type { LucideIcon } from 'lucide-react';
+import type { ApiError, LeaveRequestDto, CreateHelpInquiryDto } from '@/types';
 
 // Tab type definition
 interface Tab {
@@ -66,30 +66,6 @@ interface UnifiedRequest {
   [key: string]: unknown;
 }
 
-// Type for leave request submission
-interface LeaveRequestData {
-  leaveMode: 'single' | 'multi';
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  reason: string;
-}
-
-// Type for help inquiry submission
-interface HelpInquiryData {
-  title: string;
-  message: string;
-  category: string;
-  priority: string;
-}
-
-// Type for backend help inquiry
-interface BackendHelpInquiry {
-  subject: string;
-  description: string;
-  category: string;
-  priority: string;
-}
 
 const MyRequests = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -120,25 +96,32 @@ const MyRequests = () => {
   const shouldFetchWFH = activeTab === 'all' || activeTab === 'wfh';
   const shouldFetchExpense = activeTab === 'all' || activeTab === 'expense';
 
-  const { data: leaveData = [], isLoading: leavesLoading, refetch: refetchLeaves } = isAdminOrHR
-    ? useAllLeaves({ enabled: shouldFetchLeaves })
-    : useMyLeaves({ enabled: shouldFetchLeaves });
+  // Both hooks must be called unconditionally: `isAdminOrHR` flips once auth
+  // resolves, and a ternary here would change hook order.
+  const adminLeaves = useAllLeaves({ enabled: shouldFetchLeaves && isAdminOrHR });
+  const ownLeaves = useMyLeaves({ enabled: shouldFetchLeaves && !isAdminOrHR });
+  const { data: leaveData = [], isLoading: leavesLoading, refetch: refetchLeaves } =
+    isAdminOrHR ? adminLeaves : ownLeaves;
 
-  const { data: helpData = [], isLoading: helpLoading, refetch: refetchHelp } = isAdminOrHR
-    ? useAllHelpInquiries({ enabled: shouldFetchHelp })
-    : useMyHelpInquiries({ enabled: shouldFetchHelp });
+  const adminHelp = useAllHelpInquiries({ enabled: shouldFetchHelp && isAdminOrHR });
+  const ownHelp = useMyHelpInquiries({ enabled: shouldFetchHelp && !isAdminOrHR });
+  const { data: helpData = [], isLoading: helpLoading, refetch: refetchHelp } =
+    isAdminOrHR ? adminHelp : ownHelp;
 
-  const { data: regData = [], isLoading: regLoading, refetch: refetchReg } = isAdminOrHR
-    ? useRegularizationRequests({ enabled: shouldFetchReg })
-    : useMyRegularizations({ enabled: shouldFetchReg });
+  const adminReg = useRegularizationRequests({ enabled: shouldFetchReg && isAdminOrHR });
+  const ownReg = useMyRegularizations({ enabled: shouldFetchReg && !isAdminOrHR });
+  const { data: regData = [], isLoading: regLoading, refetch: refetchReg } =
+    isAdminOrHR ? adminReg : ownReg;
 
-  const { data: wfhData = [], isLoading: wfhLoading, refetch: refetchWFH } = isAdminOrHR
-    ? useWFHRequests({ enabled: shouldFetchWFH })
-    : useMyWFHRequests({ enabled: shouldFetchWFH });
-  
-  const { data: expenseData = [], isLoading: expenseLoading, refetch: refetchExpense } = isAdminOrHR
-    ? useAllExpenses(undefined, { enabled: shouldFetchExpense })
-    : useMyExpenses({ enabled: shouldFetchExpense });
+  const adminWFH = useWFHRequests(undefined, { enabled: shouldFetchWFH && isAdminOrHR });
+  const ownWFH = useMyWFHRequests({ enabled: shouldFetchWFH && !isAdminOrHR });
+  const { data: wfhData = [], isLoading: wfhLoading, refetch: refetchWFH } =
+    isAdminOrHR ? adminWFH : ownWFH;
+
+  const adminExpense = useAllExpenses(undefined, { enabled: shouldFetchExpense && isAdminOrHR });
+  const ownExpense = useMyExpenses({ enabled: shouldFetchExpense && !isAdminOrHR });
+  const { data: expenseData = [], isLoading: expenseLoading, refetch: refetchExpense } =
+    isAdminOrHR ? adminExpense : ownExpense;
 
   const loading = leavesLoading || helpLoading || regLoading || wfhLoading || expenseLoading;
 
@@ -158,6 +141,8 @@ const MyRequests = () => {
   // Process and combine all requests
   const filteredRequests = useMemo((): UnifiedRequest[] => {
     const allRequests: UnifiedRequest[] = [];
+    // Not Date.now(): impure during render, and undated rows would sort to the top.
+    const fallbackTime = 0;
 
     // Process leave requests
     if (shouldFetchLeaves && leaveData) {
@@ -169,7 +154,7 @@ const MyRequests = () => {
         title: `${leave.leaveType || 'Unknown'} Leave`,
         description: (leave.leaveReason as string) || (leave.reason as string) || '',
         date: new Date((leave.leaveDate as string) || (leave.date as string)),
-        createdAt: new Date((leave.createdAt as string) || (leave.requestDate as string) || Date.now()),
+        createdAt: new Date((leave.createdAt as string) || (leave.requestDate as string) || fallbackTime),
         status: (leave.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: leave.reviewComment as string | undefined,
         user: leave.user as { name?: string; email?: string } | undefined
@@ -186,8 +171,8 @@ const MyRequests = () => {
         type: 'help' as const,
         title: (help.subject as string) || (help.title as string) || 'Help Request',
         description: (help.description as string) || (help.message as string) || '',
-        date: new Date((help.createdAt as string) || Date.now()),
-        createdAt: new Date((help.createdAt as string) || Date.now()),
+        date: new Date((help.createdAt as string) || fallbackTime),
+        createdAt: new Date((help.createdAt as string) || fallbackTime),
         status: (help.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: help.reviewComment as string | undefined,
         user: help.user as { name?: string; email?: string } | undefined
@@ -219,7 +204,7 @@ const MyRequests = () => {
           title: 'Attendance Regularization',
           description: timeInfo || 'No details provided',
           date: new Date(reg.date as string),
-          createdAt: new Date((reg.createdAt as string) || Date.now()),
+          createdAt: new Date((reg.createdAt as string) || fallbackTime),
           status: (reg.status as 'pending' | 'approved' | 'rejected') || 'pending',
           reviewComment: reg.reviewComment as string | undefined,
           user: reg.user as { name?: string; email?: string } | undefined
@@ -237,8 +222,8 @@ const MyRequests = () => {
         type: 'wfh' as const,
         title: 'Work From Home Request',
         description: (req.reason as string) || 'No description provided',
-        date: new Date((req.requestDate as string) || (req.createdAt as string) || Date.now()),
-        createdAt: new Date((req.createdAt as string) || Date.now()),
+        date: new Date((req.requestDate as string) || (req.createdAt as string) || fallbackTime),
+        createdAt: new Date((req.createdAt as string) || fallbackTime),
         status: (req.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: req.reviewComment as string | undefined,
         user: req.user as { name?: string; email?: string } | undefined
@@ -255,8 +240,8 @@ const MyRequests = () => {
         type: 'expense' as const,
         title: `Expense: ${exp.item || 'Reimbursement'}`,
         description: `Amount: ₹${Number(exp.amount || 0).toLocaleString()}`,
-        date: new Date((exp.date as string) || (exp.createdAt as string) || Date.now()),
-        createdAt: new Date((exp.createdAt as string) || Date.now()),
+        date: new Date((exp.date as string) || (exp.createdAt as string) || fallbackTime),
+        createdAt: new Date((exp.createdAt as string) || fallbackTime),
         status: (exp.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: exp.reviewComment as string | undefined,
         user: exp.user as { name?: string; email?: string } | undefined
@@ -291,7 +276,6 @@ const MyRequests = () => {
 
   // Use luxonUtils for consistent timezone display
   const formatDateLocal = (date: Date): string => formatISTDate(date, { customFormat: 'dd-MM-yy' });
-  const formatTimeLocal = (date: Date): string => formatTime(date);
 
   const handleNewRequest = (type: 'leave' | 'help' | 'regularization'): void => {
     switch (type) {
@@ -310,7 +294,7 @@ const MyRequests = () => {
   };
 
   // Leave request submission handler
-  const handleLeaveRequestSubmit = async (data: LeaveRequestData): Promise<void> => {
+  const handleLeaveRequestSubmit = async (data: LeaveRequestDto): Promise<void> => {
     try {
       await requestLeaveMutation.mutateAsync(data);
       toast({
@@ -331,12 +315,12 @@ const MyRequests = () => {
   };
 
   // Help inquiry submission handler
-  const handleHelpInquirySubmit = async (data: HelpInquiryData): Promise<void> => {
+  const handleHelpInquirySubmit = async (data: HelpDeskData): Promise<void> => {
     try {
       // Map frontend fields to backend expected fields
-      const helpData: BackendHelpInquiry = {
-        subject: data.title,        // title → subject
-        description: data.message,  // message → description
+      const helpData: CreateHelpInquiryDto = {
+        subject: data.title,
+        description: data.message,
         category: data.category,
         priority: data.priority
       };
@@ -370,7 +354,8 @@ const MyRequests = () => {
       });
       setShowExpenseModal(false);
       loadRequests();
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       toast({
         variant: "error",
         title: "Submission Failed",

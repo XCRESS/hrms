@@ -245,7 +245,7 @@ const IndependenceDayBanner = ({ username = 'Team' }: IndependenceDayBannerProps
         </div>
 
         {/* Right: Countdown or Celebration Card */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           {seasonStatus === 'upcoming' ? (
             <div className="grid grid-cols-4 gap-2 md:gap-4 p-3 rounded-xl bg-white/5 border border-white/10 shadow-xl backdrop-blur-md">
               <TimeUnit val={timeLeft.days} label="DAYS" />
@@ -283,7 +283,7 @@ const IndependenceDayBanner = ({ username = 'Team' }: IndependenceDayBannerProps
 
 // Spinning Ashoka Chakra (24 spokes, navy blue)
 const AshokaChakra = () => (
-  <div className="relative w-10 h-10 flex-shrink-0">
+  <div className="relative w-10 h-10 shrink-0">
     <div className="absolute inset-0 bg-[#FF9933] blur-lg opacity-30 animate-pulse"></div>
     <svg
       viewBox="0 0 100 100"

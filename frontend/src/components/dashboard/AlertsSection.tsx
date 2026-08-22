@@ -53,7 +53,7 @@ const AlertsSection = () => {
               : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
               }`}
           >
-            <div className="flex-shrink-0 mt-0.5">
+            <div className="shrink-0 mt-0.5">
               {alert.type === 'birthday' ? (
                 <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center">
                   <Cake className="h-4 w-4 text-pink-600 dark:text-pink-400" />
@@ -81,7 +81,7 @@ const AlertsSection = () => {
 
                 <button
                   onClick={() => dismissAlert(alert.employeeId)}
-                  className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                  className="shrink-0 p-1 rounded hover:bg-muted transition-colors"
                   title="Dismiss alert"
                 >
                   <X className="h-3 w-3 text-muted-foreground" />

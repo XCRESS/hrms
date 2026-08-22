@@ -227,7 +227,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       aria-pressed={showPassword}
-                      className="absolute right-0.5 top-0.5 bottom-0.5 z-10 flex items-center justify-center rounded-md px-3 text-neutral-500 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-neutral-400 dark:hover:text-white"
+                      className="absolute right-0.5 top-0.5 bottom-0.5 z-10 flex items-center justify-center rounded-md bg-card px-3 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" aria-hidden="true" />
