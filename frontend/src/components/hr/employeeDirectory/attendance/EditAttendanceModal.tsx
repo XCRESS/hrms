@@ -4,9 +4,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useUpdateAttendanceRecord } from '@/hooks/queries';
-import { AttendanceFormFields } from './components/AttendanceFormFields';
-import { localDateKey } from './types';
-import type { AttendanceFormValues, AttendanceRow } from './types';
+import { AttendanceFormFields } from '@/components/attendance/components/AttendanceFormFields';
+import { localDateKey } from '@/components/attendance/types';
+import type { AttendanceFormValues, AttendanceRow } from '@/components/attendance/types';
 import type { Employee } from '@/types';
 
 /** `datetime-local` value for a stored instant, on the record's own day. */
