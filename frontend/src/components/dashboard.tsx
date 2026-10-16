@@ -327,7 +327,7 @@ const HRMSDashboard: React.FC = () => {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy,
-                capturedAt: new Date(position.timestamp).toISOString()
+                capturedAt: new Date().toISOString()
             };
         } catch (error: any) {
             let locationError = "Unable to capture location.";
