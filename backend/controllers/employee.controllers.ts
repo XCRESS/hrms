@@ -2,6 +2,7 @@ import type { CreateEmployeeInput, UpdateEmployeeInput } from '../validators/emp
 import type { Response } from 'express';
 import Employee from '../models/Employee.model.js';
 import Department from '../models/Department.model.js';
+import Company from '../models/Company.model.js';
 import User from '../models/User.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
@@ -66,6 +67,10 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     if (!departmentExists) {
       throw new ValidationError(`Department '${department}' does not exist. Please select from available departments.`);
     }
+  }
+
+  if (companyName && !(await Company.exists({ name: companyName }))) {
+    throw new ValidationError(`Company '${companyName}' does not exist. Please select from available companies.`);
   }
 
   const employee = await Employee.create({
@@ -164,6 +169,14 @@ export const updateEmployee = async (req: IAuthRequest, res: Response): Promise<
         ));
         return;
       }
+    }
+
+    if (updateData.companyName && !(await Company.exists({ name: updateData.companyName }))) {
+      res.status(400).json(formatResponse(
+        false,
+        `Company '${updateData.companyName}' does not exist. Please select from available companies.`
+      ));
+      return;
     }
 
     const employee = await Employee.findByIdAndUpdate(id, updateData, {

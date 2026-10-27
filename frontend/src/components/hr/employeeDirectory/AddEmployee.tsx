@@ -11,7 +11,7 @@ import {
     SelectValue,
 } from "../../../components/ui/select";
 import { Label } from "../../../components/ui/label";
-import { useDepartments, useCreateEmployee } from "../../../hooks/queries";
+import { useDepartments, useCompanies, useCreateEmployee } from "../../../hooks/queries";
 import { useToast } from "../../../components/ui/toast";
 import BackButton from "../../../components/ui/BackButton";
 import EnhancedDateField from "../../../components/ui/enhanced-date-field";
@@ -55,6 +55,7 @@ const AddEmployee: React.FC = () => {
 
     // React Query hooks
     const { data: departmentsData, isLoading: loadingDepartments } = useDepartments();
+    const { data: companies = [], isLoading: loadingCompanies } = useCompanies();
     const createEmployeeMutation = useCreateEmployee();
 
     const departments = departmentsData || [];
@@ -116,8 +117,7 @@ const AddEmployee: React.FC = () => {
             "maritalStatus", "email", "phone", "aadhaarNumber", "panNumber",
             "officeAddress", "companyName", "department", "position", "employmentType",
             "reportingSupervisor", "paymentMode", "bankName",
-            "bankAccountNumber", "bankIFSCCode", "emergencyContactName",
-            "emergencyContactNumber",
+            "bankAccountNumber", "bankIFSCCode",
         ];
 
         for (const field of requiredFields) {
@@ -161,7 +161,7 @@ const AddEmployee: React.FC = () => {
             fatherPhone: digitsOnly(formData.fatherPhone) || undefined,
             motherPhone: digitsOnly(formData.motherPhone) || undefined,
             bankAccountNumber: formData.bankAccountNumber?.trim() || undefined,
-            emergencyContactNumber: digitsOnly(formData.emergencyContactNumber),
+            emergencyContactNumber: digitsOnly(formData.emergencyContactNumber) || undefined,
             panNumber: formData.panNumber?.trim().toUpperCase() || undefined,
             bankIFSCCode: formData.bankIFSCCode?.trim().toUpperCase() || undefined,
             dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.toISOString() : null,
@@ -341,7 +341,6 @@ const AddEmployee: React.FC = () => {
                                     name="emergencyContactName"
                                     value={formData.emergencyContactName}
                                     onChange={handleChange}
-                                    required
                                 />
                             </LabelInputContainer>
                             <LabelInputContainer>
@@ -354,7 +353,6 @@ const AddEmployee: React.FC = () => {
                                     name="emergencyContactNumber"
                                     value={formData.emergencyContactNumber}
                                     onChange={handleChange}
-                                    required
                                 />
                             </LabelInputContainer>
                         </CardContent>
@@ -465,21 +463,24 @@ const AddEmployee: React.FC = () => {
                                     onValueChange={(value) =>
                                         handleSelectChange("companyName", value)
                                     }
+                                    value={formData.companyName}
                                     required
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select company" />
+                                    <SelectTrigger id="companyName">
+                                        <SelectValue placeholder={loadingCompanies ? "Loading companies..." : "Select company"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Indra Financial Services Limited">
-                                            Indra Financial Services Limited
-                                        </SelectItem>
-                                        <SelectItem value="COSMOS INVESTIFIASSET MANAGEMENT LLP">
-                                            COSMOS INVESTIFIASSET MANAGEMENT LLP
-                                        </SelectItem>
-                                        <SelectItem value="SENSIBLE TAX ADVISORY LLP">
-                                            SENSIBLE TAX ADVISORY LLP
-                                        </SelectItem>
+                                        {companies.length > 0 ? (
+                                            companies.map((company) => (
+                                                <SelectItem key={company._id} value={company.name}>
+                                                    {company.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-companies" disabled>
+                                                {loadingCompanies ? "Loading..." : "No companies — add one in Settings"}
+                                            </SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </LabelInputContainer>

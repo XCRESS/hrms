@@ -220,6 +220,8 @@ export const API_ENDPOINTS = {
     RESCHEDULE_HR_REPORT: '/settings/daily-hr-attendance-report/reschedule',
     TEST_HR_REPORT: '/settings/daily-hr-attendance-report/test',
     RUN_REGULARIZATION_CLEANUP: '/settings/regularization-retention/run-now',
+    COMPANIES: '/settings/companies',
+    COMPANY: (id: string) => `/settings/companies/${encodeURIComponent(id)}`,
   },
 
   // Notifications

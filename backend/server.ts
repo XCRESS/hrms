@@ -160,6 +160,7 @@ import tetrisRoutes from "./features/tetris/tetris.routes.js";
 import NotificationService from "./services/notificationService.js";
 import SchedulerService from "./services/schedulerService.js";
 import GeofenceService from "./services/GeofenceService.js";
+import { ensureCompaniesSeeded } from "./services/companyService.js";
 
 // API health check endpoint
 app.get('/api', (req: Request, res: Response) => {
@@ -244,6 +245,9 @@ const server = app.listen(PORT, async () => {
   mongoReady
     .then(() => GeofenceService.ensureIndexes())
     .catch((err) => logger.warn({ err }, 'Skipped geospatial index sync'));
+  mongoReady
+    .then(() => ensureCompaniesSeeded())
+    .catch((err) => logger.warn({ err }, 'Skipped company seeding'));
 
   // Initialize notification system after server starts
   await initializeNotificationSystem();

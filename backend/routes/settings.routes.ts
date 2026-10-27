@@ -1,5 +1,6 @@
-import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
-import { updateGlobalSettingsSchema, updateDepartmentSettingsSchema, createDepartmentSchema, renameDepartmentSchema, assignEmployeeToDepartmentSchema, getEffectiveSettingsQuerySchema, runRegularizationCleanupSchema } from "../validators/settings.schemas.js";
+import { validateBody, validateQuery, validateParams } from "../middlewares/zodValidation.middleware.js";
+import { updateGlobalSettingsSchema, updateDepartmentSettingsSchema, createDepartmentSchema, renameDepartmentSchema, assignEmployeeToDepartmentSchema, getEffectiveSettingsQuerySchema, runRegularizationCleanupSchema, createCompanySchema, updateCompanySchema, companyIdParamsSchema } from "../validators/settings.schemas.js";
+import { getCompanies, addCompany, updateCompany, deleteCompany } from "../controllers/company.controllers.js";
 import { Router } from "express";
 import {
   getGlobalSettings,
@@ -47,6 +48,12 @@ router.delete("/departments/:name", authMiddleware(["admin", "hr"]), deleteDepar
 // Employee-department assignment routes (HR/Admin only)
 router.get("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), getAvailableEmployees);
 router.post("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), validateBody(assignEmployeeToDepartmentSchema), assignEmployeeToDepartment);
+
+// Company routes: list is open to all roles (salary slip PDFs need the address)
+router.get("/companies", authMiddleware(["admin", "hr", "employee"]), getCompanies);
+router.post("/companies", authMiddleware(["admin", "hr"]), validateBody(createCompanySchema), addCompany);
+router.put("/companies/:id", authMiddleware(["admin", "hr"]), validateParams(companyIdParamsSchema), validateBody(updateCompanySchema), updateCompany);
+router.delete("/companies/:id", authMiddleware(["admin", "hr"]), validateParams(companyIdParamsSchema), deleteCompany);
 
 // Daily HR Attendance Report routes (HR/Admin only)
 router.post("/daily-hr-attendance-report/reschedule", authMiddleware(["admin", "hr"]), rescheduleDailyHrAttendanceReport);

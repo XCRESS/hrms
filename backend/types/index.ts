@@ -57,10 +57,6 @@ export interface IAuthRequest extends Request {
 export type Gender = 'male' | 'female' | 'other';
 export type MaritalStatus = 'single' | 'married' | 'divorced';
 export type OfficeAddress = 'SanikColony' | 'Indore' | 'N.F.C.' | 'Offsite';
-export type CompanyName =
-  | 'Indra Financial Services Limited'
-  | 'COSMOS INVESTIFIASSET MANAGEMENT LLP'
-  | 'SENSIBLE TAX ADVISORY LLP';
 export type PaymentMode = 'Bank Transfer' | 'Cheque' | 'Cash';
 export type EmploymentType = 'fulltime' | 'intern' | 'remote';
 
@@ -82,7 +78,7 @@ export interface IEmployee extends Document {
   fatherPhone?: string;
   motherPhone?: string;
   officeAddress: OfficeAddress;
-  companyName: CompanyName;
+  companyName: string;
   department: string;
   position: string;
   paymentMode: PaymentMode;
@@ -92,8 +88,8 @@ export interface IEmployee extends Document {
   employmentType: EmploymentType;
   reportingSupervisor: string;
   joiningDate: Date;
-  emergencyContactNumber: string;
-  emergencyContactName: string;
+  emergencyContactNumber?: string;
+  emergencyContactName?: string;
   isActive: boolean;
   profilePicture: string | null;
   createdAt: Date;

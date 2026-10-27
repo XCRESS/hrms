@@ -180,6 +180,7 @@ export const queryKeys = {
     effective: (department?: string) => ['settings', 'effective', department] as const,
     departments: () => ['settings', 'departments'] as const,
     departmentStats: () => ['settings', 'department-stats'] as const,
+    companies: () => ['settings', 'companies'] as const,
   },
 
   // Password Reset

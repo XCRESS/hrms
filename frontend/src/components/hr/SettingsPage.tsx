@@ -18,6 +18,7 @@ import {
 import SettingsLayout from './settings/SettingsLayout';
 import AttendanceSettings from './settings/AttendanceSettings';
 import DepartmentManagement from './settings/DepartmentManagement';
+import CompanyManagement from './settings/CompanyManagement';
 import AppearanceSettings from './settings/AppearanceSettings';
 import NotificationSettings from './settings/NotificationSettings';
 import GeneralSettings from './settings/GeneralSettings';
@@ -343,6 +344,8 @@ const SettingsPage: React.FC = () => {
                         }}
                     />
                 );
+            case 'companies':
+                return <CompanyManagement enabled={canManageSettings} />;
             case 'notifications':
                 return (
                     <NotificationSettings

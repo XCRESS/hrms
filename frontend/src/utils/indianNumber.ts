@@ -42,46 +42,6 @@ export const formatIndianNumber = (num: number | null | undefined): string => {
 };
 
 /**
- * Get company address based on company name
- * @param companyName - The company name
- * @returns Company address
- */
-export const getCompanyAddress = (companyName: string): string => {
-  const addresses: Record<string, string> = {
-    'Indra Financial Services Limited': 'C-756, Front Basement, New Friends Colony, South Delhi 110025',
-    'COSMOS INVESTIFIASSET MANAGEMENT LLP': 'Unit No. 513, SKYE CORPORATE PARK, INDORE-452001, MP',
-    'SENSIBLE TAX ADVISORY LLP': 'B-495, 1st Floor, Nehru Ground, NIT, Faridabad, Haryana-121001'
-  };
-
-  // First try exact match
-  if (addresses[companyName]) {
-    return addresses[companyName];
-  }
-
-  // Try case-insensitive match
-  const lowerCaseName = companyName?.toLowerCase();
-  for (const [key, value] of Object.entries(addresses)) {
-    if (key.toLowerCase() === lowerCaseName) {
-      return value;
-    }
-  }
-
-  // Try partial match for common variations
-  if (lowerCaseName?.includes('indra') || lowerCaseName?.includes('financial service')) {
-    return 'C-756, Front Basement, New Friends Colony, South Delhi 110025';
-  }
-  if (lowerCaseName?.includes('cosmos') || lowerCaseName?.includes('investifiasset') || lowerCaseName?.includes('management')) {
-    return 'Unit No. 513, SKYE CORPORATE PARK, INDORE-452001, MP';
-  }
-  if (lowerCaseName?.includes('sensible') || lowerCaseName?.includes('tax advisory')) {
-    return 'B-495, 1st Floor, Nehru Ground, NIT, Faridabad, Haryana-121001';
-  }
-
-  // Default to first address if nothing matches
-  return 'C-756, Front Basement, New Friends Colony, South Delhi 110025';
-};
-
-/**
  * Convert a number to words in Indian currency format (Rupees)
  * @param num - The number to convert
  * @returns Number in words with "Rupees Only" suffix
