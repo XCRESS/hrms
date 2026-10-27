@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,8 @@ import {
     useSalaryStructure,
     useTaxCalculation,
     useCreateOrUpdateSalaryStructure,
-    useCreateOrUpdateSalarySlip
+    useCreateOrUpdateSalarySlip,
+    useCompanies
 } from "../../../hooks/queries";
 import { SalarySlip, Employee, SalaryEarnings } from "../../../types";
 
@@ -83,6 +84,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
 
     // React Query hooks
     const { data: employeesData, isLoading: employeesLoading } = useEmployees();
+    const { data: companies } = useCompanies();
     const employees: Employee[] = employeesData || [];
 
     const { data: salaryStructureData } = useSalaryStructure(selectedEmployee, {
@@ -417,7 +419,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                 bankAccountNumber: employeeDetails.bankDetails?.accountNumber,
                 panNumber: employeeDetails.bankDetails?.panNumber || employeeDetails.govtId?.pan,
                 joiningDate: employeeDetails.joiningDate
-            });
+            }, companies);
 
             toast({
                 title: "Success",
@@ -1060,9 +1062,9 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">Indra Financial Services Limited</h3>
+                                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">{employeeDetails?.companyName}</h3>
                                                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs ml-auto">
-                                                        C-756, Front Basement, New Friends Colony, South Delhi 110025
+                                                        {companies?.find(c => c.name === employeeDetails?.companyName)?.address}
                                                     </p>
                                                 </div>
                                             </div>

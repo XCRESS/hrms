@@ -9,7 +9,6 @@ import type {
   Gender,
   MaritalStatus,
   OfficeAddress,
-  CompanyName,
   PaymentMode,
   EmploymentType,
 } from '../types/index.js';
@@ -146,15 +145,9 @@ const employeeSchema = new Schema<IEmployee>(
     },
     companyName: {
       type: String,
-      enum: {
-        values: [
-          'Indra Financial Services Limited',
-          'COSMOS INVESTIFIASSET MANAGEMENT LLP',
-          'SENSIBLE TAX ADVISORY LLP',
-        ] as CompanyName[],
-        message: 'Invalid company name',
-      },
       required: [true, 'Company name is required'],
+      trim: true,
+      maxlength: [100, 'Company name cannot exceed 100 characters'],
     },
     department: {
       type: String,
@@ -224,18 +217,16 @@ const employeeSchema = new Schema<IEmployee>(
     },
     emergencyContactNumber: {
       type: String,
-      required: [true, 'Emergency contact number is required'],
       trim: true,
       validate: {
-        validator: function (v: string): boolean {
-          return /^[0-9]{10}$/.test(v);
+        validator: function (v: string | undefined): boolean {
+          return !v || /^[0-9]{10}$/.test(v);
         },
         message: 'Emergency contact number must be exactly 10 digits',
       },
     },
     emergencyContactName: {
       type: String,
-      required: [true, 'Emergency contact name is required'],
       trim: true,
       maxlength: [100, 'Emergency contact name cannot exceed 100 characters'],
     },

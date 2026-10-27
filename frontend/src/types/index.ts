@@ -599,6 +599,14 @@ export interface DepartmentStats {
   updatedAt: string;
 }
 
+export interface Company {
+  _id: string;
+  name: string;
+  address?: string;
+  /** Present for HR/admin only. */
+  employeeCount?: number;
+}
+
 /** Payload of GET /settings/departments/:name/employees */
 export interface AvailableEmployeesData {
   departmentName: string;

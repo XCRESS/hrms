@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, GlobalSettings, DepartmentSettings, EffectiveSettings, DepartmentStats, AvailableEmployeesData } from '@/types';
+import type { ApiResponse, GlobalSettings, DepartmentSettings, EffectiveSettings, DepartmentStats, AvailableEmployeesData, Company } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -79,6 +79,18 @@ export const useDepartmentStats = (options?: { enabled?: boolean }) => {
       return data.data?.departments || [];
     },
     enabled: options?.enabled ?? true,
+  });
+};
+
+export const useCompanies = (options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: queryKeys.settings.companies(),
+    queryFn: async () => {
+      const { data } = await axiosInstance.get<ApiResponse<{ companies: Company[] }>>(API_ENDPOINTS.SETTINGS.COMPANIES);
+      return data.data?.companies || [];
+    },
+    enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -273,6 +285,56 @@ export const useRunRegularizationCleanup = () => {
         { retentionMonths }
       );
       return data.data;
+    },
+  });
+};
+
+type CompanyInput = { name: string; address?: string };
+
+export const useAddCompany = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (company: CompanyInput) => {
+      const { data } = await axiosInstance.post<ApiResponse<Company>>(API_ENDPOINTS.SETTINGS.COMPANIES, company);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.companies() });
+    },
+  });
+};
+
+export const useUpdateCompany = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...company }: CompanyInput & { id: string }) => {
+      const { data } = await axiosInstance.put<ApiResponse<{ company: Company; employeesUpdated: number }>>(
+        API_ENDPOINTS.SETTINGS.COMPANY(id),
+        company
+      );
+      return data.data;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.companies() });
+      if (result?.employeesUpdated) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
+      }
+    },
+  });
+};
+
+export const useDeleteCompany = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await axiosInstance.delete<ApiResponse>(API_ENDPOINTS.SETTINGS.COMPANY(id));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.companies() });
     },
   });
 };

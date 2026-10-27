@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { employeeIdSchema, nameSchema } from './common.schemas.js';
+import { employeeIdSchema, nameSchema, objectIdSchema } from './common.schemas.js';
 import {
   MIN_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
@@ -189,6 +189,19 @@ export const assignEmployeeToDepartmentSchema = z.object({
   employeeId: employeeIdSchema,
 });
 
+const companyAddressSchema = z.string().trim().max(300, 'Address cannot exceed 300 characters').optional();
+
+export const createCompanySchema = z.object({
+  name: nameSchema,
+  address: companyAddressSchema,
+});
+
+export const updateCompanySchema = createCompanySchema;
+
+export const companyIdParamsSchema = z.object({
+  id: objectIdSchema,
+});
+
 export type GetEffectiveSettingsQuery = z.infer<typeof getEffectiveSettingsQuerySchema>;
 export type RunRegularizationCleanupInput = z.infer<typeof runRegularizationCleanupSchema>;
 export type UpdateGlobalSettingsInput = z.infer<typeof updateGlobalSettingsSchema>;
@@ -196,3 +209,6 @@ export type UpdateDepartmentSettingsInput = z.infer<typeof updateDepartmentSetti
 export type CreateDepartmentInput = z.infer<typeof createDepartmentSchema>;
 export type RenameDepartmentInput = z.infer<typeof renameDepartmentSchema>;
 export type AssignEmployeeToDepartmentInput = z.infer<typeof assignEmployeeToDepartmentSchema>;
+export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
+export type CompanyIdParams = z.infer<typeof companyIdParamsSchema>;

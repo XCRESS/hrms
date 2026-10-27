@@ -1,5 +1,6 @@
 import { ProfileField, type ProfileFieldType } from './ProfileField';
 import type { Employee } from '@/types';
+import { useCompanies } from '@/hooks/queries';
 
 type FieldDef = {
     label: string;
@@ -17,7 +18,7 @@ const GROUPS: { title: string; fields: FieldDef[] }[] = [
             { label: 'Phone', name: 'phone', type: 'tel' },
             { label: 'Employee ID', name: 'employeeId', readOnly: true },
             { label: 'Department', name: 'department', readOnly: true },
-            { label: 'Company', name: 'companyName' },
+            { label: 'Company', name: 'companyName', type: 'select' },
             { label: 'Employment type', name: 'employmentType', type: 'select', options: ['fulltime', 'intern', 'remote'] },
             { label: 'Joining date', name: 'joiningDate', type: 'date' },
             { label: 'Office', name: 'officeAddress', type: 'select', options: ['SanikColony', 'Indore', 'N.F.C.', 'Offsite'] },
@@ -62,6 +63,11 @@ export function ProfileFields({
     onFieldChange: (name: string, value: string) => void;
 }) {
     const source = (isEditing && draft ? draft : employee) as Record<string, unknown>;
+    const { data: companies = [] } = useCompanies();
+    const companyOptions = companies.map((c) => c.name);
+    if (employee.companyName && !companyOptions.includes(employee.companyName)) {
+        companyOptions.push(employee.companyName);
+    }
 
     return (
         // Sections are full-width horizontal bands, and the FIELDS flow in
@@ -87,7 +93,7 @@ export function ProfileFields({
                                 name={String(f.name)}
                                 value={source[String(f.name)]}
                                 type={f.type}
-                                options={f.options}
+                                options={f.name === 'companyName' ? companyOptions : f.options}
                                 isEditing={isEditing && !f.readOnly}
                                 error={errors[String(f.name)]}
                                 onChange={onFieldChange}
