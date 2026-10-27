@@ -1,6 +1,6 @@
 import { ProfileField, type ProfileFieldType } from './ProfileField';
+import { useCompanies, useDepartments } from '@/hooks/queries';
 import type { Employee } from '@/types';
-import { useCompanies } from '@/hooks/queries';
 
 type FieldDef = {
     label: string;
@@ -17,7 +17,8 @@ const GROUPS: { title: string; fields: FieldDef[] }[] = [
             { label: 'Email', name: 'email', type: 'email' },
             { label: 'Phone', name: 'phone', type: 'tel' },
             { label: 'Employee ID', name: 'employeeId', readOnly: true },
-            { label: 'Department', name: 'department', readOnly: true },
+            { label: 'Department', name: 'department', type: 'select' },
+            { label: 'Position', name: 'position' },
             { label: 'Company', name: 'companyName', type: 'select' },
             { label: 'Employment type', name: 'employmentType', type: 'select', options: ['fulltime', 'intern', 'remote'] },
             { label: 'Joining date', name: 'joiningDate', type: 'date' },
@@ -28,6 +29,8 @@ const GROUPS: { title: string; fields: FieldDef[] }[] = [
     {
         title: 'Personal',
         fields: [
+            { label: 'First name', name: 'firstName' },
+            { label: 'Last name', name: 'lastName' },
             { label: 'Date of birth', name: 'dateOfBirth', type: 'date' },
             { label: 'Gender', name: 'gender', type: 'select', options: ['male', 'female', 'other'] },
             { label: 'Marital status', name: 'maritalStatus', type: 'select', options: ['single', 'married', 'divorced'] },
@@ -64,18 +67,23 @@ export function ProfileFields({
 }) {
     const source = (isEditing && draft ? draft : employee) as Record<string, unknown>;
     const { data: companies = [] } = useCompanies();
+    const { data: departments = [] } = useDepartments();
     const companyOptions = companies.map((c) => c.name);
     if (employee.companyName && !companyOptions.includes(employee.companyName)) {
         companyOptions.push(employee.companyName);
     }
+    const departmentOptions = [...departments];
+    if (employee.department && !departmentOptions.includes(employee.department)) {
+        departmentOptions.push(employee.department);
+    }
+    const dynamicOptions: Record<string, string[]> = {
+        companyName: companyOptions,
+        department: departmentOptions,
+    };
 
     return (
-        // Sections are full-width horizontal bands, and the FIELDS flow in
-        // columns inside each one. Laying the three sections out side by side —
-        // as a grid or as CSS columns — cannot work: they hold 9, 12 and 4
-        // fields, so Financial always ended up a stub next to a column three
-        // times its height. Banding them means every row is full, and a short
-        // section is simply a short band.
+        // Sections are full-width bands with fields in columns inside. Side by
+        // side they can't work: their field counts differ too much.
         <div className="space-y-5">
             {GROUPS.map((group) => (
                 <section
@@ -93,7 +101,7 @@ export function ProfileFields({
                                 name={String(f.name)}
                                 value={source[String(f.name)]}
                                 type={f.type}
-                                options={f.name === 'companyName' ? companyOptions : f.options}
+                                options={dynamicOptions[String(f.name)] ?? f.options}
                                 isEditing={isEditing && !f.readOnly}
                                 error={errors[String(f.name)]}
                                 onChange={onFieldChange}
