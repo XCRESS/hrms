@@ -1,145 +1,173 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## Development Commands
+## Commands
 
-### Backend (Node.js/Express)
+**Package manager is pnpm.** Do not use npm.
+
 ```bash
-cd backend
-pnpm install
-pnpm start          # Production server
-pnpm dev            # Development with nodemon
+# backend (Node 22 / Express 5 / TS, ESM)
+pnpm dev / build / start
+pnpm type-check          # tsc --noEmit — this is the backend's "lint"
 
-# Stop server (find process and kill by PID)
-netstat -ano | findstr :4000
-taskkill //F //PID <specific_pid>
+# frontend (React 19 / Vite / TS)
+pnpm dev / build
+pnpm typecheck           # tsc -p tsconfig.app.json --noEmit
+pnpm lint
+
+# stop backend (Windows)
+netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 ```
 
-### Frontend (React/Vite)
-```bash
-cd frontend
-pnpm install
-pnpm dev            # Development server
-pnpm build          # Production build
-pnpm preview        # Preview production build
-pnpm lint           # ESLint
+## Before claiming done
+
+- **`pnpm build` on the frontend does not type-check.** A successful `vite build`
+  proves nothing about types. Run `pnpm typecheck` and `pnpm lint` and report
+  actual numbers against these baselines: **typecheck 102**, **lint 180**
+  (161 errors, 19 warnings). Don't increase them; reduce where you touch a file.
+- **There is no test suite.** Verify by type-checking, building, and exercising
+  code paths directly.
+- The backend type-checks and builds clean. Keep it that way.
+- `react-hooks/set-state-in-effect` lint errors are real bugs (cascading
+  renders), not noise.
+
+## Auth
+
+- Roles: `admin`, `hr`, `employee`.
+- **JWT** in `localStorage` via `frontend/src/lib/tokenStorage.ts`. Deliberately
+  not httpOnly — tokens are pulled out for CLI/script testing.
+- bcrypt (cost 10) in `controllers/user.controllers.ts`.
+- **Backend guard** `middlewares/auth.middleware.ts` — `authMiddleware([roles])`.
+  Re-checks `User.isActive`, and for `employee` that the linked `Employee` is
+  active, so unlink/deactivate take effect without re-login. Costs 1–2 DB reads
+  per request.
+- **Frontend guard** `components/auth/RequireRole.tsx`, wired in `main.tsx`.
+  Intentionally **synchronous** (decodes the in-memory JWT) — never make it
+  fetch, or every navigation pays a round trip. The backend is the real security
+  boundary; this only avoids rendering a shell that would 403.
+
+## Request validation — the rule
+
+**Every route that reads a request body validates it with Zod first.** No
+exceptions.
+
+```
+routes/x.routes.ts   router.post('/', authMiddleware([...]), validateBody(schema), handler)
+validators/*.ts      schema + exported z.infer type
+controllers/x.ts     const { ... } = req.body as SomeInput;   // guaranteed by middleware
 ```
 
-## Development Workflow Patterns
+- `middlewares/zodValidation.middleware.ts` — `validateBody`, `validateQuery`,
+  `validateParams`, `validate`.
+- **Express 5: `req.query` is getter-only.** Never assign to it. `validateQuery`
+  / `validateParams` expose results on `req.validatedQuery` /
+  `req.validatedParams`; read via `getValidatedQuery<T>(req)`.
+- Schemas in `backend/validators/`, by domain: `common`, `auth`, `employee`,
+  `request` (leave/WFH/regularization/expense), `salary`, `settings`, `content`,
+  `hr`, `attendance`. Shared primitives go in `common.schemas.ts`.
+- **Never write `req.body as { inline: string }`** — an assertion with no runtime
+  check. Add a schema.
+- Zod is **v4** both sides: `z.email()` not `z.string().email()`; errors are on
+  `error.issues` not `error.errors`.
 
-### Package Management
-- **Recommendation**: Use pnpm instead of npm for faster and more efficient package management
-- Ensures consistent dependency installation across different development environments
-- Provides better disk space efficiency through hard-linking
+## Comments — write almost none
 
-## Architecture Overview
+Default to **zero comments**. Code says what it does; a comment must earn its
+line. The bar: *would someone break this if the comment weren't there?*
 
-### Authentication & Authorization System
-- **JWT-based authentication** with tokens stored in localStorage and cookies
-- **Role-based access control**: admin, hr, employee roles with hierarchical permissions
-- **Dual-model approach**: `User` model for auth, `Employee` model for HR data
-- **Middleware chain**: `auth.middlewares.js` provides role-based route protection
-- **Frontend guards**: Components conditionally render based on user role via `getProfile` context
+Worth keeping:
 
-### User-Employee Relationship
-- Users authenticate and get assigned roles
-- Employees contain detailed HR information (personal, professional, banking)
-- **Linking system**: API-based linking via `/employees/link` endpoint connects User accounts to Employee records
-- Admin/HR can manage all employees; employees access only their own data
+- A non-obvious constraint or footgun — "Express 5: `req.query` is getter-only",
+  "employeeId contains slashes, never regex it".
+- Why a deliberate choice that looks wrong **is** right, when the next person
+  would otherwise "fix" it.
+- A short doc comment on an exported helper whose contract isn't obvious from
+  the signature.
 
-### Attendance & Leave Integration
-- **Automatic status detection according to set business logic**: Late, Half-day, Present, Absent
-- **Working day calculation**: Excludes weekends and holidays from attendance requirements
-- **Leave integration**: Approved leaves automatically mark attendance as present
-- **Real-time updates**: Dashboard shows current attendance status and pending actions
+Delete on sight:
 
-### Salary Processing Architecture
-- **Multi-component system**:
-  - `SalaryStructure` defines earning components and amounts (independent management)
-  - `SalarySlip` generates monthly slips with automatic calculations
-  - Tax calculation supporting both old and new Indian tax regimes
-  - **Publish/Unpublish system**: Draft → Published workflow for employee access
-- **PDF generation**: Frontend jsPDF library for professional salary slip downloads with company branding
-- **Bulk processing**: HR can generate salary slips for all employees at once
-- **Employee access**: Dedicated `/salary-slips/my` page for employees to view published slips
+- Narration of the diff — "this used to be X", "previously both sat at the same
+  weight", "now uses tokens". That belongs in the commit message, not the file.
+- Restating the code: `// map over employees` above a `.map`.
+- Design-rationale essays. One clause, not a paragraph.
+- Section banners and decorative dividers.
 
-### API Structure & Patterns
-- **RESTful design** with consistent response format via `utils/response.js`
-- **Middleware chains**: Authentication → Role validation → Controller
-- **Error handling**: Centralized error responses with proper HTTP status codes
-- **Route organization**: Feature-based routing (e.g., `/api/employees`, `/api/attendance`)
+Prefer a clear name over a comment explaining a murky one. When a comment is
+warranted, one line beats five.
 
-### Frontend Architecture
-- **Component structure**: Feature-based organization under `src/components/`
-- **Role-based rendering**: Components check user role for conditional UI
-- **Centralized API client**: `service/apiClient.js` (775-line custom implementation) handles all backend communication
-- **State management**: Context providers for theme and user profile
-- **UI components**: Reusable components in `components/ui/` using Radix UI + Tailwind
-- **PDF Generation**: Client-side PDF creation using jsPDF library
-- **AI Integration**: OpenAI-powered chatbot for HR assistance
-- **WhatsApp Integration**: Automated notifications via WhatsApp Web.js
+## Backend
 
-## Key Configuration Files
+- Route params are typed `string | string[]` (path-to-regexp v8). Narrow with
+  `paramValue(req.params.x)` from `utils/helpers.ts` — do not cast.
+- JSON body limit 1mb. `/api/documents` is mounted **before** `express.json()`
+  and uses multer, so uploads bypass it.
+- Mongoose 8, one model per file. **`.lean()` on read-only queries**; not where
+  you then `.save()`. Prefer projections for existence checks.
+- Email via **Resend**, Web Push via `services/pushService.ts`. Scheduling is
+  in-process **node-cron** (`schedulerService.ts`) — not a queue, because this
+  runs as a single Railway instance. Horizontal scaling would double-fire jobs.
 
-- **Backend**: `package.json` defines Node.js dependencies and scripts
-- **Frontend**: `vite.config.js` configures build tool and dev server
-- **Styling**: `tailwind.config.js` with custom theme configuration
-- **PWA**: `public/manifest.json` and `public/sw.js` for Progressive Web App features
-- **Database**: Mongoose models in `backend/models/` define data schemas
+## Frontend
 
-## Development Workflow Patterns
+- **TanStack Query v5 is the only sanctioned way to talk to the API.** Hooks in
+  `src/hooks/queries/` (one file per domain); keys in `lib/queryKeys.ts`; paths
+  in `lib/apiEndpoints.ts`. `lib/axios.ts` is the single instance (bearer token,
+  refresh, 401/403 redirect).
+- **Never call axios from a component**, and `useEffect` is not a data-fetching
+  tool — add or extend a query hook.
+- `src/components/` is feature-first: `dashboard/`, `hr/`, `employee/`, `ui/`,
+  `auth/`. `src/services/` is for non-API browser services; there is no
+  `src/service/` (singular) — do not recreate it.
+- **Tailwind v4, CSS-first.** Tokens live in the `@theme` block of
+  `src/index.css`. **There is no `tailwind.config.js`** — adding one does
+  nothing, the v4 Vite plugin ignores it.
+- **React Compiler is enabled** (`vite.config.js`). Do not add
+  `useMemo`/`useCallback`/`React.memo` for performance by default.
 
-### Adding New Features
-1. **Backend**: Create model → Controller → Route → Test with existing middleware
-2. **Frontend**: Create component → Add to routing → Integrate with API client
-3. **Role-based access**: Update `auth.middlewares.js` and component role checks
+## UI conventions
 
-### Database Operations
-- Use existing Mongoose models as templates
-- Follow established schema patterns (createdAt, updatedAt, soft deletes)
-- Maintain referential integrity between User and Employee collections
+- Modals: use `ui/dialog` (22 files do). Remaining `fixed inset-0` matches are
+  overlays, full-screen banners, and `ui/BusyOverlay` — not modals.
+- Form controls: `ui/input`, `ui/textarea`, `ui/select`, `ui/checkbox`,
+  `ui/label`. `ui/textarea` has a `bare` variant for composers with their own
+  chrome. `input` and `textarea` are on `@theme` tokens — style call sites with
+  **layout classes only** (`mt-1`, `h-40`), never colors, or you fight the
+  component.
+- Dates: `enhanced-datepicker` (input + popover), `enhanced-calendar` (grid),
+  `enhanced-date-field` (bounded `dob`/`joining`). `enhanced-calendar` replaces
+  the stock shadcn `calendar` because it adds **month/year dropdowns** — without
+  them, DOB entry means paging month-by-month to 1990. Don't reintroduce stock.
+- Style from `@theme` tokens (`bg-card`, `text-muted-foreground`,
+  `border-border`, `ring-ring`, `text-destructive`), **not** raw
+  `bg-white dark:bg-slate-800` / `text-gray-500` pairs — which is still what most
+  untouched files do. Prefer the real shadcn primitive and collapse duplicates
+  over adding a variant. Accessibility coverage is low; improve it as you go.
 
-### Component Development
-- Follow existing patterns in `components/dashboard/`, `components/hr/`, `components/employee/`
-- Use shared UI components from `components/ui/`
-- Implement role-based conditional rendering
-- Handle loading states and error boundaries
+## Business rules
 
-### API Integration
-- Use `apiClient.js` (775-line custom implementation) for consistent API calls
-- Follow established error handling patterns with built-in response transformation
-- Implement proper loading states in components
-- Handle authentication token refresh as needed
-- API client includes request/response interceptors and comprehensive error handling
+- **Attendance**: no check-in = Absent unless on approved leave. Working-day
+  math excludes weekends and holidays.
+- **Salary**: old and new Indian tax regimes, TDS from the structure.
+  `SalaryStructure` (recurring) and `SalarySlip` (monthly) are managed
+  independently. Draft → Finalized gates employee visibility.
+- **Permissions**: Admin everything incl. user management; HR employees,
+  attendance, salary structures/slips, publish/unpublish; Employee own data only.
 
-### Code Quality & Testing
-- **IMPORTANT**: Always run lint checks after coding changes: `pnpm lint`
-- Fix all ESLint errors and warnings before considering code complete
-- Frontend uses ESLint for code quality and consistency
-- Address React-specific warnings (e.g., multiple createRoot calls, unused variables)
+## Adding a feature
 
-## Important Implementation Details
+**Backend**: model → **Zod schema in `validators/`** → controller → route with
+`authMiddleware` + `validateBody` → `pnpm type-check`.
 
-### Attendance Status Logic
-- Check-in before 9:55 AM = Present
-- Check-in after 9:55 AM = Late  
-- Work hours < 4 = Half-day
-- No check-in = Absent (unless on approved leave)
+**Frontend**: query hook (+ key, + endpoint) → component → route in `main.tsx`,
+wrapped in `RequireRole` if admin/HR-only → `pnpm typecheck` and `pnpm lint`.
 
-### Salary Calculation
-- Support for both old and new Indian tax regimes
-- Automatic TDS calculation based on salary structure
-- Monthly slip generation with detailed earnings breakdown
-- PDF export functionality for employee records
+## Commits
 
-### Role Permissions
-- **Admin**: Full system access including user management, salary structures, salary slips
-- **HR**: Employee management, attendance oversight, salary structure and slip management, publish/unpublish
-- **Employee**: Personal data access only (attendance, leave, published salary slips)
+**Never add a `Co-Authored-By` trailer.** No AI co-author, no
+`Generated with` footer — the commit message ends at its last line of prose.
 
-### Data Flow Patterns
-- Frontend → API Client → Backend Routes → Controllers → Models → Database
-- Authentication headers automatically added to requests
-- Consistent error handling across all API endpoints
-- Real-time updates reflected in dashboard components
+## Deployment
+
+Frontend on Vercel, backend on Railway. CORS origins from
+`CORS_ALLOWED_ORIGINS` (comma-separated), hardcoded fallback in `server.ts`.

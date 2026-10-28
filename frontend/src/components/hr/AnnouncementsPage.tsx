@@ -1,6 +1,7 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../service/notificationService';
+import notificationService from '../../services/notificationService';
 import {
   PlusCircle,
   Edit3,
@@ -16,6 +17,13 @@ import {
 } from 'lucide-react';
 import { useAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from '@/hooks/queries';
 import type { Announcement, User } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Message {
   type: 'success' | 'error' | '';
@@ -268,15 +276,19 @@ const AnnouncementsPage = (): JSX.Element => {
       )}
 
       {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-all my-8">
-            <h3 className="text-xl font-semibold mb-5 text-slate-800 dark:text-slate-100">
-              {isEditing ? 'Edit Announcement' : 'Create New Announcement'}
-            </h3>
+      <Dialog open={showModal} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="max-w-lg p-6">
+            <DialogHeader className="mb-5 pr-8 text-left">
+              <DialogTitle className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+                {isEditing ? 'Edit Announcement' : 'Create New Announcement'}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {isEditing ? 'Edit this announcement.' : 'Create a new company announcement.'}
+              </DialogDescription>
+            </DialogHeader>
             {message.content && message.type === 'error' && !showDeleteConfirm && (
               <div className="mb-4 p-3 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-200 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <form onSubmit={handleSaveAnnouncement} className="space-y-4">
@@ -291,22 +303,22 @@ const AnnouncementsPage = (): JSX.Element => {
                   value={currentAnnouncement?.title || ''}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                 />
               </div>
               <div>
                 <label htmlFor="content" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Content
                 </label>
-                <textarea
+                <Textarea
                   name="content"
                   id="content"
                   value={currentAnnouncement?.content || ''}
                   onChange={handleInputChange}
                   required
                   rows={6}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                ></textarea>
+                  className="mt-1"
+                ></Textarea>
               </div>
               <div>
                 <label
@@ -320,7 +332,7 @@ const AnnouncementsPage = (): JSX.Element => {
                   id="targetAudience"
                   value={currentAnnouncement?.targetAudience || 'all'}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                 >
                   {targetAudienceOptions.map((opt) => (
                     <option key={opt} value={opt} className="capitalize">
@@ -339,7 +351,7 @@ const AnnouncementsPage = (): JSX.Element => {
                     id="status"
                     value={currentAnnouncement?.status || 'published'}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  className="mt-1"
                   >
                     {statusOptions.map((opt) => (
                       <option key={opt} value={opt} className="capitalize">
@@ -366,21 +378,24 @@ const AnnouncementsPage = (): JSX.Element => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && announcementToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm transform transition-all">
-            <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-100">Confirm Deletion</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-              Are you sure you want to delete the announcement "<strong>{announcementToDelete.title}</strong>"?
-            </p>
+      <Dialog
+        open={showDeleteConfirm && !!announcementToDelete}
+        onOpenChange={(open) => !open && closeDeleteConfirm()}
+      >
+        <DialogContent className="max-w-sm p-6">
+            <DialogHeader className="mb-2 pr-8 text-left">
+              <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">Confirm Deletion</DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to delete the announcement "<strong>{announcementToDelete?.title}</strong>"?
+              </DialogDescription>
+            </DialogHeader>
             {message.content && message.type === 'error' && (
               <div className="mb-3 p-3 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-200 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <div className="flex justify-end space-x-3">
@@ -399,9 +414,8 @@ const AnnouncementsPage = (): JSX.Element => {
                 {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

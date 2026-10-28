@@ -9,7 +9,6 @@ import {
   Clock4,
   MapPin,
   RefreshCw,
-  Download,
   IndianRupee,
   Receipt
 } from 'lucide-react';
@@ -20,7 +19,7 @@ import { useToast } from "../ui/toast";
 import useAuth from "../../hooks/authjwt";
 import BackButton from "../ui/BackButton";
 import LeaveRequestModal from "../LeaveRequestModal";
-import HelpDeskModal from "../HelpDeskModal";
+import HelpDeskModal, { type HelpDeskData } from "../HelpDeskModal";
 import RegularizationModal from "../dashboard/RegularizationModal";
 import ExpenseModal from "../ExpenseModal";
 import { formatTime, formatISTDate } from '../../utils/luxonUtils';
@@ -40,6 +39,7 @@ import {
   useCreateExpense
 } from '@/hooks/queries';
 import type { LucideIcon } from 'lucide-react';
+import type { ApiError, LeaveRequestDto, CreateHelpInquiryDto } from '@/types';
 
 // Tab type definition
 interface Tab {
@@ -66,30 +66,6 @@ interface UnifiedRequest {
   [key: string]: unknown;
 }
 
-// Type for leave request submission
-interface LeaveRequestData {
-  leaveMode: 'single' | 'multi';
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  reason: string;
-}
-
-// Type for help inquiry submission
-interface HelpInquiryData {
-  title: string;
-  message: string;
-  category: string;
-  priority: string;
-}
-
-// Type for backend help inquiry
-interface BackendHelpInquiry {
-  subject: string;
-  description: string;
-  category: string;
-  priority: string;
-}
 
 const MyRequests = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -120,25 +96,32 @@ const MyRequests = () => {
   const shouldFetchWFH = activeTab === 'all' || activeTab === 'wfh';
   const shouldFetchExpense = activeTab === 'all' || activeTab === 'expense';
 
-  const { data: leaveData = [], isLoading: leavesLoading, refetch: refetchLeaves } = isAdminOrHR
-    ? useAllLeaves({ enabled: shouldFetchLeaves })
-    : useMyLeaves({ enabled: shouldFetchLeaves });
+  // Both hooks must be called unconditionally: `isAdminOrHR` flips once auth
+  // resolves, and a ternary here would change hook order.
+  const adminLeaves = useAllLeaves({ enabled: shouldFetchLeaves && isAdminOrHR });
+  const ownLeaves = useMyLeaves({ enabled: shouldFetchLeaves && !isAdminOrHR });
+  const { data: leaveData = [], isLoading: leavesLoading, refetch: refetchLeaves } =
+    isAdminOrHR ? adminLeaves : ownLeaves;
 
-  const { data: helpData = [], isLoading: helpLoading, refetch: refetchHelp } = isAdminOrHR
-    ? useAllHelpInquiries({ enabled: shouldFetchHelp })
-    : useMyHelpInquiries({ enabled: shouldFetchHelp });
+  const adminHelp = useAllHelpInquiries({ enabled: shouldFetchHelp && isAdminOrHR });
+  const ownHelp = useMyHelpInquiries({ enabled: shouldFetchHelp && !isAdminOrHR });
+  const { data: helpData = [], isLoading: helpLoading, refetch: refetchHelp } =
+    isAdminOrHR ? adminHelp : ownHelp;
 
-  const { data: regData = [], isLoading: regLoading, refetch: refetchReg } = isAdminOrHR
-    ? useRegularizationRequests({ enabled: shouldFetchReg })
-    : useMyRegularizations({ enabled: shouldFetchReg });
+  const adminReg = useRegularizationRequests({ enabled: shouldFetchReg && isAdminOrHR });
+  const ownReg = useMyRegularizations({ enabled: shouldFetchReg && !isAdminOrHR });
+  const { data: regData = [], isLoading: regLoading, refetch: refetchReg } =
+    isAdminOrHR ? adminReg : ownReg;
 
-  const { data: wfhData = [], isLoading: wfhLoading, refetch: refetchWFH } = isAdminOrHR
-    ? useWFHRequests({ enabled: shouldFetchWFH })
-    : useMyWFHRequests({ enabled: shouldFetchWFH });
-  
-  const { data: expenseData = [], isLoading: expenseLoading, refetch: refetchExpense } = isAdminOrHR
-    ? useAllExpenses(undefined, { enabled: shouldFetchExpense })
-    : useMyExpenses({ enabled: shouldFetchExpense });
+  const adminWFH = useWFHRequests(undefined, { enabled: shouldFetchWFH && isAdminOrHR });
+  const ownWFH = useMyWFHRequests({ enabled: shouldFetchWFH && !isAdminOrHR });
+  const { data: wfhData = [], isLoading: wfhLoading, refetch: refetchWFH } =
+    isAdminOrHR ? adminWFH : ownWFH;
+
+  const adminExpense = useAllExpenses(undefined, { enabled: shouldFetchExpense && isAdminOrHR });
+  const ownExpense = useMyExpenses({ enabled: shouldFetchExpense && !isAdminOrHR });
+  const { data: expenseData = [], isLoading: expenseLoading, refetch: refetchExpense } =
+    isAdminOrHR ? adminExpense : ownExpense;
 
   const loading = leavesLoading || helpLoading || regLoading || wfhLoading || expenseLoading;
 
@@ -158,6 +141,8 @@ const MyRequests = () => {
   // Process and combine all requests
   const filteredRequests = useMemo((): UnifiedRequest[] => {
     const allRequests: UnifiedRequest[] = [];
+    // Not Date.now(): impure during render, and undated rows would sort to the top.
+    const fallbackTime = 0;
 
     // Process leave requests
     if (shouldFetchLeaves && leaveData) {
@@ -169,7 +154,7 @@ const MyRequests = () => {
         title: `${leave.leaveType || 'Unknown'} Leave`,
         description: (leave.leaveReason as string) || (leave.reason as string) || '',
         date: new Date((leave.leaveDate as string) || (leave.date as string)),
-        createdAt: new Date((leave.createdAt as string) || (leave.requestDate as string) || Date.now()),
+        createdAt: new Date((leave.createdAt as string) || (leave.requestDate as string) || fallbackTime),
         status: (leave.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: leave.reviewComment as string | undefined,
         user: leave.user as { name?: string; email?: string } | undefined
@@ -186,8 +171,8 @@ const MyRequests = () => {
         type: 'help' as const,
         title: (help.subject as string) || (help.title as string) || 'Help Request',
         description: (help.description as string) || (help.message as string) || '',
-        date: new Date((help.createdAt as string) || Date.now()),
-        createdAt: new Date((help.createdAt as string) || Date.now()),
+        date: new Date((help.createdAt as string) || fallbackTime),
+        createdAt: new Date((help.createdAt as string) || fallbackTime),
         status: (help.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: help.reviewComment as string | undefined,
         user: help.user as { name?: string; email?: string } | undefined
@@ -219,7 +204,7 @@ const MyRequests = () => {
           title: 'Attendance Regularization',
           description: timeInfo || 'No details provided',
           date: new Date(reg.date as string),
-          createdAt: new Date((reg.createdAt as string) || Date.now()),
+          createdAt: new Date((reg.createdAt as string) || fallbackTime),
           status: (reg.status as 'pending' | 'approved' | 'rejected') || 'pending',
           reviewComment: reg.reviewComment as string | undefined,
           user: reg.user as { name?: string; email?: string } | undefined
@@ -237,8 +222,8 @@ const MyRequests = () => {
         type: 'wfh' as const,
         title: 'Work From Home Request',
         description: (req.reason as string) || 'No description provided',
-        date: new Date((req.requestDate as string) || (req.createdAt as string) || Date.now()),
-        createdAt: new Date((req.createdAt as string) || Date.now()),
+        date: new Date((req.requestDate as string) || (req.createdAt as string) || fallbackTime),
+        createdAt: new Date((req.createdAt as string) || fallbackTime),
         status: (req.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: req.reviewComment as string | undefined,
         user: req.user as { name?: string; email?: string } | undefined
@@ -255,8 +240,8 @@ const MyRequests = () => {
         type: 'expense' as const,
         title: `Expense: ${exp.item || 'Reimbursement'}`,
         description: `Amount: ₹${Number(exp.amount || 0).toLocaleString()}`,
-        date: new Date((exp.date as string) || (exp.createdAt as string) || Date.now()),
-        createdAt: new Date((exp.createdAt as string) || Date.now()),
+        date: new Date((exp.date as string) || (exp.createdAt as string) || fallbackTime),
+        createdAt: new Date((exp.createdAt as string) || fallbackTime),
         status: (exp.status as 'pending' | 'approved' | 'rejected') || 'pending',
         reviewComment: exp.reviewComment as string | undefined,
         user: exp.user as { name?: string; email?: string } | undefined
@@ -285,13 +270,12 @@ const MyRequests = () => {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
   // Use luxonUtils for consistent timezone display
   const formatDateLocal = (date: Date): string => formatISTDate(date, { customFormat: 'dd-MM-yy' });
-  const formatTimeLocal = (date: Date): string => formatTime(date);
 
   const handleNewRequest = (type: 'leave' | 'help' | 'regularization'): void => {
     switch (type) {
@@ -310,7 +294,7 @@ const MyRequests = () => {
   };
 
   // Leave request submission handler
-  const handleLeaveRequestSubmit = async (data: LeaveRequestData): Promise<void> => {
+  const handleLeaveRequestSubmit = async (data: LeaveRequestDto): Promise<void> => {
     try {
       await requestLeaveMutation.mutateAsync(data);
       toast({
@@ -331,12 +315,12 @@ const MyRequests = () => {
   };
 
   // Help inquiry submission handler
-  const handleHelpInquirySubmit = async (data: HelpInquiryData): Promise<void> => {
+  const handleHelpInquirySubmit = async (data: HelpDeskData): Promise<void> => {
     try {
       // Map frontend fields to backend expected fields
-      const helpData: BackendHelpInquiry = {
-        subject: data.title,        // title → subject
-        description: data.message,  // message → description
+      const helpData: CreateHelpInquiryDto = {
+        subject: data.title,
+        description: data.message,
         category: data.category,
         priority: data.priority
       };
@@ -370,7 +354,8 @@ const MyRequests = () => {
       });
       setShowExpenseModal(false);
       loadRequests();
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       toast({
         variant: "error",
         title: "Submission Failed",
@@ -380,7 +365,7 @@ const MyRequests = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
+    <div className="min-h-full bg-background p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-6">
@@ -391,7 +376,7 @@ const MyRequests = () => {
               onClick={loadRequests}
               variant="outline"
               disabled={loading}
-              className="border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              className="border-border text-muted-foreground"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -400,14 +385,14 @@ const MyRequests = () => {
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <FileText className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+              <div className="p-2 bg-muted rounded-lg">
+                <FileText className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-700 dark:text-slate-200">
+                <h1 className="text-2xl font-bold text-foreground">
                   My Requests
                 </h1>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-muted-foreground">
                   View and manage all your requests in one place
                 </p>
               </div>
@@ -416,21 +401,21 @@ const MyRequests = () => {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={() => handleNewRequest('leave')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 New Leave
               </Button>
               <Button
                 onClick={() => handleNewRequest('help')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <HelpCircle className="h-4 w-4 mr-2" />
                 Help Request
               </Button>
               <Button
                 onClick={() => handleNewRequest('regularization')}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Regularization
@@ -447,7 +432,7 @@ const MyRequests = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-slate-200 dark:border-slate-700">
+        <div className="border-b border-border">
           <nav className="flex space-x-8 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -458,8 +443,8 @@ const MyRequests = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     isActive
-                      ? 'border-slate-500 text-slate-600 dark:text-slate-300'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -475,17 +460,17 @@ const MyRequests = () => {
         <div>
           {loading ? (
             <div className="text-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
-              <p className="text-slate-600 dark:text-slate-400">Loading requests...</p>
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Loading requests...</p>
             </div>
           ) : filteredRequests.length === 0 ? (
-            <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800">
+            <Card className="border-0 shadow-sm bg-muted">
               <CardContent className="p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   No requests found
                 </h3>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-muted-foreground">
                   Start by creating your first request using the buttons above.
                 </p>
               </CardContent>
@@ -495,26 +480,26 @@ const MyRequests = () => {
               {filteredRequests.map((request) => {
                 const Icon = getTypeIcon(request.type);
                 return (
-                  <Card key={`${request.type}-${request._id}`} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-slate-800">
+                  <Card key={`${request.type}-${request._id}`} className="border-border shadow-sm hover:shadow-md transition-shadow bg-card">
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-4">
                         <div className="flex items-start gap-3">
                           <div className={`p-2 rounded-lg ${
-                            request.type === 'leave' ? 'bg-slate-100 dark:bg-slate-700' :
-                            request.type === 'help' ? 'bg-slate-100 dark:bg-slate-700' :
-                            request.type === 'regularization' ? 'bg-slate-100 dark:bg-slate-700' :
-                            'bg-slate-100 dark:bg-slate-700'
+                            request.type === 'leave' ? 'bg-muted' :
+                            request.type === 'help' ? 'bg-muted' :
+                            request.type === 'regularization' ? 'bg-muted' :
+                            'bg-muted'
                           }`}>
                             <Icon className={`h-4 w-4 ${
-                              request.type === 'leave' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'help' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'regularization' ? 'text-slate-600 dark:text-slate-400' :
-                              request.type === 'expense' ? 'text-slate-600 dark:text-slate-400' :
-                              'text-slate-600 dark:text-slate-400'
+                              request.type === 'leave' ? 'text-muted-foreground' :
+                              request.type === 'help' ? 'text-muted-foreground' :
+                              request.type === 'regularization' ? 'text-muted-foreground' :
+                              request.type === 'expense' ? 'text-muted-foreground' :
+                              'text-muted-foreground'
                             }`} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-slate-700 dark:text-slate-100 mb-1 text-sm">
+                            <h3 className="font-semibold text-foreground mb-1 text-sm">
                               {request.title}
                             </h3>
                             <Badge className={`${getStatusColor(request.status)} text-xs`}>
@@ -523,11 +508,11 @@ const MyRequests = () => {
                           </div>
                         </div>
 
-                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3">
+                        <p className="text-sm text-muted-foreground line-clamp-3">
                           {request.description}
                         </p>
 
-                        <div className="flex flex-col gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <div className="flex flex-col gap-2 text-xs text-muted-foreground">
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
@@ -539,7 +524,7 @@ const MyRequests = () => {
                             </span>
                           </div>
                           {request.type === 'regularization' && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded">
+                            <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                               <span className="font-medium">Attendance Date:</span> {formatDateLocal(request.date)} |
                               <span className="font-medium ml-2">Request Submitted:</span> {formatISTDate(new Date(request.createdAt), { customFormat: 'dd-MM-yy' })}
                             </div>
@@ -553,7 +538,7 @@ const MyRequests = () => {
                         </div>
 
                         {request.reviewComment && (
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                          <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
                             {request.reviewComment}
                           </p>
                         )}

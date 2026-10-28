@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { Settings, Clock, Building2, Bell, MapPin, Palette, type LucideIcon } from 'lucide-react';
+import { Settings, Clock, Building2, Landmark, Bell, MapPin, Palette, type LucideIcon } from 'lucide-react';
 
 interface SettingsNavItem {
   id: string;
@@ -17,6 +17,7 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
   const settingsNav: SettingsNavItem[] = [
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'departments', label: 'Departments', icon: Building2 },
+    { id: 'companies', label: 'Companies', icon: Landmark },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'geofence', label: 'Geo Fence', icon: MapPin },
     { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -24,14 +25,14 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full bg-background">
       <div className="max-w-7xl mx-auto">
         {/* Sticky Tab Bar */}
         <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
           <div className="px-4 sm:px-6">
             <div className="flex items-center gap-4 sm:gap-6 py-3 sm:py-4">
               {/* Settings Title - Hidden on mobile for space */}
-              <h1 className="hidden sm:block text-lg font-semibold text-foreground flex-shrink-0">
+              <h1 className="hidden sm:block text-lg font-semibold text-foreground shrink-0">
                 Settings
               </h1>
 
@@ -54,7 +55,7 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
                           : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted'
                       }`}
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <Icon className="w-4 h-4 shrink-0" />
                       <span className="hidden sm:inline">{item.label}</span>
                       <span className="sm:hidden text-xs">{item.label.split(' ')[0]}</span>
                     </button>

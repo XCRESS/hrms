@@ -223,3 +223,15 @@ export async function retryWithBackoff<T>(
 
   throw lastError;
 }
+
+/**
+ * Narrow an Express route parameter to a single string.
+ *
+ * Express 5 (path-to-regexp v8) types params as `string | string[]` because
+ * wildcard segments (`*splat`) produce arrays. Named single-segment params are
+ * always strings at runtime, but this narrows safely either way rather than
+ * asserting the type away.
+ */
+export function paramValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}

@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { holidaySchema, updateHolidaySchema } from "../validators/hr.schemas.js";
 import { Router } from "express";
 import {
   createHoliday,
@@ -10,13 +12,13 @@ import authMiddleware from "../middlewares/auth.middleware.js";
 const router: Router = Router();
 
 // Admin/HR can create holidays
-router.post("/", authMiddleware(["admin", "hr"]), createHoliday);
+router.post("/", authMiddleware(["admin", "hr"]), validateBody(holidaySchema), createHoliday);
 
 // All authenticated users can view holidays (employee, hr, admin)
 router.get("/", authMiddleware(["admin", "hr", "employee"]), getHolidays);
 
 // Admin/HR can update a specific holiday
-router.put("/:id", authMiddleware(["admin", "hr"]), updateHoliday);
+router.put("/:id", authMiddleware(["admin", "hr"]), validateBody(updateHolidaySchema), updateHoliday);
 
 // Admin/HR can delete a specific holiday
 router.delete("/:id", authMiddleware(["admin", "hr"]), deleteHoliday);

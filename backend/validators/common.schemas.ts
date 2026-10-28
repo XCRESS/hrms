@@ -8,8 +8,8 @@ import { z } from 'zod';
 // MongoDB ObjectId validation
 export const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId format');
 
-// Email validation
-export const emailSchema = z.string().email('Invalid email format').toLowerCase();
+// Email validation (Zod 4 top-level string format API)
+export const emailSchema = z.email('Invalid email format').toLowerCase();
 
 // Password validation
 export const passwordSchema = z
@@ -37,21 +37,76 @@ export const panSchema = z
 export const dateSchema = z.coerce.date();
 
 // Coordinates validation
+export const latitudeSchema = z.coerce.number().min(-90).max(90);
+export const longitudeSchema = z.coerce.number().min(-180).max(180);
+
+/** GPS accuracy radius in meters, as reported by the Geolocation API. */
+export const accuracySchema = z.coerce.number().min(0).max(1_000_000);
+
 export const coordinatesSchema = z.object({
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
 });
+
+/**
+ * How far a client-supplied capture timestamp may sit from server time.
+ *
+ * `capturedAt` decides which business day an attendance or WFH record lands on,
+ * so an unbounded value lets a client backdate or postdate a record at will.
+ * The window absorbs ordinary clock skew and the seconds between acquiring a
+ * GPS fix and the request landing - nothing more.
+ */
+export const CAPTURED_AT_MAX_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * An ISO timestamp captured on the client, constrained to roughly "now".
+ *
+ * Rejects unparseable values and anything outside CAPTURED_AT_MAX_SKEW_MS in
+ * either direction. Callers that treat the field as optional should append
+ * `.nullish()`.
+ */
+export const capturedAtSchema = z
+  .string()
+  .min(1, 'Capture time is required')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid capture time')
+  .refine((value) => {
+    const skew = Math.abs(Date.parse(value) - Date.now());
+    return skew <= CAPTURED_AT_MAX_SKEW_MS;
+  }, 'Capture time is too far from the current time');
 
 // Pagination schema
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
-  sortBy: z.string().optional(),
+  sortBy: z.string().nullish(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 // Employee ID validation
 export const employeeIdSchema = z.string().min(1, 'Employee ID is required').toUpperCase();
+
+// Human name validation
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Name is required')
+  .max(100, 'Name cannot exceed 100 characters');
+
+// Free-text field with a sane upper bound (reasons, comments, descriptions)
+export const shortTextSchema = z.string().trim().max(500);
+export const longTextSchema = z.string().trim().max(5000);
+
+// Approve/reject decision shared by leave, WFH, regularization and expense flows
+export const reviewDecisionSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  reviewComment: shortTextSchema.nullish(),
+});
+
+// ISO-ish date string accepted from clients (validated as parseable)
+export const dateStringSchema = z
+  .string()
+  .min(1, 'Date is required')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid date');
 
 // Status validation
 export const statusSchema = z.enum(['active', 'inactive', 'pending', 'approved', 'rejected']);
@@ -101,8 +156,8 @@ export const fileSchema = z.object({
   encoding: z.string(),
   mimetype: z.string(),
   size: z.number(),
-  buffer: z.instanceof(Buffer).optional(),
-  path: z.string().optional(),
+  buffer: z.instanceof(Buffer).nullish(),
+  path: z.string().nullish(),
 });
 
 // Image MIME types
@@ -144,3 +199,32 @@ export default {
   imageMimeTypes,
   documentMimeTypes,
 };
+
+/**
+ * Like `.partial()`, but every field also accepts an explicit `null`.
+ *
+ * Clients routinely send `null` for a cleared form field. Zod's `.optional()`
+ * only permits `undefined`, so a plain `.partial()` would 400 on those bodies.
+ */
+export function nullishPartial<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  // Cast the built shape rather than indexing field-by-field: under
+  // noUncheckedIndexedAccess, `schema.shape[key]` is `T[K] | undefined`.
+  const entries = Object.entries(schema.shape) as [string, z.ZodTypeAny][];
+  const shape = Object.fromEntries(
+    entries.map(([key, field]) => [key, field.nullish()])
+  ) as unknown as { [K in keyof T]: z.ZodOptional<z.ZodNullable<T[K]>> };
+  return z.object(shape);
+}
+
+/**
+ * A defaulted field that also tolerates an explicit `null`.
+ *
+ * `.default(x)` substitutes when the value is `undefined` but rejects `null`.
+ * For a defaulted field, a client sending `null` means "unspecified", so we
+ * fold null into undefined and let the default apply.
+ */
+export function nullableDefault<T extends z.ZodTypeAny>(schema: T, value: z.output<T>) {
+  // `.nullish().transform()` rather than `z.preprocess(...)`: preprocess erases
+  // the output type to `unknown`, which would push `any`-ish values into callers.
+  return schema.nullish().transform((v) => v ?? value) as unknown as z.ZodType<z.output<T>>;
+}

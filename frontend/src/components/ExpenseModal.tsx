@@ -1,6 +1,14 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { X, Receipt, Calendar, Pencil } from "lucide-react";
+import { Receipt, Calendar, Pencil } from "lucide-react";
 import type { CreateExpenseDto, Expense } from "@/types";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -35,8 +43,6 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading, editingExpense }: 
     setAmount("");
   };
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit({
@@ -57,25 +63,19 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading, editingExpense }: 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in border border-gray-100 dark:border-slate-700">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${isEditMode ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
-              {isEditMode ? <Pencil size={24} /> : <Receipt size={24} />}
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">
-              {isEditMode ? 'Edit Expense' : 'Submit Expense'}
-            </h2>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-w-lg p-6 md:p-8 border-gray-100 dark:border-slate-700">
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 mb-6 pr-8 text-left">
+          <div className={`p-2 rounded-lg ${isEditMode ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
+            {isEditMode ? <Pencil size={24} /> : <Receipt size={24} />}
           </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">
+            {isEditMode ? 'Edit Expense' : 'Submit Expense'}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {isEditMode ? 'Edit an existing expense claim.' : 'Submit a new expense claim.'}
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Date Picker */}
@@ -168,8 +168,8 @@ const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading, editingExpense }: 
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

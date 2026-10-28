@@ -1,6 +1,8 @@
+import type { SubmitInquiryInput, UpdateInquiryInput } from '../validators/hr.schemas.js';
 import type { Response } from 'express';
 import Help from '../models/Help.model.js';
 import User from '../models/User.model.js';
+import Employee from '../models/Employee.model.js';
 import NotificationService from '../services/notificationService.js';
 import type { IAuthRequest } from '../types/index.js';
 import logger from '../utils/logger.js';
@@ -23,7 +25,7 @@ const formatResponse = (success: boolean, message: string, data: unknown = null,
  */
 export const submitInquiry = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { subject, description, category, priority } = req.body;
+    const { subject, description, category, priority } = req.body as SubmitInquiryInput;
 
     // Validation
     if (!subject || !description) {
@@ -40,10 +42,10 @@ export const submitInquiry = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // `employee`/`employeeName` were passed here but are not in the Help schema,
+    // so Mongoose silently dropped them. The name is resolved on read instead.
     const inquiry = await Help.create({
       userId: req.user._id,
-      employee: req.user._id,
-      employeeName: req.user.name,
       subject,
       description,
       category: category || 'other',
@@ -85,7 +87,7 @@ export const getMyInquiries = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const inquiries = await Help.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean();
 
     res.json(formatResponse(true, 'Inquiries retrieved successfully', { inquiries }));
   } catch (err) {
@@ -125,9 +127,30 @@ export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<
       filter.createdAt = createdAt;
     }
 
-    const inquiries = await Help.find(filter).sort({ createdAt: -1 }).populate('userId', 'name email');
+    const inquiries = await Help.find(filter).sort({ createdAt: -1 }).populate('userId', 'name email employeeId').lean();
 
-    res.json(formatResponse(true, 'All inquiries retrieved successfully', { inquiries }));
+    // User.name is not always populated, so fall back to the Employee record —
+    // the same resolution the regularization list does.
+    const employeeIds = [...new Set(
+      inquiries.map(i => (i.userId as { employeeId?: string } | null)?.employeeId).filter(Boolean)
+    )];
+    const employees = await Employee.find({ employeeId: { $in: employeeIds } })
+      .select('employeeId firstName lastName')
+      .lean();
+    const employeeMap = new Map(employees.map(e => [`${e.employeeId}`, `${e.firstName} ${e.lastName}`]));
+
+    const withNames = inquiries.map(inquiry => {
+      const populated = inquiry.userId as { name?: string; employeeId?: string } | null;
+      return {
+        ...inquiry,
+        employeeName:
+          (populated?.employeeId ? employeeMap.get(populated.employeeId) : undefined) ||
+          populated?.name ||
+          'Unknown User',
+      };
+    });
+
+    res.json(formatResponse(true, 'All inquiries retrieved successfully', { inquiries: withNames }));
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error({ err: error }, 'Get all inquiries error');
@@ -145,7 +168,7 @@ export const getAllInquiries = async (req: AuthRequest, res: Response): Promise<
 export const updateInquiry = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { inquiryId } = req.params;
-    const { status, response } = req.body;
+    const { status, response } = req.body as UpdateInquiryInput;
 
     const inquiry = await Help.findById(inquiryId);
 

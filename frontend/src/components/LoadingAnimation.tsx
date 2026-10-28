@@ -39,12 +39,28 @@ interface LoaderGateProps {
   children: ReactNode;
 }
 
+// Held long enough that the 800ms shape interval lands one full transition —
+// below this the loader reads as a flash rather than an intro.
+const MIN_VISIBLE_MS = 900;
+// Must match the duration-500 on the overlay below.
+const FADE_OUT_MS = 500;
+
+/**
+ * Overlays the app while the first lazy route chunk loads.
+ *
+ * Deliberately an overlay and not a gate: `children` mount on the first render
+ * so `lazy()` starts fetching immediately. Gating them behind a timer meant the
+ * chunk request only began once the timer fired, which serialized this animation
+ * against the Suspense fallback and showed the user two loaders back to back.
+ */
 const LoaderGate = ({ children }: LoaderGateProps) => {
-  const [isReady, setIsReady] = useState(false);
   const [config, setConfig] = useState<AnimationConfig>(combinations[0]);
+  // 'visible' -> 'fading' -> 'done'. Unmounts only after the fade finishes.
+  const [phase, setPhase] = useState<"visible" | "fading" | "done">("visible");
 
   // Animate
   useEffect(() => {
+    if (phase === "done") return;
     let prev = 0;
     const interval = setInterval(() => {
       const index = getRandomIndex(prev);
@@ -52,39 +68,53 @@ const LoaderGate = ({ children }: LoaderGateProps) => {
       prev = index;
     }, 800);
     return () => clearInterval(interval);
-  }, []);
+  }, [phase]);
 
-  // Simple loading timeout for visual polish
+  // Suspense resolves whenever the chunk lands — on a warm cache that can be a
+  // few ms, so hold a floor before starting the fade to avoid a visible blink.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 1200);
-
-    return () => clearTimeout(timer);
+    const toFade = setTimeout(() => setPhase("fading"), MIN_VISIBLE_MS);
+    return () => clearTimeout(toFade);
   }, []);
 
-  // Return app
-  if (isReady) {
-    return children;
-  }
+  useEffect(() => {
+    if (phase !== "fading") return;
+    const toDone = setTimeout(() => setPhase("done"), FADE_OUT_MS);
+    return () => clearTimeout(toDone);
+  }, [phase]);
 
   return (
-    <div className="h-screen w-screen grid place-items-center bg-[rgb(19,19,19)] overflow-hidden">
-      <div className="relative w-[90vmin] aspect-[1.618] max-w-md">
-        {[...Array(7)].map((_, i) => (
-          <div
-            key={i}
-            className={clsx(
-              shapeBase,
-              shapeColors[i],
-              getShapeStyles(config.configuration, i + 1),
-              getRoundnessStyles(config.roundness, i + 1)
-            )}
-          ></div>
-        ))}
-
-      </div>
-    </div>
+    <>
+      {children}
+      {phase !== "done" && (
+        <div
+          className={clsx(
+            // Backdrop is intentionally a fixed dark stage rather than a theme
+            // token — the shapes are saturated brand colors that lose contrast
+            // against a light background. Do not swap this for bg-background.
+            "fixed inset-0 z-9999 grid place-items-center bg-[rgb(19,19,19)] overflow-hidden",
+            "transition-opacity duration-500 ease-out",
+            phase === "fading" ? "opacity-0" : "opacity-100"
+          )}
+          // Decorative: the app underneath is the real content.
+          aria-hidden="true"
+        >
+          <div className="relative w-[90vmin] aspect-[1.618] max-w-md">
+            {[...Array(7)].map((_, i) => (
+              <div
+                key={i}
+                className={clsx(
+                  shapeBase,
+                  shapeColors[i],
+                  getShapeStyles(config.configuration, i + 1),
+                  getRoundnessStyles(config.roundness, i + 1)
+                )}
+              ></div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

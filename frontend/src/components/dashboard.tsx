@@ -20,7 +20,7 @@ import {
 } from "../hooks/queries";
 import { useCreateExpense } from "../hooks/queries/useExpenses";
 import LeaveRequestModal from "./LeaveRequestModal";
-import HelpDeskModal from "./HelpDeskModal";
+import HelpDeskModal, { type HelpDeskData } from "./HelpDeskModal";
 import ExpenseModal from "./ExpenseModal";
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast";
@@ -31,6 +31,7 @@ import AbsentEmployeesModal from "./AbsentEmployeesModal";
 import PresentEmployeesModal from "./PresentEmployeesModal";
 import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal";
 import NewYearBanner from './ui/NewYearBanner';
+import IndependenceDayBanner from './ui/IndependenceDayBanner';
 import ChristmasBanner from './ui/ChristmasBanner';
 
 // Subcomponents
@@ -46,8 +47,10 @@ const AdminPendingRequests = lazy(() => import('./dashboard/AdminPendingRequests
 const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert'));
 const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
+import { getNonWorkingDayWarning, type NonWorkingDayWarning } from "@/utils/workingDay";
+
 // Types
-import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto } from "@/types";
+import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto, CreateHelpInquiryDto } from "@/types";
 
 
 interface DashboardModals {
@@ -78,7 +81,7 @@ interface DashboardAppState {
     pendingWFHContext: any | null;
     checkoutLocationRequired: boolean;
     wfhRequestPending: boolean;
-    nonWorkingDayWarningData: any | null;
+    nonWorkingDayWarningData: NonWorkingDayWarning | null;
     pendingCheckInData?: any | null;
 }
 
@@ -194,7 +197,7 @@ const HRMSDashboard: React.FC = () => {
         limit: 1
     }, { enabled: !!user?.employeeId });
 
-    const { data: holidays = [] } = useHolidays();
+    const { data: holidays = [], isFetched: holidaysFetched, refetch: refetchHolidays } = useHolidays();
     const { data: announcements = [] } = useAnnouncements();
     const { data: myLeaves = [] } = useMyLeaves({ enabled: !isAdmin });
     const { data: myHelpInquiries = [] } = useMyHelpInquiries({ enabled: !isAdmin });
@@ -235,7 +238,7 @@ const HRMSDashboard: React.FC = () => {
     // Extract the actual report data for AttendanceStats
     const monthAttendanceData = monthAttendanceDataRaw?.data as DashboardAttendanceReport | undefined;
 
-    const { data: effectiveSettings } = useEffectiveSettings();
+    const { data: effectiveSettings, refetch: refetchSettings } = useEffectiveSettings();
 
     const [dashboardState, dispatch] = useReducer(dashboardReducer, dashboardInitialState);
     const pendingRequestsRef = useRef<HTMLDivElement>(null);
@@ -324,7 +327,7 @@ const HRMSDashboard: React.FC = () => {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy,
-                capturedAt: new Date(position.timestamp).toISOString()
+                capturedAt: new Date().toISOString()
             };
         } catch (error: any) {
             let locationError = "Unable to capture location.";
@@ -387,41 +390,21 @@ const HRMSDashboard: React.FC = () => {
         }
     }, [todayAttendance, setAppState]);
 
-    const checkNonWorkingDay = (settings: EffectiveSettings | Partial<EffectiveSettings>, holidaysData: Holiday[]) => {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    /**
+     * Settings and holidays drive both the non-working-day warning and geofence
+     * enforcement. On a cold cache they are still in flight, so resolve them
+     * before deciding rather than falling back to defaults and failing open.
+     */
+    const resolveCheckInContext = async (): Promise<{
+        settings: EffectiveSettings | Partial<EffectiveSettings>;
+        holidaysData: Holiday[];
+    }> => {
+        const [settings, holidaysData] = await Promise.all([
+            effectiveSettings ?? refetchSettings().then(r => r.data).catch(() => undefined),
+            holidaysFetched ? holidays : refetchHolidays().then(r => r.data).catch(() => undefined),
+        ]);
 
-        const nonWorkingDays = settings.attendance?.nonWorkingDays || [0];
-        if (nonWorkingDays.includes(dayOfWeek)) {
-            return {
-                isNonWorkingDay: true,
-                reason: 'weekend',
-                dayName: dayNames[dayOfWeek],
-                message: `Today is ${dayNames[dayOfWeek]}, which is configured as a non-working day. Are you sure you want to check in?`
-            };
-        }
-
-        if (holidaysData && Array.isArray(holidaysData) && holidaysData.length > 0) {
-            const todayString = today.toISOString().split('T')[0];
-            const todayHoliday = holidaysData.find(holiday => {
-                if (!holiday.date) return false;
-                const holidayDate = new Date(holiday.date).toISOString().split('T')[0];
-                return holidayDate === todayString;
-            });
-
-            if (todayHoliday) {
-                return {
-                    isNonWorkingDay: true,
-                    reason: 'holiday',
-                    holidayTitle: todayHoliday.title || (todayHoliday as any).name,
-                    holidayType: todayHoliday.isOptional ? 'optional' : 'public',
-                    message: `Today is ${todayHoliday.title || (todayHoliday as any).name}${todayHoliday.isOptional ? ' (Optional Holiday)' : ''}. Are you sure you want to check in?`
-                };
-            }
-        }
-
-        return null;
+        return { settings: settings ?? {}, holidaysData: holidaysData ?? [] };
     };
 
     const handleCheckIn = async (skipNonWorkingDayCheck = false) => {
@@ -429,7 +412,7 @@ const HRMSDashboard: React.FC = () => {
         let locationData: Location | undefined;
 
         try {
-            const settings: EffectiveSettings | Partial<EffectiveSettings> = effectiveSettings || {};
+            const { settings, holidaysData } = await resolveCheckInContext();
             const locationSetting = settings.general?.locationSetting || 'na';
             const geofenceSettings = settings.general?.geofence || {};
             const requireLocation =
@@ -437,7 +420,7 @@ const HRMSDashboard: React.FC = () => {
                 (geofenceSettings?.enabled === true && geofenceSettings?.enforceCheckIn === true);
 
             if (!skipNonWorkingDayCheck) {
-                const nonWorkingDayWarning = checkNonWorkingDay(settings, holidays);
+                const nonWorkingDayWarning = getNonWorkingDayWarning(settings, holidaysData);
                 if (nonWorkingDayWarning) {
                     setAppState('nonWorkingDayWarningData', nonWorkingDayWarning);
                     setModal('showNonWorkingDayWarning', true);
@@ -493,7 +476,24 @@ const HRMSDashboard: React.FC = () => {
             let description = "An unexpected error occurred.";
             let variant: "warning" | "error" | "success" | "default" = "warning";
 
-            const geofenceDetails = error?.data?.errors?.geofence || error?.data?.details?.geofence;
+            const errorDetails = error?.data?.errors || error?.data?.details;
+            const geofenceDetails = errorDetails?.geofence;
+
+            // An imprecise fix is not the same as being off-site, and must be
+            // handled before the WFH branch below - that error also carries
+            // canRequestWFH, so it would otherwise push the user to file a WFH
+            // request when all they need to do is retry with a better signal.
+            if (errorDetails?.locationInaccurate) {
+                toast({
+                    variant: "warning",
+                    title: "Location Not Precise Enough",
+                    description: error?.data?.message
+                        || "Your location isn't accurate enough to confirm you're at the office. Move outdoors or near a window and try again.",
+                    duration: 7000
+                });
+                return;
+            }
+
             if (geofenceDetails?.canRequestWFH && locationData) {
                 setAppState('pendingWFHContext', {
                     geofence: geofenceDetails,
@@ -774,9 +774,9 @@ const HRMSDashboard: React.FC = () => {
         }
     };
 
-    const handleHelpInquirySubmit = async (data: any) => {
+    const handleHelpInquirySubmit = async (data: HelpDeskData) => {
         try {
-            const helpData = {
+            const helpData: CreateHelpInquiryDto = {
                 subject: data.title,
                 description: data.message,
                 category: data.category,
@@ -861,10 +861,11 @@ const HRMSDashboard: React.FC = () => {
     ];
 
     return (
-        <div className="bg-background text-foreground min-h-screen">
-            <div className="flex flex-col h-full">
+        <div className="bg-background text-foreground">
+            <div className="flex flex-col">
                 <ChristmasBanner username={employeeFirstName} />
-                <NewYearBanner username={employeeFirstName} />
+                <NewYearBanner />
+                <IndependenceDayBanner username={employeeFirstName} />
                 <Header
                     username={username}
                     isCheckedIn={!!isCheckedIn}
@@ -883,7 +884,7 @@ const HRMSDashboard: React.FC = () => {
                     theme={theme}
                 />
 
-                <main id="main-content" className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto" role="main">
+                <main id="main-content" className="p-4 sm:p-6 lg:p-8" role="main">
                     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
                         <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
                             {isAdmin ? (
@@ -1042,6 +1043,7 @@ const HRMSDashboard: React.FC = () => {
             />
 
             <WFHRequestModal
+                key={String(showWFHModal)}
                 isOpen={showWFHModal}
                 onClose={handleWFHModalClose}
                 onSubmit={handleWFHRequestSubmit}

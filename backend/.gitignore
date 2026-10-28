@@ -1,13 +1,14 @@
 /node_modules
 .env
-.env.example
+
 
 # Dependency directories
 /node_modules/
 
 # Environment files
 .env
-.env.*
+.env.local
+.env.*.local
 
 # Logs
 logs

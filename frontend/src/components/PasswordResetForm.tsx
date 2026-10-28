@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useRequestPasswordReset } from "@/hooks/queries";
 import { useState, FormEvent, ChangeEvent } from "react";
 import { useToast } from "@/components/ui/toast.jsx";
@@ -32,7 +32,7 @@ export default function PasswordResetForm({ className, ...props }: PasswordReset
           toast({
             title: "Password Reset Request Submitted",
             description: "Your request has been submitted for admin review. You will be contacted once approved.",
-            type: "success"
+            variant: "success"
           });
           setRequestSubmitted(true);
         },
@@ -41,7 +41,7 @@ export default function PasswordResetForm({ className, ...props }: PasswordReset
           toast({
             title: "Request Failed",
             description: error.message || "Unable to submit password reset request. Please try again.",
-            type: "error"
+            variant: "error"
           });
         }
       }
@@ -111,7 +111,7 @@ export default function PasswordResetForm({ className, ...props }: PasswordReset
 
             <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                 <div className="text-sm text-amber-700 dark:text-amber-300">
                   <p className="font-medium">Security Note:</p>
                   <p className="mt-1">Your request will be reviewed by an administrator before approval. Please provide accurate information.</p>

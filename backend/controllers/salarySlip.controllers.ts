@@ -1,3 +1,5 @@
+import type { CreateSalarySlipInput, SalarySlipStatusInput, BulkSalarySlipStatusInput } from '../validators/salary.schemas.js';
+import { paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import SalarySlip from '../models/SalarySlip.model.js';
@@ -8,15 +10,7 @@ import type { IAuthRequest } from '../types/index.js';
 
 export const createOrUpdateSalarySlip = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, month, year, earnings, deductions = {}, taxRegime = 'new', enableTaxDeduction = true } = req.body as {
-      employeeId: string;
-      month: number;
-      year: number;
-      earnings: { basic: number; hra?: number; conveyance?: number; medical?: number; lta?: number; specialAllowance?: number; mobileAllowance?: number };
-      deductions?: { customDeductions?: unknown[] };
-      taxRegime?: string;
-      enableTaxDeduction?: boolean;
-    };
+    const { employeeId, month, year, earnings, deductions, taxRegime, enableTaxDeduction } = req.body as CreateSalarySlipInput;
 
     if (!employeeId || !month || !year || !earnings || !earnings.basic) {
       res.status(400).json(formatResponse(false, 'Employee ID, month, year, and basic salary are required'));
@@ -85,7 +79,9 @@ export const createOrUpdateSalarySlip = async (req: IAuthRequest, res: Response)
 
 export const getSalarySlip = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, month, year } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
+    const month = paramValue(req.params.month);
+    const year = paramValue(req.params.year);
 
     if (!employeeId || !month || !year) {
       res.status(400).json(formatResponse(false, 'Employee ID, month, and year are required'));
@@ -128,7 +124,7 @@ export const getSalarySlip = async (req: IAuthRequest, res: Response): Promise<v
 
 export const getEmployeeSalarySlips = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
 
     if (!employeeId) {
       res.status(400).json(formatResponse(false, 'Employee ID is required'));
@@ -241,7 +237,9 @@ export const getAllSalarySlips = async (req: IAuthRequest, res: Response): Promi
 
 export const deleteSalarySlip = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, month, year } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
+    const month = paramValue(req.params.month);
+    const year = paramValue(req.params.year);
 
     if (!employeeId || !month || !year) {
       res.status(400).json(formatResponse(false, 'Employee ID, month, and year are required'));
@@ -318,8 +316,10 @@ export const getTaxCalculation = async (req: IAuthRequest, res: Response): Promi
 
 export const updateSalarySlipStatus = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId, month, year } = req.params;
-    const { status } = req.body as { status: string };
+    const employeeId = paramValue(req.params.employeeId);
+    const month = paramValue(req.params.month);
+    const year = paramValue(req.params.year);
+    const { status } = req.body as SalarySlipStatusInput;
 
     if (!status) {
       res.status(400).json(formatResponse(false, 'Status is required'));
@@ -368,10 +368,7 @@ export const updateSalarySlipStatus = async (req: IAuthRequest, res: Response): 
 
 export const bulkUpdateSalarySlipStatus = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { salarySlips, status } = req.body as {
-      salarySlips: Array<{ employeeId: string; month: number; year: number }>;
-      status: string;
-    };
+    const { salarySlips, status } = req.body as BulkSalarySlipStatusInput;
 
     if (!salarySlips || !Array.isArray(salarySlips) || !status) {
       res.status(400).json(formatResponse(false, 'Salary slips array and status are required'));

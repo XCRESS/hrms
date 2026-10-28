@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import useAuth from '../../hooks/authjwt';
 import BackButton from '../ui/BackButton';
 import {
@@ -105,6 +107,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   });
 
   const { toast } = useToast();
+  const confirm = useConfirm();
   const user = useAuth() as User | null;
 
   // Fetch policies using React Query
@@ -173,7 +176,13 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handleDelete = async (policy: Policy): Promise<void> => {
-    if (!window.confirm(`Are you sure you want to deactivate the policy "${policy.title}"?`)) {
+    const confirmed = await confirm({
+      title: 'Deactivate policy?',
+      description: `Are you sure you want to deactivate the policy "${policy.title}"?`,
+      confirmText: 'Deactivate',
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -195,7 +204,12 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handleRestore = async (policy: Policy): Promise<void> => {
-    if (!window.confirm(`Are you sure you want to activate the policy "${policy.title}"?`)) {
+    const confirmed = await confirm({
+      title: 'Activate policy?',
+      description: `Are you sure you want to activate the policy "${policy.title}"?`,
+      confirmText: 'Activate',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -220,20 +234,20 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handlePermanentDelete = async (policy: Policy): Promise<void> => {
-    if (
-      !window.confirm(
-        `⚠️ WARNING: This will permanently delete the policy "${policy.title}" from the database. This action CANNOT be undone. Are you absolutely sure?`
-      )
-    ) {
-      return;
-    }
-
-    // Double confirmation for permanent deletion
-    if (
-      !window.confirm(
-        `This is your final warning. The policy "${policy.title}" will be PERMANENTLY DELETED. Type "DELETE" in the next prompt to confirm.`
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Permanently delete this policy?',
+      description: (
+        <>
+          This will permanently delete the policy{' '}
+          <strong>"{policy.title}"</strong> from the database. This action{' '}
+          <strong>cannot be undone</strong>. You will be asked to type DELETE to
+          confirm.
+        </>
+      ),
+      confirmText: 'Continue',
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -344,7 +358,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   // Show form component
   if (showForm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+      <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
@@ -393,8 +407,8 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
                 {/* Content */}
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300">Policy Content *</Label>
-                  <textarea
-                    className="w-full h-40 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 resize-vertical"
+                  <Textarea
+                    className="h-40 resize-y"
                     placeholder="Enter detailed policy content..."
                     value={policyForm.content}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleFormChange('content', e.target.value)}
@@ -553,7 +567,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4">

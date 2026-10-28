@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, ChangeEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Input } from "../../../components/ui/input";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -11,13 +11,12 @@ import {
     SelectValue,
 } from "../../../components/ui/select";
 import { Label } from "../../../components/ui/label";
-import { useDepartments, useCreateEmployee } from "../../../hooks/queries";
+import { useDepartments, useCompanies, useCreateEmployee } from "../../../hooks/queries";
 import { useToast } from "../../../components/ui/toast";
 import BackButton from "../../../components/ui/BackButton";
-import EnhancedDOBPicker from "../../../components/ui/enhanced-dob-picker";
-import EnhancedJoiningPicker from "../../../components/ui/enhanced-joining-picker";
+import EnhancedDateField from "../../../components/ui/enhanced-date-field";
 import { cn } from "../../../lib/utils";
-import { CreateEmployeeDto } from "../../../types";
+import { ApiError, CreateEmployeeDto } from "../../../types";
 
 interface EmployeeFormData {
     employeeId: string;
@@ -56,6 +55,7 @@ const AddEmployee: React.FC = () => {
 
     // React Query hooks
     const { data: departmentsData, isLoading: loadingDepartments } = useDepartments();
+    const { data: companies = [], isLoading: loadingCompanies } = useCompanies();
     const createEmployeeMutation = useCreateEmployee();
 
     const departments = departmentsData || [];
@@ -100,12 +100,12 @@ const AddEmployee: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleDateOfBirthChange = (date: Date | undefined) => {
-        setFormData(prev => ({ ...prev, dateOfBirth: date || null }));
+    const handleDateOfBirthChange = (date: Date | null) => {
+        setFormData(prev => ({ ...prev, dateOfBirth: date }));
     };
 
-    const handleJoiningDateChange = (date: Date | undefined) => {
-        setFormData(prev => ({ ...prev, joiningDate: date || null }));
+    const handleJoiningDateChange = (date: Date | null) => {
+        setFormData(prev => ({ ...prev, joiningDate: date }));
     };
 
     const handleSubmit = (e: FormEvent) => {
@@ -117,8 +117,7 @@ const AddEmployee: React.FC = () => {
             "maritalStatus", "email", "phone", "aadhaarNumber", "panNumber",
             "officeAddress", "companyName", "department", "position", "employmentType",
             "reportingSupervisor", "paymentMode", "bankName",
-            "bankAccountNumber", "bankIFSCCode", "emergencyContactName",
-            "emergencyContactNumber",
+            "bankAccountNumber", "bankIFSCCode",
         ];
 
         for (const field of requiredFields) {
@@ -162,7 +161,7 @@ const AddEmployee: React.FC = () => {
             fatherPhone: digitsOnly(formData.fatherPhone) || undefined,
             motherPhone: digitsOnly(formData.motherPhone) || undefined,
             bankAccountNumber: formData.bankAccountNumber?.trim() || undefined,
-            emergencyContactNumber: digitsOnly(formData.emergencyContactNumber),
+            emergencyContactNumber: digitsOnly(formData.emergencyContactNumber) || undefined,
             panNumber: formData.panNumber?.trim().toUpperCase() || undefined,
             bankIFSCCode: formData.bankIFSCCode?.trim().toUpperCase() || undefined,
             dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.toISOString() : null,
@@ -177,19 +176,19 @@ const AddEmployee: React.FC = () => {
                 });
                 navigate("/employees");
             },
-            onError: (error: any) => {
+            onError: (error: ApiError) => {
                 let errorMessage = "Failed to create employee.";
 
                 // The axios interceptor transforms errors into ApiError with validationDetails
                 if (error?.validationDetails && Array.isArray(error.validationDetails) && error.validationDetails.length > 0) {
-                    errorMessage = error.validationDetails.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
+                    errorMessage = error.validationDetails.map((d) => d.message || `${d.field} is invalid`).join(', ');
                 } else if (error?.message && error.message !== 'An error occurred') {
                     errorMessage = error.message;
                 } else if (error?.response?.data) {
                     // Fallback for non-intercepted errors
                     const data = error.response.data;
                     if (data.details && Array.isArray(data.details) && data.details.length > 0) {
-                        errorMessage = data.details.map((d: any) => d.message || `${d.field} is invalid`).join(', ');
+                        errorMessage = data.details.map((d) => d.message || `${d.field} is invalid`).join(', ');
                     } else if (data.message) {
                         errorMessage = data.message;
                     }
@@ -269,8 +268,9 @@ const AddEmployee: React.FC = () => {
                             </LabelInputContainer>
                             <LabelInputContainer>
                                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                                <EnhancedDOBPicker
-                                    value={formData.dateOfBirth || undefined} // Expects Date | undefined
+                                <EnhancedDateField
+                                    variant="dob"
+                                    value={formData.dateOfBirth}
                                     onChange={handleDateOfBirthChange}
                                     required
                                 />
@@ -341,7 +341,6 @@ const AddEmployee: React.FC = () => {
                                     name="emergencyContactName"
                                     value={formData.emergencyContactName}
                                     onChange={handleChange}
-                                    required
                                 />
                             </LabelInputContainer>
                             <LabelInputContainer>
@@ -354,7 +353,6 @@ const AddEmployee: React.FC = () => {
                                     name="emergencyContactNumber"
                                     value={formData.emergencyContactNumber}
                                     onChange={handleChange}
-                                    required
                                 />
                             </LabelInputContainer>
                         </CardContent>
@@ -433,8 +431,9 @@ const AddEmployee: React.FC = () => {
                         <CardContent className="space-y-4">
                             <LabelInputContainer>
                                 <Label htmlFor="joiningDate">Joining Date</Label>
-                                <EnhancedJoiningPicker
-                                    value={formData.joiningDate || undefined}
+                                <EnhancedDateField
+                                    variant="joining"
+                                    value={formData.joiningDate}
                                     onChange={handleJoiningDateChange}
                                     required
                                 />
@@ -464,21 +463,24 @@ const AddEmployee: React.FC = () => {
                                     onValueChange={(value) =>
                                         handleSelectChange("companyName", value)
                                     }
+                                    value={formData.companyName}
                                     required
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select company" />
+                                    <SelectTrigger id="companyName">
+                                        <SelectValue placeholder={loadingCompanies ? "Loading companies..." : "Select company"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Indra Financial Services Limited">
-                                            Indra Financial Services Limited
-                                        </SelectItem>
-                                        <SelectItem value="COSMOS INVESTIFIASSET MANAGEMENT LLP">
-                                            COSMOS INVESTIFIASSET MANAGEMENT LLP
-                                        </SelectItem>
-                                        <SelectItem value="SENSIBLE TAX ADVISORY LLP">
-                                            SENSIBLE TAX ADVISORY LLP
-                                        </SelectItem>
+                                        {companies.length > 0 ? (
+                                            companies.map((company) => (
+                                                <SelectItem key={company._id} value={company.name}>
+                                                    {company.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-companies" disabled>
+                                                {loadingCompanies ? "Loading..." : "No companies — add one in Settings"}
+                                            </SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </LabelInputContainer>

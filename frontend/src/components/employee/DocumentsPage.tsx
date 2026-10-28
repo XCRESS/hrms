@@ -1,24 +1,18 @@
 import React from 'react';
 import { ArrowLeft, FileText, User, Shield, GraduationCap, Plus, Eye, X, Upload, LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useToast } from '../ui/toast';
+import BusyOverlay from '../ui/BusyOverlay';
 import useAuth from '../../hooks/authjwt';
 import { useEmployeeDocuments, useUploadDocument, useDeleteDocument } from '../../hooks/queries';
+import { Document, DocumentType } from '@/types';
 
-// Types
-interface DocumentType {
-  key: string;
+/** One selectable document slot in the UI. */
+interface DocumentKind {
+  key: DocumentType;
   label: string;
   icon: LucideIcon;
   accept: string;
-}
-
-interface Document {
-  _id: string;
-  documentType: string;
-  fileName: string;
-  s3Url: string;
-  createdAt: string;
 }
 
 const DocumentsPage: React.FC = () => {
@@ -36,7 +30,7 @@ const DocumentsPage: React.FC = () => {
 
   const uploading = uploadDocumentMutation.isPending;
 
-  const documentTypes: DocumentType[] = [
+  const documentTypes: DocumentKind[] = [
     { key: 'profile_picture', label: 'Profile Photo', icon: User, accept: 'image/*' },
     { key: 'aadhaar', label: 'Aadhaar Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
     { key: 'pan', label: 'PAN Card', icon: Shield, accept: '.pdf,.jpg,.jpeg,.png' },
@@ -45,10 +39,13 @@ const DocumentsPage: React.FC = () => {
     { key: 'college_marksheet', label: 'College Certificate', icon: GraduationCap, accept: '.pdf,.jpg,.jpeg,.png' },
   ];
 
-  const handleFileUpload = async (docType: string, file: File): Promise<void> => {
+  const handleFileUpload = async (docType: DocumentType, file: File): Promise<void> => {
+    const employeeId = userObject?.employeeId;
+    if (!employeeId) return;
+
     try {
       await uploadDocumentMutation.mutateAsync({
-        employeeId: userObject!.employeeId,
+        employeeId,
         documentType: docType,
         file,
       });
@@ -69,18 +66,19 @@ const DocumentsPage: React.FC = () => {
   };
 
   const handleFileDelete = async (documentId: string): Promise<void> => {
+    const employeeId = userObject?.employeeId;
+    if (!employeeId) return;
+
     const documentToDelete = documents.find((doc: Document) => doc._id === documentId);
 
     try {
+      // The hook handles the profile-picture cache invalidation and refresh
+      // event, but only when it is told which type was removed.
       await deleteDocumentMutation.mutateAsync({
         documentId,
-        employeeId: userObject!.employeeId,
+        employeeId,
+        documentType: documentToDelete?.documentType,
       });
-
-      // If it's a profile picture, notify all components to refresh
-      if (documentToDelete?.documentType === 'profile_picture') {
-        window.dispatchEvent(new Event('profile-picture-updated'));
-      }
 
       toast({
         title: "Success",
@@ -107,14 +105,14 @@ const DocumentsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-full bg-white dark:bg-slate-900 flex items-center justify-center">
         <div className="text-slate-500">Loading documents...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900">
+    <div className="min-h-full bg-white dark:bg-slate-900">
       <div className="border-b border-slate-200 dark:border-slate-700 p-4">
         <div className="flex items-center gap-3">
           <button
@@ -230,14 +228,7 @@ const DocumentsPage: React.FC = () => {
           })}
         </div>
 
-        {uploading && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 flex items-center gap-3 shadow-lg">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-900 dark:border-slate-100 border-t-transparent"></div>
-              <span className="text-sm text-slate-900 dark:text-slate-100">Uploading...</span>
-            </div>
-          </div>
-        )}
+        <BusyOverlay show={uploading} message="Uploading..." />
       </div>
     </div>
   );

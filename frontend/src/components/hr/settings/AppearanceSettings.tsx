@@ -1,15 +1,17 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, type LucideIcon } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, Flag, type LucideIcon } from 'lucide-react';
+import type { ThemeMode, CustomTheme } from '@/types';
 
-interface ThemeMode {
-  value: 'light' | 'dark' | 'system';
+/** Renderable option rows. Named *Option to avoid shadowing the value types. */
+interface ThemeModeOption {
+  value: ThemeMode;
   label: string;
   icon: LucideIcon;
 }
 
-interface CustomTheme {
-  value: string;
+interface CustomThemeOption {
+  value: CustomTheme;
   label: string;
   icon: LucideIcon;
   colors: string[];
@@ -19,13 +21,13 @@ interface CustomTheme {
 const AppearanceSettings: React.FC = () => {
   const { themeMode, customTheme, setThemeMode, setCustomTheme } = useTheme();
 
-  const THEME_MODES: ThemeMode[] = [
+  const THEME_MODES: ThemeModeOption[] = [
     { value: 'light', label: 'Light', icon: Sun },
     { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'Auto', icon: Monitor }
   ];
 
-  const CUSTOM_THEMES: CustomTheme[] = [
+  const CUSTOM_THEMES: CustomThemeOption[] = [
     {
       value: 'default',
       label: 'Default',
@@ -43,6 +45,13 @@ const AppearanceSettings: React.FC = () => {
       label: 'New Year',
       icon: Snowflake,
       colors: ['#06B6D4', '#E2E8F0', '#F0F9FF']
+    },
+    {
+      value: 'independence',
+      label: 'Independence',
+      icon: Flag,
+      subtitle: 'Tiranga',
+      colors: ['#FF9933', '#FFFFFF', '#138808', '#0F2350']
     },
     {
       value: 'ocean',
@@ -199,9 +208,9 @@ const AppearanceSettings: React.FC = () => {
 
         {/* Info */}
         <div className="flex gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
-          <Sparkles className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
+          <Sparkles className="h-4 w-4 text-accent mt-0.5 shrink-0" />
           <div className="text-xs text-foreground/80">
-            <span className="font-medium">Tip:</span> Seasonal themes (Christmas & New Year) auto-activate based on date. Change anytime here.
+            <span className="font-medium">Tip:</span> Seasonal themes (Christmas, New Year & Independence Day) auto-activate based on date. Change anytime here.
           </div>
         </div>
       </div>

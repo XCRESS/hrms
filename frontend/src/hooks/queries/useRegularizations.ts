@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, RegularizationRequest, RegularizationRequestDto, RegularizationStatus, RegularizationQueryParams } from '@/types';
+import type { ApiResponse, RegularizationRequest, RegularizationRequestDto, RegularizationStatus, RegularizationQueryParams, RequestListMeta } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -19,6 +19,22 @@ export const useRegularizationRequests = (options?: { params?: RegularizationQue
       const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, (options?.params || {}) as Record<string, string | number | boolean>);
       const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] }>(endpoint);
       return data.regs || [];
+    },
+    enabled: options?.enabled ?? true,
+  });
+};
+
+/**
+ * Same endpoint as useRegularizationRequests, but keeps `pagination` and
+ * `statusCounts`. Use where the UI needs totals or per-status badges.
+ */
+export const useRegularizationRequestsWithMeta = (options?: { params?: RegularizationQueryParams; enabled?: boolean }) => {
+  return useQuery({
+    queryKey: [...queryKeys.regularizations.allRequests(options?.params), 'meta'],
+    queryFn: async () => {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, (options?.params || {}) as Record<string, string | number | boolean>);
+      const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] } & RequestListMeta>(endpoint);
+      return { rows: data.regs || [], pagination: data.pagination, statusCounts: data.statusCounts ?? {} };
     },
     enabled: options?.enabled ?? true,
   });

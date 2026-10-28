@@ -17,8 +17,11 @@ export const queryClient = new QueryClient({
       // Refetch on reconnect (handles offline scenarios)
       refetchOnReconnect: true,
 
-      // Refetch on mount only if data is stale (prevents unnecessary requests while ensuring freshness)
-      refetchOnMount: 'stale' as const,
+      // Refetch on mount only if data is stale (prevents unnecessary requests
+      // while ensuring freshness). `true` is what does this in v5 — it honours
+      // staleTime above; 'always' would refetch on every mount regardless.
+      // (Was `'stale'`, a v4-ism that v5 does not accept.)
+      refetchOnMount: true,
 
       // Retry failed requests 2 times with exponential backoff
       retry: (failureCount, error: unknown) => {
@@ -38,8 +41,10 @@ export const queryClient = new QueryClient({
 
       // Use error boundaries for server errors (500+)
       // Client errors (400s) should be handled locally in components
-      useErrorBoundary: (error: unknown) => {
-        const apiError = error as ApiError;
+      // (v5 renamed this from `useErrorBoundary`; under the old name the option
+      // was silently ignored, so 500s never reached the boundary.)
+      throwOnError: (error) => {
+        const apiError = error as unknown as ApiError;
         return (apiError?.status ?? 0) >= 500;
       },
     },
@@ -51,9 +56,9 @@ export const queryClient = new QueryClient({
         return failureCount < 1;
       },
 
-      // Throw server errors to error boundary
-      useErrorBoundary: (error: unknown) => {
-        const apiError = error as ApiError;
+      // Throw server errors to error boundary (see note on queries above)
+      throwOnError: (error) => {
+        const apiError = error as unknown as ApiError;
         return (apiError?.status ?? 0) >= 500;
       },
     },

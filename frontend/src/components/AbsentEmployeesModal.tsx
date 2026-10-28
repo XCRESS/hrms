@@ -1,4 +1,12 @@
-import { X, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Employee {
   employeeId: string;
@@ -12,28 +20,19 @@ interface AbsentEmployeesModalProps {
 }
 
 const AbsentEmployeesModal = ({ isOpen, onClose, absentEmployees = [] }: AbsentEmployeesModalProps) => {
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] gap-0 p-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-          <div className="flex items-center gap-2">
-            <UserX className="text-red-500" size={24} />
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">
-              Absent Employees Today
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+        <DialogHeader className="flex-row items-center gap-2 space-y-0 p-6 pr-14 border-b border-gray-200 dark:border-slate-700 text-left">
+          <UserX className="text-red-500 shrink-0" size={24} />
+          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">
+            Absent Employees Today
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            List of employees marked absent today.
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[60vh]">
@@ -77,8 +76,8 @@ const AbsentEmployeesModal = ({ isOpen, onClose, absentEmployees = [] }: AbsentE
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -11,14 +9,13 @@ import {
   DollarSign,
   Search,
   ChevronLeft,
-  ChevronRight,
-  Eye
+  ChevronRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import useAuth from "../../hooks/authjwt";
 import { downloadSalarySlipPDF } from "../../utils/pdfGenerator";
 import { formatIndianNumber } from "../../utils/indianNumber";
-import { useProfile, useEmployeeSalarySlips } from "../../hooks/queries";
+import { useProfile, useEmployeeSalarySlips, useCompanies } from "../../hooks/queries";
 
 // Types
 interface SalarySlip {
@@ -62,6 +59,7 @@ const MySalarySlips: React.FC = () => {
 
   // Fetch employee profile - useProfile returns Employee object directly
   const { data: employeeData } = useProfile();
+  const { data: companies } = useCompanies();
 
   // Build query params
   const queryParams: QueryParams = useMemo(() => ({
@@ -107,7 +105,7 @@ const MySalarySlips: React.FC = () => {
     try {
       const employeeName = employeeData ? `${employeeData.firstName} ${employeeData.lastName}` : user?.name || 'Employee';
       const monthName = months.find(m => m.value === slip.month)?.label || `Month ${slip.month}`;
-      downloadSalarySlipPDF(slip, employeeName, monthName, employeeData);
+      downloadSalarySlipPDF(slip, employeeName, monthName, employeeData, companies);
 
       toast({
         title: "Success",
@@ -127,7 +125,7 @@ const MySalarySlips: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 p-4 sm:p-6">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Modern Header with Gradient Background */}
         <div className="relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl shadow-xl mb-8">

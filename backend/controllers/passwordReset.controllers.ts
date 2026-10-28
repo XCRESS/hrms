@@ -1,3 +1,4 @@
+import type { CreatePasswordResetRequestInput, RejectPasswordResetInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import User from '../models/User.model.js';
@@ -11,7 +12,7 @@ import logger from '../utils/logger.js';
 // @access  Public
 export const createPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, newPassword } = req.body;
+    const { name, email, newPassword } = req.body as CreatePasswordResetRequestInput;
 
     if (!name || !email || !newPassword) {
       res.status(400).json(formatResponse(false, 'Please provide name, email, and new password.'));
@@ -91,18 +92,18 @@ export const approvePasswordResetRequest = async (req: Request, res: Response): 
 
     // Send email notification
     try {
-      const subject = '✅ Password Changed Successfully';
+      const subject = 'Your HRMS password was changed';
       const htmlContent = emailService.getBaseEmailTemplate(`
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h2 style="color: #1e293b; margin: 0; font-size: 24px; font-weight: 700;">Password Changed</h2>
-          <p style="color: #64748b; margin: 5px 0 0 0; font-size: 16px;">Your password has been successfully changed.</p>
-        </div>
-        <div style="text-align: left;">
-          <p style="color: #475569; font-size: 16px; margin-bottom: 20px;">Hi ${user.name},</p>
-          <p style="color: #475569; font-size: 16px; margin-bottom: 25px;">
-            Your password has been successfully changed as per your request. You can now log in with your new password.
-          </p>
-        </div>
+        ${emailService.getHeading({
+          eyebrow: 'Security',
+          title: 'Your password was changed',
+          lede: `Hi ${user.name}, your password reset request has been approved.`
+        })}
+
+        ${emailService.getParagraph('You can now sign in with your new password.')}
+        ${emailService.getCallout('If you did not request this change, contact your HR administrator immediately.', 'warning')}
+
+        ${emailService.getActionButton('Sign in')}
       `);
       await emailService.send(user.email, subject, htmlContent);
     } catch (emailError) {
@@ -134,7 +135,7 @@ export const getAllPasswordResetRequests = async (req: Request, res: Response): 
       query.createdAt = createdAt;
     }
 
-    const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }); // Newest first
+    const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }).lean(); // Newest first
 
     res.status(200).json(
       formatResponse(true, 'Password reset requests fetched successfully.', {
@@ -155,7 +156,7 @@ export const getAllPasswordResetRequests = async (req: Request, res: Response): 
 export const rejectPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const requestId = req.params.id;
-    const { remarks } = req.body; // Optional remarks from admin
+    const { remarks } = req.body as RejectPasswordResetInput; // Optional remarks from admin
 
     const request = await PasswordResetRequest.findByIdAndUpdate(
       requestId,

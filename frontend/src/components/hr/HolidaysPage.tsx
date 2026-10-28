@@ -1,10 +1,18 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../service/notificationService';
+import notificationService from '../../services/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { useHolidays, useCreateHoliday, useUpdateHoliday, useDeleteHoliday } from '@/hooks/queries';
 import { formatISTDate } from '@/utils/luxonUtils';
 import type { Holiday, User } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Message {
   type: 'success' | 'error' | '';
@@ -296,12 +304,12 @@ const HolidaysPage = (): JSX.Element => {
                     {holiday.title}
                   </h4>
                   <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    <Calendar size={12} className="flex-shrink-0" />
+                    <Calendar size={12} className="shrink-0" />
                     <span>{formatISTDate(holiday.date, { customFormat: 'dd MMM yyyy, EEEE' })}</span>
                   </div>
                 </div>
                 <span
-                  className={`ml-2 flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                  className={`ml-2 shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full ${
                     holiday.isOptional
                       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100'
@@ -337,12 +345,16 @@ const HolidaysPage = (): JSX.Element => {
       </div>
 
       {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all my-8">
-            <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100">
-              {isEditing ? 'Edit Holiday' : 'Add New Holiday'}
-            </h3>
+      <Dialog open={showModal} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="max-w-md p-6">
+            <DialogHeader className="mb-4 pr-8 text-left">
+              <DialogTitle className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+                {isEditing ? 'Edit Holiday' : 'Add New Holiday'}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {isEditing ? 'Edit this holiday.' : 'Add a new company holiday.'}
+              </DialogDescription>
+            </DialogHeader>
             <form onSubmit={handleSaveHoliday} className="space-y-4">
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -379,14 +391,14 @@ const HolidaysPage = (): JSX.Element => {
                 >
                   Description
                 </label>
-                <textarea
+                <Textarea
                   name="description"
                   id="description"
                   value={currentHoliday?.description || ''}
                   onChange={handleInputChange}
                   rows={3}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50"
-                ></textarea>
+                  className="mt-1"
+                ></Textarea>
               </div>
               <div className="flex items-center">
                 <input
@@ -403,7 +415,7 @@ const HolidaysPage = (): JSX.Element => {
               </div>
               {message.content && message.type === 'error' && !showDeleteConfirm && (
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md flex items-center text-sm">
-                  <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                  <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
                 </div>
               )}
               <div className="flex justify-end space-x-3 pt-2">
@@ -423,22 +435,25 @@ const HolidaysPage = (): JSX.Element => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && holidayToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm transform transition-all">
-            <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-100">Confirm Deletion</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-              Are you sure you want to delete the holiday "<strong>{holidayToDelete.title}</strong>" on{' '}
-              {formatISTDate(holidayToDelete.date, { customFormat: 'dd MMM yyyy' })}?
-            </p>
+      <Dialog
+        open={showDeleteConfirm && !!holidayToDelete}
+        onOpenChange={(open) => !open && closeDeleteConfirm()}
+      >
+        <DialogContent className="max-w-sm p-6">
+            <DialogHeader className="mb-2 pr-8 text-left">
+              <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">Confirm Deletion</DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to delete the holiday "<strong>{holidayToDelete?.title}</strong>" on{' '}
+                {holidayToDelete && formatISTDate(holidayToDelete.date, { customFormat: 'dd MMM yyyy' })}?
+              </DialogDescription>
+            </DialogHeader>
             {message.content && message.type === 'error' && (
               <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md flex items-center text-sm">
-                <AlertTriangle size={18} className="mr-2 flex-shrink-0" /> {message.content}
+                <AlertTriangle size={18} className="mr-2 shrink-0" /> {message.content}
               </div>
             )}
             <div className="flex justify-end space-x-3">
@@ -457,9 +472,8 @@ const HolidaysPage = (): JSX.Element => {
                 {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,6 +1,8 @@
+import type { CreateEmployeeInput, UpdateEmployeeInput } from '../validators/employee.schemas.js';
 import type { Response } from 'express';
 import Employee from '../models/Employee.model.js';
 import Department from '../models/Department.model.js';
+import Company from '../models/Company.model.js';
 import User from '../models/User.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
@@ -38,36 +40,7 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     joiningDate,
     emergencyContactName,
     emergencyContactNumber
-  } = req.body as {
-    employeeId: string;
-    firstName: string;
-    lastName: string;
-    gender?: string;
-    dateOfBirth?: string;
-    maritalStatus?: string;
-    email: string;
-    phone?: string;
-    address?: string;
-    aadhaarNumber?: string;
-    panNumber?: string;
-    fatherName?: string;
-    motherName?: string;
-    fatherPhone?: string;
-    motherPhone?: string;
-    officeAddress?: string;
-    companyName?: string;
-    department?: string;
-    position?: string;
-    paymentMode?: string;
-    bankName?: string;
-    bankAccountNumber?: string;
-    bankIFSCCode?: string;
-    employmentType?: string;
-    reportingSupervisor?: string;
-    joiningDate?: string;
-    emergencyContactName?: string;
-    emergencyContactNumber?: string;
-  };
+  } = req.body as CreateEmployeeInput;
 
   // Build duplicate check conditions only for non-empty fields
   const duplicateConditions: Record<string, string>[] = [
@@ -94,6 +67,10 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     if (!departmentExists) {
       throw new ValidationError(`Department '${department}' does not exist. Please select from available departments.`);
     }
+  }
+
+  if (companyName && !(await Company.exists({ name: companyName }))) {
+    throw new ValidationError(`Company '${companyName}' does not exist. Please select from available companies.`);
   }
 
   const employee = await Employee.create({
@@ -141,7 +118,7 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
       filter.isActive = false;
     }
 
-    const employees = await Employee.find(filter).select('-__v').sort({ createdAt: -1 });
+    const employees = await Employee.find(filter).select('-__v').sort({ createdAt: -1 }).lean();
     const employeeList = employees.map(employee => ({
       _id: employee._id,
       employeeId: employee.employeeId,
@@ -157,7 +134,8 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
       panNumber: employee.panNumber,
       joiningDate: employee.joiningDate,
       companyName: employee.companyName,
-      isActive: employee.isActive
+      isActive: employee.isActive,
+      profilePicture: employee.profilePicture
     }));
     res.json(formatResponse(true, 'Employees fetched successfully', { employees: employeeList }));
   } catch (err) {
@@ -170,7 +148,7 @@ export const getEmployees = async (req: IAuthRequest, res: Response): Promise<vo
 export const updateEmployee = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const updateData = req.body as Record<string, unknown>;
+    const updateData = req.body as UpdateEmployeeInput;
 
     const existingEmployee = await Employee.findById(id);
     if (!existingEmployee) {
@@ -191,6 +169,14 @@ export const updateEmployee = async (req: IAuthRequest, res: Response): Promise<
         ));
         return;
       }
+    }
+
+    if (updateData.companyName && !(await Company.exists({ name: updateData.companyName }))) {
+      res.status(400).json(formatResponse(
+        false,
+        `Company '${updateData.companyName}' does not exist. Please select from available companies.`
+      ));
+      return;
     }
 
     const employee = await Employee.findByIdAndUpdate(id, updateData, {

@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  X,
   FileText,
   Calendar,
   Users,
@@ -10,6 +9,13 @@ import {
   Clock,
   Shield
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePolicy } from "@/hooks/queries";
 
 interface Policy {
@@ -56,35 +62,23 @@ const PolicyModal = ({ policyId, isOpen, onClose }: PolicyModalProps) => {
     return colors[priority] || colors['Medium'];
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] gap-0 overflow-hidden p-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-600">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                Company Policy
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Policy Details
-              </p>
-            </div>
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 p-6 pr-14 border-b border-slate-200 dark:border-slate-600 text-left">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+          <div>
+            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Company Policy
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-400">
+              Policy Details
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
@@ -232,8 +226,8 @@ const PolicyModal = ({ policyId, isOpen, onClose }: PolicyModalProps) => {
             Close
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
