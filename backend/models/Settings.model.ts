@@ -4,6 +4,11 @@
  */
 
 import mongoose, { Schema, type Document, type Model } from 'mongoose';
+import {
+  DEFAULT_GEOFENCE_RADIUS_METERS,
+  MIN_GEOFENCE_RADIUS_METERS,
+  MAX_GEOFENCE_RADIUS_METERS,
+} from './OfficeLocation.model.js';
 
 export type LocationSetting = 'na' | 'optional' | 'mandatory';
 export type TaskReportSetting = 'na' | 'optional' | 'mandatory';
@@ -47,9 +52,7 @@ export interface IDailyHrAttendanceReport {
 
 export interface INotificationConfig {
   hrEmails: string[];
-  hrPhones: string[];
   emailEnabled: boolean;
-  whatsappEnabled: boolean;
   pushEnabled: boolean;
   hrEmailTypes: IHrEmailTypes;
   holidayReminderEnabled: boolean;
@@ -73,10 +76,22 @@ export interface IGeneralConfig {
   geofence: IGeofenceConfig;
 }
 
+export type RetentionMonths = 1 | 2 | 3 | 6 | 12;
+
+export interface IRegularizationRetentionConfig {
+  enabled: boolean;
+  retentionMonths: RetentionMonths;
+}
+
+export interface IRequestRetentionConfig {
+  regularization: IRegularizationRetentionConfig;
+}
+
 export interface ISettingsDoc extends Document {
   attendance: IAttendanceConfig;
   notifications: INotificationConfig;
   general: IGeneralConfig;
+  requestRetention: IRequestRetentionConfig;
   scope: SettingsScope;
   department?: string;
   lastUpdatedBy?: mongoose.Types.ObjectId;
@@ -157,18 +172,7 @@ const settingsSchema = new Schema<ISettingsDoc>(
           message: 'All HR emails must be valid',
         },
       },
-      hrPhones: {
-        type: [String],
-        default: [],
-        validate: {
-          validator: function (arr: string[]): boolean {
-            return arr.every((phone) => /^\+91[0-9]{10}$/.test(phone));
-          },
-          message: 'All HR phones must be valid Indian numbers (+91xxxxxxxxxx)',
-        },
-      },
       emailEnabled: { type: Boolean, default: true },
-      whatsappEnabled: { type: Boolean, default: false },
       pushEnabled: { type: Boolean, default: true },
       hrEmailTypes: {
         leaveRequests: { type: Boolean, default: true },
@@ -227,13 +231,35 @@ const settingsSchema = new Schema<ISettingsDoc>(
         enabled: { type: Boolean, default: true },
         enforceCheckIn: { type: Boolean, default: true },
         enforceCheckOut: { type: Boolean, default: true },
+        // Bounds mirror OfficeLocation.radius deliberately: this value is fed
+        // straight into office creation, so a wider range here would produce
+        // a default that can never be saved.
         defaultRadius: {
           type: Number,
-          default: 100,
-          min: [50, 'Default radius must be at least 50 meters'],
-          max: [1000, 'Default radius cannot exceed 1000 meters'],
+          default: DEFAULT_GEOFENCE_RADIUS_METERS,
+          min: [
+            MIN_GEOFENCE_RADIUS_METERS,
+            `Default radius must be at least ${MIN_GEOFENCE_RADIUS_METERS} meters`,
+          ],
+          max: [
+            MAX_GEOFENCE_RADIUS_METERS,
+            `Default radius cannot exceed ${MAX_GEOFENCE_RADIUS_METERS} meters`,
+          ],
         },
         allowWFHBypass: { type: Boolean, default: true },
+      },
+    },
+    requestRetention: {
+      regularization: {
+        enabled: { type: Boolean, default: false },
+        retentionMonths: {
+          type: Number,
+          enum: {
+            values: [1, 2, 3, 6, 12] as RetentionMonths[],
+            message: 'Retention period must be 1, 2, 3, 6, or 12 months',
+          },
+          default: 6,
+        },
       },
     },
     scope: {
@@ -283,54 +309,11 @@ settingsSchema.pre('save', function (next) {
  * Static methods interface
  */
 interface ISettingsModel extends Model<ISettingsDoc> {
-  timeToDecimal(timeString: string): number;
-  decimalToTime24(decimal: number): string;
-  time24To12(time24: string): string;
-  time12To24(time12: string): string;
   getGlobalSettings(): Promise<ISettingsDoc>;
   getDepartmentSettings(department: string): Promise<ISettingsDoc | null>;
   getEffectiveSettings(department?: string | null): Promise<Record<string, unknown>>;
   mergeSettings(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown>;
 }
-
-/**
- * Helper method: Convert 24-hour time to decimal hours
- */
-settingsSchema.static('timeToDecimal', function (timeString: string): number {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return (hours ?? 0) + ((minutes ?? 0) / 60);
-});
-
-/**
- * Helper method: Convert decimal hours to 24-hour format
- */
-settingsSchema.static('decimalToTime24', function (decimal: number): string {
-  const hours = Math.floor(decimal);
-  const minutes = Math.round((decimal - hours) * 60);
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-});
-
-/**
- * Helper method: Convert 24-hour to 12-hour format
- */
-settingsSchema.static('time24To12', function (time24: string): string {
-  const [hours, minutes] = time24.split(':').map(Number);
-  const displayHours = (hours ?? 0) === 0 ? 12 : (hours ?? 0) > 12 ? (hours ?? 0) - 12 : hours ?? 0;
-  const period = (hours ?? 0) >= 12 ? 'PM' : 'AM';
-  return `${displayHours.toString().padStart(2, '0')}:${(minutes ?? 0).toString().padStart(2, '0')} ${period}`;
-});
-
-/**
- * Helper method: Convert 12-hour to 24-hour format
- */
-settingsSchema.static('time12To24', function (time12: string): string {
-  const [time, period] = time12.split(' ');
-  const [hours, minutes] = (time ?? '').split(':').map(Number);
-  let hour24 = hours ?? 0;
-  if (period === 'PM' && hour24 !== 12) hour24 += 12;
-  else if (period === 'AM' && hour24 === 12) hour24 = 0;
-  return `${hour24.toString().padStart(2, '0')}:${(minutes ?? 0).toString().padStart(2, '0')}`;
-});
 
 /**
  * Static method: Get global settings (create if not exists)

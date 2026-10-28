@@ -1,3 +1,4 @@
+import type { AnnouncementInput, UpdateAnnouncementInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import Announcement from '../models/Announcement.model.js';
 import NotificationService from '../services/notificationService.js';
@@ -11,7 +12,7 @@ interface AuthRequest extends Request {
 
 export const createAnnouncement = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { title, content, targetAudience, status } = req.body;
+    const { title, content, targetAudience, status } = req.body as AnnouncementInput;
     const authorId = req.user?.id;
     const authorName = req.user?.name;
 
@@ -66,7 +67,7 @@ export const getAnnouncements = async (req: AuthRequest, res: Response): Promise
       if (req.query.targetAudience) query.targetAudience = req.query.targetAudience;
     }
 
-    const announcements = await Announcement.find(query).populate('author', 'name email').sort({ createdAt: -1 });
+    const announcements = await Announcement.find(query).populate('author', 'name email').sort({ createdAt: -1 }).lean();
     res.status(200).json({ success: true, count: announcements.length, announcements });
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
@@ -108,7 +109,7 @@ export const getAnnouncementById = async (req: AuthRequest, res: Response): Prom
 export const updateAnnouncement = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const announcementId = req.params.id;
-    const { title, content, targetAudience, status } = req.body;
+    const { title, content, targetAudience, status } = req.body as UpdateAnnouncementInput;
 
     if (Object.keys(req.body).length === 0) {
       res.status(400).json({ success: false, message: 'No update data provided.' });

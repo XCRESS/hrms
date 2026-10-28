@@ -49,22 +49,13 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: null,
     },
-    resetPasswordToken: {
-      type: String,
-      default: null,
-    },
-    resetPasswordExpires: {
-      type: Date,
-      default: null,
-    },
   },
   {
     timestamps: true,
     toJSON: {
-      transform: (_doc, ret) => {
+      transform: (_doc, ret: Record<string, unknown>) => {
         // Remove password from JSON responses
         delete ret.password;
-        delete ret.resetPasswordToken;
         return ret;
       },
     },
@@ -75,7 +66,6 @@ const userSchema = new Schema<IUser>(
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ employeeId: 1 }, { sparse: true });
 userSchema.index({ role: 1, isActive: 1 });
-userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
 
 /**
  * Instance method: Check if user has specific role

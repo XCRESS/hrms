@@ -1,5 +1,14 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { X, ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { LeaveType, LeaveMode } from "@/types";
 import { usePreviewLeaveDays } from "@/hooks/queries/useLeaves";
 
@@ -39,8 +48,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
     }
   }, [leaveMode, startDate]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit({
@@ -60,18 +67,14 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform transition-all duration-300 ease-out scale-95 animate-modal-pop-in">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Request Leave</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg p-6 md:p-8">
+        <DialogHeader className="mb-6 pr-8 text-left">
+          <DialogTitle className="text-2xl font-semibold text-gray-800 dark:text-slate-100">Request Leave</DialogTitle>
+          <DialogDescription className="sr-only">
+            Submit a leave request for approval.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Leave Mode Toggle */}
@@ -133,7 +136,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                 type="date"
                 value={startDate}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                 required
               />
             </div>
@@ -152,7 +154,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                       setEndDate(e.target.value);
                     }
                   }}
-                  className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                   required
                 />
               </div>
@@ -164,7 +165,6 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                   value={endDate}
                   min={startDate || undefined}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
                   required
                 />
               </div>
@@ -182,7 +182,7 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
               ) : preview ? (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Info size={16} className="text-cyan-600 dark:text-cyan-400 flex-shrink-0" />
+                    <Info size={16} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
                     <span className="text-sm font-semibold text-cyan-800 dark:text-cyan-200">
                       {preview.workingDays} working day{preview.workingDays !== 1 ? 's' : ''} will be deducted
                     </span>
@@ -204,13 +204,12 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
 
           <div>
             <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Reason <span className="text-gray-400 font-normal">(optional)</span></label>
-            <textarea
+            <Textarea
               id="reason"
               value={reason}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
               placeholder="Provide a brief reason for your leave..."
               rows={4}
-              className="w-full bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
               maxLength={500}
               data-gramm="false"
             />
@@ -234,8 +233,8 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

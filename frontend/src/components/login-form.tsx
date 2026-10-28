@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useLogin } from "@/hooks/queries";
 import { useState, useEffect, FormEvent } from "react";
 import singup from "../assets/signupImg.png";
 import { useToast } from "@/components/ui/toast.jsx";
 import { Eye, EyeOff, Bug, Copy, AlertTriangle } from "lucide-react";
 import DebugUtils from "../utils/debugUtils";
-import notificationService from "../service/notificationService.js";
+import notificationService from "../services/notificationService";
 
 interface ErrorDetails {
   name: string;
@@ -225,12 +225,14 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent focus:outline-none z-10 flex items-center justify-center"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                      className="absolute right-0.5 top-0.5 bottom-0.5 z-10 flex items-center justify-center rounded-md bg-card px-3 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors" />
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
                       ) : (
-                        <Eye className="h-4 w-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors" />
+                        <Eye className="h-4 w-4" aria-hidden="true" />
                       )}
                     </button>
                   </div>
@@ -244,7 +246,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                   <div className="space-y-3">
                     <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                       <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                         <div className="flex-1">
                           <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
                             Login Issue Detected

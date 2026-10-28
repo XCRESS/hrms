@@ -1,5 +1,13 @@
-import { useEffect, useState, ChangeEvent } from "react";
-import { MapPin, AlertCircle, X, Send } from "lucide-react";
+import { useState, ChangeEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPin, AlertCircle, Send } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Location {
   latitude?: number;
@@ -25,7 +33,7 @@ interface WFHRequestModalProps {
   onClose: () => void;
   onSubmit: (reason: string) => void;
   submitting?: boolean;
-  context?: Context;
+  context?: Context | null;
 }
 
 const WFHRequestModal = ({
@@ -33,21 +41,15 @@ const WFHRequestModal = ({
   onClose,
   onSubmit,
   submitting = false,
-  context = {}
+  context
 }: WFHRequestModalProps) => {
+  // Reset happens by remount: the parent keys this component on `isOpen`, so
+  // each open starts with fresh state and no reset effect is needed.
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
-      setReason("");
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const geofence = context.geofence || {};
-  const location = context.location || {};
-  const locationError = context.locationError;
+  const geofence = context?.geofence ?? {};
+  const location = context?.location ?? {};
+  const locationError = context?.locationError;
   const distance = geofence.distance ?? null;
   const radius = geofence.radius ?? 100;
   const nearestOffice = geofence.nearestOffice || "the office";
@@ -65,35 +67,28 @@ const WFHRequestModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4 py-6">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative border border-border">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-slate-700 dark:text-muted-foreground dark:hover:text-slate-200"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-4">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg rounded-2xl border-border bg-white p-6 dark:bg-slate-900">
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 mb-4 pr-8 text-left">
           <div className="p-2 rounded-xl bg-red-50 text-red-500 dark:bg-red-500/10">
             <AlertCircle className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Request Work From Home
-            </h2>
-            <p className="text-sm text-muted-foreground">
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
               {isLocationUnavailable
                 ? "Unable to verify your location. Submit a WFH request to proceed."
                 : "You appear to be outside the allowed office radius. Submit a WFH request to proceed."}
-            </p>
+            </DialogDescription>
           </div>
-        </div>
+        </DialogHeader>
 
         {isLocationUnavailable ? (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-4">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Location Unavailable</p>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
@@ -126,14 +121,14 @@ const WFHRequestModal = ({
           </div>
         )}
 
-        <label className="block text-sm font-medium text-foreground mb-2">
+        <label htmlFor="wfh-reason" className="block text-sm font-medium text-foreground mb-2">
           Reason for Work From Home
         </label>
-        <textarea
+        <Textarea
+          id="wfh-reason"
           value={reason}
           onChange={handleTextChange}
           rows={4}
-          className="w-full rounded-xl border border-border bg-white dark:bg-slate-900 text-foreground px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400"
           placeholder="Share a brief reason (e.g., client visit, internet outage, commute disruption)..."
         />
         <p className="text-xs text-muted-foreground mt-1">
@@ -165,8 +160,8 @@ const WFHRequestModal = ({
             )}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

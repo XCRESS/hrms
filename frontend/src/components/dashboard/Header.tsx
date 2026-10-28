@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from "react";
 import { Clock, User, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin, Edit3, List, Receipt } from "lucide-react";
 import { formatTime, formatISTDate } from "../../utils/luxonUtils";
 import useProfilePicture from "../../hooks/useProfilePicture";
+import AvatarViewer from "../ui/AvatarViewer";
 
 interface TimeDisplayProps { }
 
@@ -66,7 +67,8 @@ const Header: React.FC<HeaderProps> = ({
   toggleTheme,
   theme
 }) => {
-  const { profilePicture } = useProfilePicture();
+  const { imageUrl, documentId, employeeId } = useProfilePicture();
+  const [showAvatarViewer, setShowAvatarViewer] = useState(false);
 
   return (
     <header className="bg-card shadow-lg p-4 transition-all duration-300 rounded-xl border border-border">
@@ -74,19 +76,27 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
         {/* Welcome Message */}
         <div className="flex items-center mb-4 sm:mb-0">
-          {profilePicture?.s3Url ? (
-            <div className="w-12 h-12 rounded-xl shadow-lg overflow-hidden ring-2 ring-white/20 dark:ring-black/20">
-              <img
-                src={profilePicture.s3Url as string}
-                alt={username}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="bg-gradient-to-br from-[#EBA04B] to-[#D4881A] text-white p-3 rounded-xl shadow-lg">
-              <User size={22} />
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowAvatarViewer(true)}
+            title="View profile picture"
+            aria-label="View profile picture"
+            className="rounded-xl transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#EBA04B] focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+          >
+            {imageUrl ? (
+              <div className="w-12 h-12 rounded-xl shadow-lg overflow-hidden ring-2 ring-white/20 dark:ring-black/20">
+                <img
+                  src={imageUrl}
+                  alt={username}
+                  className="w-full h-full object-cover object-center"
+                />
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-[#EBA04B] to-[#D4881A] text-white p-3 rounded-xl shadow-lg">
+                <User size={22} />
+              </div>
+            )}
+          </button>
           <div className="ml-4">
             <p className="text-sm font-medium text-muted-foreground">Welcome back,</p>
             <p className="text-xl font-bold" style={{ color: '#FEE2A1' }}>
@@ -194,6 +204,16 @@ const Header: React.FC<HeaderProps> = ({
               : "Check Out"}
         </button>
       </div>
+
+      <AvatarViewer
+        open={showAvatarViewer}
+        onClose={() => setShowAvatarViewer(false)}
+        imageUrl={imageUrl}
+        name={username}
+        employeeId={employeeId}
+        documentId={documentId}
+        canEdit
+      />
     </header>
   );
 };

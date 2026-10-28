@@ -2,6 +2,7 @@ import { useState, ChangeEvent } from 'react';
 import { Upload, X, File, Plus } from 'lucide-react';
 import { useToast } from './toast';
 import { useUploadDocument, useDeleteDocument } from '@/hooks/queries';
+import type { DocumentType } from '@/types';
 
 interface UploadedFile {
     _id: string;
@@ -37,15 +38,15 @@ const FileUpload = ({
         const selectedFile = event.target.files?.[0];
         if (!selectedFile) return;
 
-        const formData = new FormData();
-        formData.append('document', selectedFile);
-        formData.append('employeeId', employeeId);
-        formData.append('documentType', documentType);
-
-        uploadMutation.mutate(formData, {
-            onSuccess: (response) => {
-                setFile(response.document);
-                onFileChange(response.document);
+        uploadMutation.mutate({
+            employeeId,
+            documentType: documentType as DocumentType,
+            file: selectedFile,
+        }, {
+            onSuccess: (uploadedDocument) => {
+                const nextFile = (uploadedDocument as UploadedFile | undefined) ?? null;
+                setFile(nextFile);
+                onFileChange(nextFile);
 
                 toast({
                     title: "Success",
@@ -58,7 +59,7 @@ const FileUpload = ({
                 toast({
                     title: "Error",
                     description: error.message || "Failed to upload file",
-                    variant: "destructive"
+                    variant: "error"
                 });
             }
         });
@@ -67,7 +68,11 @@ const FileUpload = ({
     const handleFileDelete = () => {
         if (!file) return;
 
-        deleteMutation.mutate(file._id, {
+        deleteMutation.mutate({
+            documentId: file._id,
+            employeeId,
+            documentType: documentType as DocumentType,
+        }, {
             onSuccess: () => {
                 setFile(null);
                 onFileChange(null);
@@ -83,7 +88,7 @@ const FileUpload = ({
                 toast({
                     title: "Error",
                     description: error.message || "Failed to delete file",
-                    variant: "destructive"
+                    variant: "error"
                 });
             }
         });

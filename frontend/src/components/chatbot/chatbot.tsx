@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Copy, Check } from 'lucide-react';
+import { Textarea } from "@/components/ui/textarea";
+import { Send, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import signupImg from '../../assets/signupImg.png';
 import { apiCallWithFallback, isDevelopment, getEnvironmentInfo } from '../../config/api';
@@ -208,7 +209,7 @@ const ChatBot: React.FC = () => {
           <img
             src={signupImg}
             alt="HRMS Buddy"
-            className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+            className="w-6 h-6 rounded-full object-cover shrink-0"
           />
           <div className="min-w-0">
             <h1 className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -248,12 +249,13 @@ const ChatBot: React.FC = () => {
           {/* Input Area - Centered */}
           <div className="w-full max-w-3xl px-2 sm:px-0">
             <div className="relative">
-              <textarea
+              <Textarea
                 ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Message HRMS Buddy..."
+                variant="bare"
                 className={cn(
                   "w-full resize-none rounded-2xl bg-gray-100 dark:bg-[#40414f]",
                   "px-3 sm:px-4 py-3 pr-12 sm:pr-14 text-[16px] placeholder-gray-500 dark:placeholder-[#8e8ea0]",
@@ -377,12 +379,13 @@ const ChatBot: React.FC = () => {
           <div className="bg-white dark:bg-[#212121]">
             <div className="max-w-3xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
               <div className="relative">
-                <textarea
+                <Textarea
                   ref={inputRef}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Message HRMS Buddy..."
+                  variant="bare"
                   className={cn(
                     "w-full resize-none rounded-2xl bg-gray-100 dark:bg-[#40414f]",
                     "px-3 sm:px-4 py-3 pr-12 sm:pr-14 text-[16px] placeholder-gray-500 dark:placeholder-[#8e8ea0]",

@@ -3,19 +3,11 @@ import FileUpload from '../ui/FileUpload';
 import useAuth from '../../hooks/authjwt';
 import useProfilePicture from '../../hooks/useProfilePicture';
 
-interface UploadedFile {
-    _id: string;
-    fileName: string;
-    s3Url: string;
-    createdAt: string;
-}
-
 const ProfilePicture = () => {
   const userObject = useAuth();
-  const { profilePicture, updateProfilePicture, refetch } = useProfilePicture();
+  const { imageUrl, documentId, employeeId, refetch } = useProfilePicture();
 
-  const handleProfilePictureChange = (newFile: UploadedFile | null) => {
-    updateProfilePicture(newFile);
+  const handleProfilePictureChange = () => {
     refetch(); // Refresh the profile picture data
   };
 
@@ -23,11 +15,11 @@ const ProfilePicture = () => {
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
       <div className="text-center mb-6">
         <div className="w-24 h-24 mx-auto rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center border-2 border-slate-200 dark:border-slate-600 mb-4">
-          {profilePicture?.s3Url ? (
+          {imageUrl ? (
             <img
-              src={profilePicture.s3Url}
+              src={imageUrl}
               alt="Profile"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
           ) : (
             <User className="w-12 h-12 text-slate-400" />
@@ -42,11 +34,15 @@ const ProfilePicture = () => {
         </p>
       </div>
 
-      {userObject?.employeeId && (
+      {employeeId && (
         <FileUpload
-          employeeId={userObject.employeeId}
+          employeeId={employeeId}
           documentType="profile_picture"
-          currentFile={profilePicture}
+          currentFile={
+            imageUrl && documentId
+              ? { _id: documentId, fileName: 'profile-picture', s3Url: imageUrl, createdAt: '' }
+              : null
+          }
           onFileChange={handleProfilePictureChange}
           accept="image/*"
           maxSize="5MB"

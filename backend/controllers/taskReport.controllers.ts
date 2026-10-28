@@ -1,3 +1,4 @@
+import type { SubmitTaskReportInput } from '../validators/content.schemas.js';
 import type { Response } from 'express';
 import TaskReport from '../models/TaskReport.model.js';
 import Employee from '../models/Employee.model.js';
@@ -46,7 +47,7 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
 
     logger.info({ employeeObjId }, 'submitTaskReport: Employee ObjectId found');
 
-    const { tasks, date } = req.body as { tasks: unknown; date?: string };
+    const { tasks, date } = req.body as SubmitTaskReportInput;
 
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
       logger.error({ tasks }, 'submitTaskReport: Invalid tasks data');
@@ -54,7 +55,9 @@ export const submitTaskReport = async (req: IAuthRequest, res: Response): Promis
       return;
     }
 
-    const validTasks = tasks.filter(task => task && typeof task === 'string' && task.trim() !== '');
+    const validTasks = tasks.filter(
+      (task): task is string => typeof task === 'string' && task.trim() !== ''
+    );
     if (validTasks.length === 0) {
       logger.error({ tasks, validTasks }, 'submitTaskReport: No valid tasks after filtering');
       res.status(400).json(formatResponse(false, 'At least one non-empty task is required'));

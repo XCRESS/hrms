@@ -1,3 +1,4 @@
+import type { HolidayInput, UpdateHolidayInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import Holiday from '../models/Holiday.model.js';
 import notificationService from '../utils/notificationService.js';
@@ -13,7 +14,13 @@ import type { IHoliday } from '../types/index.js';
  * Transform a holiday document to match frontend expectations
  * Maps model fields (name, type) to frontend fields (title, isOptional)
  */
-const transformHolidayForResponse = (holiday: IHoliday) => ({
+/** Only the fields this mapper reads, so it accepts lean POJOs and documents alike. */
+type HolidayResponseFields = Pick<
+  IHoliday,
+  '_id' | 'name' | 'date' | 'description' | 'type' | 'isActive' | 'createdAt' | 'updatedAt'
+>;
+
+const transformHolidayForResponse = (holiday: HolidayResponseFields) => ({
   _id: holiday._id,
   title: holiday.name,
   date: holiday.date,
@@ -87,8 +94,8 @@ const getHolidayName = (name?: string, title?: string): string | undefined => {
 
 export const createHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, name, date, isOptional, type, description } = req.body;
-    const holidayName = getHolidayName(name, title);
+    const { title, name, date, isOptional, type, description } = req.body as HolidayInput;
+    const holidayName = getHolidayName(name ?? undefined, title ?? undefined);
 
     if (!holidayName || !date) {
       res.status(400).json({ success: false, message: 'Name/Title and date are required for a holiday.' });
@@ -112,8 +119,8 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
     const holiday = await Holiday.create({
       name: holidayName,
       date: holidayDate,
-      type: determineHolidayType(type, isOptional),
-      description
+      type: determineHolidayType(type ?? undefined, isOptional ?? undefined),
+      description: description ?? undefined
     });
 
     // Send notification (non-blocking)
@@ -137,7 +144,7 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
 
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
   try {
-    const holidays = await Holiday.find().sort({ date: 1 });
+    const holidays = await Holiday.find().sort({ date: 1 }).lean();
     const transformedHolidays = holidays.map(transformHolidayForResponse);
     res.status(200).json({ success: true, holidays: transformedHolidays });
   } catch (err) {
@@ -150,7 +157,7 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
 export const updateHoliday = async (req: Request, res: Response): Promise<void> => {
   try {
     const holidayId = req.params.id;
-    const { title, name, date, isOptional, type, description } = req.body;
+    const { title, name, date, isOptional, type, description } = req.body as UpdateHolidayInput;
 
     if (Object.keys(req.body).length === 0) {
       res.status(400).json({ success: false, message: 'No update data provided.' });
@@ -189,15 +196,15 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
     }
 
     // Build update payload
-    const holidayName = getHolidayName(name, title);
+    const holidayName = getHolidayName(name ?? undefined, title ?? undefined);
     const updatePayload: { name?: string; date?: Date; type?: string; description?: string } = {};
 
     if (holidayName !== undefined) updatePayload.name = holidayName;
     if (newDateObj !== undefined) updatePayload.date = newDateObj;
-    if (type !== undefined || isOptional !== undefined) {
-      updatePayload.type = determineHolidayType(type, isOptional);
+    if (type != null || isOptional != null) {
+      updatePayload.type = determineHolidayType(type ?? undefined, isOptional ?? undefined);
     }
-    if (description !== undefined) updatePayload.description = description;
+    if (description != null) updatePayload.description = description;
 
     if (Object.keys(updatePayload).length === 0) {
       res.status(400).json({ success: false, message: 'No valid fields to update were provided.' });

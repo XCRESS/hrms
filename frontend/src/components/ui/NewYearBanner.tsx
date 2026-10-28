@@ -209,7 +209,7 @@ const NewYearBanner = () => {
         </div>
 
         {/* Right: Premium Countdown or Action */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           {seasonStatus === 'upcoming' ? (
              <div className="grid grid-cols-4 gap-2 md:gap-4 p-3 rounded-xl bg-white/5 border border-white/10 shadow-xl backdrop-blur-md">
                 <TimeUnit val={timeLeft.days} label="DAYS" />

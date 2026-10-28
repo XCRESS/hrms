@@ -78,6 +78,9 @@ export const useUploadDocument = () => {
 
       // If profile picture, dispatch event for other components
       if (variables.documentType === 'profile_picture') {
+        // The profile record holds the displayed avatar URL and is cached for an
+        // hour, so it must be invalidated or the new picture won't appear.
+        queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
         window.dispatchEvent(new Event('profile-picture-updated'));
       }
     },
@@ -91,7 +94,15 @@ export const useDeleteDocument = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ documentId, employeeId: _employeeId }: { documentId: string; employeeId: string }) => {
+    mutationFn: async ({
+      documentId,
+      employeeId: _employeeId,
+      documentType: _documentType,
+    }: {
+      documentId: string;
+      employeeId: string;
+      documentType?: DocumentType;
+    }) => {
       const { data } = await axiosInstance.delete<ApiResponse>(API_ENDPOINTS.DOCUMENTS.DELETE(documentId));
       return data;
     },
@@ -100,6 +111,12 @@ export const useDeleteDocument = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.documents.byEmployee(variables.employeeId),
       });
+
+      // Removing a profile picture clears it on the employee record too.
+      if (variables.documentType === 'profile_picture') {
+        queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
+        window.dispatchEvent(new Event('profile-picture-updated'));
+      }
     },
   });
 };

@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createOfficeLocationSchema, updateOfficeLocationSchema } from "../validators/content.schemas.js";
 import { Router } from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import {
@@ -12,10 +14,11 @@ const router: Router = Router();
 
 router.get("/", authMiddleware(["admin", "hr"]), getOfficeLocations);
 router.get("/active", authMiddleware(), getActiveOfficeLocations);
-router.post("/", authMiddleware(["admin", "hr"]), createOfficeLocation);
+router.post("/", authMiddleware(["admin", "hr"]), validateBody(createOfficeLocationSchema), createOfficeLocation);
 router.put(
   "/:locationId",
   authMiddleware(["admin", "hr"]),
+  validateBody(updateOfficeLocationSchema),
   updateOfficeLocation
 );
 router.delete(

@@ -72,7 +72,7 @@ const MissingCheckoutAlert = ({ onRegularizationRequest }: MissingCheckoutAlertP
     <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4 sm:p-6 mb-6 shadow-lg">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
         <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <div className="w-10 h-10 bg-amber-100 dark:bg-amber-800 rounded-full flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             </div>
@@ -104,15 +104,15 @@ const MissingCheckoutAlert = ({ onRegularizationRequest }: MissingCheckoutAlertP
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                 <div className="flex items-center space-x-2 text-foreground">
-                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <Calendar className="w-4 h-4 shrink-0" />
                   <span className="font-medium text-sm sm:text-base">{formatDate(attendance.date)}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-muted-foreground">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
+                  <Clock className="w-4 h-4 shrink-0" />
                   <span className="text-sm sm:text-base">Check-in: {formatTime(attendance.checkIn)}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span className="text-xs sm:text-sm font-medium">No checkout recorded</span>
                 </div>
               </div>

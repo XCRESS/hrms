@@ -11,6 +11,7 @@ import {
   XCircle
 } from "lucide-react";
 import { downloadSalarySlipPDF } from "../../../utils/pdfGenerator";
+import { useCompanies } from "../../../hooks/queries";
 import { formatIndianNumber } from "../../../utils/indianNumber";
 import type { SalarySlip, SalarySlipStatus, Employee, EmployeeReference } from "../../../types";
 
@@ -33,8 +34,10 @@ const SalarySlipCard: React.FC<SalarySlipCardProps> = ({
   onPublish,
   employeeData
 }) => {
+  const { data: companies } = useCompanies();
+
   const handleDownloadPDF = (): void => {
-    downloadSalarySlipPDF(slip, employeeName, monthName, employeeData);
+    downloadSalarySlipPDF(slip, employeeName, monthName, employeeData, companies);
   };
 
   const handlePublishToggle = (): void => {

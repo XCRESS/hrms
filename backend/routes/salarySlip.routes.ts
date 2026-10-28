@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createSalarySlipSchema, salarySlipStatusSchema, bulkSalarySlipStatusSchema } from "../validators/salary.schemas.js";
 import express, { type Router } from "express";
 import {
   createOrUpdateSalarySlip,
@@ -17,7 +19,7 @@ const router: Router = express.Router();
 router.get("/tax-calculation", authMiddleware(["admin", "hr"]), getTaxCalculation);
 
 // Create or update salary slip (HR/Admin only)
-router.post("/", authMiddleware(["admin", "hr"]), createOrUpdateSalarySlip);
+router.post("/", authMiddleware(["admin", "hr"]), validateBody(createSalarySlipSchema), createOrUpdateSalarySlip);
 
 // Get all salary slips with filters (HR/Admin only)
 router.get("/", authMiddleware(["admin", "hr"]), getAllSalarySlips);
@@ -29,10 +31,10 @@ router.get("/:employeeId/:month/:year", authMiddleware(["admin", "hr", "employee
 router.get("/employee/:employeeId", authMiddleware(["admin", "hr", "employee"]), getEmployeeSalarySlips);
 
 // Update salary slip status (publish/unpublish) (HR/Admin only)
-router.put("/:employeeId/:month/:year/status", authMiddleware(["admin", "hr"]), updateSalarySlipStatus);
+router.put("/:employeeId/:month/:year/status", authMiddleware(["admin", "hr"]), validateBody(salarySlipStatusSchema), updateSalarySlipStatus);
 
 // Bulk update salary slip status (HR/Admin only)
-router.put("/bulk/status", authMiddleware(["admin", "hr"]), bulkUpdateSalarySlipStatus);
+router.put("/bulk/status", authMiddleware(["admin", "hr"]), validateBody(bulkSalarySlipStatusSchema), bulkUpdateSalarySlipStatus);
 
 // Delete salary slip (HR/Admin only)
 router.delete("/:employeeId/:month/:year", authMiddleware(["admin", "hr"]), deleteSalarySlip);

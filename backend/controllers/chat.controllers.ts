@@ -1,3 +1,5 @@
+import type { ChatMessageInput, ClearConversationInput } from '../validators/content.schemas.js';
+import { paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import OpenAI from 'openai';
 import { HR_FUNCTIONS, executeHRFunction } from '../utils/hrChatbotFunctions.js';
@@ -54,10 +56,7 @@ const SYSTEM_INSTRUCTIONS = `You are HRMS Buddy, an intelligent HR assistant for
 - End with an offer to help with follow-up questions`;
 
 export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { message, conversation_id } = req.body as {
-    message: string;
-    conversation_id?: string;
-  };
+  const { message, conversation_id } = req.body as ChatMessageInput;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     throw new ValidationError('Message is required and cannot be empty');
@@ -182,7 +181,7 @@ export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
 });
 
 export const getConversationHistory = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { conversation_id } = req.params;
+  const conversation_id = paramValue(req.params.conversation_id);
 
   if (!conversation_id) {
     throw new ValidationError('Conversation ID is required');
@@ -198,8 +197,8 @@ export const getConversationHistory = asyncHandler(async (req: IAuthRequest, res
 });
 
 export const clearConversation = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { conversation_id } = req.params;
-  const { clear_all } = req.body as { clear_all?: boolean };
+  const conversation_id = paramValue(req.params.conversation_id);
+  const { clear_all } = req.body as ClearConversationInput;
 
   if (clear_all) {
     chatSessions.clear();

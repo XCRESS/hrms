@@ -1,3 +1,6 @@
+import { validateBody, validateQuery, validateParams } from "../middlewares/zodValidation.middleware.js";
+import { updateGlobalSettingsSchema, updateDepartmentSettingsSchema, createDepartmentSchema, renameDepartmentSchema, assignEmployeeToDepartmentSchema, getEffectiveSettingsQuerySchema, runRegularizationCleanupSchema, createCompanySchema, updateCompanySchema, companyIdParamsSchema } from "../validators/settings.schemas.js";
+import { getCompanies, addCompany, updateCompany, deleteCompany } from "../controllers/company.controllers.js";
 import { Router } from "express";
 import {
   getGlobalSettings,
@@ -14,7 +17,8 @@ import {
   assignEmployeeToDepartment,
   getAvailableEmployees,
   rescheduleDailyHrAttendanceReport,
-  testDailyHrAttendanceReport
+  testDailyHrAttendanceReport,
+  runRegularizationCleanup
 } from "../controllers/settings.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
@@ -22,31 +26,40 @@ const router: Router = Router();
 
 // Global settings routes (HR/Admin only)
 router.get("/global", authMiddleware(["admin", "hr"]), getGlobalSettings);
-router.put("/global", authMiddleware(["admin", "hr"]), updateGlobalSettings);
+router.put("/global", authMiddleware(["admin", "hr"]), validateBody(updateGlobalSettingsSchema), updateGlobalSettings);
 
 // Department settings routes (HR/Admin only)
 router.get("/department/:department", authMiddleware(["admin", "hr"]), getDepartmentSettings);
-router.put("/department/:department", authMiddleware(["admin", "hr"]), updateDepartmentSettings);
+router.put("/department/:department", authMiddleware(["admin", "hr"]), validateBody(updateDepartmentSettingsSchema), updateDepartmentSettings);
 router.delete("/department/:department", authMiddleware(["admin", "hr"]), deleteDepartmentSettings);
 
 // Effective settings (merged department + global) - can be used by all roles
-router.get("/effective", authMiddleware(["admin", "hr", "employee"]), getEffectiveSettings);
+router.get("/effective", authMiddleware(["admin", "hr", "employee"]), validateQuery(getEffectiveSettingsQuerySchema), getEffectiveSettings);
 
 // Utility routes
 router.get("/departments/list", authMiddleware(["admin", "hr"]), getDepartments);
 
 // Department management routes (HR/Admin only)
 router.get("/departments/stats", authMiddleware(["admin", "hr"]), getDepartmentStats);
-router.post("/departments", authMiddleware(["admin", "hr"]), addDepartment);
-router.put("/departments/:oldName/rename", authMiddleware(["admin", "hr"]), renameDepartment);
+router.post("/departments", authMiddleware(["admin", "hr"]), validateBody(createDepartmentSchema), addDepartment);
+router.put("/departments/:oldName/rename", authMiddleware(["admin", "hr"]), validateBody(renameDepartmentSchema), renameDepartment);
 router.delete("/departments/:name", authMiddleware(["admin", "hr"]), deleteDepartment);
 
 // Employee-department assignment routes (HR/Admin only)
 router.get("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), getAvailableEmployees);
-router.post("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), assignEmployeeToDepartment);
+router.post("/departments/:departmentName/employees", authMiddleware(["admin", "hr"]), validateBody(assignEmployeeToDepartmentSchema), assignEmployeeToDepartment);
+
+// Company routes: list is open to all roles (salary slip PDFs need the address)
+router.get("/companies", authMiddleware(["admin", "hr", "employee"]), getCompanies);
+router.post("/companies", authMiddleware(["admin", "hr"]), validateBody(createCompanySchema), addCompany);
+router.put("/companies/:id", authMiddleware(["admin", "hr"]), validateParams(companyIdParamsSchema), validateBody(updateCompanySchema), updateCompany);
+router.delete("/companies/:id", authMiddleware(["admin", "hr"]), validateParams(companyIdParamsSchema), deleteCompany);
 
 // Daily HR Attendance Report routes (HR/Admin only)
 router.post("/daily-hr-attendance-report/reschedule", authMiddleware(["admin", "hr"]), rescheduleDailyHrAttendanceReport);
 router.post("/daily-hr-attendance-report/test", authMiddleware(["admin", "hr"]), testDailyHrAttendanceReport);
+
+// Regularization retention routes (HR/Admin only)
+router.post("/regularization-retention/run-now", authMiddleware(["admin", "hr"]), validateBody(runRegularizationCleanupSchema), runRegularizationCleanup);
 
 export default router;

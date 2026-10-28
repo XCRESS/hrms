@@ -410,26 +410,13 @@ export class AttendanceBusinessService {
   }
 
   /**
-   * Determine which Saturday of the month a given date is
+   * Determine which Saturday of the month a given date is.
+   * Delegates to SettingsService so there is one IST-correct implementation.
    * @param date - Date to check (should be a Saturday)
    * @returns 1, 2, 3, or 4 representing 1st, 2nd, 3rd, or 4th Saturday
    */
   static getSaturdayWeekOfMonth(date: Date): number {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const dateNum = date.getDate();
-
-    // Find the first Saturday of the month
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayWeekday = firstDayOfMonth.getDay();
-
-    // Calculate first Saturday date (0=Sunday, 6=Saturday)
-    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
-
-    // Calculate which Saturday this date is
-    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
-
-    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
+    return settingsService.getSaturdayWeekOfMonth(toIST(date));
   }
 
   /**

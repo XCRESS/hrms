@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { submitTaskReportSchema } from "../validators/content.schemas.js";
 import { Router } from "express";
 import { getTaskReports, getMyTaskReports, submitTaskReport } from "../controllers/taskReport.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
@@ -7,7 +9,7 @@ import type { Response } from "express";
 const router: Router = Router();
 
 // Submit a standalone task report
-router.post("/submit", authMiddleware(), submitTaskReport);
+router.post("/submit", authMiddleware(), validateBody(submitTaskReportSchema), submitTaskReport);
 
 // Get task reports - returns appropriate reports based on user role
 router.get("/", authMiddleware(), async (req: IAuthRequest, res: Response) => {

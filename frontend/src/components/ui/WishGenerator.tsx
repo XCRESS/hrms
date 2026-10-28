@@ -1,6 +1,6 @@
 import { useState, ChangeEvent } from 'react';
 import { Wand2, Gift, Copy, Check, X } from 'lucide-react';
-import { generateChristmasWish } from '../../services/geminiService';
+import { generateChristmasWish } from '../../services/festiveMessages';
 
 type Relationship = 'Friend' | 'Family' | 'Colleague' | 'Partner';
 type Theme = 'heartfelt' | 'funny' | 'religious' | 'poetic';

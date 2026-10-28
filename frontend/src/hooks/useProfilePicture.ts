@@ -1,43 +1,57 @@
 import { useEffect, useMemo } from 'react';
-import { useEmployeeDocuments } from './queries';
+import { useEmployeeDocuments, useProfile } from './queries';
 import useAuth from './authjwt';
 
-// Interface for document with profile picture
-interface Document {
-  documentType: string;
-  url?: string;
-  [key: string]: unknown;
-}
-
-// Interface for profile picture result
-interface ProfilePicture extends Document {
-  documentType: 'profile_picture';
-}
-
-// Return type for the hook
+/**
+ * Result of the profile picture hook.
+ *
+ * `imageUrl` comes from the employee profile, which resolves the employee
+ * server-side and therefore works for admin/HR accounts whose JWT may not
+ * carry an `employeeId`. The documents query is only consulted to resolve the
+ * underlying document id needed to delete the picture.
+ */
 interface UseProfilePictureResult {
-  profilePicture: ProfilePicture | null;
+  imageUrl: string | null;
+  documentId: string | null;
+  employeeId: string | null;
   loading: boolean;
-  updateProfilePicture: () => void;
   refetch: () => void;
 }
 
 const useProfilePicture = (): UseProfilePictureResult => {
   const userObject = useAuth();
+  const { data: employee, isLoading: profileLoading, refetch: refetchProfile } = useProfile();
 
-  // Fetch all documents for the employee
-  const { data: documents = [], isLoading: loading, refetch } = useEmployeeDocuments(userObject?.employeeId);
+  // Prefer the employee id resolved by the profile endpoint over the JWT claim,
+  // which is absent on some admin tokens.
+  const employeeId = employee?.employeeId || userObject?.employeeId || null;
 
-  // Extract profile picture from documents
-  const profilePicture = useMemo((): ProfilePicture | null => {
-    const doc = documents.find(doc => doc.documentType === 'profile_picture');
-    return doc ? (doc as unknown as ProfilePicture) : null;
-  }, [documents]);
+  const {
+    data: documents = [],
+    isLoading: documentsLoading,
+    refetch: refetchDocuments,
+  } = useEmployeeDocuments(employeeId || undefined);
 
-  // Listen for profile picture updates (legacy support for window events)
+  const profilePictureDoc = useMemo(
+    () => documents.find((doc) => doc.documentType === 'profile_picture') || null,
+    [documents]
+  );
+
+  // The profile record is the source of truth for display; fall back to the
+  // document record so a freshly uploaded picture shows before the profile
+  // query settles.
+  const imageUrl = employee?.profilePicture || profilePictureDoc?.s3Url || null;
+
+  const refetch = (): void => {
+    refetchProfile();
+    refetchDocuments();
+  };
+
+  // Legacy support: some components still signal updates via a window event.
   useEffect(() => {
     const handleProfilePictureUpdate = (): void => {
-      refetch();
+      refetchProfile();
+      refetchDocuments();
     };
 
     window.addEventListener('profile-picture-updated', handleProfilePictureUpdate);
@@ -45,18 +59,14 @@ const useProfilePicture = (): UseProfilePictureResult => {
     return () => {
       window.removeEventListener('profile-picture-updated', handleProfilePictureUpdate);
     };
-  }, [refetch]);
-
-  // Legacy update function (React Query handles this automatically now)
-  const updateProfilePicture = (): void => {
-    refetch();
-  };
+  }, [refetchProfile, refetchDocuments]);
 
   return {
-    profilePicture,
-    loading,
-    updateProfilePicture,
-    refetch
+    imageUrl,
+    documentId: profilePictureDoc?._id || null,
+    employeeId,
+    loading: profileLoading || documentsLoading,
+    refetch,
   };
 };
 

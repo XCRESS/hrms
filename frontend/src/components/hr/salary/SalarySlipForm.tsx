@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,8 @@ import {
     useSalaryStructure,
     useTaxCalculation,
     useCreateOrUpdateSalaryStructure,
-    useCreateOrUpdateSalarySlip
+    useCreateOrUpdateSalarySlip,
+    useCompanies
 } from "../../../hooks/queries";
 import { SalarySlip, Employee, SalaryEarnings } from "../../../types";
 
@@ -83,6 +84,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
 
     // React Query hooks
     const { data: employeesData, isLoading: employeesLoading } = useEmployees();
+    const { data: companies } = useCompanies();
     const employees: Employee[] = employeesData || [];
 
     const { data: salaryStructureData } = useSalaryStructure(selectedEmployee, {
@@ -417,7 +419,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                 bankAccountNumber: employeeDetails.bankDetails?.accountNumber,
                 panNumber: employeeDetails.bankDetails?.panNumber || employeeDetails.govtId?.pan,
                 joiningDate: employeeDetails.joiningDate
-            });
+            }, companies);
 
             toast({
                 title: "Success",
@@ -438,7 +440,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
     const netSalary = grossSalary - taxAmount - customDeductionsTotal;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
+        <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -1060,9 +1062,9 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">Indra Financial Services Limited</h3>
+                                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">{employeeDetails?.companyName}</h3>
                                                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs ml-auto">
-                                                        C-756, Front Basement, New Friends Colony, South Delhi 110025
+                                                        {companies?.find(c => c.name === employeeDetails?.companyName)?.address}
                                                     </p>
                                                 </div>
                                             </div>

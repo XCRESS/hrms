@@ -74,11 +74,11 @@ export const useUpdateOfficeLocation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updateData }: UpdateOfficeLocationDto & { id: string }) => {
+    mutationFn: async ({ locationId, updates }: { locationId: string; updates: UpdateOfficeLocationDto }) => {
       // Backend returns { success, data: { location } } via formatResponse
       const { data } = await axiosInstance.put<ApiResponse<{ location: OfficeLocation }>>(
-        API_ENDPOINTS.OFFICE_LOCATIONS.UPDATE(id),
-        updateData
+        API_ENDPOINTS.OFFICE_LOCATIONS.UPDATE(locationId),
+        updates
       );
       return data.data?.location;
     },

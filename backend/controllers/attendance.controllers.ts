@@ -1,3 +1,4 @@
+import type { CheckInInput, CheckOutInput, UpdateAttendanceRecordInput } from '../validators/attendance.schemas.js';
 /**
  * Refactored Attendance Controllers
  * Simplified controllers using the new service layer architecture
@@ -29,7 +30,8 @@ import {
 } from '../utils/attendance/attendanceErrorHandler.js';
 import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezone.js';
 import TaskReport from '../models/TaskReport.model.js';
-import GeofenceService from '../services/GeofenceService.js';
+import GeofenceService, { MAX_TRUSTED_ACCURACY_METERS } from '../services/GeofenceService.js';
+import { DEFAULT_GEOFENCE_RADIUS_METERS } from '../models/OfficeLocation.model.js';
 import WFHRequest from '../models/WFHRequest.model.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
@@ -64,9 +66,20 @@ interface EffectiveSettings {
   };
 }
 
-const parseCoordinates = (latitude: unknown, longitude: unknown, { required = false } = {}): Coordinates | null => {
-  const hasLat = latitude !== undefined && latitude !== null && latitude !== '';
-  const hasLng = longitude !== undefined && longitude !== null && longitude !== '';
+/**
+ * Narrow the validated body's coordinates and apply the required/optional rule.
+ *
+ * Range and numeric coercion are handled by `checkInSchema`/`checkOutSchema`;
+ * what stays here is the part the schema cannot know - whether location is
+ * mandatory for THIS request, which depends on runtime geofence settings.
+ */
+const parseCoordinates = (
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+  { required = false } = {}
+): Coordinates | null => {
+  const hasLat = latitude !== undefined && latitude !== null;
+  const hasLng = longitude !== undefined && longitude !== null;
 
   if (!hasLat && !hasLng) {
     if (required) {
@@ -79,17 +92,13 @@ const parseCoordinates = (latitude: unknown, longitude: unknown, { required = fa
     throw new BusinessLogicError('Both latitude and longitude must be provided', { latitude, longitude });
   }
 
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-
-  if (Number.isNaN(lat) || Number.isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-    throw new BusinessLogicError('Invalid location coordinates', { latitude, longitude });
-  }
-
-  return { latitude: lat, longitude: lng };
+  return { latitude, longitude };
 };
 
-const buildLocationPayload = (coordinates: Coordinates | null, { accuracy, capturedAt }: { accuracy?: unknown; capturedAt?: Date } = {}): LocationPayload | null => {
+const buildLocationPayload = (
+  coordinates: Coordinates | null,
+  { accuracy, capturedAt }: { accuracy?: number | null; capturedAt?: Date } = {}
+): LocationPayload | null => {
   if (!coordinates) return null;
 
   const payload: LocationPayload = {
@@ -100,9 +109,10 @@ const buildLocationPayload = (coordinates: Coordinates | null, { accuracy, captu
       : new Date()
   };
 
-  const parsedAccuracy = accuracy !== undefined ? Number(accuracy) : undefined;
-  if (parsedAccuracy !== undefined && !Number.isNaN(parsedAccuracy) && parsedAccuracy >= 0) {
-    payload.accuracy = parsedAccuracy;
+  // `accuracy >= 0` rather than a truthiness test: 0 is a legitimate (if
+  // implausible) reading and must not be silently dropped.
+  if (typeof accuracy === 'number' && Number.isFinite(accuracy) && accuracy >= 0) {
+    payload.accuracy = accuracy;
   }
 
   return payload;
@@ -128,8 +138,10 @@ const findTodayApprovedWFH = async (employeeObjId: unknown) => {
 
 const buildGeofenceErrorDetails = (office: { name?: string; radius?: number } | null, distance: number | null, geofenceSettings: GeofenceSettings | undefined, operation: string) => ({
   geofence: {
-    nearestOffice: office?.name || null,
-    radius: office?.radius || geofenceSettings?.defaultRadius || 100,
+    nearestOffice: office?.name ?? null,
+    // `??` throughout: a configured radius of 0 is a misconfiguration worth
+    // surfacing, not something to paper over with the 100m default.
+    radius: office?.radius ?? geofenceSettings?.defaultRadius ?? DEFAULT_GEOFENCE_RADIUS_METERS,
     distance: typeof distance === 'number' ? parseFloat(distance.toFixed(2)) : null,
     canRequestWFH: !!geofenceSettings?.allowWFHBypass,
     operation
@@ -140,12 +152,14 @@ const validateGeofenceForOperation = async ({
   operation,
   geofenceSettings,
   coordinates,
+  accuracy,
   employeeObjId,
   attendanceGeofence
 }: {
   operation: string;
   geofenceSettings: GeofenceSettings | undefined;
   coordinates: Coordinates | null;
+  accuracy?: number | null;
   employeeObjId: unknown;
   attendanceGeofence?: { status?: string };
 }): Promise<{ enforced: boolean; status: string; office: unknown; distance: number | null; wfhRequest?: unknown } | null> => {
@@ -164,15 +178,36 @@ const validateGeofenceForOperation = async ({
     });
   }
 
-  const { isValid, nearestOffice, distance } = await GeofenceService.isWithinGeofence(
+  const { isValid, nearestOffice, distance, accuracyRejected } = await GeofenceService.isWithinGeofence(
     coordinates.latitude,
-    coordinates.longitude
+    coordinates.longitude,
+    null,
+    accuracy
   );
 
   if (!nearestOffice) {
     throw new BusinessLogicError(
       'No active office locations configured. Please ask HR to add an office location before using geo-fenced attendance.',
       { adminAction: 'configure_office_location' }
+    );
+  }
+
+  // A fix too imprecise to judge is not the same as being out of range - say so,
+  // so the user retries outdoors instead of being told they are not at work.
+  if (accuracyRejected) {
+    throw new BusinessLogicError(
+      `Your location is only accurate to about ${Math.round(accuracy ?? 0)} meters, which is too imprecise to confirm you are at the office. Move outdoors or near a window and try again.`,
+      {
+        ...buildGeofenceErrorDetails(
+          nearestOffice as { name?: string; radius?: number },
+          distance,
+          geofenceSettings,
+          operation
+        ),
+        locationInaccurate: true,
+        accuracy: accuracy ?? null,
+        maxAccuracy: MAX_TRUSTED_ACCURACY_METERS
+      }
     );
   }
 
@@ -241,12 +276,7 @@ export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response
   const locationSetting = effectiveSettings.general?.locationSetting || 'na';
   const geofenceSettings = effectiveSettings.general?.geofence;
 
-  const { latitude, longitude, accuracy, capturedAt } = req.body as {
-    latitude?: unknown;
-    longitude?: unknown;
-    accuracy?: unknown;
-    capturedAt?: string;
-  };
+  const { latitude, longitude, accuracy, capturedAt } = req.body as CheckInInput;
 
   const requireLocationForCheckIn =
     locationSetting === 'mandatory' ||
@@ -265,6 +295,7 @@ export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response
     operation: 'check-in',
     geofenceSettings,
     coordinates,
+    accuracy: locationPayload?.accuracy,
     employeeObjId
   });
 
@@ -294,7 +325,10 @@ export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response
       status: geofenceMeta.status,
       office: (geofenceMeta.office as { _id: unknown })?._id,
       officeName: (geofenceMeta.office as { name: string })?.name,
-      distance: geofenceMeta.distance ? Math.round(geofenceMeta.distance) : null,
+      // Guard on the type, not truthiness: a distance of 0 (standing on the
+      // office pin) is a real measurement and must not be recorded as unknown.
+      distance:
+        typeof geofenceMeta.distance === 'number' ? Math.round(geofenceMeta.distance) : null,
       radius: (geofenceMeta.office as { radius: number })?.radius,
       validatedAt: new Date(),
       wfhRequest: (geofenceMeta.wfhRequest as { _id: unknown })?._id || undefined
@@ -328,13 +362,7 @@ export const checkOut = asyncErrorHandler(async (req: IAuthRequest, res: Respons
     throw new BusinessLogicError(ERROR_MESSAGES.AUTH_REQUIRED, { auth: ERROR_MESSAGES.NO_VALID_USER });
   }
 
-  const { tasks, latitude, longitude, accuracy, capturedAt } = req.body as {
-    tasks?: unknown[];
-    latitude?: unknown;
-    longitude?: unknown;
-    accuracy?: unknown;
-    capturedAt?: string;
-  };
+  const { tasks, latitude, longitude, accuracy, capturedAt } = req.body as CheckOutInput;
 
   const employeeObjId = await getEmployeeObjectId(req.user);
   if (!employeeObjId) {
@@ -412,6 +440,7 @@ export const checkOut = asyncErrorHandler(async (req: IAuthRequest, res: Respons
       operation: 'check-out',
       geofenceSettings,
       coordinates: checkoutCoordinates,
+      accuracy: checkoutLocationPayload?.accuracy,
       employeeObjId,
       attendanceGeofence: (attendance as { geofence?: { status?: string } })?.geofence
     });
@@ -623,13 +652,7 @@ export const updateAttendanceRecord = asyncErrorHandler(async (req: IAuthRequest
   if (!validateAdminAccess(req, res)) return;
 
   const { recordId } = req.params;
-  const { status, checkIn, checkOut, employeeId, date } = req.body as {
-    status?: string;
-    checkIn?: string;
-    checkOut?: string;
-    employeeId?: string;
-    date?: string;
-  };
+  const { status, checkIn, checkOut, employeeId, date } = req.body as UpdateAttendanceRecordInput;
 
   let updatedRecord;
 

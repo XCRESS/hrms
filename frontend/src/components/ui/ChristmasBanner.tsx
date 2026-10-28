@@ -60,7 +60,7 @@ const ChristmasBanner = ({ username = 'Team' }: ChristmasBannerProps) => {
           </div>
 
           {/* Center: Countdown Section */}
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <Countdown compact />
           </div>
 

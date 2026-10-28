@@ -11,6 +11,7 @@ import {
     ChevronRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import useAuth from "../../../hooks/authjwt";
 import BackButton from "../../ui/BackButton";
 import SalarySlipForm from "./SalarySlipForm";
@@ -52,6 +53,7 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
     });
 
     const { toast } = useToast();
+    const confirm = useConfirm();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const user = useAuth();
 
@@ -120,7 +122,13 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
     };
 
     const handleDelete = async (slip: SalarySlip) => {
-        if (!window.confirm('Are you sure you want to delete this salary slip?')) {
+        const confirmed = await confirm({
+            title: 'Delete salary slip?',
+            description: 'Are you sure you want to delete this salary slip? This action cannot be undone.',
+            confirmText: 'Delete',
+            destructive: true,
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -213,7 +221,7 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+        <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4">

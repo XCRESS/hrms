@@ -1,3 +1,5 @@
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { createPasswordResetRequestSchema, rejectPasswordResetSchema } from "../validators/hr.schemas.js";
 import express, { type Router } from "express";
 import {
   createPasswordResetRequest,
@@ -12,7 +14,7 @@ const router: Router = express.Router();
 // @route   POST /api/password-reset/request
 // @desc    User submits a password reset request
 // @access  Public
-router.post("/request", createPasswordResetRequest);
+router.post("/request", validateBody(createPasswordResetRequestSchema), createPasswordResetRequest);
 
 // @route   GET /api/password-reset/requests
 // @desc    Admin/HR gets all password reset requests (can filter by status e.g., ?status=pending)
@@ -27,7 +29,7 @@ router.put("/request/:id/approve", authMiddleware(["admin", "hr"]), approvePassw
 // @route   PUT /api/password-reset/request/:id/reject
 // @desc    Admin/HR rejects a password reset request
 // @access  Private (Admin, HR)
-router.put("/request/:id/reject", authMiddleware(["admin", "hr"]), rejectPasswordResetRequest);
+router.put("/request/:id/reject", authMiddleware(["admin", "hr"]), validateBody(rejectPasswordResetSchema), rejectPasswordResetRequest);
 
 
 export default router;

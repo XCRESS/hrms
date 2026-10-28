@@ -1,14 +1,13 @@
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
+import User from '../models/User.model.js';
 import EmailService from './emailService.js';
-import WhatsAppService from './whatsappService.js';
 import PushService from './pushService.js';
 import logger from '../utils/logger.js';
 
 interface NotificationStatus {
   initialized: boolean;
   emailReady: boolean;
-  whatsappReady: boolean;
   pushReady: boolean;
 }
 
@@ -30,7 +29,6 @@ class NotificationService {
       logger.info('Initializing notification services...');
 
       await EmailService.initialize();
-      await WhatsAppService.initialize();
       PushService.initialize();
 
       this.initialized = true;
@@ -45,9 +43,9 @@ class NotificationService {
   async notifyHR(type: string, data: NotificationData): Promise<void> {
     try {
       const settings = await Settings.getGlobalSettings();
-      const { hrEmails, hrPhones, hrEmailTypes } = settings.notifications;
+      const { hrEmails, hrEmailTypes } = settings.notifications;
 
-      if (hrEmails.length === 0 && hrPhones.length === 0) {
+      if (hrEmails.length === 0) {
         logger.info('No HR contacts configured for notifications');
         return;
       }
@@ -81,18 +79,8 @@ class NotificationService {
         logger.info(`HR email notifications disabled for type: ${type}`);
       }
 
-      if (settings.notifications.whatsappEnabled && hrPhones.length > 0) {
-        promises.push(
-          WhatsAppService.sendNotification(type, data, hrPhones)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'WhatsApp notification failed');
-            })
-        );
-      }
-
       if (settings.notifications.pushEnabled) {
-        const hrSubscriptions = PushService.getHRSubscriptions();
+        const hrSubscriptions = await PushService.getHRSubscriptions();
         if (hrSubscriptions.length > 0) {
           promises.push(
             PushService.sendNotification(type, data, hrSubscriptions)
@@ -138,24 +126,8 @@ class NotificationService {
         }
       }
 
-      if (settings.notifications.whatsappEnabled) {
-        const phoneNumbers = employees
-          .map(emp => emp.phone ? `+91${emp.phone}` : null)
-          .filter((phone): phone is string => phone !== null);
-
-        if (phoneNumbers.length > 0) {
-          promises.push(
-            WhatsAppService.sendNotification(type, data, phoneNumbers)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'WhatsApp notification failed');
-              })
-          );
-        }
-      }
-
       if (settings.notifications.pushEnabled) {
-        const allSubscriptions = PushService.getAllSubscriptions();
+        const allSubscriptions = await PushService.getAllSubscriptions();
         if (allSubscriptions.length > 0) {
           promises.push(
             PushService.sendNotification(type, data, allSubscriptions)
@@ -198,21 +170,18 @@ class NotificationService {
         );
       }
 
-      if (settings.notifications.whatsappEnabled && employee.phone) {
-        promises.push(
-          WhatsAppService.sendNotification(type, data, `+91${employee.phone}`)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'WhatsApp notification failed');
-            })
-        );
-      }
-
       if (settings.notifications.pushEnabled) {
-        const allSubscriptions = PushService.getAllSubscriptions();
-        if (allSubscriptions.length > 0) {
+        // Only this employee's own devices. This used to fan out to every
+        // stored subscription, so one person's leave decision would have been
+        // pushed to the whole company once delivery actually worked.
+        const user = await User.findOne({ employeeId, isActive: true }).select('_id').lean();
+        const subscriptions = user
+          ? await PushService.getSubscriptionsForUser(user._id.toString())
+          : [];
+
+        if (subscriptions.length > 0) {
           promises.push(
-            PushService.sendNotification(type, data, allSubscriptions)
+            PushService.sendNotification(type, data, subscriptions)
               .catch((error: unknown) => {
                 const err = error instanceof Error ? error : new Error('Unknown error');
                 logger.error({ err }, 'Push notification failed');
@@ -242,7 +211,7 @@ class NotificationService {
 
       logger.info('Testing notification system...');
 
-      if (settings.notifications.hrEmails.length > 0 || settings.notifications.hrPhones.length > 0) {
+      if (settings.notifications.hrEmails.length > 0) {
         await this.notifyHR('leave_request', testData);
         logger.info('HR notification test completed');
       }
@@ -267,7 +236,6 @@ class NotificationService {
     return {
       initialized: this.initialized,
       emailReady: !!EmailService.transporter,
-      whatsappReady: WhatsAppService.isReady,
       pushReady: PushService.initialized
     };
   }

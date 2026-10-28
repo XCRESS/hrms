@@ -1,6 +1,12 @@
+import { paramValue } from '../utils/helpers.js';
+import type {
+  RegisterInput,
+  LoginInput,
+  UpdateEmployeeIdInput,
+  UnlinkEmployeeInput,
+} from '../validators/auth.schemas.js';
 import type { Response } from 'express';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import { generateTokenFromUser } from '../utils/jwt.js';
@@ -9,13 +15,14 @@ import { ValidationError, NotFoundError } from '../utils/errors.js';
 import type { IAuthRequest } from '../types/index.js';
 
 export const register = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { name, email, password, role, employeeId } = req.body as {
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-    employeeId?: string;
-  };
+  // Shape guaranteed by validateBody(registerSchema) on the route.
+  const { name, email, password, role, employeeId } = req.body as RegisterInput;
+
+  // HR may staff the directory but not mint privileged accounts; without this
+  // an HR user could create an admin and escalate their own access.
+  if (req.user?.role !== 'admin' && role !== 'employee') {
+    throw new ValidationError('Only an admin can create admin or HR accounts');
+  }
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -37,11 +44,10 @@ export const register = asyncHandler(async (req: IAuthRequest, res: Response) =>
     role
   };
 
-  if (role === 'employee') {
-    if (!employeeId) {
-      throw new ValidationError('Employee ID is required for employee users');
-    }
-
+  // Any role may link a profile, and none has to at creation time. An employee
+  // account left unlinked cannot log in (login enforces that) until it is
+  // linked from the directory's Accounts tab.
+  if (employeeId) {
     const employee = await Employee.findOne({ employeeId });
     if (!employee) {
       throw new NotFoundError('Employee not found for given employeeId');
@@ -56,7 +62,7 @@ export const register = asyncHandler(async (req: IAuthRequest, res: Response) =>
 });
 
 export const login = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { email, password } = req.body as { email: string; password: string };
+  const { email, password } = req.body as LoginInput;
 
   const user = await User.findOne({ email });
   if (!user) {
@@ -85,48 +91,8 @@ export const login = asyncHandler(async (req: IAuthRequest, res: Response) => {
   res.json({ success: true, message: 'Login successful', token });
 });
 
-export const forgotPassword = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { email } = req.body as { email: string };
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new NotFoundError('User not found');
-  }
-
-  const resetToken = crypto.randomBytes(20).toString('hex');
-  user.resetPasswordToken = resetToken;
-  user.resetPasswordExpires = new Date(Date.now() + 3600000);
-  await user.save();
-
-  res.json({
-    success: true,
-    message: 'Password reset token generated. Use this token to reset your password within the next hour.',
-    resetToken
-  });
-});
-
-export const resetPassword = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { token, newPassword } = req.body as { token: string; newPassword: string };
-
-  const user = await User.findOne({
-    resetPasswordToken: token,
-    resetPasswordExpires: { $gt: Date.now() }
-  });
-
-  if (!user) {
-    throw new ValidationError('Invalid or expired token');
-  }
-
-  user.password = await bcrypt.hash(newPassword, 10);
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpires = undefined;
-  await user.save();
-
-  res.json({ success: true, message: 'Password has been reset successfully' });
-});
-
 export const updateEmployeeId = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { userId, employeeId } = req.body as { userId: string; employeeId: string };
+  const { userId, employeeId } = req.body as UpdateEmployeeIdInput;
 
   if (!userId || !employeeId) {
     throw new ValidationError('User ID and Employee ID are required');
@@ -161,7 +127,7 @@ export const updateEmployeeId = asyncHandler(async (req: IAuthRequest, res: Resp
 });
 
 export const unlinkEmployee = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { userId } = req.body as { userId: string };
+  const { userId } = req.body as UnlinkEmployeeInput;
 
   if (!userId) {
     throw new ValidationError('User ID is required');
@@ -218,7 +184,7 @@ export const findUsersWithMissingEmployeeId = asyncHandler(async (req: IAuthRequ
 });
 
 export const getUserByEmployeeId = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { employeeId } = req.params;
+  const employeeId = paramValue(req.params.employeeId);
 
   if (!employeeId) {
     throw new ValidationError('Employee ID parameter is required');
@@ -245,7 +211,7 @@ export const getAllUsers = asyncHandler(async (req: IAuthRequest, res: Response)
 });
 
 export const deleteUser = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const { userId } = req.params;
+  const userId = paramValue(req.params.userId);
 
   const user = await User.findById(userId);
   if (!user) {
@@ -259,9 +225,24 @@ export const deleteUser = asyncHandler(async (req: IAuthRequest, res: Response) 
     );
   }
 
-  // Safety: refuse to delete admin or HR accounts
-  if (user.role === 'admin' || user.role === 'hr') {
-    throw new ValidationError('Cannot delete admin or HR user accounts.');
+  // Mirrors register: HR staffs the directory, only an admin touches
+  // privileged accounts.
+  if (req.user?.role !== 'admin' && user.role !== 'employee') {
+    throw new ValidationError('Only an admin can delete admin or HR accounts.');
+  }
+
+  // Never delete yourself, and never remove the last admin — either would lock
+  // the organisation out of user management. A mistyped account is still
+  // deletable, which is the point of allowing this at all.
+  if (String(user._id) === String(req.user?._id)) {
+    throw new ValidationError('You cannot delete your own account.');
+  }
+
+  if (user.role === 'admin') {
+    const admins = await User.countDocuments({ role: 'admin' });
+    if (admins <= 1) {
+      throw new ValidationError('Cannot delete the only admin account.');
+    }
   }
 
   await User.findByIdAndDelete(userId);

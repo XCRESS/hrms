@@ -1,3 +1,4 @@
+import type { CreatePolicyInput, UpdatePolicyInput } from '../validators/content.schemas.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import Policy from '../models/Policy.model.js';
@@ -18,18 +19,7 @@ export const createPolicy = async (req: IAuthRequest, res: Response): Promise<vo
       acknowledgmentRequired,
       targetAudience,
       attachments
-    } = req.body as {
-      title: string;
-      content: string;
-      category?: string;
-      priority?: string;
-      effectiveDate?: string;
-      expiryDate?: string;
-      tags?: string[];
-      acknowledgmentRequired?: boolean;
-      targetAudience?: string;
-      attachments?: unknown[];
-    };
+    } = req.body as CreatePolicyInput;
 
     if (!title || !content) {
       res.status(400).json(formatResponse(false, 'Title and content are required'));
@@ -190,7 +180,7 @@ export const getPolicyById = async (req: IAuthRequest, res: Response): Promise<v
 export const updatePolicy = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const updateData: Record<string, unknown> = { ...req.body };
+    const updateData: Record<string, unknown> = { ...(req.body as UpdatePolicyInput) };
 
     delete updateData.createdBy;
     delete updateData.createdAt;

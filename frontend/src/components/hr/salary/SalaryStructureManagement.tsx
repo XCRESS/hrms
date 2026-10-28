@@ -18,6 +18,7 @@ import {
     ChevronRight
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import useAuth from "../../../hooks/authjwt";
 import BackButton from "../../ui/BackButton";
 import { formatIndianNumber } from "../../../utils/indianNumber";
@@ -63,6 +64,7 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
     });
 
     const { toast } = useToast();
+    const confirm = useConfirm();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const user = useAuth();
 
@@ -158,7 +160,13 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
     };
 
     const handleDelete = async (structure: SalaryStructure) => {
-        if (!window.confirm(`Are you sure you want to delete the salary structure for ${getEmployeeName(structure)}?`)) {
+        const confirmed = await confirm({
+            title: 'Delete salary structure?',
+            description: `Are you sure you want to delete the salary structure for ${getEmployeeName(structure)}? This action cannot be undone.`,
+            confirmText: 'Delete',
+            destructive: true,
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -245,7 +253,7 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
     // Show form component
     if (showForm) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+            <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
                 <div className="max-w-4xl mx-auto space-y-6">
                     {/* Header */}
                     <div className="flex items-center gap-4">
@@ -484,7 +492,7 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+        <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4">

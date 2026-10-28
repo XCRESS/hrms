@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Textarea } from "@/components/ui/textarea";
 import { RotateCcw, Save, MapPin } from 'lucide-react';
 import { GeofenceSettings as GeofenceSettingsType, OfficeFormData } from './types';
 import { OfficeLocation } from '@/types';
@@ -14,6 +15,8 @@ interface GeofenceSettingsProps {
     onSave: () => void;
     onReset: () => void;
     loading: boolean;
+    /** Office locations are fetched separately from the settings document. */
+    officeLoading?: boolean;
     saving: boolean;
     creatingLocation: boolean;
 }
@@ -28,6 +31,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
     onSave,
     onReset,
     loading,
+    officeLoading = false,
     saving,
     creatingLocation
 }) => {
@@ -41,11 +45,17 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
         isActive: true
     });
 
-    const handleGeofenceChange = (field: keyof GeofenceSettingsType, value: any) => {
+    const handleGeofenceChange = <K extends keyof GeofenceSettingsType>(
+        field: K,
+        value: GeofenceSettingsType[K]
+    ) => {
         onUpdateGeofence({ ...geofenceSettings, [field]: value });
     };
 
-    const handleOfficeInputChange = (field: keyof OfficeFormData, value: any) => {
+    const handleOfficeInputChange = <K extends keyof OfficeFormData>(
+        field: K,
+        value: OfficeFormData[K]
+    ) => {
         setOfficeForm(prev => ({ ...prev, [field]: value }));
     };
 
@@ -136,7 +146,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                             type="checkbox"
                             checked={geofenceSettings.enabled}
                             onChange={(e) => handleGeofenceChange('enabled', e.target.checked)}
-                            className="h-5 w-5 flex-shrink-0"
+                            className="h-5 w-5 shrink-0"
                         />
                     </label>
                     <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -148,7 +158,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                             type="checkbox"
                             checked={geofenceSettings.enforceCheckIn}
                             onChange={(e) => handleGeofenceChange('enforceCheckIn', e.target.checked)}
-                            className="h-5 w-5 flex-shrink-0"
+                            className="h-5 w-5 shrink-0"
                         />
                     </label>
                     <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -160,7 +170,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                             type="checkbox"
                             checked={geofenceSettings.enforceCheckOut}
                             onChange={(e) => handleGeofenceChange('enforceCheckOut', e.target.checked)}
-                            className="h-5 w-5 flex-shrink-0"
+                            className="h-5 w-5 shrink-0"
                         />
                     </label>
                     <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -172,7 +182,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                             type="checkbox"
                             checked={geofenceSettings.allowWFHBypass}
                             onChange={(e) => handleGeofenceChange('allowWFHBypass', e.target.checked)}
-                            className="h-5 w-5 flex-shrink-0"
+                            className="h-5 w-5 shrink-0"
                         />
                     </label>
                     <div className="flex flex-col">
@@ -200,16 +210,16 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                                 required
                                 value={officeForm.name}
                                 onChange={(e) => handleOfficeInputChange('name', e.target.value)}
-                                className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                                className="mt-1 sm:text-base"
                             />
                         </div>
                         <div>
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Address (optional)</label>
-                            <textarea
+                            <Textarea
                                 value={officeForm.address}
                                 onChange={(e) => handleOfficeInputChange('address', e.target.value)}
                                 rows={2}
-                                className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                                className="mt-1 sm:text-base"
                             />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -221,7 +231,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                                     required
                                     value={officeForm.latitude}
                                     onChange={(e) => handleOfficeInputChange('latitude', e.target.value)}
-                                    className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                                    className="mt-1 sm:text-base"
                                 />
                             </div>
                             <div>
@@ -232,7 +242,7 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                                     required
                                     value={officeForm.longitude}
                                     onChange={(e) => handleOfficeInputChange('longitude', e.target.value)}
-                                    className="mt-1 w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                                    className="mt-1 sm:text-base"
                                 />
                             </div>
                         </div>
@@ -282,7 +292,9 @@ const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                         <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">Saved Office Locations</h3>
                         <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{officeLocations.length} location{officeLocations.length !== 1 ? 's' : ''}</span>
                     </div>
-                    {officeLocations.length === 0 ? (
+                    {officeLoading ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Loading office locations...</p>
+                    ) : officeLocations.length === 0 ? (
                         <p className="text-sm text-slate-500 dark:text-slate-400">No office locations configured yet.</p>
                     ) : (
                         <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">

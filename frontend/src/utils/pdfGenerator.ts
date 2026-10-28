@@ -1,4 +1,5 @@
-import { formatIndianNumber, getCompanyAddress, convertToWords } from './indianNumber';
+import { formatIndianNumber, convertToWords } from './indianNumber';
+import type { Company } from '@/types';
 
 // Types for salary slip PDF generation - minimal local types for flexibility
 interface Earnings {
@@ -68,7 +69,8 @@ export const downloadSalarySlipPDF = (
   employeeName: string,
   monthName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  employeeData: EmployeeInfo | any = null
+  employeeData: EmployeeInfo | any = null,
+  companies: Company[] = []
 ): void => {
   // Create a new window for PDF
   const printWindow = window.open('', '_blank');
@@ -82,9 +84,8 @@ export const downloadSalarySlipPDF = (
   const baseUrl = window.location.origin;
   const companyLogo = `${baseUrl}/cfg-logo.jpg`; // Logo from public folder with absolute path
 
-  // Get company name and address
-  const companyName = employeeData?.companyName || slip.employee?.companyName || 'Indra Financial Services Limited';
-  const companyAddress = getCompanyAddress(companyName);
+  const companyName: string = employeeData?.companyName || slip.employee?.companyName || '';
+  const companyAddress = companies.find((c) => c.name.toLowerCase() === companyName.toLowerCase())?.address ?? '';
 
   // Generate netSalaryInWords using shared utility if not provided
   const netSalaryInWords = slip.netSalaryInWords || convertToWords(slip.netSalary);
