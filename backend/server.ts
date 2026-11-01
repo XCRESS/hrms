@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
-import { autoInvalidateMiddleware } from "./utils/cacheInvalidation.js";
 import { globalErrorHandler } from "./utils/asyncHandler.js";
 import logger from "./utils/logger.js";
+import { generalLimiter } from "./middlewares/rateLimit.middleware.js";
 
 dotenv.config();
 const app = express();
@@ -56,25 +56,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-import { rateLimit } from "express-rate-limit";
-
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login attempts per windowMs
-  message: "Too many login attempts, please try again later.",
-  skipSuccessfulRequests: true,
-});
-
-// Apply general rate limiter to all routes
 app.use(generalLimiter);
 
 // Document upload route BEFORE JSON middleware
@@ -86,9 +67,6 @@ app.use("/api/documents", documentRoutes);
 // so no JSON body legitimately needs more than a bulk array of IDs.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-
-// 🚀 Add cache auto-invalidation middleware for performance optimization
-app.use(autoInvalidateMiddleware);
 
 // MongoDB connection with Pino logging
 const connectToMongoDB = async (): Promise<void> => {
@@ -149,11 +127,6 @@ import officeLocationRoutes from "./routes/officeLocation.js";
 import wfhRequestRoutes from "./routes/wfhRequest.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
-
-// ============================================================================
-// CHRISTMAS FEATURE - Tetris Game Routes
-// TODO: Remove after holiday season
-// ============================================================================
 import tetrisRoutes from "./features/tetris/tetris.routes.js";
 
 // Notification Services
@@ -171,7 +144,7 @@ app.get('/api', (req: Request, res: Response) => {
   });
 });
 
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/holidays", holidayRoutes);
@@ -194,11 +167,6 @@ app.use("/api/wfh-requests", wfhRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/health", healthRoutes);
-
-// ============================================================================
-// CHRISTMAS FEATURE - Tetris Game API
-// TODO: Remove after holiday season
-// ============================================================================
 app.use("/api/tetris", tetrisRoutes);
 
 app.get('/', (req: Request, res: Response) => {

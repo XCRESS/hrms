@@ -1,7 +1,7 @@
 import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { checkInSchema, checkOutSchema, updateAttendanceRecordSchema } from "../validators/attendance.schemas.js";
+import { checkInSchema, checkOutSchema, geofenceCheckSchema, updateAttendanceRecordSchema } from "../validators/attendance.schemas.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { checkIn, checkOut, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getAdminAttendanceRange, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
+import { checkIn, checkOut, checkGeofence, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getAdminAttendanceRange, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router: Router = Router();
@@ -19,6 +19,7 @@ const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
 // Employee can check in and out
 router.post("/checkin", authMiddleware(), validateBody(checkInSchema), checkIn);
 router.post("/checkout", authMiddleware(), validateBody(checkOutSchema), checkOut);
+router.post("/geofence-check", authMiddleware(), validateBody(geofenceCheckSchema), checkGeofence);
 
 // Get missing checkouts for regularization reminders
 router.get("/missing-checkouts", authMiddleware(), noCacheMiddleware, getMissingCheckouts);

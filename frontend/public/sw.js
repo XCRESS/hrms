@@ -1,186 +1,111 @@
-// Service Worker for HRMS PWA
-// Handles push notifications and background sync
+// HRMS service worker: push delivery, notification clicks, subscription rotation.
+// Scheduling lives on the server — a worker is killed when idle, so timers here never fire.
 
-// Cache version - increment this to invalidate old caches
-const CACHE_VERSION = 'hrms-v1';
-const CACHE_NAMES = {
-  static: `${CACHE_VERSION}-static`,
-  dynamic: `${CACHE_VERSION}-dynamic`
+const API_BASE = new URL(self.location.href).searchParams.get('api') || '/api';
+const ICON = '/icon-192x192.png';
+const BADGE = '/favicon-48x48.png';
+
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+// Payloads use the Declarative Web Push shape ({ web_push: 8030, notification }),
+// which Safari can render on its own; this handler covers every other browser.
+const parsePush = (event) => {
+  if (!event.data) return null;
+  try {
+    const payload = event.data.json();
+    return payload.notification ?? payload;
+  } catch {
+    return { title: 'HRMS', body: event.data.text() };
+  }
 };
 
-// Environment-aware logging for service worker
-// In production builds, only errors are logged
-const IS_PRODUCTION = self.location.hostname !== 'localhost' && !self.location.hostname.includes('127.0.0.1');
-const swLogger = {
-  log: (...args) => !IS_PRODUCTION && console.log('[SW]', ...args),
-  error: (...args) => console.error('[SW Error]', ...args),
-  warn: (...args) => !IS_PRODUCTION && console.warn('[SW]', ...args)
+const toPath = (url) => {
+  if (!url) return '/dashboard';
+  try {
+    const parsed = new URL(url, self.location.origin);
+    return parsed.origin === self.location.origin ? parsed.pathname + parsed.search : '/dashboard';
+  } catch {
+    return '/dashboard';
+  }
 };
 
-// Install event - skip waiting immediately
-self.addEventListener('install', () => {
-  swLogger.log('Service Worker installing...');
-  self.skipWaiting();
+self.addEventListener('push', (event) => {
+  const n = parsePush(event);
+  if (!n) return;
+
+  const actions = (n.actions ?? []).slice(0, 2);
+  const options = {
+    body: n.body ?? '',
+    icon: ICON,
+    badge: BADGE,
+    lang: n.lang,
+    dir: n.dir,
+    silent: Boolean(n.silent),
+    requireInteraction: Boolean(n.require_interaction),
+    data: {
+      url: toPath(n.navigate ?? n.data?.url),
+      actions: Object.fromEntries(actions.map((a) => [a.action, toPath(a.navigate)])),
+      inboxId: n.data?.inboxId,
+    },
+    actions: actions.map(({ action, title }) => ({ action, title })),
+  };
+  if (n.tag) {
+    options.tag = n.tag;
+    options.renotify = true;
+  }
+
+  const badge = Number(n.app_badge);
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(n.title ?? 'HRMS', options),
+      Number.isFinite(badge) && self.navigator.setAppBadge ? self.navigator.setAppBadge(badge).catch(() => {}) : null,
+      self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clients) => clients.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED' }))),
+    ])
+  );
 });
 
-// Activate event - take control immediately
-self.addEventListener('activate', (event) => {
-  swLogger.log('Service Worker activating...');
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const { url = '/dashboard', actions = {} } = event.notification.data ?? {};
+  const target = (event.action && actions[event.action]) || url;
+
   event.waitUntil(
-    // Clean up OLD caches only (keep current version caches)
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          // Only delete caches that don't match current version
-          if (!Object.values(CACHE_NAMES).includes(cacheName)) {
-            swLogger.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return Promise.resolve();
-        })
-      );
-    }).then(() => self.clients.claim()).then(() => {
-      // Start scheduling check-in reminders when service worker activates
-      scheduleCheckInReminder();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      const client = clients.find((c) => new URL(c.url).origin === self.location.origin);
+      if (client) {
+        await client.focus();
+        client.postMessage({ type: 'NAVIGATE', url: target });
+        return;
+      }
+      return self.clients.openWindow(target);
     })
   );
 });
 
-// Push notification handler
-self.addEventListener('push', (event) => {
-  swLogger.log('Push notification received:', event);
-  
-  let notificationData = {
-    title: 'HRMS Notification',
-    body: 'You have a new notification',
-    icon: '/icon-192x192.png',
-    badge: '/icon-192x192.png',
-    tag: 'hrms-notification',
-    requireInteraction: true
-  };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = {
-        ...notificationData,
-        ...data,
-        actions: data.actions || []
-      };
-    } catch (e) {
-      swLogger.error('Error parsing push data:', e);
-      notificationData.body = event.data.text();
-    }
-  }
+// The browser rotated our endpoint. The worker has no auth token, so the server
+// matches on the old endpoint, which only this device knows.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const oldEndpoint = event.oldSubscription?.endpoint;
+  const options = event.oldSubscription?.options;
+  if (!oldEndpoint || !options?.applicationServerKey) return;
 
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationData)
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: options.applicationServerKey })
+      .then((subscription) =>
+        fetch(`${API_BASE}/notifications/resubscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldEndpoint, subscription: subscription.toJSON() }),
+        })
+      )
+      .catch(() => {})
   );
 });
 
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
-  swLogger.log('Notification clicked:', event);
-  
-  event.notification.close();
-  
-  const urlToOpen = event.notification.data?.url || '/';
-  
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Check if app is already open
-        for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
-            client.focus();
-            if (urlToOpen !== '/') {
-              client.postMessage({ type: 'NAVIGATE', url: urlToOpen });
-            }
-            return;
-          }
-        }
-        
-        // Open new window if app is not open
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(urlToOpen);
-        }
-      })
-  );
-});
-
-// Schedule daily check-in reminder at 9:25 AM
-function scheduleCheckInReminder() {
-  const now = new Date();
-  const target = new Date();
-  target.setHours(9, 25, 0, 0); // 9:25 AM
-  
-  // If it's already past 9:25 AM today, schedule for tomorrow
-  if (now > target) {
-    target.setDate(target.getDate() + 1);
-  }
-  
-  const timeUntilReminder = target.getTime() - now.getTime();
-  
-  setTimeout(() => {
-    // Check if it's a weekday (Monday = 1, Sunday = 0)
-    const day = new Date().getDay();
-    if (day >= 1 && day <= 5) { // Monday to Friday
-      self.registration.showNotification('Check-in Reminder', {
-        body: 'Don\'t forget to check in for work today!',
-        icon: '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        tag: 'checkin-reminder',
-        requireInteraction: true,
-        actions: [
-          {
-            action: 'checkin',
-            title: 'Check In Now'
-          },
-          {
-            action: 'dismiss',
-            title: 'Dismiss'
-          }
-        ],
-        data: { url: '/dashboard' }
-      });
-    }
-    
-    // Schedule next reminder (24 hours later)
-    scheduleCheckInReminder();
-  }, timeUntilReminder);
-}
-
-
-// Handle background sync
-self.addEventListener('sync', (event) => {
-  swLogger.log('Background sync triggered:', event.tag);
-  
-  if (event.tag === 'background-sync') {
-    event.waitUntil(
-      // Perform background tasks here
-      fetch('/api/sync-data').catch(() => {
-        swLogger.log('Background sync failed, will retry later');
-      })
-    );
-  }
-});
-
-// Message handler for communication with main app
 self.addEventListener('message', (event) => {
-  swLogger.log('Service Worker received message:', event.data);
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, body, data } = event.data;
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      tag: 'app-notification',
-      data
-    });
-  }
-}); 
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});

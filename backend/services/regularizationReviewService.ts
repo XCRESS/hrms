@@ -3,7 +3,6 @@ import RegularizationRequest from '../models/Regularization.model.js';
 import Attendance from '../models/Attendance.model.js';
 import Employee from '../models/Employee.model.js';
 import { getISTDayBoundaries } from '../utils/timezone.js';
-import { invalidateAttendanceCache, invalidateDashboardCache } from '../utils/cacheInvalidation.js';
 import { AttendanceBusinessService } from './attendance/AttendanceBusinessService.js';
 import NotificationService from '../services/notificationService.js';
 import logger from '../utils/logger.js';
@@ -134,15 +133,6 @@ export async function applyRegularizationReview({
       const statusResult = await AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null);
       att.status = statusResult.status;
       await att.save();
-    }
-
-    // A stale cache must not fail an otherwise-applied decision.
-    try {
-      invalidateAttendanceCache(employeeDoc.employeeId);
-      invalidateDashboardCache();
-    } catch (cacheError) {
-      const err = cacheError instanceof Error ? cacheError : new Error('Unknown error');
-      logger.error({ err }, 'Error invalidating cache (non-critical)');
     }
   }
 

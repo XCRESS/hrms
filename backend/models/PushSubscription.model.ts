@@ -1,13 +1,3 @@
-/**
- * PushSubscription Model - TypeScript + Mongoose
- * Web Push endpoints registered per user.
- *
- * These used to live in an in-process Map, which meant every Railway restart
- * silently dropped every subscription (and the subscribe flow only runs on
- * login, so they were rarely re-registered). They are persisted so delivery
- * survives a deploy.
- */
-
 import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
 export interface IPushSubscriptionDoc extends Document {
@@ -17,6 +7,9 @@ export interface IPushSubscriptionDoc extends Document {
     p256dh: string;
     auth: string;
   };
+  userAgent?: string;
+  lastSuccessAt?: Date;
+  failureCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,12 +36,14 @@ const pushSubscriptionSchema = new Schema<IPushSubscriptionDoc>(
         required: [true, 'auth key is required'],
       },
     },
+    userAgent: { type: String, maxlength: 400 },
+    lastSuccessAt: { type: Date },
+    failureCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-// The endpoint is the browser's identity for a subscription: one row per
-// endpoint, so re-subscribing on the same device updates rather than duplicates.
+// One row per endpoint: re-subscribing on the same device updates, never duplicates.
 pushSubscriptionSchema.index({ endpoint: 1 }, { unique: true });
 pushSubscriptionSchema.index({ user: 1 });
 

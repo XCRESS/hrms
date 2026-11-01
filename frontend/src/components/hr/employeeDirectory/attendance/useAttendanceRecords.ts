@@ -20,6 +20,7 @@ type RawRecord = {
     checkOut?: unknown;
     holidayTitle?: unknown;
     location?: unknown;
+    geofence?: unknown;
     flags?: unknown;
 };
 
@@ -46,6 +47,20 @@ function toLocation(raw: unknown): AttendanceRow['location'] {
     const latitude = toCoord(source.latitude);
     const longitude = toCoord(source.longitude);
     return latitude !== null && longitude !== null ? { latitude, longitude } : null;
+}
+
+function toGeofence(raw: unknown): AttendanceRow['geofence'] {
+    if (!raw || typeof raw !== 'object') return null;
+    const g = raw as Record<string, unknown>;
+    if (g.status !== 'onsite' && g.status !== 'offsite' && g.status !== 'wfh') return null;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+    return {
+        status: g.status,
+        enforced: g.enforced === true,
+        officeName: str(g.officeName),
+        distance: num(g.distance),
+        radius: num(g.radius),
+    };
 }
 
 function toFlags(raw: unknown): AttendanceRow['flags'] {
@@ -90,6 +105,7 @@ function toRow(raw: RawRecord): AttendanceRow | null {
         checkIn,
         checkOut: str(raw.checkOut),
         location: toLocation(raw.location),
+        geofence: toGeofence(raw.geofence),
         flags,
         holidayTitle: str(raw.holidayTitle) ?? (flags.isHoliday ? 'Holiday' : undefined),
     };

@@ -101,12 +101,12 @@ export interface IEmployee extends Document {
 // ============================================================================
 
 export type AttendanceStatus = 'present' | 'absent' | 'half-day';
-export type GeofenceStatus = 'onsite' | 'wfh';
+export type GeofenceStatus = 'onsite' | 'offsite' | 'wfh';
 
 export interface ILocation {
   latitude: number;
   longitude: number;
-  accuracy: number;
+  accuracy?: number;
   capturedAt: Date;
 }
 

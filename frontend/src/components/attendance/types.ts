@@ -9,6 +9,14 @@ export interface AttendanceStatistics {
     holiday: number;
 }
 
+export interface AttendanceGeofence {
+    status: 'onsite' | 'offsite' | 'wfh';
+    enforced: boolean;
+    officeName?: string;
+    distance?: number;
+    radius?: number;
+}
+
 /**
  * A record as this feature renders it.
  *
@@ -30,6 +38,7 @@ export interface AttendanceRow {
     checkIn?: string;
     checkOut?: string;
     location: { latitude: number; longitude: number } | null;
+    geofence?: AttendanceGeofence | null;
     flags: {
         isLate?: boolean;
         isLeave?: boolean;

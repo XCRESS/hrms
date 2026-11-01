@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { longTextSchema, shortTextSchema, dateStringSchema, nullishPartial, nullableDefault, latitudeSchema, longitudeSchema } from './common.schemas.js';
+import { longTextSchema, shortTextSchema, dateStringSchema, nullishPartial, nullableDefault, latitudeSchema, longitudeSchema, objectIdSchema } from './common.schemas.js';
 import {
   MIN_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
@@ -97,19 +97,44 @@ export const updateOfficeLocationSchema = nullishPartial(createOfficeLocationSch
 // Push notifications
 // ---------------------------------------------------------------------------
 
+export const officeLocationQuerySchema = z.object({
+  active: z.enum(['true', 'false']).optional(),
+});
+
 export const testNotificationSchema = z.object({
-  type: z.string().trim().max(50).nullish(),
+  type: z.enum(['self', 'hr', 'all', 'milestone', 'holiday', 'nudges']),
+});
+
+const webPushSubscriptionSchema = z.object({
+  endpoint: z.url('Invalid subscription endpoint').max(1000),
+  keys: z.object({
+    p256dh: z.string().min(1).max(200),
+    auth: z.string().min(1).max(100),
+  }),
 });
 
 export const pushSubscriptionSchema = z.object({
-  subscription: z.object({
-    endpoint: z.url('Invalid subscription endpoint'),
-    keys: z.object({
-      p256dh: z.string().min(1),
-      auth: z.string().min(1),
-    }),
-  }),
+  subscription: webPushSubscriptionSchema,
 });
+
+export const pushResubscribeSchema = z.object({
+  oldEndpoint: z.url().max(1000),
+  subscription: webPushSubscriptionSchema,
+});
+
+export const inboxQuerySchema = z.object({
+  before: objectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export const markNotificationsReadSchema = z
+  .object({
+    ids: z.array(objectIdSchema).max(100).optional(),
+    all: z.boolean().optional(),
+  })
+  .refine((data) => data.all === true || (data.ids?.length ?? 0) > 0, {
+    message: 'Provide ids or all: true',
+  });
 
 // Endpoint identifies the single device to drop. Omitted means "this user's
 // devices", which is what a sign-out style unsubscribe wants.
@@ -120,5 +145,9 @@ export const pushUnsubscribeSchema = z.object({
 export type UpdatePolicyInput = z.infer<typeof updatePolicySchema>;
 export type UpdateOfficeLocationInput = z.infer<typeof updateOfficeLocationSchema>;
 export type TestNotificationInput = z.infer<typeof testNotificationSchema>;
+export type OfficeLocationQuery = z.infer<typeof officeLocationQuerySchema>;
 export type PushSubscriptionInput = z.infer<typeof pushSubscriptionSchema>;
 export type PushUnsubscribeInput = z.infer<typeof pushUnsubscribeSchema>;
+export type PushResubscribeInput = z.infer<typeof pushResubscribeSchema>;
+export type InboxQuery = z.infer<typeof inboxQuerySchema>;
+export type MarkNotificationsReadInput = z.infer<typeof markNotificationsReadSchema>;

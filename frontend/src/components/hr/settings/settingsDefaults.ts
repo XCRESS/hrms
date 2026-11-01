@@ -54,6 +54,12 @@ export const DEFAULT_NOTIFICATIONS: NotificationSettingsData = {
     includeAbsentees: true,
     subjectLine: 'Daily Attendance Report - {date}',
   },
+  attendanceNudges: {
+    checkInReminder: { enabled: true, minutesBefore: 15 },
+    missedCheckIn: { enabled: true, minutesAfter: 30 },
+    missedCheckOut: { enabled: true, minutesAfter: 60 },
+    hrDigest: { enabled: true, minutesAfter: 120 },
+  },
   hrEmailTypes: {
     leaveRequests: true,
     wfhRequests: true,
@@ -117,6 +123,12 @@ export const mergeNotifications = (
   dailyHrAttendanceReport: {
     ...DEFAULT_NOTIFICATIONS.dailyHrAttendanceReport,
     ...section?.dailyHrAttendanceReport,
+  },
+  attendanceNudges: {
+    checkInReminder: { ...DEFAULT_NOTIFICATIONS.attendanceNudges.checkInReminder, ...section?.attendanceNudges?.checkInReminder },
+    missedCheckIn: { ...DEFAULT_NOTIFICATIONS.attendanceNudges.missedCheckIn, ...section?.attendanceNudges?.missedCheckIn },
+    missedCheckOut: { ...DEFAULT_NOTIFICATIONS.attendanceNudges.missedCheckOut, ...section?.attendanceNudges?.missedCheckOut },
+    hrDigest: { ...DEFAULT_NOTIFICATIONS.attendanceNudges.hrDigest, ...section?.attendanceNudges?.hrDigest },
   },
 });
 

@@ -14,7 +14,6 @@ import {
 import { getISTDateString, calculateWorkHours } from '../../utils/timezone.js';
 import AttendanceDataService from './AttendanceDataService.js';
 import AttendanceBusinessService, { type ProcessedAttendanceRecord } from './AttendanceBusinessService.js';
-import AttendanceCacheService from './AttendanceCacheService.js';
 import logger from '../../utils/logger.js';
 
 /**
@@ -97,14 +96,6 @@ export class AttendanceReportService {
    * @returns Employee attendance report
    */
   static async generateEmployeeReport(employeeId: string, startDate: Date, endDate: Date): Promise<any> {
-    // Check cache first
-    const period = `${getISTDateString(startDate)}_${getISTDateString(endDate)}`;
-    const cachedStats = await AttendanceCacheService.getCachedEmployeeAttendanceStats(employeeId, period);
-
-    if (cachedStats) {
-      return cachedStats;
-    }
-
     // Get employee data
     const employee = await AttendanceDataService.getEmployee(employeeId);
     if (!employee) {
@@ -156,8 +147,7 @@ export class AttendanceReportService {
     const statistics = calculateAttendanceStats(processedRecords as any);
     const attendancePercentage = AttendanceBusinessService.calculateAttendancePercentage(processedRecords);
 
-    // Generate summary
-    const report = {
+    return {
       employee: {
         _id: employee._id,
         employeeId: employee.employeeId,
@@ -188,11 +178,6 @@ export class AttendanceReportService {
         averageWorkHours: statistics.averageWorkHours
       }
     };
-
-    // Cache the report
-    await AttendanceCacheService.cacheEmployeeAttendanceStats(employeeId, period, report);
-
-    return report;
   }
 
   /**
@@ -203,14 +188,6 @@ export class AttendanceReportService {
    * @returns Team attendance report
    */
   static async generateDepartmentReport(department: string, startDate: Date, endDate: Date): Promise<any> {
-    // Check cache first
-    const period = `${getISTDateString(startDate)}_${getISTDateString(endDate)}`;
-    const cachedReport = await AttendanceCacheService.getCachedDepartmentAttendanceSummary(department, period);
-
-    if (cachedReport) {
-      return cachedReport;
-    }
-
     // Get all employees in the department
     const allEmployees = await AttendanceDataService.getActiveEmployees();
     const departmentEmployees = allEmployees.filter(emp => emp.department === department);
@@ -274,7 +251,7 @@ export class AttendanceReportService {
       );
     }
 
-    const departmentReport = {
+    return {
       department,
       period: {
         startDate: getISTDateString(startDate),
@@ -291,11 +268,6 @@ export class AttendanceReportService {
       })),
       trends: await this.calculateDepartmentTrends(department, startDate, endDate)
     };
-
-    // Cache the report
-    await AttendanceCacheService.cacheDepartmentAttendanceSummary(department, period, departmentReport);
-
-    return departmentReport;
   }
 
   /**
@@ -304,12 +276,6 @@ export class AttendanceReportService {
    * @returns Dashboard data
    */
   static async generateDashboardData(date: Date = new Date()): Promise<any> {
-    // Check cache first
-    const cachedSummary = await AttendanceCacheService.getCachedTodayAttendanceSummary(date);
-    if (cachedSummary) {
-      return cachedSummary;
-    }
-
     // Get all active employees
     const allEmployees = await AttendanceDataService.getActiveEmployees();
 
@@ -347,7 +313,7 @@ export class AttendanceReportService {
     // Determine day type
     const dayType = await AttendanceBusinessService.determineDayType(date, holidayMap);
 
-    const dashboardData = {
+    return {
       date: getISTDateString(date),
       dayType: dayType.type,
       isWorkingDay: dayType.isWorkingDay,
@@ -357,11 +323,6 @@ export class AttendanceReportService {
       departments: await this.getDepartmentWiseStats(processedRecords),
       recentTrends: await this.getRecentAttendanceTrends(date)
     };
-
-    // Cache the dashboard data
-    await AttendanceCacheService.cacheTodayAttendanceSummary(dashboardData, date);
-
-    return dashboardData;
   }
 
   /**

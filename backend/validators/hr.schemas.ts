@@ -22,7 +22,7 @@ import {
 export const announcementSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(300),
   content: longTextSchema.min(1, 'Content is required'),
-  targetAudience: z.string().trim().max(100).nullish(),
+  targetAudience: z.enum(['all', 'employee', 'hr', 'admin']).nullish(),
   status: z.string().trim().max(50).nullish(),
 });
 

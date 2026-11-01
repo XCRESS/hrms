@@ -15,6 +15,7 @@ import { Toaster } from './components/ui/toast';
 import { ConfirmProvider } from './components/ui/confirm-dialog';
 import ErrorBoundary from './components/ErrorBoundary';
 import RequireRole from './components/auth/RequireRole';
+import { registerServiceWorker } from './services/pushClient';
 
 // Lazy load heavy components
 const LandingPage = lazy(() => import('./components/landingPage/LandingPage'));
@@ -72,6 +73,8 @@ const PageLoader = () => (
 
 
 
+
+registerServiceWorker();
 
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>

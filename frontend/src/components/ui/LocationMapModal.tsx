@@ -5,6 +5,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import type { AttendanceGeofence } from '@/components/attendance/types';
+import { formatDistance } from '@/utils/geolocation';
 
 // Leaflet and its CSS are ~150kB that only matter once someone opens a pin.
 const MapCanvas = lazy(() =>
@@ -22,6 +24,7 @@ interface AttendanceRecord {
     checkOut?: string | Date;
     status?: string;
     location?: Location;
+    geofence?: AttendanceGeofence | null;
 }
 
 interface EmployeeProfile {
@@ -54,6 +57,16 @@ const statusVariant = (status?: string) => {
         case 'half-day': return 'primary' as const;
         default: return 'default' as const;
     }
+};
+
+const geofenceLabel = (g: AttendanceGeofence): { text: string; variant: 'success' | 'warning' | 'primary' } => {
+    if (g.status === 'wfh') return { text: 'WFH approved', variant: 'primary' };
+    const where = g.officeName ?? 'office';
+    if (g.status === 'onsite') return { text: `On-site · ${where}`, variant: 'success' };
+    return {
+        text: typeof g.distance === 'number' ? `${formatDistance(g.distance)} from ${where}` : `Off-site · ${where}`,
+        variant: 'warning',
+    };
 };
 
 /** One check-in time, shown inline rather than as its own card. */
@@ -133,6 +146,11 @@ export default function LocationMapModal({
                 <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-muted/40 px-4 py-2.5 text-sm">
                     <TimeStat icon={LogIn} label="In" value={formatTime(attendanceRecord?.checkIn)} />
                     <TimeStat icon={LogOut} label="Out" value={formatTime(attendanceRecord?.checkOut)} />
+                    {attendanceRecord?.geofence && (
+                        <Badge variant={geofenceLabel(attendanceRecord.geofence).variant}>
+                            {geofenceLabel(attendanceRecord.geofence).text}
+                        </Badge>
+                    )}
                     {attendanceRecord?.status && (
                         <Badge variant={statusVariant(attendanceRecord.status)} className="ml-auto">
                             {attendanceRecord.status.charAt(0).toUpperCase() + attendanceRecord.status.slice(1)}

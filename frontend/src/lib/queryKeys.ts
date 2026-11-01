@@ -99,6 +99,8 @@ export const queryKeys = {
     all: () => ['office-locations'] as const,
     list: (params?: OfficeLocationQueryParams) => ['office-locations', 'list', params] as const,
     active: () => ['office-locations', 'active'] as const,
+    geofenceCheck: (lat: number, lng: number, accuracy: number) =>
+      ['office-locations', 'geofence-check', lat, lng, accuracy] as const,
     detail: (id: string) => ['office-locations', 'detail', id] as const,
   },
 
@@ -190,10 +192,18 @@ export const queryKeys = {
   },
 
   // Notifications
+  geo: {
+    permission: () => ['geo', 'permission'] as const,
+    fix: () => ['geo', 'fix'] as const,
+  },
+
   notifications: {
     all: () => ['notifications'] as const,
+    inbox: () => ['notifications', 'inbox'] as const,
+    unread: () => ['notifications', 'unread'] as const,
     status: () => ['notifications', 'status'] as const,
-    vapidKey: () => ['notifications', 'vapid-key'] as const,
+    pushState: () => ['notifications', 'push-state'] as const,
+    pushSync: () => ['notifications', 'push-sync'] as const,
   },
 
   // Gift Game / Tetris (Christmas feature)

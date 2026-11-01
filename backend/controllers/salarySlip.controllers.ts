@@ -6,6 +6,8 @@ import SalarySlip from '../models/SalarySlip.model.js';
 import Employee from '../models/Employee.model.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
+import NotificationService from '../services/notificationService.js';
+import { DateTime } from 'luxon';
 import type { IAuthRequest } from '../types/index.js';
 
 export const createOrUpdateSalarySlip = async (req: IAuthRequest, res: Response): Promise<void> => {
@@ -324,6 +326,15 @@ export const getTaxCalculation = async (req: IAuthRequest, res: Response): Promi
   }
 };
 
+const notifyPayslipPublished = (employeeId: string, month: number, year: number): void => {
+  void NotificationService.notifyEmployee(
+    employeeId,
+    'payslip_published',
+    { period: DateTime.fromObject({ year, month }).toFormat('LLLL yyyy') },
+    { dedupeKey: (userId) => `payslip:${userId}:${year}-${month}` }
+  );
+};
+
 export const updateSalarySlipStatus = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
     const employeeId = paramValue(req.params.employeeId);
@@ -368,6 +379,10 @@ export const updateSalarySlipStatus = async (req: IAuthRequest, res: Response): 
       return;
     }
 
+    if (status === 'finalized') {
+      notifyPayslipPublished(decodedEmployeeId, parseInt(month, 10), parseInt(year, 10));
+    }
+
     res.status(200).json(formatResponse(true, `Salary slip ${status === 'finalized' ? 'published' : 'unpublished'} successfully`, salarySlip));
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
@@ -394,7 +409,7 @@ export const bulkUpdateSalarySlipStatus = async (req: IAuthRequest, res: Respons
       const employee = await Employee.findOne({ employeeId });
       if (!employee) return null;
 
-      return SalarySlip.findOneAndUpdate(
+      const slip = await SalarySlip.findOneAndUpdate(
         {
           employee: employee._id,
           month: parseInt(String(month), 10),
@@ -403,6 +418,10 @@ export const bulkUpdateSalarySlipStatus = async (req: IAuthRequest, res: Respons
         { status },
         { new: true }
       );
+      if (slip && status === 'finalized') {
+        notifyPayslipPublished(employeeId, slip.month, slip.year);
+      }
+      return slip;
     });
 
     const results = await Promise.all(updatePromises);

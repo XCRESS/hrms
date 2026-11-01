@@ -21,7 +21,6 @@ import {
   buildPaginationMeta
 } from '../../utils/attendance/attendanceHelpers.js';
 import { PAGINATION_DEFAULTS } from '../../utils/attendance/attendanceConstants.js';
-import AttendanceCacheService from './AttendanceCacheService.js';
 
 /**
  * Query options interface
@@ -67,30 +66,19 @@ export class AttendanceDataService {
 
   // Employee Data Operations
 
-  /**
-   * Get active employees with caching
-   * @returns Array of active employee documents
-   */
   static async getActiveEmployees(): Promise<any[]> {
-    return await AttendanceCacheService.getCachedActiveEmployees();
+    return await Employee.find({ isActive: true })
+      .select('_id firstName lastName employeeId department position joiningDate')
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
   }
 
-  /**
-   * Get employee by ID with caching
-   * @param employeeId - Employee ID
-   * @returns Employee document or null
-   */
   static async getEmployee(employeeId: string): Promise<IEmployee | null> {
-    return await AttendanceCacheService.getCachedEmployee(employeeId);
+    return await Employee.findOne({ employeeId, isActive: true }).lean<IEmployee>();
   }
 
-  /**
-   * Get employee by ObjectId with caching
-   * @param employeeObjectId - Employee ObjectId
-   * @returns Employee document or null
-   */
   static async getEmployeeById(employeeObjectId: string | Types.ObjectId): Promise<IEmployee | null> {
-    return await AttendanceCacheService.getCachedEmployeeById(employeeObjectId.toString());
+    return await Employee.findById(employeeObjectId).lean<IEmployee>();
   }
 
   // Attendance Data Operations
@@ -126,12 +114,7 @@ export class AttendanceDataService {
       attendanceData.workHours = 0;
     }
 
-    const attendance = await Attendance.create(attendanceData);
-
-    // Invalidate relevant caches
-    await AttendanceCacheService.invalidateAllAttendanceCaches();
-
-    return attendance;
+    return await Attendance.create(attendanceData);
   }
 
   /**
@@ -150,32 +133,17 @@ export class AttendanceDataService {
       updateData.workHours = 0;
 
       // Update without running validators to avoid the checkIn required issue
-      const attendance = await Attendance.findByIdAndUpdate(
+      return await Attendance.findByIdAndUpdate(
         recordId,
         updateData,
         { new: true, runValidators: false }
       );
-
-      // Invalidate relevant caches
-      if (attendance) {
-        await AttendanceCacheService.invalidateAllAttendanceCaches();
-      }
-
-      return attendance;
     } else {
-      // For non-absent status, run normal validation
-      const attendance = await Attendance.findByIdAndUpdate(
+      return await Attendance.findByIdAndUpdate(
         recordId,
         updateData,
         { new: true, runValidators: true }
       );
-
-      // Invalidate relevant caches
-      if (attendance) {
-        await AttendanceCacheService.invalidateAllAttendanceCaches();
-      }
-
-      return attendance;
     }
   }
 
@@ -447,13 +415,11 @@ export class AttendanceDataService {
   // Holiday Data Operations
 
   /**
-   * Get holidays in date range with caching
-   * @param startDate - Start date
-   * @param endDate - End date
-   * @returns Holiday map with date keys
+   * @returns Holidays keyed by IST date string (YYYY-MM-DD)
    */
   static async getHolidaysInRange(startDate: Date, endDate: Date): Promise<Map<string, any>> {
-    return await AttendanceCacheService.getCachedHolidaysInRange(startDate, endDate);
+    const holidays = await Holiday.find({ date: { $gte: startDate, $lte: endDate } }).lean();
+    return new Map(holidays.map((holiday) => [getISTDateString(holiday.date), holiday]));
   }
 
   // Task Report Operations
@@ -696,12 +662,7 @@ export class AttendanceDataService {
    * @returns Created records
    */
   static async bulkCreateAttendanceRecords(attendanceRecords: Partial<IAttendance>[]): Promise<any[]> {
-    const records = await Attendance.insertMany(attendanceRecords);
-
-    // Invalidate caches after bulk operation
-    await AttendanceCacheService.invalidateAllAttendanceCaches();
-
-    return records;
+    return await Attendance.insertMany(attendanceRecords);
   }
 
   /**
@@ -711,13 +672,7 @@ export class AttendanceDataService {
    */
   static async deleteAttendanceRecord(recordId: string): Promise<boolean> {
     const result = await Attendance.findByIdAndDelete(recordId);
-
-    if (result) {
-      await AttendanceCacheService.invalidateAllAttendanceCaches();
-      return true;
-    }
-
-    return false;
+    return result !== null;
   }
 }
 

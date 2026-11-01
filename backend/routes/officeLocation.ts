@@ -1,5 +1,5 @@
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { createOfficeLocationSchema, updateOfficeLocationSchema } from "../validators/content.schemas.js";
+import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
+import { createOfficeLocationSchema, updateOfficeLocationSchema, officeLocationQuerySchema } from "../validators/content.schemas.js";
 import { Router } from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import {
@@ -12,7 +12,7 @@ import {
 
 const router: Router = Router();
 
-router.get("/", authMiddleware(["admin", "hr"]), getOfficeLocations);
+router.get("/", authMiddleware(["admin", "hr"]), validateQuery(officeLocationQuerySchema), getOfficeLocations);
 router.get("/active", authMiddleware(), getActiveOfficeLocations);
 router.post("/", authMiddleware(["admin", "hr"]), validateBody(createOfficeLocationSchema), createOfficeLocation);
 router.put(

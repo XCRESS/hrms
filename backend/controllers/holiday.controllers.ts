@@ -1,8 +1,8 @@
 import type { HolidayInput, UpdateHolidayInput } from '../validators/hr.schemas.js';
 import type { Request, Response } from 'express';
 import Holiday from '../models/Holiday.model.js';
-import notificationService from '../utils/notificationService.js';
-import { parseISTDateString } from '../utils/timezone.js';
+import NotificationService from '../services/notificationService.js';
+import { parseISTDateString, toIST } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
 import type { IHoliday } from '../types/index.js';
 
@@ -55,29 +55,12 @@ const determineHolidayType = (type?: string, isOptional?: boolean): string => {
   return isOptional ? 'optional' : 'public';
 };
 
-/**
- * Send holiday notification with error handling
- * Logs errors but doesn't throw to avoid failing the main operation
- */
-const sendHolidayNotificationSafe = async (
-  holidayId: string,
-  title: string,
-  description: string,
-  date: Date
-): Promise<void> => {
-  try {
-    await notificationService.sendHolidayNotification({
-      _id: holidayId,
-      title,
-      description: description || '',
-      date,
-    });
-  } catch (notificationError) {
-    const error = notificationError instanceof Error
-      ? notificationError
-      : new Error('Unknown notification error');
-    logger.error({ err: error }, 'Failed to send holiday notification');
-  }
+const announceHoliday = (title: string, date: Date): void => {
+  if (toIST(date) < toIST(new Date()).startOf('day')) return;
+  void NotificationService.notifyAudience('all', 'holiday_added', {
+    title,
+    date: toIST(date).toFormat('cccc, d LLLL'),
+  });
 };
 
 /**
@@ -123,8 +106,7 @@ export const createHoliday = async (req: Request, res: Response): Promise<void> 
       description: description ?? undefined
     });
 
-    // Send notification (non-blocking)
-    await sendHolidayNotificationSafe(holiday._id.toString(), holidayName, description || '', holidayDate);
+    announceHoliday(holidayName, holidayDate);
 
     res.status(201).json({
       success: true,
@@ -218,14 +200,8 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Send notification if name or date changed
-    if (holidayName !== undefined || date !== undefined) {
-      await sendHolidayNotificationSafe(
-        updatedHoliday._id.toString(),
-        updatePayload.name || updatedHoliday.name,
-        updatePayload.description || description || '',
-        updatePayload.date || updatedHoliday.date
-      );
+    if (date !== undefined) {
+      announceHoliday(updatedHoliday.name, updatedHoliday.date);
     }
 
     res.status(200).json({

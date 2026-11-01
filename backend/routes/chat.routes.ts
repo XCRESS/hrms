@@ -15,7 +15,7 @@ import {
 import authMiddleware from '../middlewares/auth.middleware.js';
 
 // Create middleware for authenticated users (any role)
-const authenticateToken = authMiddleware([]);
+const authenticateToken = authMiddleware(['admin','hr']);
 
 const router: Router = express.Router();
 

@@ -1,242 +1,195 @@
+import mongoose from 'mongoose';
 import Settings from '../models/Settings.model.js';
 import Employee from '../models/Employee.model.js';
 import User from '../models/User.model.js';
+import Notification from '../models/Notification.model.js';
 import EmailService from './emailService.js';
 import PushService from './pushService.js';
 import logger from '../utils/logger.js';
+import {
+  NOTIFICATION_CATALOG,
+  isNotificationType,
+  type NotificationData,
+  type NotificationSpec,
+  type NotificationType,
+} from './notifications/catalog.js';
 
-interface NotificationStatus {
-  initialized: boolean;
-  emailReady: boolean;
-  pushReady: boolean;
+export type Audience = 'all' | 'employee' | 'hr' | 'admin';
+
+interface DeliverOptions {
+  /** Per-recipient idempotency key. A recipient whose key exists is skipped entirely. */
+  dedupeKey?: (userId: string) => string;
 }
 
-interface NotificationData {
-  [key: string]: unknown;
-}
+const HR_EMAIL_TOGGLES: Partial<Record<NotificationType, string>> = {
+  leave_request: 'leaveRequests',
+  wfh_request: 'wfhRequests',
+  regularization_request: 'regularizationRequests',
+  help_request: 'helpRequests',
+  employee_milestone: 'employeeMilestones',
+  expense_request: 'expenseRequests',
+};
+
+const specFor = (type: NotificationType): NotificationSpec => NOTIFICATION_CATALOG[type];
 
 class NotificationService {
-  private initialized: boolean;
-
-  constructor() {
-    this.initialized = false;
-  }
+  private initialized = false;
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-
     try {
-      logger.info('Initializing notification services...');
-
       await EmailService.initialize();
-      PushService.initialize();
-
-      this.initialized = true;
-      logger.info('Notification service initialized successfully');
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.warn({ err }, 'Notification service initialization warning');
-      this.initialized = true;
+      logger.warn({ err: error }, 'Email service failed to initialize');
     }
+    PushService.initialize();
+    this.initialized = true;
   }
 
-  async notifyHR(type: string, data: NotificationData): Promise<void> {
+  /**
+   * Inbox + push for a set of users. Returns the users actually notified
+   * (dedupe may skip some). Never throws: a notification must not fail the
+   * request that triggered it.
+   */
+  async deliver(
+    userIds: mongoose.Types.ObjectId[],
+    type: NotificationType,
+    data: NotificationData,
+    options: DeliverOptions = {}
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (userIds.length === 0) return [];
+
     try {
-      const settings = await Settings.getGlobalSettings();
-      const { hrEmails, hrEmailTypes } = settings.notifications;
+      const spec = specFor(type);
+      const content = spec.build(data);
+      const tag = spec.tag?.(data);
+      const inboxIds = new Map<string, string>();
 
-      if (hrEmails.length === 0) {
-        logger.info('No HR contacts configured for notifications');
-        return;
-      }
-
-      const emailTypeMap: Record<string, string> = {
-        'leave_request': 'leaveRequests',
-        'wfh_request': 'wfhRequests',
-        'regularization_request': 'regularizationRequests',
-        'help_request': 'helpRequests',
-        'employee_milestone': 'employeeMilestones',
-        'expense_request': 'expenseRequests'
-      };
-
-      const emailTypeKey = emailTypeMap[type];
-      const shouldSendEmail = emailTypeKey && hrEmailTypes
-        ? (hrEmailTypes[emailTypeKey as keyof typeof hrEmailTypes] ?? true)
-        : true;
-
-      const promises: Promise<void>[] = [];
-
-      if (settings.notifications.emailEnabled && hrEmails.length > 0 && shouldSendEmail) {
-        promises.push(
-          EmailService.sendNotification(type, data, hrEmails)
-            .then(() => undefined)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'Email notification failed');
-            })
+      if (options.dedupeKey) {
+        for (const userId of userIds) {
+          const dedupeKey = options.dedupeKey(userId.toString());
+          const result = await Notification.updateOne(
+            { dedupeKey },
+            { $setOnInsert: { user: userId, type, ...content, dedupeKey, readAt: null } },
+            { upsert: true }
+          );
+          if (result.upsertedId) inboxIds.set(userId.toString(), result.upsertedId.toString());
+        }
+      } else {
+        const docs = await Notification.insertMany(
+          userIds.map((user) => ({ user, type, ...content, readAt: null }))
         );
-      } else if (!shouldSendEmail) {
-        logger.info(`HR email notifications disabled for type: ${type}`);
+        for (const doc of docs) inboxIds.set(doc.user.toString(), doc._id.toString());
       }
 
-      if (settings.notifications.pushEnabled) {
-        const hrSubscriptions = await PushService.getHRSubscriptions();
-        if (hrSubscriptions.length > 0) {
-          promises.push(
-            PushService.sendNotification(type, data, hrSubscriptions)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'Push notification failed');
-              })
-          );
-        }
-      }
+      const recipients = userIds.filter((id) => inboxIds.has(id.toString()));
+      if (recipients.length === 0) return [];
 
-      await Promise.allSettled(promises);
-      logger.info(`HR notification sent: ${type}`);
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Failed to notify HR');
-    }
-  }
-
-  async notifyAllEmployees(type: string, data: NotificationData): Promise<void> {
-    try {
       const settings = await Settings.getGlobalSettings();
-      const employees = await Employee.find({ isActive: true });
-
-      if (employees.length === 0) {
-        logger.info('No active employees found for notifications');
-        return;
-      }
-
-      const promises: Promise<void>[] = [];
-
-      if (settings.notifications.emailEnabled) {
-        const emailAddresses = employees.map(emp => emp.email).filter((email): email is string => Boolean(email));
-        if (emailAddresses.length > 0) {
-          promises.push(
-            EmailService.sendNotification(type, data, emailAddresses)
-              .then(() => undefined)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'Email notification failed');
-              })
-          );
-        }
-      }
-
       if (settings.notifications.pushEnabled) {
-        const allSubscriptions = await PushService.getAllSubscriptions();
-        if (allSubscriptions.length > 0) {
-          promises.push(
-            PushService.sendNotification(type, data, allSubscriptions)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'Push notification failed');
-              })
-          );
-        }
+        const badges = await this.unreadCounts(recipients);
+        await PushService.sendToUsers(recipients, (userId) => ({
+          type,
+          ...content,
+          spec,
+          tag,
+          inboxId: inboxIds.get(userId),
+          badge: badges.get(userId) ?? 0,
+        }));
       }
 
-      await Promise.allSettled(promises);
-      logger.info(`Employee notification sent to ${employees.length} employees: ${type}`);
+      return recipients;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Failed to notify employees');
+      logger.error({ err: error, type }, 'Notification delivery failed');
+      return [];
     }
   }
 
-  async notifyEmployee(employeeId: string, type: string, data: NotificationData): Promise<void> {
+  async notifyHR(type: NotificationType, data: NotificationData): Promise<void> {
     try {
+      const staff = await User.find({ role: { $in: ['hr', 'admin'] }, isActive: true }).select('_id').lean();
+      await this.deliver(staff.map((u) => u._id), type, data);
+
+      const spec = specFor(type);
       const settings = await Settings.getGlobalSettings();
-      const employee = await Employee.findOne({ employeeId, isActive: true });
+      const { hrEmails, hrEmailTypes, emailEnabled } = settings.notifications;
+      const toggle = HR_EMAIL_TOGGLES[type];
+      const allowed = toggle ? hrEmailTypes[toggle as keyof typeof hrEmailTypes] !== false : true;
 
-      if (!employee) {
-        logger.info(`Employee ${employeeId} not found or inactive`);
-        return;
+      if (spec.emailTemplate && emailEnabled && allowed && hrEmails.length > 0) {
+        await EmailService.sendNotification(spec.emailTemplate, data, hrEmails);
       }
-
-      const promises: Promise<void>[] = [];
-
-      if (settings.notifications.emailEnabled && employee.email) {
-        promises.push(
-          EmailService.sendNotification(type, data, employee.email)
-            .then(() => undefined)
-            .catch((error: unknown) => {
-              const err = error instanceof Error ? error : new Error('Unknown error');
-              logger.error({ err }, 'Email notification failed');
-            })
-        );
-      }
-
-      if (settings.notifications.pushEnabled) {
-        // Only this employee's own devices. This used to fan out to every
-        // stored subscription, so one person's leave decision would have been
-        // pushed to the whole company once delivery actually worked.
-        const user = await User.findOne({ employeeId, isActive: true }).select('_id').lean();
-        const subscriptions = user
-          ? await PushService.getSubscriptionsForUser(user._id.toString())
-          : [];
-
-        if (subscriptions.length > 0) {
-          promises.push(
-            PushService.sendNotification(type, data, subscriptions)
-              .catch((error: unknown) => {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                logger.error({ err }, 'Push notification failed');
-              })
-          );
-        }
-      }
-
-      await Promise.allSettled(promises);
-      logger.info(`Employee notification sent to ${employee.firstName} ${employee.lastName}: ${type}`);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, `Failed to notify employee ${employeeId}`);
+      logger.error({ err: error, type }, 'Failed to notify HR');
     }
   }
 
-  async testNotifications(): Promise<void> {
+  async notifyEmployee(
+    employeeId: string,
+    type: NotificationType,
+    data: NotificationData,
+    options: DeliverOptions & { email?: boolean } = {}
+  ): Promise<void> {
+    if (!employeeId) return;
     try {
-      const settings = await Settings.getGlobalSettings();
+      const [employee, user] = await Promise.all([
+        Employee.findOne({ employeeId, isActive: true }).select('email').lean(),
+        User.findOne({ employeeId, isActive: true }).select('_id').lean(),
+      ]);
+      if (!employee) return;
 
-      const testData: NotificationData = {
-        employee: 'Test Employee',
-        type: 'full-day',
-        date: new Date(),
-        reason: 'Test notification system'
-      };
+      const notified = user ? await this.deliver([user._id], type, data, options) : [];
+      const deduped = Boolean(options.dedupeKey) && notified.length === 0 && Boolean(user);
 
-      logger.info('Testing notification system...');
-
-      if (settings.notifications.hrEmails.length > 0) {
-        await this.notifyHR('leave_request', testData);
-        logger.info('HR notification test completed');
+      const spec = specFor(type);
+      if (spec.emailTemplate && options.email !== false && employee.email && !deduped) {
+        await EmailService.sendNotification(spec.emailTemplate, data, employee.email);
       }
-
-      const firstEmployee = await Employee.findOne({ isActive: true });
-      if (firstEmployee) {
-        await this.notifyEmployee(firstEmployee.employeeId, 'holiday_reminder', {
-          title: 'Test Holiday',
-          date: new Date().toDateString()
-        });
-        logger.info('Employee notification test completed');
-      }
-
-      logger.info('Notification system test completed');
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Notification system test failed');
+      logger.error({ err: error, type }, `Failed to notify employee ${employeeId}`);
     }
   }
 
-  getStatus(): NotificationStatus {
+  /** Company-wide broadcast, scoped to an announcement-style audience. */
+  async notifyAudience(audience: Audience, type: NotificationType, data: NotificationData): Promise<void> {
+    try {
+      const roleFilter = audience === 'all' ? {} : { role: audience };
+      const users = await User.find({ ...roleFilter, isActive: true }).select('_id email').lean();
+      await this.deliver(users.map((u) => u._id), type, data);
+
+      const spec = specFor(type);
+      const settings = await Settings.getGlobalSettings();
+      const emails = users.map((u) => u.email).filter((e): e is string => Boolean(e));
+      if (spec.emailTemplate && settings.notifications.emailEnabled && emails.length > 0) {
+        await EmailService.sendNotification(spec.emailTemplate, data, emails);
+      }
+    } catch (error) {
+      logger.error({ err: error, type }, 'Failed to broadcast notification');
+    }
+  }
+
+  async notifyUser(userId: string, type: NotificationType, data: NotificationData = {}): Promise<number> {
+    const notified = await this.deliver([new mongoose.Types.ObjectId(userId)], type, data);
+    return notified.length;
+  }
+
+  private async unreadCounts(userIds: mongoose.Types.ObjectId[]): Promise<Map<string, number>> {
+    const rows = await Notification.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
+      { $match: { user: { $in: userIds }, readAt: null } },
+      { $group: { _id: '$user', count: { $sum: 1 } } },
+    ]);
+    return new Map(rows.map((r) => [r._id.toString(), r.count]));
+  }
+
+  isKnownType(type: string): type is NotificationType {
+    return isNotificationType(type);
+  }
+
+  getStatus() {
     return {
       initialized: this.initialized,
       emailReady: !!EmailService.transporter,
-      pushReady: PushService.initialized
+      pushReady: PushService.initialized,
     };
   }
 }

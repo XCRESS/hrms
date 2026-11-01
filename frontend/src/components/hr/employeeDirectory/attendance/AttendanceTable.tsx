@@ -202,6 +202,7 @@ export default function AttendanceTable({
                             checkOut: locationRecord.checkOut,
                             status: locationRecord.status,
                             location: locationRecord.location ?? undefined,
+                            geofence: locationRecord.geofence,
                         }
                         : null
                 }

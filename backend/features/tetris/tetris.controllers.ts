@@ -1,8 +1,3 @@
-// ============================================================================
-// CHRISTMAS FEATURE - TETRIS GAME CONTROLLER
-// This file can be safely deleted after the holiday season
-// ============================================================================
-
 import type { Response } from 'express';
 import TetrisScore from './TetrisScore.model.js';
 import Employee from '../../models/Employee.model.js';

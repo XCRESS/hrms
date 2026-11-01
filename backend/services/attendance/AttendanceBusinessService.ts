@@ -4,7 +4,7 @@
  */
 
 import { DateTime } from 'luxon';
-import type { IEmployee, IAttendance } from '../../types/index.js';
+import type { IEmployee, IAttendance, IGeofence } from '../../types/index.js';
 import {
   ATTENDANCE_STATUS,
   ERROR_MESSAGES
@@ -88,6 +88,7 @@ export interface ProcessedAttendanceRecord {
   reason?: string | null;
   flags?: Record<string, any>;
   location?: any;
+  geofence?: IGeofence;
   holidayTitle?: string;
 }
 
@@ -481,6 +482,7 @@ export class AttendanceBusinessService {
       result.comments = attendanceRecord.comments;
       result.reason = attendanceRecord.reason;
       result.location = attendanceRecord.location;
+      result.geofence = attendanceRecord.geofence;
 
       // Add holiday/weekend info to result if applicable, but keep Present status
       if (dayType.type === 'holiday') {

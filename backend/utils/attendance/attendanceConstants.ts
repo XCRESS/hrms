@@ -51,22 +51,6 @@ export const BUSINESS_RULES = {
   MAX_REGULARIZATION_DAYS: 30
 };
 
-// Cache Configuration
-export const CACHE_CONFIG = {
-  TTL: {
-    EMPLOYEES: 300,    // 5 minutes
-    HOLIDAYS: 3600,    // 1 hour
-    ATTENDANCE: 180,   // 3 minutes
-    REPORTS: 600       // 10 minutes
-  },
-  KEYS: {
-    EMPLOYEES_ACTIVE: 'employees:active:basic',
-    HOLIDAYS_RANGE: 'holidays',
-    ATTENDANCE_TODAY: 'attendance:today',
-    ATTENDANCE_RANGE: 'attendance:range'
-  }
-};
-
 // Error Messages
 export const ERROR_MESSAGES = {
   // Authentication & Authorization
@@ -170,7 +154,6 @@ export default {
   ATTENDANCE_FLAGS,
   VALID_STATUS_TRANSITIONS,
   BUSINESS_RULES,
-  CACHE_CONFIG,
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
   PAGINATION_DEFAULTS,

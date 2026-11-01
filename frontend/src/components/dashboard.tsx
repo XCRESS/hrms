@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useReducer, useRef, lazy, Suspense } from "react";
 import useAuth from "../hooks/authjwt";
+import { useSearchParams } from "react-router";
 import {
     useProfile,
     useMyAttendance,
@@ -48,6 +49,8 @@ const MissingCheckoutAlert = lazy(() => import('./dashboard/MissingCheckoutAlert
 const AlertsSection = lazy(() => import('./dashboard/AlertsSection'));
 
 import { getNonWorkingDayWarning, type NonWorkingDayWarning } from "@/utils/workingDay";
+import { acquireBestFix } from "@/utils/geolocation";
+import EnablePushCard from "./notifications/EnablePushCard";
 
 // Types
 import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto, CreateHelpInquiryDto } from "@/types";
@@ -187,6 +190,8 @@ const HRMSDashboard: React.FC = () => {
     const user = useAuth();
     const username = user?.name || "User";
     const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedAction = searchParams.get('action');
     const today = new Date().toISOString().slice(0, 10);
 
     // React Query Hooks
@@ -294,68 +299,25 @@ const HRMSDashboard: React.FC = () => {
         }
     }, []);
 
+    const [fixAccuracy, setFixAccuracy] = useState<number | null>(null);
+
     const switchToHolidaysTab = useCallback(() => {
         setUpdatesActiveTab("holidays");
     }, []);
 
     const getLocationCoordinates = useCallback(async ({ required = false, manageLoading = false }: { required?: boolean, manageLoading?: boolean } = {}) => {
-        if (!navigator.geolocation) {
-            if (required) {
-                throw new Error("Location is required but this device does not support geolocation.");
-            }
-            return null;
-        }
-
         if (manageLoading) {
             setLoading('locationLoading', true);
         }
+        setFixAccuracy(null);
 
         try {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(
-                    resolve,
-                    reject,
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 20000,
-                        maximumAge: 0
-                    }
-                );
-            });
-
-            return {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                capturedAt: new Date().toISOString()
-            };
-        } catch (error: any) {
-            let locationError = "Unable to capture location.";
-            if (error.code !== undefined) {
-                switch (error.code) {
-                    case error.PERMISSION_DENIED:
-                        locationError = "Location permission denied.";
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        locationError = "Location unavailable.";
-                        break;
-                    case error.TIMEOUT:
-                        locationError = "Location request timed out.";
-                        break;
-                    default:
-                        locationError = error.message || locationError;
-                }
-            } else if (error.message) {
-                locationError = error.message;
-            }
-
-            if (required) {
-                throw new Error(locationError);
-            }
-
-            console.warn("Geolocation warning:", locationError);
+            return await acquireBestFix({ onProgress: setFixAccuracy });
+        } catch (error) {
+            if (required) throw error;
             return null;
         } finally {
+            setFixAccuracy(null);
             if (manageLoading) {
                 setLoading('locationLoading', false);
             }
@@ -882,6 +844,9 @@ const HRMSDashboard: React.FC = () => {
                     wfhRequestPending={!!wfhRequestPending}
                     toggleTheme={toggleTheme}
                     theme={theme}
+                    fixAccuracy={fixAccuracy}
+                    highlightAction={requestedAction === 'check-in' || requestedAction === 'check-out' ? requestedAction : null}
+                    showGeofenceStatus={!!user?.employeeId && effectiveSettings?.general?.geofence?.enabled === true}
                 />
 
                 <main id="main-content" className="p-4 sm:p-6 lg:p-8" role="main">
@@ -889,6 +854,7 @@ const HRMSDashboard: React.FC = () => {
                         <div className="w-full lg:w-3/4 space-y-6 lg:space-y-8">
                             {isAdmin ? (
                                 <>
+                                    <EnablePushCard />
                                     <Suspense fallback={<ComponentSkeleton />}>
                                         <AlertsSection />
                                     </Suspense>
@@ -927,6 +893,7 @@ const HRMSDashboard: React.FC = () => {
                                 </>
                             ) : (
                                 <>
+                                    <EnablePushCard />
                                     <Suspense fallback={<ComponentSkeleton />}>
                                         <AlertsSection />
                                     </Suspense>
@@ -1004,8 +971,11 @@ const HRMSDashboard: React.FC = () => {
 
             {/* Modals */}
             <LeaveRequestModal
-                isOpen={showLeaveModal}
-                onClose={() => setModal('showLeaveModal', false)}
+                isOpen={showLeaveModal || requestedAction === 'leave'}
+                onClose={() => {
+                    setModal('showLeaveModal', false);
+                    if (requestedAction) setSearchParams({}, { replace: true });
+                }}
                 onSubmit={handleLeaveRequestSubmit}
                 isLoading={false}
             />

@@ -69,19 +69,16 @@ class GeofenceService {
   }
 
   /**
-   * How much slack to credit a fix, given its reported accuracy.
-   *
-   * A fix accurate to 40m that lands 30m outside the radius is plausibly inside;
-   * refusing it punishes the honest employee for their building's GPS. Fixes
-   * worse than MAX_TRUSTED_ACCURACY_METERS are not credited here - they are
-   * rejected upstream instead, since crediting them would make the fence
-   * meaningless.
+   * Slack credited to a fix, given its reported accuracy: honest employees in
+   * concrete buildings get 30-60m fixes. Capped at half the radius so a 50m
+   * fence can never stretch past 75m however bad the GPS claims to be.
    */
-  static toleranceForAccuracy(accuracy?: number | null): number {
+  static toleranceForAccuracy(accuracy: number | null | undefined, radius: number): number {
+    const cap = Math.max(MIN_TOLERANCE_METERS, radius / 2);
     if (typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy < 0) {
       return MIN_TOLERANCE_METERS;
     }
-    return Math.max(MIN_TOLERANCE_METERS, Math.min(accuracy, MAX_TRUSTED_ACCURACY_METERS));
+    return Math.max(MIN_TOLERANCE_METERS, Math.min(accuracy, cap, MAX_TRUSTED_ACCURACY_METERS));
   }
 
   /** Drop the cached office list. Call after any office mutation. */
@@ -187,7 +184,6 @@ class GeofenceService {
       typeof accuracy === 'number' &&
       Number.isFinite(accuracy) &&
       accuracy > MAX_TRUSTED_ACCURACY_METERS;
-    const tolerance = this.toleranceForAccuracy(accuracy);
 
     let matchedOffice: IOfficeLocationDoc | null = null;
     let matchedDistance: number | null = null;
@@ -211,7 +207,7 @@ class GeofenceService {
       }
 
       const effectiveRadius = radius ?? office.radius ?? DEFAULT_GEOFENCE_RADIUS_METERS;
-      if (distance <= effectiveRadius + tolerance) {
+      if (distance <= effectiveRadius + this.toleranceForAccuracy(accuracy, effectiveRadius)) {
         // Prefer the closest containing office, so the recorded office is the
         // most plausible one when geofences overlap.
         if (matchedDistance === null || distance < matchedDistance) {
@@ -224,6 +220,12 @@ class GeofenceService {
     if (!nearestOffice) {
       return { isValid: false, nearestOffice: null, distance: null };
     }
+
+    const reported = matchedOffice ?? nearestOffice;
+    const tolerance = this.toleranceForAccuracy(
+      accuracy,
+      radius ?? reported.radius ?? DEFAULT_GEOFENCE_RADIUS_METERS
+    );
 
     // An imprecise fix cannot establish containment. Report it distinctly so
     // callers can say "retry outdoors" rather than "you are not at the office".

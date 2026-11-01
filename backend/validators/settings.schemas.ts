@@ -97,6 +97,39 @@ const notificationsSection = z
       })
       .strict()
       .optional(),
+    attendanceNudges: z
+      .object({
+        checkInReminder: z
+          .object({
+            enabled: z.boolean().optional(),
+            minutesBefore: z.number().int().min(5).max(120).optional(),
+          })
+          .strict()
+          .optional(),
+        missedCheckIn: z
+          .object({
+            enabled: z.boolean().optional(),
+            minutesAfter: z.number().int().min(0).max(240).optional(),
+          })
+          .strict()
+          .optional(),
+        missedCheckOut: z
+          .object({
+            enabled: z.boolean().optional(),
+            minutesAfter: z.number().int().min(0).max(360).optional(),
+          })
+          .strict()
+          .optional(),
+        hrDigest: z
+          .object({
+            enabled: z.boolean().optional(),
+            minutesAfter: z.number().int().min(0).max(480).optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

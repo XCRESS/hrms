@@ -65,24 +65,23 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         );
       }
 
-      // 3. Extract user data from JWT (no DB query!)
+      // 3. Extract user ID from JWT
       const userId = decoded.userId || decoded.id || (decoded as Record<string, unknown>)._id;
       if (!userId) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
       }
 
-      // Validate user is still active AND fetch link status in a single query
-      const userStatus = await User.findById(userId).select('isActive employeeId employee').lean();
+      const userStatus = await User.findById(userId).select('isActive role employeeId employee').lean();
       if (!userStatus || !userStatus.isActive) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
       }
 
-      // 4. Use JWT data directly (much faster than full document fetch!)
+      // 4. Role comes from the DB, not the token, so a role change applies without re-login
       req.user = {
         _id: new mongoose.Types.ObjectId(userId),
         name: decoded.name,
         email: decoded.email,
-        role: decoded.role,
+        role: userStatus.role,
         employee: decoded.employee ? new mongoose.Types.ObjectId(decoded.employee) : undefined,
         employeeId: decoded.employeeId,
       };
@@ -110,7 +109,8 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         // Block if not linked to any employee profile (catches post-unlink sessions)
         if (!currentEmployeeId) {
           throw new AuthorizationError(
-            'Access Forbidden: Your account is not linked to an employee profile. Please contact HR.'
+            'Access Forbidden: Your account is not linked to an employee profile. Please contact HR.',
+            'SESSION_REVOKED'
           );
         }
 
@@ -124,7 +124,8 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
 
         if (!employee) {
           throw new AuthorizationError(
-            'Access Forbidden: Employee account is deactivated. Please contact HR.'
+            'Access Forbidden: Employee account is deactivated. Please contact HR.',
+            'SESSION_REVOKED'
           );
         }
 

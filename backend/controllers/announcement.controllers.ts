@@ -2,7 +2,6 @@ import type { AnnouncementInput, UpdateAnnouncementInput } from '../validators/h
 import type { Request, Response } from 'express';
 import Announcement from '../models/Announcement.model.js';
 import NotificationService from '../services/notificationService.js';
-import FrontendNotificationService from '../utils/notificationService.js';
 import type { IUser } from '../types/index.js';
 import logger from '../utils/logger.js';
 
@@ -36,14 +35,10 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
     });
 
     if (status === 'published') {
-      NotificationService.notifyAllEmployees('announcement', {
-        title: title,
-        content: content,
+      void NotificationService.notifyAudience(targetAudience ?? 'all', 'announcement', {
+        title,
+        content,
         author: authorName,
-        targetAudience: targetAudience,
-      }).catch((error: unknown) => {
-        const err = error instanceof Error ? error : new Error('Unknown error');
-        logger.error({ err }, 'Failed to send announcement notification');
       });
     }
 
@@ -144,12 +139,11 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response): Promi
     }
 
     if (status === 'published' && announcement.status !== 'published') {
-      try {
-        await FrontendNotificationService.sendAnnouncementNotification(updatedAnnouncement as unknown as { _id: string; title: string; content: string; targetAudience: string });
-      } catch (notificationError) {
-        const err = notificationError instanceof Error ? notificationError : new Error('Unknown error');
-        logger.error({ err }, 'Failed to send announcement notification');
-      }
+      void NotificationService.notifyAudience(updatedAnnouncement.targetAudience, 'announcement', {
+        title: updatedAnnouncement.title,
+        content: updatedAnnouncement.content,
+        author: updatedAnnouncement.authorName,
+      });
     }
 
     res.status(200).json({ success: true, message: 'Announcement updated successfully', announcement: updatedAnnouncement });

@@ -10,6 +10,7 @@ export type WFHStatus = 'pending' | 'approved' | 'rejected';
 export interface IAttemptedLocation {
   latitude: number;
   longitude: number;
+  accuracy?: number;
 }
 
 export interface IWFHRequestDoc extends Document {
@@ -81,6 +82,10 @@ const wfhRequestSchema = new Schema<IWFHRequestDoc>(
         type: Number,
         min: [-180, 'Longitude must be between -180 and 180'],
         max: [180, 'Longitude must be between -180 and 180'],
+      },
+      accuracy: {
+        type: Number,
+        min: [0, 'Accuracy cannot be negative'],
       },
     },
     nearestOffice: {

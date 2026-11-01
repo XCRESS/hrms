@@ -9,16 +9,12 @@ export { AttendanceBusinessService, default as BusinessService } from './Attenda
 // Data Service - Database operations and queries
 export { AttendanceDataService, default as DataService } from './AttendanceDataService.js';
 
-// Cache Service - Caching operations and invalidation
-export { AttendanceCacheService, default as CacheService } from './AttendanceCacheService.js';
-
 // Report Service - Analytics and reporting
 export { AttendanceReportService, default as ReportService } from './AttendanceReportService.js';
 
 // Import all services
 import { AttendanceBusinessService } from './AttendanceBusinessService.js';
 import { AttendanceDataService } from './AttendanceDataService.js';
-import { AttendanceCacheService } from './AttendanceCacheService.js';
 import { AttendanceReportService } from './AttendanceReportService.js';
 
 /**
@@ -28,7 +24,6 @@ import { AttendanceReportService } from './AttendanceReportService.js';
 export const AttendanceServices = {
   Business: AttendanceBusinessService,
   Data: AttendanceDataService,
-  Cache: AttendanceCacheService,
   Report: AttendanceReportService
 };
 
@@ -46,7 +41,6 @@ interface ServiceConfig {
 interface AttendanceServiceFactory {
   business: typeof AttendanceBusinessService;
   data: typeof AttendanceDataService;
-  cache: typeof AttendanceCacheService;
   report: typeof AttendanceReportService;
   config: ServiceConfig;
 }
@@ -60,7 +54,6 @@ export const createAttendanceServices = (config: ServiceConfig = {}): Attendance
   return {
     business: AttendanceBusinessService,
     data: AttendanceDataService,
-    cache: AttendanceCacheService,
     report: AttendanceReportService,
     config
   };
@@ -70,7 +63,6 @@ export const createAttendanceServices = (config: ServiceConfig = {}): Attendance
 export default {
   AttendanceBusinessService,
   AttendanceDataService,
-  AttendanceCacheService,
   AttendanceReportService,
   AttendanceServices,
   createAttendanceServices

@@ -6,6 +6,7 @@ import Attendance from '../models/Attendance.model.js';
 import Settings from '../models/Settings.model.js';
 import RegularizationRequest from '../models/Regularization.model.js';
 import NotificationService from './notificationService.js';
+import AttendanceNudgeService from './attendanceNudgeService.js';
 import EmailService from './emailService.js';
 import { getISTNow, toIST } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
@@ -18,16 +19,8 @@ class SchedulerService {
   private birthdayJob: ScheduledTask | null = null;
   private dailyHrAttendanceReportJob: ScheduledTask | null = null;
   private regularizationCleanupJob: ScheduledTask | null = null;
+  private attendanceNudgeJob: ScheduledTask | null = null;
   private isRunning: boolean = false;
-
-  constructor() {
-    this.holidayReminderJob = null;
-    this.milestoneJob = null;
-    this.birthdayJob = null;
-    this.dailyHrAttendanceReportJob = null;
-    this.regularizationCleanupJob = null;
-    this.isRunning = false;
-  }
 
   start() {
     if (this.isRunning) return;
@@ -62,6 +55,13 @@ class SchedulerService {
       timezone: 'Asia/Kolkata'
     });
 
+    // Every 5 min across the working day; each nudge is deduped per user per day.
+    this.attendanceNudgeJob = cron.schedule('*/5 6-23 * * *', async () => {
+      await AttendanceNudgeService.tick();
+    }, {
+      timezone: 'Asia/Kolkata'
+    });
+
     this.isRunning = true;
     logger.info('Scheduler service started successfully');
   }
@@ -92,6 +92,11 @@ class SchedulerService {
     if (this.regularizationCleanupJob) {
       this.regularizationCleanupJob.stop();
       this.regularizationCleanupJob = null;
+    }
+
+    if (this.attendanceNudgeJob) {
+      this.attendanceNudgeJob.stop();
+      this.attendanceNudgeJob = null;
     }
 
     this.isRunning = false;
@@ -136,7 +141,7 @@ class SchedulerService {
 
         logger.info(`[Scheduler] Sending: ${holiday.name} | Date: ${holiday.date.toISOString()} | Formatted: ${formattedDate}`);
 
-        await NotificationService.notifyAllEmployees('holiday_reminder', {
+        await NotificationService.notifyAudience('all', 'holiday_reminder', {
           title: holiday.name,
           date: formattedDate,
           isOptional: holiday.type === 'optional',
@@ -162,47 +167,39 @@ class SchedulerService {
         return;
       }
 
-      const today = getISTNow().startOf('day').toJSDate();
+      const todayIST = getISTNow().startOf('day');
+      const { milestoneTypes } = settings.notifications;
+      const milestones = [
+        { months: 3, label: '3 months', enabled: milestoneTypes.threeMonths },
+        { months: 6, label: '6 months', enabled: milestoneTypes.sixMonths },
+        { months: 12, label: '1 year', enabled: milestoneTypes.oneYear },
+      ].filter((m) => m.enabled);
 
-      const employees = await Employee.find({ isActive: true });
+      const employees = await Employee.find({ isActive: true })
+        .select('firstName lastName employeeId joiningDate department position')
+        .lean();
       let milestonesFound = 0;
 
       for (const employee of employees) {
         const joiningDate = toIST(employee.joiningDate).startOf('day');
-        const todayIST = toIST(today).startOf('day');
+        // Luxon clamps month arithmetic, so a Nov 30 joiner's 3-month mark lands on Feb 28/29
+        const milestone = milestones.find((m) =>
+          joiningDate.plus({ months: m.months }).hasSame(todayIST, 'day')
+        );
+        if (!milestone) continue;
 
-        // Calculate months between joining date and today
-        const monthsDiff = todayIST.year * 12 + todayIST.month - (joiningDate.year * 12 + joiningDate.month);
+        logger.info(`Employee milestone: ${employee.firstName} ${employee.lastName} - ${milestone.label}`);
 
-        let milestoneType = null;
+        await NotificationService.notifyHR('employee_milestone', {
+          employee: `${employee.firstName} ${employee.lastName}`,
+          employeeId: employee.employeeId,
+          milestone: milestone.label,
+          joiningDate: joiningDate.toFormat('yyyy-MM-dd'),
+          department: employee.department,
+          position: employee.position
+        });
 
-        // Check for exact milestone matches using calendar months and same day
-        const isSameDay = todayIST.day === joiningDate.day;
-
-        if (isSameDay) {
-          if (settings.notifications.milestoneTypes.threeMonths && monthsDiff === 3) {
-            milestoneType = '3 months';
-          } else if (settings.notifications.milestoneTypes.sixMonths && monthsDiff === 6) {
-            milestoneType = '6 months';
-          } else if (settings.notifications.milestoneTypes.oneYear && monthsDiff === 12) {
-            milestoneType = '1 year';
-          }
-        }
-
-        if (milestoneType) {
-          logger.info(`Employee milestone: ${employee.firstName} ${employee.lastName} - ${milestoneType}`);
-
-          await NotificationService.notifyHR('employee_milestone', {
-            employee: `${employee.firstName} ${employee.lastName}`,
-            employeeId: employee.employeeId,
-            milestone: milestoneType,
-            joiningDate: joiningDate.toFormat('yyyy-MM-dd'),
-            department: employee.department,
-            position: employee.position
-          });
-
-          milestonesFound++;
-        }
+        milestonesFound++;
       }
 
       if (milestonesFound > 0) {
@@ -223,21 +220,23 @@ class SchedulerService {
         return;
       }
 
-      const today = getISTNow().toJSDate(); // Get proper IST date
+      const todayIST = getISTNow();
+      const isFeb28InCommonYear = !todayIST.isInLeapYear && todayIST.month === 2 && todayIST.day === 28;
       const employees = await Employee.find({
         isActive: true,
         dateOfBirth: { $exists: true, $ne: null }
-      });
+      })
+        .select('firstName lastName employeeId department dateOfBirth')
+        .lean();
 
       let birthdayCount = 0;
 
       for (const employee of employees) {
         const birthday = toIST(employee.dateOfBirth);
-        const todayIST = toIST(today);
+        const isLeapDayBirthday = birthday.month === 2 && birthday.day === 29;
 
-        // Check if today matches birthday (month and day) in IST
-        if (birthday.month === todayIST.month &&
-            birthday.day === todayIST.day) {
+        if ((birthday.month === todayIST.month && birthday.day === todayIST.day) ||
+            (isLeapDayBirthday && isFeb28InCommonYear)) {
 
           logger.info(`Sending birthday wishes to: ${employee.firstName} ${employee.lastName}`);
 
@@ -524,7 +523,8 @@ class SchedulerService {
       milestoneJobActive: this.milestoneJob ? this.milestoneJob.getStatus() === 'scheduled' : false,
       birthdayJobActive: this.birthdayJob ? this.birthdayJob.getStatus() === 'scheduled' : false,
       dailyHrAttendanceReportActive: this.dailyHrAttendanceReportJob ? this.dailyHrAttendanceReportJob.getStatus() === 'scheduled' : false,
-      regularizationCleanupActive: this.regularizationCleanupJob ? this.regularizationCleanupJob.getStatus() === 'scheduled' : false
+      regularizationCleanupActive: this.regularizationCleanupJob ? this.regularizationCleanupJob.getStatus() === 'scheduled' : false,
+      attendanceNudgeActive: this.attendanceNudgeJob ? this.attendanceNudgeJob.getStatus() === 'scheduled' : false
     };
   }
 }

@@ -1,4 +1,4 @@
-import type { CheckInInput, CheckOutInput, UpdateAttendanceRecordInput } from '../validators/attendance.schemas.js';
+import type { CheckInInput, CheckOutInput, GeofenceCheckInput, UpdateAttendanceRecordInput } from '../validators/attendance.schemas.js';
 /**
  * Refactored Attendance Controllers
  * Simplified controllers using the new service layer architecture
@@ -36,7 +36,7 @@ import WFHRequest from '../models/WFHRequest.model.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
-const { Business, Data, Cache, Report } = AttendanceServices;
+const { Business, Data, Report } = AttendanceServices;
 
 interface Coordinates {
   latitude: number;
@@ -239,6 +239,55 @@ const validateGeofenceForOperation = async ({
   );
 };
 
+/**
+ * Where the employee was relative to the offices, for a check-in the geofence
+ * did not gate. Lets HR see "checked in 2.4 km away" without enforcing anything.
+ */
+const observeGeofence = async (coordinates: Coordinates, accuracy?: number | null) => {
+  const result = await GeofenceService.isWithinGeofence(coordinates.latitude, coordinates.longitude, null, accuracy);
+  if (!result.nearestOffice) return null;
+  return {
+    enforced: false,
+    status: result.isValid ? 'onsite' : 'offsite',
+    office: result.nearestOffice._id,
+    officeName: result.nearestOffice.name,
+    distance: typeof result.distance === 'number' ? Math.round(result.distance) : null,
+    radius: result.nearestOffice.radius,
+    validatedAt: new Date()
+  };
+};
+
+/**
+ * Dry run of the check-in geofence: lets the dashboard show "inside Head
+ * Office" or "1.2 km away" before the employee presses the button, using the
+ * exact rule check-in will apply.
+ */
+export const checkGeofence = asyncErrorHandler(async (req: IAuthRequest, res: Response) => {
+  const { latitude, longitude, accuracy } = req.body as GeofenceCheckInput;
+
+  const employeeObjId = req.user ? await getEmployeeObjectId(req.user) : null;
+  const employee = employeeObjId ? await Data.getEmployeeById(employeeObjId) : null;
+  const Settings = (await import('../models/Settings.model.js')).default;
+  const effectiveSettings = (await Settings.getEffectiveSettings(employee?.department ?? null)) as EffectiveSettings;
+  const geofenceSettings = effectiveSettings.general?.geofence;
+
+  const result = await GeofenceService.isWithinGeofence(latitude, longitude, null, accuracy);
+
+  res.json(formatResponse(true, 'Geofence evaluated', {
+    enforced: shouldEnforceGeofence(geofenceSettings, 'check-in'),
+    canRequestWFH: !!geofenceSettings?.allowWFHBypass,
+    officesConfigured: !!result.nearestOffice,
+    inside: result.isValid,
+    accuracyTooLow: !!result.accuracyRejected,
+    maxAccuracy: MAX_TRUSTED_ACCURACY_METERS,
+    office: result.nearestOffice
+      ? { id: String(result.nearestOffice._id), name: result.nearestOffice.name, radius: result.nearestOffice.radius }
+      : null,
+    distance: typeof result.distance === 'number' ? Math.round(result.distance) : null,
+    tolerance: result.appliedTolerance ?? null
+  }));
+}, 'geofence-check');
+
 export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response) => {
   if (!req.user) {
     throw new BusinessLogicError(ERROR_MESSAGES.AUTH_REQUIRED, { auth: ERROR_MESSAGES.NO_VALID_USER });
@@ -317,6 +366,11 @@ export const checkIn = asyncErrorHandler(async (req: IAuthRequest, res: Response
 
   if (locationPayload) {
     attendanceData.location = locationPayload;
+  }
+
+  if (!geofenceMeta && coordinates) {
+    const observed = await observeGeofence(coordinates, locationPayload?.accuracy);
+    if (observed) attendanceData.geofence = observed;
   }
 
   if (geofenceMeta) {

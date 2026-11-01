@@ -1,4 +1,5 @@
-import type { CreateOfficeLocationInput, UpdateOfficeLocationInput } from '../validators/content.schemas.js';
+import type { CreateOfficeLocationInput, OfficeLocationQuery, UpdateOfficeLocationInput } from '../validators/content.schemas.js';
+import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { Response } from 'express';
 import OfficeLocation, {
   DEFAULT_GEOFENCE_RADIUS_METERS,
@@ -68,9 +69,10 @@ const serializeLocation = (doc: LeanOfficeLocation) => {
 
 export const getOfficeLocations = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
+    const { active } = getValidatedQuery<OfficeLocationQuery>(req);
     const filter: { isActive?: boolean } = {};
-    if (req.query.active !== undefined) {
-      filter.isActive = req.query.active === 'true';
+    if (active !== undefined) {
+      filter.isActive = active === 'true';
     }
 
     const locations = (await OfficeLocation.find(filter)

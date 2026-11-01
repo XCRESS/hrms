@@ -44,6 +44,13 @@ export interface DailyHrReportSettings {
     subjectLine: string;
 }
 
+export interface AttendanceNudgeSettings {
+    checkInReminder: { enabled: boolean; minutesBefore: number };
+    missedCheckIn: { enabled: boolean; minutesAfter: number };
+    missedCheckOut: { enabled: boolean; minutesAfter: number };
+    hrDigest: { enabled: boolean; minutesAfter: number };
+}
+
 export interface NotificationSettingsData {
     emailEnabled: boolean;
     pushEnabled: boolean;
@@ -54,6 +61,7 @@ export interface NotificationSettingsData {
     hrEmails: string[];
     hrEmailTypes: HrEmailTypes;
     dailyHrAttendanceReport: DailyHrReportSettings;
+    attendanceNudges: AttendanceNudgeSettings;
 }
 
 export interface AttendanceSettingsData {

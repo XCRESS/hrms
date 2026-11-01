@@ -50,6 +50,13 @@ export interface IDailyHrAttendanceReport {
   subjectLine: string;
 }
 
+export interface IAttendanceNudgeConfig {
+  checkInReminder: { enabled: boolean; minutesBefore: number };
+  missedCheckIn: { enabled: boolean; minutesAfter: number };
+  missedCheckOut: { enabled: boolean; minutesAfter: number };
+  hrDigest: { enabled: boolean; minutesAfter: number };
+}
+
 export interface INotificationConfig {
   hrEmails: string[];
   emailEnabled: boolean;
@@ -60,6 +67,7 @@ export interface INotificationConfig {
   milestoneAlertsEnabled: boolean;
   milestoneTypes: IMilestoneTypes;
   dailyHrAttendanceReport: IDailyHrAttendanceReport;
+  attendanceNudges: IAttendanceNudgeConfig;
 }
 
 export interface IGeofenceConfig {
@@ -207,6 +215,24 @@ const settingsSchema = new Schema<ISettingsDoc>(
           type: String,
           default: 'Daily Attendance Report - {date}',
           maxlength: [200, 'Subject line cannot exceed 200 characters'],
+        },
+      },
+      attendanceNudges: {
+        checkInReminder: {
+          enabled: { type: Boolean, default: true },
+          minutesBefore: { type: Number, default: 15, min: 5, max: 120 },
+        },
+        missedCheckIn: {
+          enabled: { type: Boolean, default: true },
+          minutesAfter: { type: Number, default: 30, min: 0, max: 240 },
+        },
+        missedCheckOut: {
+          enabled: { type: Boolean, default: true },
+          minutesAfter: { type: Number, default: 60, min: 0, max: 360 },
+        },
+        hrDigest: {
+          enabled: { type: Boolean, default: true },
+          minutesAfter: { type: Number, default: 120, min: 0, max: 480 },
         },
       },
     },

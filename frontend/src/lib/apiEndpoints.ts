@@ -42,6 +42,7 @@ export const API_ENDPOINTS = {
   OFFICE_LOCATIONS: {
     BASE: '/office-locations',
     ACTIVE: '/office-locations/active',
+    GEOFENCE_CHECK: '/attendance/geofence-check',
     CREATE: '/office-locations',
     UPDATE: (id: string) => `/office-locations/${encodeURIComponent(id)}`,
     DELETE: (id: string) => `/office-locations/${encodeURIComponent(id)}`,
@@ -226,7 +227,9 @@ export const API_ENDPOINTS = {
 
   // Notifications
   NOTIFICATIONS: {
-    BASE: '/notifications',
+    INBOX: '/notifications',
+    UNREAD_COUNT: '/notifications/unread-count',
+    MARK_READ: '/notifications/read',
     TEST: '/notifications/test',
     STATUS: '/notifications/status',
     SUBSCRIBE: '/notifications/subscribe',

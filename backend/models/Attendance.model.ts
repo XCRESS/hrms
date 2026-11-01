@@ -21,9 +21,9 @@ const locationSchema = new Schema<ILocation>(
       min: [-180, 'Longitude must be between -180 and 180'],
       max: [180, 'Longitude must be between -180 and 180'],
     },
+    // Optional: a location recovered from a WFH request may have no reported accuracy.
     accuracy: {
       type: Number,
-      required: true,
       min: [0, 'Accuracy must be a positive number'],
     },
     capturedAt: {
@@ -98,8 +98,8 @@ const attendanceSchema = new Schema<IAttendance>(
       status: {
         type: String,
         enum: {
-          values: ['onsite', 'wfh'] as GeofenceStatus[],
-          message: 'Geofence status must be one of: onsite, wfh',
+          values: ['onsite', 'offsite', 'wfh'] as GeofenceStatus[],
+          message: 'Geofence status must be one of: onsite, offsite, wfh',
         },
       },
       office: {

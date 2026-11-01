@@ -30,6 +30,9 @@ import { useNavigate, Navigate, useLocation } from "react-router";
 import useAuth from "../hooks/authjwt";
 import { Outlet } from "react-router";
 import { tokenStorage } from "@/lib/tokenStorage";
+import { useQueryClient } from "@tanstack/react-query";
+import { detachPushOnLogout } from "@/services/pushClient";
+import ServiceWorkerBridge from "./notifications/ServiceWorkerBridge";
 
 interface User {
   name?: string;
@@ -56,6 +59,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const userObject = useAuth() as User | null;
   const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const token = tokenStorage.get();
   if (!token) {
@@ -82,18 +86,10 @@ export default function AppLayout() {
   }
   const user = userObject;
 
-  const handleLogout = () => {
-    // Goes through tokenStorage rather than localStorage directly: the raw
-    // call left `authTokenExpiresAt` behind, so isExpired() kept reading a
-    // stale expiry after logout. tokenStorage.remove() clears both keys and
-    // swallows the quota/permission errors localStorage can throw in private
-    // browsing.
-    //
-    // The setTimeout(0) that used to wrap this navigate() was unnecessary —
-    // localStorage writes are synchronous and already committed here. All it
-    // did was leave one frame where the app rendered logged-out but had not
-    // navigated yet.
+  const handleLogout = async () => {
+    await detachPushOnLogout();
     tokenStorage.remove();
+    queryClient.clear();
     navigate("/");
   };
 
@@ -292,6 +288,7 @@ export default function AppLayout() {
         className="flex-1 overflow-y-auto bg-background min-w-0 transition-all duration-300 md:ml-(--sidebar-offset)"
         style={{ '--sidebar-offset': `${SIDEBAR_WIDTH_COLLAPSED}px` } as React.CSSProperties}
       >
+        <ServiceWorkerBridge />
         <Outlet />
         {/* Spacer for the fixed mobile bottom bar. Without it the last rows of
             every scrollable page sit underneath the tabs and cannot be reached.

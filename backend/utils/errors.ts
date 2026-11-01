@@ -80,8 +80,8 @@ export class AuthenticationError extends APIError {
  * Used when user lacks permission for the requested resource
  */
 export class AuthorizationError extends APIError {
-  constructor(message: string = 'Access denied') {
-    super(message, 403, 'AUTHORIZATION_ERROR');
+  constructor(message: string = 'Access denied', code: 'AUTHORIZATION_ERROR' | 'SESSION_REVOKED' = 'AUTHORIZATION_ERROR') {
+    super(message, 403, code);
     this.name = 'AuthorizationError';
   }
 }

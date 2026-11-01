@@ -24,8 +24,8 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 - **`pnpm build` on the frontend does not type-check.** A successful `vite build`
   proves nothing about types. Run `pnpm typecheck` and `pnpm lint` and report
-  actual numbers against these baselines: **typecheck 102**, **lint 180**
-  (161 errors, 19 warnings). Don't increase them; reduce where you touch a file.
+  actual numbers against these baselines: **typecheck 70**, **lint 117**
+  (104 errors, 13 warnings). Don't increase them; reduce where you touch a file.
 - **There is no test suite.** Verify by type-checking, building, and exercising
   code paths directly.
 - The backend type-checks and builds clean. Keep it that way.
@@ -104,7 +104,14 @@ warranted, one line beats five.
   and uses multer, so uploads bypass it.
 - Mongoose 8, one model per file. **`.lean()` on read-only queries**; not where
   you then `.save()`. Prefer projections for existence checks.
-- Email via **Resend**, Web Push via `services/pushService.ts`. Scheduling is
+- Email via **Resend**, Web Push via `services/pushService.ts`.
+- **Notifications**: every type is declared in `services/notifications/catalog.ts`
+  (copy, deep link, TTL, urgency, email template). Send through
+  `NotificationService` — it writes the in-app inbox, pushes, and emails. Push
+  payloads use the Declarative Web Push shape so Safari can render them
+  without the service worker. Attendance nudges run every 5 min from
+  `attendanceNudgeService.ts`, deduped per user per day via `dedupeKey`.
+- `public/sw.js` must never schedule anything: workers are killed when idle. Scheduling is
   in-process **node-cron** (`schedulerService.ts`) — not a queue, because this
   runs as a single Railway instance. Horizontal scaling would double-fire jobs.
 

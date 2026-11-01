@@ -1,7 +1,6 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../services/notificationService';
 import { PlusCircle, Edit3, Trash2, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { useHolidays, useCreateHoliday, useUpdateHoliday, useDeleteHoliday } from '@/hooks/queries';
 import { formatISTDate } from '@/utils/luxonUtils';
@@ -106,22 +105,12 @@ const HolidaysPage = (): JSX.Element => {
     };
 
     try {
-      let result: Holiday | undefined;
       if (isEditing && currentHoliday._id) {
-        result = await updateHolidayMutation.mutateAsync({ id: currentHoliday._id, ...payload });
+        await updateHolidayMutation.mutateAsync({ id: currentHoliday._id, ...payload });
         setMessage({ type: 'success', content: 'Holiday updated successfully!' });
       } else {
-        result = await createHolidayMutation.mutateAsync(payload);
+        await createHolidayMutation.mutateAsync(payload);
         setMessage({ type: 'success', content: 'Holiday added successfully!' });
-      }
-
-      // Send PWA notification for holiday creation/update
-      try {
-        const holidayData = result || currentHoliday;
-        await notificationService.sendHolidayNotification(holidayData);
-      } catch (notifyError) {
-        console.error('Failed to send PWA notification:', notifyError);
-        // Don't show error to user as the main operation succeeded
       }
 
       closeModal();

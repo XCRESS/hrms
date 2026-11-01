@@ -1,14 +1,10 @@
 import webpush, { WebPushError } from 'web-push';
 import mongoose from 'mongoose';
 import PushSubscriptionModel from '../models/PushSubscription.model.js';
-import User from '../models/User.model.js';
 import logger from '../utils/logger.js';
+import type { NotificationSpec } from './notifications/catalog.js';
 
-interface NotificationData {
-  [key: string]: unknown;
-}
-
-export interface PushSubscription {
+export interface PushSubscriptionKeys {
   endpoint: string;
   keys: {
     p256dh: string;
@@ -16,37 +12,73 @@ export interface PushSubscription {
   };
 }
 
-/**
- * What the service worker renders. `frontend/public/sw.js` spreads this over
- * its defaults and calls showNotification(title, data), reading `data.url` on
- * click — so anything without a `title`/`body` shows the generic fallback.
- */
-interface PushPayload {
+export interface RenderedPush {
+  type: string;
   title: string;
   body: string;
-  tag: string;
-  data: { url: string; type: string };
+  url: string;
+  spec: NotificationSpec;
+  tag?: string;
+  inboxId?: string;
+  badge?: number;
 }
 
-const asText = (value: unknown, fallback = ''): string =>
-  value == null ? fallback : String(value);
+const APP_URL = (process.env.APP_URL || 'https://hr.intakesense.com').replace(/\/$/, '');
+
+/** Unknown push-service errors past this many in a row retire the subscription. */
+const MAX_CONSECUTIVE_FAILURES = 5;
+
+const SEND_CONCURRENCY = 20;
+
+/**
+ * Declarative Web Push format (WebKit, W3C draft). Safari 18.4+ renders it
+ * without running the service worker; everywhere else `sw.js` reads the same
+ * `notification` object, so one payload serves every browser.
+ */
+const toDeclarativePayload = (push: RenderedPush) => ({
+  web_push: 8030,
+  notification: {
+    title: push.title,
+    body: push.body,
+    navigate: `${APP_URL}${push.url}`,
+    lang: 'en-IN',
+    dir: 'ltr',
+    silent: push.spec.urgency === 'very-low',
+    ...(push.tag ? { tag: push.tag } : {}),
+    ...(push.spec.requireInteraction ? { require_interaction: true } : {}),
+    ...(typeof push.badge === 'number' ? { app_badge: String(push.badge) } : {}),
+    ...(push.spec.actions
+      ? {
+          actions: push.spec.actions.map((a) => ({
+            action: a.action,
+            title: a.title,
+            navigate: `${APP_URL}${a.url}`,
+          })),
+        }
+      : {}),
+    data: { type: push.type, url: push.url, inboxId: push.inboxId },
+  },
+});
+
+async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (let item = queue.shift(); item !== undefined; item = queue.shift()) {
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
+}
 
 class PushService {
-  initialized: boolean;
-
-  constructor() {
-    this.initialized = false;
-  }
+  initialized = false;
 
   initialize(): void {
     if (this.initialized) return;
 
     const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL } = process.env;
-
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_EMAIL) {
-      logger.info('Push service skipped - VAPID keys not configured');
-      logger.info('Required: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL');
-      logger.info('Generate keys with: npx web-push generate-vapid-keys');
+      logger.info('Push disabled: set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL (npx web-push generate-vapid-keys)');
       return;
     }
 
@@ -54,155 +86,67 @@ class PushService {
       const contact = VAPID_EMAIL.startsWith('mailto:') ? VAPID_EMAIL : `mailto:${VAPID_EMAIL}`;
       webpush.setVapidDetails(contact, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
       this.initialized = true;
-      logger.info('Push service initialized successfully');
+      logger.info('Push service initialized');
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Push service initialization failed - check VAPID key format');
+      logger.error({ err: error }, 'Push service initialization failed - check VAPID key format');
     }
   }
 
-  /**
-   * Build what the service worker needs from the loosely-typed notification
-   * data the callers pass around. Mirrors the subject lines in emailService.
-   */
-  buildPayload(type: string, data: NotificationData): PushPayload {
-    const employee = asText(data.employee, 'An employee');
-    const status = asText(data.status);
+  /** Deliver to every device of the given users. Never throws. */
+  async sendToUsers(userIds: mongoose.Types.ObjectId[], render: (userId: string) => RenderedPush): Promise<number> {
+    if (!this.initialized || userIds.length === 0) return 0;
 
-    const builders: Record<string, () => { title: string; body: string; url: string }> = {
-      leave_request: () => ({
-        title: 'New leave request',
-        body: `${employee} requested ${asText(data.type, 'leave')} on ${asText(data.date)}`,
-        url: '/admin/requests',
-      }),
-      wfh_request: () => ({
-        title: 'New work from home request',
-        body: `${employee} requested WFH on ${asText(data.date)}`,
-        url: '/admin/requests',
-      }),
-      regularization_request: () => ({
-        title: 'New attendance regularization',
-        body: `${employee} requested regularization for ${asText(data.date)}`,
-        url: '/admin/requests',
-      }),
-      expense_request: () => ({
-        title: 'New expense claim',
-        body: `${employee} claimed ₹${Number(data.amount ?? 0).toLocaleString('en-IN')}`,
-        url: '/admin/requests',
-      }),
-      help_request: () => ({
-        title: 'New help request',
-        body: `${employee}: ${asText(data.subject, 'needs assistance')}`,
-        url: '/admin/requests',
-      }),
-      leave_status: () => ({
-        title: `Leave request ${status || 'updated'}`,
-        body: `Your leave for ${asText(data.date)} was ${status || 'reviewed'}`,
-        url: '/my-requests',
-      }),
-      regularization_status: () => ({
-        title: `Regularization ${status || 'updated'}`,
-        body: `Your request for ${asText(data.date)} was ${status || 'reviewed'}`,
-        url: '/my-requests',
-      }),
-      expense_status: () => ({
-        title: `Expense claim ${status || 'updated'}`,
-        body: `Your claim was ${status || 'reviewed'}`,
-        url: '/my-requests',
-      }),
-      holiday_reminder: () => ({
-        title: 'Upcoming holiday',
-        body: `${asText(data.title, 'Holiday')} on ${asText(data.date)}`,
-        url: '/dashboard',
-      }),
-      employee_milestone: () => ({
-        title: 'Employee milestone',
-        body: `${employee} · ${asText(data.title, 'milestone today')}`,
-        url: '/dashboard',
-      }),
-      announcement: () => ({
-        title: asText(data.title, 'New announcement'),
-        body: asText(data.message ?? data.content, 'Tap to read the announcement'),
-        url: '/dashboard',
-      }),
-      checkin_reminder: () => ({
-        title: 'Check-in reminder',
-        body: asText(data.message, "Don't forget to check in today"),
-        url: '/dashboard',
-      }),
-    };
+    const subscriptions = await PushSubscriptionModel.find({ user: { $in: userIds } })
+      .select('user endpoint keys')
+      .lean();
 
-    const built = builders[type]?.() ?? {
-      title: 'HRMS notification',
-      body: asText(data.message ?? data.reason, 'You have a new notification'),
-      url: '/dashboard',
-    };
-
-    return {
-      title: built.title,
-      body: built.body,
-      // Same tag per type so a burst collapses instead of stacking.
-      tag: `hrms-${type}`,
-      data: { url: built.url, type },
-    };
+    let delivered = 0;
+    await mapWithConcurrency(subscriptions, SEND_CONCURRENCY, async (sub) => {
+      if (await this.deliver(sub, render(sub.user.toString()))) delivered++;
+    });
+    return delivered;
   }
 
-  /**
-   * Send to one endpoint. Returns false rather than throwing: a dead
-   * subscription is normal and must not fail the surrounding request.
-   */
-  async send(subscription: PushSubscription, payload: PushPayload | NotificationData): Promise<boolean> {
-    if (!this.initialized) {
-      logger.info('Push notification skipped - service not initialized');
-      return false;
-    }
-
+  private async deliver(sub: PushSubscriptionKeys, push: RenderedPush): Promise<boolean> {
     try {
       await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: sub.keys },
+        JSON.stringify(toDeclarativePayload(push)),
         {
-          endpoint: subscription.endpoint,
-          keys: subscription.keys,
-        },
-        JSON.stringify(payload)
+          TTL: push.spec.ttl,
+          urgency: push.spec.urgency,
+          // Push-service-side collapse: a queued nudge is replaced, not stacked.
+          ...(push.tag ? { topic: push.tag.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) } : {}),
+        }
+      );
+      await PushSubscriptionModel.updateOne(
+        { endpoint: sub.endpoint },
+        { $set: { lastSuccessAt: new Date(), failureCount: 0 } }
       );
       return true;
     } catch (error) {
-      // 404/410 mean the browser dropped the subscription - prune it so we
-      // stop paying for it on every future send.
       if (error instanceof WebPushError && (error.statusCode === 404 || error.statusCode === 410)) {
-        await PushSubscriptionModel.deleteOne({ endpoint: subscription.endpoint });
+        await PushSubscriptionModel.deleteOne({ endpoint: sub.endpoint });
         logger.info({ statusCode: error.statusCode }, 'Pruned expired push subscription');
         return false;
       }
 
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Push notification send failed');
+      const updated = await PushSubscriptionModel.findOneAndUpdate(
+        { endpoint: sub.endpoint },
+        { $inc: { failureCount: 1 } },
+        { new: true, projection: { failureCount: 1 } }
+      ).lean();
+      if (updated && updated.failureCount >= MAX_CONSECUTIVE_FAILURES) {
+        await PushSubscriptionModel.deleteOne({ endpoint: sub.endpoint });
+        logger.warn('Retired push subscription after repeated failures');
+      }
+      logger.error({ err: error }, 'Push send failed');
       return false;
     }
   }
 
-  async sendNotification(
-    type: string,
-    data: NotificationData,
-    subscriptions: PushSubscription[]
-  ): Promise<void> {
-    if (!this.initialized || subscriptions.length === 0) {
-      logger.info({ type, count: subscriptions.length }, 'Push notifications skipped');
-      return;
-    }
-
-    const payload = this.buildPayload(type, data);
-    const results = await Promise.allSettled(
-      subscriptions.map((subscription) => this.send(subscription, payload))
-    );
-
-    const sent = results.filter((r) => r.status === 'fulfilled' && r.value).length;
-    logger.info({ type, sent, total: subscriptions.length }, 'Push notifications dispatched');
-  }
-
-  async addSubscription(userId: string, subscription: PushSubscription): Promise<void> {
-    // Keyed on endpoint, not user: one person may have several devices, and a
-    // device re-subscribing must update its row rather than add a duplicate.
+  async addSubscription(userId: string, subscription: PushSubscriptionKeys, userAgent?: string): Promise<void> {
+    // Keyed on endpoint: a shared device that changes hands moves to the new user.
     await PushSubscriptionModel.updateOne(
       { endpoint: subscription.endpoint },
       {
@@ -210,51 +154,35 @@ class PushService {
           user: new mongoose.Types.ObjectId(userId),
           endpoint: subscription.endpoint,
           keys: subscription.keys,
+          userAgent: userAgent?.slice(0, 400),
+          failureCount: 0,
         },
       },
       { upsert: true }
     );
-    logger.info({ userId }, 'Push subscription saved for user');
   }
 
   /**
-   * Remove one device when the caller knows which endpoint, otherwise every
-   * device for the user.
+   * Swap a rotated subscription. Called by the service worker, which has no
+   * auth token; possession of the old endpoint (an unguessable URL) is the proof.
    */
-  async removeSubscription(userId: string, endpoint?: string): Promise<void> {
+  async replaceSubscription(oldEndpoint: string, subscription: PushSubscriptionKeys): Promise<boolean> {
+    const existing = await PushSubscriptionModel.findOne({ endpoint: oldEndpoint }).select('user').lean();
+    if (!existing) return false;
+    await PushSubscriptionModel.deleteOne({ endpoint: oldEndpoint });
+    await this.addSubscription(existing.user.toString(), subscription);
+    return true;
+  }
+
+  async removeSubscription(userId: string, endpoint?: string): Promise<number> {
     const filter: Record<string, unknown> = { user: new mongoose.Types.ObjectId(userId) };
     if (endpoint) filter.endpoint = endpoint;
-
     const { deletedCount } = await PushSubscriptionModel.deleteMany(filter);
-    logger.info({ userId, deletedCount }, 'Push subscription(s) removed for user');
+    return deletedCount;
   }
 
-  async getHRSubscriptions(): Promise<PushSubscription[]> {
-    // Previously returned every subscription, which would have pushed HR-only
-    // content (leave reasons, expense amounts) to the whole company.
-    const staff = await User.find({ role: { $in: ['hr', 'admin'] }, isActive: true })
-      .select('_id')
-      .lean();
-
-    if (staff.length === 0) return [];
-
-    return this.findByUsers(staff.map((user) => user._id));
-  }
-
-  async getAllSubscriptions(): Promise<PushSubscription[]> {
-    const subscriptions = await PushSubscriptionModel.find().select('endpoint keys').lean();
-    return subscriptions.map(({ endpoint, keys }) => ({ endpoint, keys }));
-  }
-
-  async getSubscriptionsForUser(userId: string): Promise<PushSubscription[]> {
-    return this.findByUsers([new mongoose.Types.ObjectId(userId)]);
-  }
-
-  private async findByUsers(userIds: mongoose.Types.ObjectId[]): Promise<PushSubscription[]> {
-    const subscriptions = await PushSubscriptionModel.find({ user: { $in: userIds } })
-      .select('endpoint keys')
-      .lean();
-    return subscriptions.map(({ endpoint, keys }) => ({ endpoint, keys }));
+  async countForUser(userId: string): Promise<number> {
+    return PushSubscriptionModel.countDocuments({ user: new mongoose.Types.ObjectId(userId) });
   }
 }
 

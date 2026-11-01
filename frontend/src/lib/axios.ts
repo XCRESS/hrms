@@ -3,11 +3,11 @@ import { ApiError, ApiResponse } from '@/types';
 import { tokenStorage } from './tokenStorage';
 
 // Base URL from environment or fallback
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 // Create axios instance
 export const axiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -75,15 +75,12 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    // Handle 403 - Forbidden (unlinked employee, deactivated via middleware)
+    // Handle 403 - only SESSION_REVOKED (unlinked/deactivated employee) ends the session;
+    // a plain role mismatch must not log the user out.
     else if (error.response?.status === 403) {
       const msg = error.response.data?.message || '';
-      const isSessionRevoked =
-        msg.toLowerCase().includes('not linked') ||
-        msg.toLowerCase().includes('deactivated') ||
-        msg.toLowerCase().includes('access forbidden');
 
-      if (isSessionRevoked) {
+      if (error.response.data?.code === 'SESSION_REVOKED') {
         tokenStorage.remove();
         customError.message = msg || 'Your session has been revoked. Please contact HR.';
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
@@ -116,7 +113,7 @@ axiosInstance.interceptors.response.use(
       customError.isDNSError = true;
       customError.message = 'Network error. Please check your connection.';
 
-      const hostname = new URL(BASE_URL).hostname;
+      const hostname = new URL(API_BASE_URL).hostname;
       customError.userFriendlyMessage =
         `Cannot connect to ${hostname}. This may be due to:\n` +
         `• Network connection issues\n` +

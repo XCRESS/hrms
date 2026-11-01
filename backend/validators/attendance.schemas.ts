@@ -27,6 +27,12 @@ export const checkInSchema = z.object({
   ...locationFields,
 });
 
+export const geofenceCheckSchema = z.object({
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
+  accuracy: accuracySchema.nullish(),
+});
+
 export const checkOutSchema = z.object({
   tasks: z.array(z.unknown()).nullish(),
   ...locationFields,
@@ -51,4 +57,5 @@ export const updateAttendanceRecordSchema = z.object({
 
 export type CheckInInput = z.infer<typeof checkInSchema>;
 export type CheckOutInput = z.infer<typeof checkOutSchema>;
+export type GeofenceCheckInput = z.infer<typeof geofenceCheckSchema>;
 export type UpdateAttendanceRecordInput = z.infer<typeof updateAttendanceRecordSchema>;

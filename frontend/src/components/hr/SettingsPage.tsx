@@ -252,38 +252,15 @@ const SettingsPage: React.FC = () => {
 
         setTestingNotification(true);
         try {
-            // Exercise each notification type in turn; the last response carries
-            // the service-readiness details we report below.
-            await testNotificationMutation.mutateAsync('hr');
-            await testNotificationMutation.mutateAsync('milestone');
-            const responseData = await testNotificationMutation.mutateAsync('holiday');
-
-            if (!responseData?.success) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Test Failed',
-                    description: `Server returned: ${responseData?.message || 'Unknown response format'}`
-                });
-                return;
-            }
-
-            const statusInfo: string[] = [];
-            if (responseData.details?.emailReady) statusInfo.push('Email ✓');
-            if (responseData.details?.pushReady) statusInfo.push('Push ✓');
-
-            if (statusInfo.length === 0) {
-                toast({
-                    variant: 'warning',
-                    title: 'Test Completed',
-                    description: 'No notification services are configured.'
-                });
-            } else {
-                toast({
-                    variant: 'success',
-                    title: 'All Tests Successful',
-                    description: `All notification tests passed! Services ready: ${statusInfo.join(', ')}.`
-                });
-            }
+            const response = await testNotificationMutation.mutateAsync('self');
+            const devices = response.data?.devices ?? 0;
+            toast({
+                variant: devices > 0 ? 'success' : 'warning',
+                title: devices > 0 ? 'Test sent' : 'No devices registered',
+                description: devices > 0
+                    ? `Sent to ${devices} of your device(s). It is also in your notification inbox.`
+                    : 'Added to your inbox. Turn on notifications from the dashboard to receive push on this device.'
+            });
         } catch (err) {
             showError(err, 'Test Failed');
         } finally {
@@ -361,6 +338,9 @@ const SettingsPage: React.FC = () => {
                         saving={saving}
                         isDirty={dirty.notifications}
                         scopeIsDepartment={!!selectedDepartment}
+                        workStartTime={formData.attendance.workStartTime}
+                        lateThreshold={formData.attendance.lateThreshold}
+                        workEndTime={formData.attendance.workEndTime}
                     />
                 );
             case 'general':

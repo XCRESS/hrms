@@ -1,201 +1,52 @@
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { testNotificationSchema, pushSubscriptionSchema, pushUnsubscribeSchema } from "../validators/content.schemas.js";
-import type { TestNotificationInput, PushSubscriptionInput, PushUnsubscribeInput } from "../validators/content.schemas.js";
-import express, { type Router, type Response } from "express";
+import express, { type Router } from "express";
+import rateLimit from "express-rate-limit";
 import authMiddleware from "../middlewares/auth.middleware.js";
-import NotificationService from "../services/notificationService.js";
-import SchedulerService from "../services/schedulerService.js";
-import PushService from "../services/pushService.js";
-import type { IAuthRequest } from "../types/index.js";
-import logger from "../utils/logger.js";
+import type { UserRole } from "../types/index.js";
+import { validateBody, validateQuery } from "../middlewares/zodValidation.middleware.js";
+import {
+  testNotificationSchema,
+  pushSubscriptionSchema,
+  pushUnsubscribeSchema,
+  pushResubscribeSchema,
+  inboxQuerySchema,
+  markNotificationsReadSchema,
+} from "../validators/content.schemas.js";
+import {
+  getInbox,
+  getUnreadCount,
+  markRead,
+  subscribe,
+  unsubscribe,
+  resubscribe,
+  getVapidKey,
+  getStatus,
+  sendTest,
+} from "../controllers/notification.controllers.js";
 
 const router: Router = express.Router();
 
-// Test notification system - Admin/HR only
-router.post('/test', authMiddleware(['admin', 'hr']), validateBody(testNotificationSchema), async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { type } = req.body as TestNotificationInput;
+const ANY_ROLE: UserRole[] = ['admin', 'hr', 'employee'];
 
-    logger.info('Testing notification system...');
+// Unauthenticated (called from the service worker), so throttle it.
+const resubscribeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 
-    // Check notification service status first
-    const status = NotificationService.getStatus();
+router.get('/', authMiddleware(ANY_ROLE), validateQuery(inboxQuerySchema), getInbox);
+router.get('/unread-count', authMiddleware(ANY_ROLE), getUnreadCount);
+router.post('/read', authMiddleware(ANY_ROLE), validateBody(markNotificationsReadSchema), markRead);
 
-    switch (type) {
-      case 'hr':
-        await NotificationService.notifyHR('leave_request', {
-          employee: 'Test Employee',
-          employeeId: 'TEST001',
-          type: 'full-day',
-          date: new Date().toDateString(),
-          reason: 'Test notification from HRMS system - Generic greeting from admin'
-        });
-        break;
+router.get('/vapid-key', getVapidKey);
+router.post('/subscribe', authMiddleware(ANY_ROLE), validateBody(pushSubscriptionSchema), subscribe);
+router.post('/unsubscribe', authMiddleware(ANY_ROLE), validateBody(pushUnsubscribeSchema), unsubscribe);
+router.post('/resubscribe', resubscribeLimiter, validateBody(pushResubscribeSchema), resubscribe);
 
-      case 'all':
-        await NotificationService.notifyAllEmployees('holiday_reminder', {
-          title: 'Test Holiday',
-          date: new Date().toDateString()
-        });
-        break;
-
-      case 'milestone':
-        await SchedulerService.triggerMilestoneCheck();
-        break;
-
-      case 'holiday':
-        await SchedulerService.triggerHolidayReminder();
-        break;
-
-      default:
-        res.status(400).json({
-          success: false,
-          message: 'Invalid test type. Use: hr, all, milestone, or holiday'
-        });
-        return;
-    }
-
-    res.json({
-      success: true,
-      message: `Notification test (${type}) completed successfully`,
-      serviceStatus: status,
-      details: {
-        emailReady: status.emailReady,
-        pushReady: status.pushReady
-      },
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Notification test failed');
-    res.status(500).json({
-      success: false,
-      message: 'Notification test failed',
-      error: err.message
-    });
+router.get('/status', authMiddleware(['admin', 'hr']), getStatus);
+router.post('/test', authMiddleware(ANY_ROLE), validateBody(testNotificationSchema), (req, res, next) => {
+  const role = (req as { user?: { role?: string } }).user?.role;
+  if (req.body.type !== 'self' && role !== 'admin' && role !== 'hr') {
+    res.status(403).json({ success: false, message: 'Only HR can run broadcast tests' });
+    return;
   }
-});
-
-// Get notification system status - Admin/HR only
-router.get('/status', authMiddleware(['admin', 'hr']), async (req: IAuthRequest, res: Response) => {
-  try {
-    const notificationStatus = NotificationService.getStatus();
-    const schedulerStatus = SchedulerService.getStatus();
-    
-    res.json({
-      success: true,
-      status: {
-        notification: notificationStatus,
-        scheduler: schedulerStatus
-      },
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Failed to get notification status');
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get notification status',
-      error: err.message
-    });
-  }
-});
-
-// Subscribe to push notifications
-router.post('/subscribe', authMiddleware(['admin', 'hr', 'employee']), validateBody(pushSubscriptionSchema), async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { subscription } = req.body as PushSubscriptionInput;
-    const userId = req.user?._id?.toString();
-
-    if (!subscription || !subscription.endpoint || !userId) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid subscription data'
-      });
-      return;
-    }
-
-    await PushService.addSubscription(userId, subscription);
-
-    res.json({
-      success: true,
-      message: 'Push notification subscription successful',
-      userId
-    });
-
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Push subscription failed');
-    res.status(500).json({
-      success: false,
-      message: 'Push subscription failed',
-      error: err.message
-    });
-  }
-});
-
-// Unsubscribe from push notifications
-router.post('/unsubscribe', authMiddleware(['admin', 'hr', 'employee']), validateBody(pushUnsubscribeSchema), async (req: IAuthRequest, res: Response) => {
-  try {
-    const { endpoint } = req.body as PushUnsubscribeInput;
-    const userId = req.user?._id?.toString();
-
-    if (!userId) {
-      res.status(400).json({
-        success: false,
-        message: 'User ID not found'
-      });
-      return;
-    }
-
-    await PushService.removeSubscription(userId, endpoint ?? undefined);
-    
-    res.json({
-      success: true,
-      message: 'Push notification unsubscription successful',
-      userId
-    });
-    
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Push unsubscription failed');
-    res.status(500).json({
-      success: false,
-      message: 'Push unsubscription failed',
-      error: err.message
-    });
-  }
-});
-
-// Get VAPID public key for frontend
-router.get('/vapid-key', async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const vapidKey = process.env.VAPID_PUBLIC_KEY;
-
-    if (!vapidKey) {
-      res.status(500).json({
-        success: false,
-        message: 'VAPID key not configured'
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      vapidKey
-    });
-
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Failed to get VAPID key');
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get VAPID key',
-      error: err.message
-    });
-  }
-});
+  next();
+}, sendTest);
 
 export default router;

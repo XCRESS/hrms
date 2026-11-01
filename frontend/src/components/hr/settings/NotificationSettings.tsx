@@ -1,6 +1,7 @@
 import React from 'react';
 import { TestTube, Send, Save, RotateCcw } from 'lucide-react';
 import { NotificationSettingsData } from './types';
+import AttendanceNudgeSettings from './AttendanceNudgeSettings';
 
 interface NotificationSettingsProps {
     notifications: NotificationSettingsData;
@@ -20,6 +21,9 @@ interface NotificationSettingsProps {
      * them. When a department scope is selected the section is read-only.
      */
     scopeIsDepartment?: boolean;
+    workStartTime?: string;
+    lateThreshold?: string;
+    workEndTime?: string;
 }
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({
@@ -34,7 +38,10 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     loading,
     saving,
     isDirty = false,
-    scopeIsDepartment = false
+    scopeIsDepartment = false,
+    workStartTime = '09:00',
+    lateThreshold = '09:55',
+    workEndTime = '18:00'
 }) => {
     const updateField = (field: keyof NotificationSettingsData, value: any) => {
         onUpdate({ ...notifications, [field]: value });
@@ -159,7 +166,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                         ) : (
                             <>
                                 <Send className="w-4 h-4" />
-                                <span>Test All</span>
+                                <span>Send test to me</span>
                             </>
                         )}
                     </button>
@@ -191,6 +198,15 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                     </div>
                 </div>
             </div>
+
+            <AttendanceNudgeSettings
+                nudges={notifications.attendanceNudges}
+                onChange={(next) => updateField('attendanceNudges', next)}
+                workStartTime={workStartTime}
+                lateThreshold={lateThreshold}
+                workEndTime={workEndTime}
+                disabled={scopeIsDepartment}
+            />
 
             {/* Employee Milestone Alerts */}
             <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">

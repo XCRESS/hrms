@@ -3,22 +3,7 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Leaflet resolves its default marker sprites from a relative path that Vite
-// does not rewrite, so they 404 and the pin renders blank. Point them at the
-// bundled assets instead of a CDN — the previous build loaded all three from
-// cdnjs, which broke the map for anyone offline or behind a strict CSP.
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const pinIcon = new L.Icon({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIcon2x,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    shadowSize: [41, 41],
-});
+import { pinIcon } from './pinIcon';
 
 /**
  * The map itself. Leaflet measures its container on mount, and inside a dialog

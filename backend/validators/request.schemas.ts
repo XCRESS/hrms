@@ -11,6 +11,7 @@ import {
   reviewDecisionSchema,
   capturedAtSchema,
   latitudeSchema,
+  accuracySchema,
   longitudeSchema,
 } from './common.schemas.js';
 
@@ -50,6 +51,7 @@ export const createWFHRequestSchema = z.object({
     .max(500),
   latitude: latitudeSchema.nullish(),
   longitude: longitudeSchema.nullish(),
+  accuracy: accuracySchema.nullish(),
   /**
    * Constrained to ~now, not merely parseable: the controller derives
    * `requestDate` from this value, so an unbounded timestamp would let an

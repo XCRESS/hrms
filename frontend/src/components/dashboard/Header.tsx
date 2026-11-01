@@ -3,6 +3,8 @@ import { Clock, User, Calendar, HelpCircle, Moon, Sun, LogIn, LogOut, MapPin, Ed
 import { formatTime, formatISTDate } from "../../utils/luxonUtils";
 import useProfilePicture from "../../hooks/useProfilePicture";
 import AvatarViewer from "../ui/AvatarViewer";
+import NotificationBell from "../notifications/NotificationBell";
+import GeofenceStatus from "./GeofenceStatus";
 
 interface TimeDisplayProps { }
 
@@ -48,6 +50,11 @@ export interface HeaderProps {
   wfhRequestPending: boolean;
   toggleTheme: () => void;
   theme: string;
+  /** Live accuracy while a check-in fix is being refined, in meters. */
+  fixAccuracy?: number | null;
+  /** Set when a notification deep-linked here to do this. */
+  highlightAction?: 'check-in' | 'check-out' | null;
+  showGeofenceStatus?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -65,7 +72,10 @@ const Header: React.FC<HeaderProps> = ({
   setShowExpenseModal,
   wfhRequestPending,
   toggleTheme,
-  theme
+  theme,
+  fixAccuracy = null,
+  highlightAction = null,
+  showGeofenceStatus = false
 }) => {
   const { imageUrl, documentId, employeeId } = useProfilePicture();
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
@@ -108,6 +118,7 @@ const Header: React.FC<HeaderProps> = ({
         {/* Action Icons */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <button
               onClick={() => setShowLeaveModal(true)}
               title="Request Leave"
@@ -161,18 +172,21 @@ const Header: React.FC<HeaderProps> = ({
       <div className="grid grid-cols-2 gap-4 w-full mt-6">
         <button
           onClick={handleCheckIn}
+          autoFocus={highlightAction === 'check-in'}
           disabled={isCheckedIn || checkInLoading || locationLoading || dailyCycleComplete || wfhRequestPending}
           className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 shadow-lg border ${dailyCycleComplete
             ? 'bg-muted text-muted-foreground cursor-not-allowed border-border opacity-60'
             : isCheckedIn || checkInLoading || locationLoading
               ? 'bg-muted text-muted-foreground cursor-not-allowed border-border opacity-50'
               : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 focus:ring-green-400 border-green-600 hover:shadow-xl'
-            }`}
+            } ${highlightAction === 'check-in' && !isCheckedIn && !dailyCycleComplete ? 'ring-4 ring-green-400/60 animate-pulse' : ''}`}
         >
           {locationLoading ? (
             <>
               <MapPin size={18} className="mr-2 animate-pulse" />
-              Getting location...
+              <span className="tabular-nums">
+                {fixAccuracy ? `Locating · ±${Math.round(fixAccuracy)} m` : 'Getting location…'}
+              </span>
             </>
           ) : (
             <>
@@ -188,13 +202,14 @@ const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={handleCheckOut}
+          autoFocus={highlightAction === 'check-out'}
           disabled={!isCheckedIn || checkOutLoading || dailyCycleComplete}
           className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 shadow-lg border ${dailyCycleComplete
             ? 'bg-muted text-muted-foreground cursor-not-allowed border-border opacity-60'
             : !isCheckedIn || checkOutLoading
               ? 'bg-muted text-muted-foreground cursor-not-allowed border-border opacity-50'
               : 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700 focus:ring-red-400 border-red-600 hover:shadow-xl'
-            }`}
+            } ${highlightAction === 'check-out' && isCheckedIn ? 'ring-4 ring-red-400/60 animate-pulse' : ''}`}
         >
           <LogOut size={18} className="mr-2" />
           {checkOutLoading
@@ -204,6 +219,12 @@ const Header: React.FC<HeaderProps> = ({
               : "Check Out"}
         </button>
       </div>
+
+      {showGeofenceStatus && !isCheckedIn && !dailyCycleComplete && (
+        <div className="mt-3">
+          <GeofenceStatus />
+        </div>
+      )}
 
       <AvatarViewer
         open={showAvatarViewer}

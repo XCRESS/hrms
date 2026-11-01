@@ -42,6 +42,38 @@ export const useOfficeLocation = (id: string) => {
   });
 };
 
+export interface GeofenceCheck {
+  enforced: boolean;
+  canRequestWFH: boolean;
+  officesConfigured: boolean;
+  inside: boolean;
+  accuracyTooLow: boolean;
+  maxAccuracy: number;
+  office: { id: string; name: string; radius: number } | null;
+  distance: number | null;
+  tolerance: number | null;
+}
+
+/** Same rule check-in applies, evaluated server-side for a fix. */
+export const useGeofenceCheck = (fix: { latitude: number; longitude: number; accuracy: number } | undefined) => {
+  // ~10m grid: GPS jitter between polls shouldn't cost a request each time.
+  const lat = fix ? Number(fix.latitude.toFixed(4)) : 0;
+  const lng = fix ? Number(fix.longitude.toFixed(4)) : 0;
+  const accuracy = fix ? Math.round(fix.accuracy / 5) * 5 : 0;
+  return useQuery({
+    queryKey: queryKeys.officeLocations.geofenceCheck(lat, lng, accuracy),
+    queryFn: async () => {
+      const { data } = await axiosInstance.post<ApiResponse<GeofenceCheck>>(
+        API_ENDPOINTS.OFFICE_LOCATIONS.GEOFENCE_CHECK,
+        { latitude: fix?.latitude, longitude: fix?.longitude, accuracy: fix?.accuracy }
+      );
+      return data.data;
+    },
+    enabled: !!fix,
+    staleTime: 60_000,
+  });
+};
+
 // ============================================================================
 // MUTATIONS
 // ============================================================================

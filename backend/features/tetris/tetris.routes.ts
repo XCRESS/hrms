@@ -1,8 +1,3 @@
-// ============================================================================
-// CHRISTMAS FEATURE - TETRIS GAME ROUTES
-// This file can be safely deleted after the holiday season
-// ============================================================================
-
 import express, { type Router } from 'express';
 import {
   saveScore,

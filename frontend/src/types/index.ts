@@ -530,6 +530,12 @@ export interface NotificationSettingsSection {
     includeAbsentees?: boolean;
     subjectLine?: string;
   };
+  attendanceNudges?: {
+    checkInReminder?: { enabled?: boolean; minutesBefore?: number };
+    missedCheckIn?: { enabled?: boolean; minutesAfter?: number };
+    missedCheckOut?: { enabled?: boolean; minutesAfter?: number };
+    hrDigest?: { enabled?: boolean; minutesAfter?: number };
+  };
 }
 
 export interface RequestRetentionSettingsSection {
@@ -853,6 +859,7 @@ export interface TodayAlert {
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
+  code?: string;
   data?: T;
   newToken?: string;
 }

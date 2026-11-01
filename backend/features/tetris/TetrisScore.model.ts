@@ -1,8 +1,3 @@
-// ============================================================================
-// CHRISTMAS FEATURE - TETRIS LEADERBOARD
-// This file can be safely deleted after the holiday season
-// ============================================================================
-
 import mongoose, { Schema, type Model, type Document, type Types } from 'mongoose';
 
 export interface ITetrisScore extends Document {

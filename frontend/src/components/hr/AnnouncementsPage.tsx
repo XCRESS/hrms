@@ -1,7 +1,6 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import useAuth from '../../hooks/authjwt';
-import notificationService from '../../services/notificationService';
 import {
   PlusCircle,
   Edit3,
@@ -113,24 +112,12 @@ const AnnouncementsPage = (): JSX.Element => {
     const { author, authorName, ...payload } = currentAnnouncement;
 
     try {
-      let result: Announcement | undefined;
       if (isEditing && currentAnnouncement._id) {
-        result = await updateAnnouncementMutation.mutateAsync({ id: currentAnnouncement._id, ...payload });
+        await updateAnnouncementMutation.mutateAsync({ id: currentAnnouncement._id, ...payload });
         setMessage({ type: 'success', content: 'Announcement updated successfully!' });
       } else {
-        result = await createAnnouncementMutation.mutateAsync(payload);
+        await createAnnouncementMutation.mutateAsync(payload);
         setMessage({ type: 'success', content: 'Announcement created successfully!' });
-      }
-
-      // Send PWA notification if announcement is published
-      if (payload.status === 'published') {
-        try {
-          const announcementData = result || currentAnnouncement;
-          await notificationService.sendAnnouncementNotification(announcementData);
-        } catch (notifyError) {
-          console.error('Failed to send PWA notification:', notifyError);
-          // Don't show error to user as the main operation succeeded
-        }
       }
 
       closeModal();

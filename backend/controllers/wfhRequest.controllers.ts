@@ -9,7 +9,6 @@ import { BusinessLogicError, NotFoundError } from '../utils/attendance/attendanc
 import { ERROR_MESSAGES, HTTP_STATUS } from '../utils/attendance/attendanceConstants.js';
 import { getEmployeeObjectId } from '../utils/attendance/index.js';
 import { getISTDayBoundaries, toIST } from '../utils/timezone.js';
-import { invalidateAttendanceCache, invalidateDashboardCache } from '../utils/cacheInvalidation.js';
 import GeofenceService from '../services/GeofenceService.js';
 import NotificationService from '../services/notificationService.js';
 import logger from '../utils/logger.js';
@@ -26,7 +25,7 @@ const buildTodayFilter = (date = new Date()) => {
 
 export const createWFHRequest = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { reason, latitude, longitude, capturedAt } = req.body as CreateWFHRequestInput;
+    const { reason, latitude, longitude, accuracy, capturedAt } = req.body as CreateWFHRequestInput;
 
     if (!reason || reason.trim().length < 10) {
       throw new BusinessLogicError(
@@ -92,7 +91,7 @@ export const createWFHRequest = async (req: IAuthRequest, res: Response): Promis
       reason: reason.trim(),
       attemptedLocation:
         lat !== undefined && lng !== undefined
-          ? { latitude: lat, longitude: lng }
+          ? { latitude: lat, longitude: lng, accuracy: accuracy ?? undefined }
           : undefined,
       nearestOffice,
       distanceFromOffice: distance
@@ -248,9 +247,10 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
 
         if (request.attemptedLocation && !existingAttendance.location) {
           existingAttendance.location = {
-            ...request.attemptedLocation,
-            accuracy: 0,
-            capturedAt: new Date()
+            latitude: request.attemptedLocation.latitude,
+            longitude: request.attemptedLocation.longitude,
+            accuracy: request.attemptedLocation.accuracy,
+            capturedAt: request.requestedCheckInTime
           };
         }
 
@@ -265,9 +265,10 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
           checkIn: request.requestedCheckInTime,
           status: 'present',
           location: request.attemptedLocation ? {
-            ...request.attemptedLocation,
-            accuracy: 0,
-            capturedAt: new Date()
+            latitude: request.attemptedLocation.latitude,
+            longitude: request.attemptedLocation.longitude,
+            accuracy: request.attemptedLocation.accuracy,
+            capturedAt: request.requestedCheckInTime
           } : undefined,
           geofence: {
             enforced: true,
@@ -295,10 +296,11 @@ export const reviewWFHRequest = async (req: IAuthRequest, res: Response): Promis
     request.approvedBy = req.user._id;
     await request.save();
 
-    if (status === 'approved') {
-      invalidateAttendanceCache();
-      invalidateDashboardCache();
-    }
+    void NotificationService.notifyEmployee(request.employeeId, 'wfh_status_update', {
+      status,
+      date: toIST(request.requestDate).toFormat('d LLL'),
+      comment: reviewComment,
+    });
 
     res.json(
       formatResponse(true, 'WFH request updated', {
