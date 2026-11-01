@@ -163,9 +163,9 @@ const settingsSchema = new Schema<ISettingsDoc>(
         default: [],
         validate: {
           validator: function (arr: number[]): boolean {
-            return arr.every((num) => num >= 1 && num <= 4);
+            return arr.every((num) => num >= 1 && num <= 5);
           },
-          message: 'Saturday holidays must be between 1-4',
+          message: 'Saturday holidays must be between 1-5',
         },
       },
     },

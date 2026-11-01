@@ -408,16 +408,6 @@ export function decimalToTime24(decimal: number): string {
 }
 
 /**
- * Check if a date is a weekend (Sunday in IST)
- * @param date - Date to check
- * @returns True if weekend
- */
-export function isWeekend(date: Date | string | DateTime): boolean {
-  const istDate = toIST(date);
-  return istDate.weekday === 7; // Sunday = 7 in Luxon
-}
-
-/**
  * Get start of week (Monday) in IST
  * @param date - Reference date
  * @returns Start of week DateTime
@@ -458,7 +448,6 @@ export default {
   getISTOffset,
   timeToDecimal,
   decimalToTime24,
-  isWeekend,
   getStartOfWeek,
   getEndOfWeek,
   BUSINESS_HOURS_IST,

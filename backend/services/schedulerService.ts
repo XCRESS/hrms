@@ -10,7 +10,7 @@ import AttendanceNudgeService from './attendanceNudgeService.js';
 import EmailService from './emailService.js';
 import { getISTNow, toIST } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
-import settingsService from './settings/SettingsService.js';
+import { getDayType } from './workCalendar.js';
 import type { DateTime } from 'luxon';
 
 class SchedulerService {
@@ -375,27 +375,9 @@ class SchedulerService {
       const today = todayIST.toJSDate();
       const reportDateFormatted = todayIST.toFormat('MMMM d, yyyy');
 
-      // Check if today is a non-working day. Delegates to SettingsService so
-      // alternate-Saturday holiday schemes (e.g. 2nd/4th Saturday off) are
-      // honored, not just the fixed weekly offs.
-      const isWorkingDay = await settingsService.isWorkingDay(today);
-      if (!isWorkingDay) {
-        logger.info('[Scheduler] Skipping daily HR attendance report - today is a non-working day');
-        return;
-      }
-
-      // Check if today is a holiday (only check active public holidays)
-      const todayHoliday = await Holiday.findOne({
-        date: {
-          $gte: today,
-          $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
-        },
-        isActive: true,
-        type: 'public'
-      });
-
-      if (todayHoliday) {
-        logger.info(`[Scheduler] Skipping daily HR attendance report - today is a holiday: ${todayHoliday.name}`);
+      const dayType = await getDayType(today);
+      if (dayType.type !== 'working') {
+        logger.info({ dayType }, '[Scheduler] Skipping daily HR attendance report - non-working day');
         return;
       }
 

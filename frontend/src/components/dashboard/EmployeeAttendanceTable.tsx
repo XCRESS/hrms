@@ -1,7 +1,12 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useEffect, memo, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Heart, Calendar } from 'lucide-react';
 import useAuth from '@/hooks/authjwt';
+import { DateTime } from 'luxon';
 import { formatTime, getISTDateString } from '@/utils/luxonUtils';
+import { getWeeklyOffReason } from '@/utils/workingDay';
+
+const toISTDay = (date: Date): DateTime =>
+  DateTime.fromObject({ year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() }, { zone: 'Asia/Kolkata' });
 import { useEmployeeAttendanceWithAbsents, useEffectiveSettings } from '@/hooks/queries';
 
 // Types
@@ -375,7 +380,7 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }: EmployeeAtten
     const day = dayNames[dayOfWeek];
     const dateNum = date.getDate().toString().padStart(2, '0');
     const month = monthNames[date.getMonth()];
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = !!getWeeklyOffReason(effectiveSettings?.attendance, toISTDay(date));
 
     return {
       day,
@@ -395,72 +400,15 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }: EmployeeAtten
       return record.weekData[dateKey];
     }
 
-    // If no data exists, determine status based on day type using settings
-    const dayOfWeek = date.getDay();
-    let status = 'absent';
-    let isWorkingDay = true;
-
-    if (effectiveSettings?.attendance) {
-      const { workingDays, saturdayHolidays } = effectiveSettings.attendance;
-
-      // Check if this day of week is in working days
-      if (!workingDays.includes(dayOfWeek)) {
-        status = 'weekend';
-        isWorkingDay = false;
-      }
-      // Special handling for Saturday - check if it's a holiday Saturday
-      else if (dayOfWeek === 6 && saturdayHolidays && saturdayHolidays.length > 0) {
-        const saturdayWeek = getSaturdayWeekOfMonth(date);
-        if (saturdayHolidays.includes(saturdayWeek)) {
-          status = 'weekend';
-          isWorkingDay = false;
-        }
-      }
-    } else {
-      // Fallback to hardcoded logic if settings not loaded
-      if (dayOfWeek === 0) {
-        status = 'weekend';
-        isWorkingDay = false;
-      }
-      else if (dayOfWeek === 6) {
-        const dateNum = date.getDate();
-        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const firstSaturday = 7 - firstDayOfMonth.getDay() || 7;
-        const secondSaturday = firstSaturday + 7;
-
-        if (dateNum >= secondSaturday && dateNum < secondSaturday + 7) {
-          status = 'weekend';
-          isWorkingDay = false;
-        }
-      }
-    }
+    const isWorkingDay = !getWeeklyOffReason(effectiveSettings?.attendance, toISTDay(date));
 
     return {
       checkIn: null,
       checkOut: null,
-      status: status,
-      isWorkingDay: isWorkingDay,
+      status: isWorkingDay ? 'absent' : 'weekend',
+      isWorkingDay,
       holidayTitle: undefined
     };
-  };
-
-  // Helper function to determine which Saturday of the month a given date is
-  const getSaturdayWeekOfMonth = (date: Date): number => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const dateNum = date.getDate();
-
-    // Find the first Saturday of the month
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayWeekday = firstDayOfMonth.getDay();
-
-    // Calculate first Saturday date (0=Sunday, 6=Saturday)
-    const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
-
-    // Calculate which Saturday this date is
-    const saturdayWeek = Math.ceil((dateNum - firstSaturday + 1) / 7);
-
-    return Math.max(1, Math.min(4, saturdayWeek)); // Ensure it's between 1-4
   };
 
   const getAttendanceStatusText = (attendance: AttendanceRecord): string | null => {

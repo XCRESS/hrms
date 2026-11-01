@@ -26,8 +26,6 @@ export type { AttendanceStatus } from './attendanceConstants.js';
 export {
   formatResponse,
   buildEmployeeObject,
-  buildAttendanceRecord,
-  buildStatusSpecificRecord,
   buildAttendanceMaps,
   buildSimpleAttendanceMap,
   buildSimpleLeaveMap,
@@ -48,9 +46,7 @@ export {
 export {
   computeAttendanceFlags,
   computeDayFlags,
-  computeComprehensiveFlags,
   addComputedFlagsToRecord,
-  batchComputeFlags,
   default as AttendanceComputedFlags
 } from './attendanceComputedFlags.js';
 

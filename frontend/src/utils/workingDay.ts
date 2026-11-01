@@ -1,9 +1,9 @@
 /**
  * Working-day / non-working-day detection for the client.
  *
- * Mirrors the backend source of truth (`SettingsService.isWorkingDay` and
- * `SettingsService.getSaturdayWeekOfMonth`) so that a warning shown before
- * check-in matches how the attendance record is actually treated afterwards.
+ * Mirrors the backend source of truth (`services/workCalendar.ts`) so that a
+ * warning shown before check-in matches how the attendance record is actually
+ * treated afterwards.
  *
  * All evaluation happens in IST, not the browser's timezone.
  */
@@ -12,7 +12,7 @@ import { getISTNow, getISTDateString } from './luxonUtils';
 import type { EffectiveSettings, Holiday } from '@/types';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const ORDINALS = ['', '1st', '2nd', '3rd', '4th'];
+const ORDINALS = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
 export type NonWorkingDayReason = 'weekend' | 'saturday_off' | 'holiday';
 
@@ -26,33 +26,37 @@ export interface NonWorkingDayWarning {
   message: string;
 }
 
+type AttendanceRules = Partial<EffectiveSettings>['attendance'];
+
 /** Luxon uses 1=Monday..7=Sunday; settings use JS convention 0=Sunday..6=Saturday. */
-const toJsWeekday = (date: DateTime): number => (date.weekday === 7 ? 0 : date.weekday);
+const toJsWeekday = (date: DateTime): number => date.weekday % 7;
+
+/** Which Saturday of the month a date falls on, 1-5. */
+export const getSaturdayWeekOfMonth = (date: DateTime): number => Math.ceil(date.day / 7);
 
 /**
- * Which Saturday of the month a date falls on, 1-4.
- *
- * Matches `SettingsService.getSaturdayWeekOfMonth`, including its clamp: a 5th
- * Saturday is reported as the 4th, because `saturdayHolidays` only accepts 1-4.
+ * Whether the day is off under the weekly schedule and Saturday rules, ignoring
+ * holidays. Without settings, only Sunday is off.
  */
-export const getSaturdayWeekOfMonth = (date: DateTime): number => {
-  const firstDayWeekday = toJsWeekday(date.startOf('month'));
-  const firstSaturday = firstDayWeekday === 6 ? 1 : 7 - firstDayWeekday;
-  const saturdayWeek = Math.ceil((date.day - firstSaturday + 1) / 7);
-  return Math.max(1, Math.min(4, saturdayWeek));
+export const getWeeklyOffReason = (
+  attendance: AttendanceRules | undefined,
+  day: DateTime
+): 'weekend' | 'saturday_off' | null => {
+  const dayOfWeek = toJsWeekday(day);
+  const workingDays = attendance?.workingDays?.length ? attendance.workingDays : [1, 2, 3, 4, 5, 6];
+  if (!workingDays.includes(dayOfWeek)) return 'weekend';
+  if (dayOfWeek === 6 && (attendance?.saturdayHolidays ?? []).includes(getSaturdayWeekOfMonth(day))) {
+    return 'saturday_off';
+  }
+  return null;
 };
+
+/** Only active public holidays close the office; optional/restricted ones are taken as leave. */
+export const isOfficeClosingHoliday = (holiday: Holiday): boolean =>
+  holiday.isActive !== false && (holiday.type ?? (holiday.isOptional ? 'optional' : 'public')) === 'public';
 
 /**
  * Decide whether the given day is a non-working day, and why.
- *
- * Checks, in order:
- *  1. Weekly schedule - `workingDays` is what the backend uses; `nonWorkingDays`
- *     is checked too so drift between the two arrays errs towards warning.
- *  2. Configured non-working Saturdays - `saturdayHolidays` holds the week
- *     numbers (1-4) HR marked off. An empty array means every Saturday is a
- *     working day; any subset is possible.
- *  3. Company holidays falling on this date.
- *
  * @returns warning payload, or null when it is an ordinary working day
  */
 export const getNonWorkingDayWarning = (
@@ -60,16 +64,27 @@ export const getNonWorkingDayWarning = (
   holidays: Holiday[] | undefined,
   now: DateTime = getISTNow()
 ): NonWorkingDayWarning | null => {
-  const attendance = settings?.attendance;
-  const dayOfWeek = toJsWeekday(now);
-  const dayName = DAY_NAMES[dayOfWeek];
+  const dayName = DAY_NAMES[toJsWeekday(now)];
 
-  const workingDays = attendance?.workingDays;
-  const nonWorkingDays = attendance?.nonWorkingDays;
-  const excludedFromWorkingDays = !!workingDays?.length && !workingDays.includes(dayOfWeek);
-  const listedAsNonWorking = (nonWorkingDays ?? (workingDays?.length ? [] : [0])).includes(dayOfWeek);
+  const todayString = getISTDateString(now);
+  const todayHoliday = holidays?.find(
+    (holiday) => !!holiday?.date && isOfficeClosingHoliday(holiday) && getISTDateString(holiday.date) === todayString
+  );
 
-  if (excludedFromWorkingDays || listedAsNonWorking) {
+  if (todayHoliday) {
+    const title = todayHoliday.title || (todayHoliday as { name?: string }).name || 'a company holiday';
+    return {
+      isNonWorkingDay: true,
+      reason: 'holiday',
+      holidayTitle: title,
+      holidayType: 'public',
+      message: `Today is ${title}. Are you sure you want to check in?`
+    };
+  }
+
+  const weeklyOff = getWeeklyOffReason(settings?.attendance, now);
+
+  if (weeklyOff === 'weekend') {
     return {
       isNonWorkingDay: true,
       reason: 'weekend',
@@ -78,38 +93,14 @@ export const getNonWorkingDayWarning = (
     };
   }
 
-  if (dayOfWeek === 6) {
-    const saturdayHolidays = attendance?.saturdayHolidays ?? [];
+  if (weeklyOff === 'saturday_off') {
     const saturdayWeek = getSaturdayWeekOfMonth(now);
-
-    if (saturdayHolidays.includes(saturdayWeek)) {
-      return {
-        isNonWorkingDay: true,
-        reason: 'saturday_off',
-        dayName,
-        saturdayWeek,
-        message: `Today is the ${ORDINALS[saturdayWeek]} Saturday of the month, which is configured as a non-working Saturday. Are you sure you want to check in?`
-      };
-    }
-  }
-
-  const todayString = getISTDateString(now);
-  const todayHoliday = holidays?.find(
-    (holiday) => !!holiday?.date && getISTDateString(holiday.date) === todayString
-  );
-
-  if (todayHoliday) {
-    const title = todayHoliday.title || (todayHoliday as { name?: string }).name || 'a company holiday';
-    const holidayType = todayHoliday.type || (todayHoliday.isOptional ? 'optional' : 'public');
-    const suffix =
-      holidayType === 'optional' ? ' (Optional Holiday)' : holidayType === 'restricted' ? ' (Restricted Holiday)' : '';
-
     return {
       isNonWorkingDay: true,
-      reason: 'holiday',
-      holidayTitle: title,
-      holidayType,
-      message: `Today is ${title}${suffix}. Are you sure you want to check in?`
+      reason: 'saturday_off',
+      dayName,
+      saturdayWeek,
+      message: `Today is the ${ORDINALS[saturdayWeek]} Saturday of the month, which is configured as a non-working Saturday. Are you sure you want to check in?`
     };
   }
 

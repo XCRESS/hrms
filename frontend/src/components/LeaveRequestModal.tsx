@@ -191,7 +191,7 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
                     <p className="text-xs text-cyan-600 dark:text-cyan-400 ml-6">
                       Excludes{' '}
                       {[
-                        preview.breakdown.sundays > 0 && `${preview.breakdown.sundays} Sunday${preview.breakdown.sundays !== 1 ? 's' : ''}`,
+                        preview.breakdown.weeklyOffs > 0 && `${preview.breakdown.weeklyOffs} weekly off${preview.breakdown.weeklyOffs !== 1 ? 's' : ''}`,
                         preview.breakdown.saturdayHolidays > 0 && `${preview.breakdown.saturdayHolidays} Saturday holiday${preview.breakdown.saturdayHolidays !== 1 ? 's' : ''}`,
                         preview.breakdown.holidays > 0 && `${preview.breakdown.holidays} public holiday${preview.breakdown.holidays !== 1 ? 's' : ''}`,
                       ].filter(Boolean).join(', ')}

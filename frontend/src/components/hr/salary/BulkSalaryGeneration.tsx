@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft,
   Users,
-  Calendar,
   FileText,
   CheckCircle,
   AlertCircle,
@@ -16,8 +15,8 @@ import {
   Calculator
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
-import { useSalaryStructure, useCreateOrUpdateSalarySlip } from "../../../hooks/queries";
-import { BulkGenerationResult, MonthOption } from "@/types";
+import { useBulkGenerateSalarySlips } from "../../../hooks/queries";
+import type { BulkGenerationResponse, BulkGenerationResult, MonthOption } from "@/types";
 
 interface Employee {
   _id: string;
@@ -27,6 +26,29 @@ interface Employee {
   department?: string;
   position?: string;
 }
+
+const OUTCOME_STYLES: Record<BulkGenerationResult['outcome'], { row: string; text: string; label: string }> = {
+  created: {
+    row: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+    text: 'text-green-600 dark:text-green-400',
+    label: 'Draft created'
+  },
+  updated: {
+    row: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+    text: 'text-green-600 dark:text-green-400',
+    label: 'Draft regenerated'
+  },
+  skipped: {
+    row: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+    text: 'text-amber-700 dark:text-amber-400',
+    label: 'Skipped'
+  },
+  failed: {
+    row: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+    text: 'text-red-600 dark:text-red-400',
+    label: 'Failed'
+  }
+};
 
 interface BulkSalaryGenerationProps {
   employees?: Employee[];
@@ -40,12 +62,13 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
   const [taxRegime, setTaxRegime] = useState<'old' | 'new'>('new');
   const [enableTaxDeduction, setEnableTaxDeduction] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [generationResults, setGenerationResults] = useState<BulkGenerationResult[]>([]);
-  const [showResults, setShowResults] = useState<boolean>(false);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generation, setGeneration] = useState<BulkGenerationResponse | null>(null);
 
   const { toast } = useToast();
-  const createOrUpdateSlipMutation = useCreateOrUpdateSalarySlip();
+  const bulkGenerate = useBulkGenerateSalarySlips();
+  const isGenerating = bulkGenerate.isPending;
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
 
   // Months array
   const months: MonthOption[] = [
@@ -99,89 +122,21 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
       return;
     }
 
-    setIsGenerating(true);
-    const results: BulkGenerationResult[] = [];
-
     try {
-      // Import axios directly for structure check (can't use hooks in loop)
-      const axiosInstance = (await import('../../../lib/axios')).default;
+      const response = await bulkGenerate.mutateAsync({
+        employeeIds: selectedEmployees,
+        month,
+        year,
+        taxRegime,
+        enableTaxDeduction
+      });
+      setGeneration(response);
 
-      for (const employeeId of selectedEmployees) {
-        try {
-          const employee = employees.find(emp => emp.employeeId === employeeId);
-
-          // Check if employee has salary structure using axios directly
-          let salaryStructure;
-          try {
-            const { data } = await axiosInstance.get(`/salary-structures/${employeeId}`);
-            salaryStructure = data.data;
-          } catch (error) {
-            // Handle 404 - no salary structure found
-            results.push({
-              employeeId,
-              employeeName: employee ? `${employee.firstName} ${employee.lastName}` : employeeId,
-              success: false,
-              error: "No salary structure found. Please create salary structure first."
-            });
-            continue;
-          }
-
-          if (!salaryStructure || !salaryStructure.earnings) {
-            results.push({
-              employeeId,
-              employeeName: employee ? `${employee.firstName} ${employee.lastName}` : employeeId,
-              success: false,
-              error: "No salary structure found. Please create salary structure first."
-            });
-            continue;
-          }
-
-          // Generate salary slip using mutation
-          try {
-            await createOrUpdateSlipMutation.mutateAsync({
-              employeeId,
-              month,
-              year,
-              earnings: salaryStructure.earnings,
-              taxRegime,
-              enableTaxDeduction
-            });
-
-            results.push({
-              employeeId,
-              employeeName: employee ? `${employee.firstName} ${employee.lastName}` : employeeId,
-              success: true,
-              error: null
-            });
-          } catch (slipError) {
-            results.push({
-              employeeId,
-              employeeName: employee ? `${employee.firstName} ${employee.lastName}` : employeeId,
-              success: false,
-              error: (slipError as Error).message || "Failed to create salary slip"
-            });
-          }
-        } catch (error) {
-          const employee = employees.find(emp => emp.employeeId === employeeId);
-          results.push({
-            employeeId,
-            employeeName: employee ? `${employee.firstName} ${employee.lastName}` : employeeId,
-            success: false,
-            error: (error as Error).message || "Failed to generate salary slip"
-          });
-        }
-      }
-
-      setGenerationResults(results);
-      setShowResults(true);
-
-      const successCount = results.filter(r => r.success).length;
-      const errorCount = results.filter(r => !r.success).length;
-
+      const { created, updated, skipped, failed } = response.summary;
       toast({
         title: "Bulk Generation Complete",
-        description: `${successCount} salary slips generated successfully. ${errorCount} failed.`,
-        variant: successCount > 0 ? "default" : "destructive"
+        description: `${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed.`,
+        variant: created + updated > 0 ? "default" : "destructive"
       });
     } catch (error) {
       toast({
@@ -189,12 +144,10 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
         description: (error as Error).message || "Failed to generate salary slips",
         variant: "destructive"
       });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
-  if (showResults) {
+  if (generation) {
     return (
       <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -222,17 +175,13 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
           <Card className="border-0 shadow-md bg-white dark:bg-slate-700">
             <CardContent className="p-6">
               <div className="space-y-4">
-                {generationResults.map((result, index) => (
+                {generation.results.map((result) => (
                   <div
-                    key={index}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      result.success
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                    }`}
+                    key={result.employeeId}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${OUTCOME_STYLES[result.outcome].row}`}
                   >
                     <div className="flex items-center gap-3">
-                      {result.success ? (
+                      {result.outcome !== 'failed' ? (
                         <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                       ) : (
                         <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -247,15 +196,9 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
                       </div>
                     </div>
                     <div className="text-right">
-                      {result.success ? (
-                        <span className="text-green-600 dark:text-green-400 text-sm font-medium">
-                          Generated Successfully
-                        </span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400 text-sm">
-                          {result.error}
-                        </span>
-                      )}
+                      <span className={`text-sm font-medium ${OUTCOME_STYLES[result.outcome].text}`}>
+                        {result.message ?? OUTCOME_STYLES[result.outcome].label}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -332,7 +275,7 @@ const BulkSalaryGeneration: React.FC<BulkSalaryGenerationProps> = ({ employees =
                       <SelectValue placeholder="Select Year" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-slate-800 dark:border-slate-600">
-                      {[2023, 2024, 2025, 2026].map(y => (
+                      {yearOptions.map(y => (
                         <SelectItem
                           key={y}
                           value={y.toString()}

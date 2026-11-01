@@ -12,7 +12,7 @@ interface PreviewLeaveDaysResult {
   workingDays: number;
   excludedDays: number;
   breakdown: {
-    sundays: number;
+    weeklyOffs: number;
     saturdayHolidays: number;
     holidays: number;
   };

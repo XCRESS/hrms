@@ -6,7 +6,7 @@ import Employee from '../models/Employee.model.js';
 import NotificationService from '../services/notificationService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
-import { calculateWorkingDays } from '../utils/calculateWorkingDays.js';
+import { countWorkingDays, getDayType } from '../services/workCalendar.js';
 import logger from '../utils/logger.js';
 import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
@@ -51,8 +51,7 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
       throw new ValidationError('Start date must be on or before end date');
     }
 
-    // Calculate working days (excludes Sundays, 2nd Saturdays, holidays)
-    const result = await calculateWorkingDays(leaveStartDate, leaveEndDate);
+    const result = await countWorkingDays(leaveStartDate, leaveEndDate, employee.department || null);
     numberOfDays = result.workingDays;
 
     if (numberOfDays === 0) {
@@ -70,6 +69,13 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
 
     if (isNaN(leaveStartDate.getTime())) {
       throw new ValidationError('Invalid date format');
+    }
+
+    const dayType = await getDayType(leaveStartDate, employee.department || null);
+    if (dayType.type !== 'working') {
+      throw new ValidationError(
+        `The selected date is not a working day (${dayType.type === 'holiday' ? dayType.holidayTitle : dayType.reason})`
+      );
     }
 
     numberOfDays = leaveType === 'half-day' ? 0.5 : 1;
@@ -129,7 +135,10 @@ export const previewLeaveDays = asyncHandler(async (req: IAuthRequest, res: Resp
     throw new ValidationError('Start date must be on or before end date');
   }
 
-  const result = await calculateWorkingDays(start, end);
+  const employee = req.user?.employeeId
+    ? await Employee.findOne({ employeeId: req.user.employeeId }).select('department').lean()
+    : null;
+  const result = await countWorkingDays(start, end, employee?.department || null);
 
   res.json({
     success: true,

@@ -180,6 +180,7 @@ export const API_ENDPOINTS = {
     DELETE: (employeeId: string, month: number, year: number) =>
       `/salary-slips/${encodeURIComponent(employeeId)}/${month}/${year}`,
     TAX_CALCULATION: '/salary-slips/tax-calculation',
+    BULK_GENERATE: '/salary-slips/bulk/generate',
   },
 
   // Salary Structures

@@ -60,8 +60,17 @@ export const bulkSalarySlipStatusSchema = z.object({
   status: z.enum(['draft', 'finalized']),
 });
 
+export const bulkGenerateSalarySlipsSchema = z.object({
+  employeeIds: z.array(employeeIdSchema).min(1, 'Select at least one employee').max(1000),
+  month: monthSchema,
+  year: yearSchema,
+  taxRegime: nullableDefault(z.enum(['old', 'new']), 'new'),
+  enableTaxDeduction: nullableDefault(z.boolean(), true),
+});
+
 export type EarningsInput = z.infer<typeof earningsSchema>;
 export type CreateSalaryStructureInput = z.infer<typeof createSalaryStructureSchema>;
 export type CreateSalarySlipInput = z.infer<typeof createSalarySlipSchema>;
 export type SalarySlipStatusInput = z.infer<typeof salarySlipStatusSchema>;
 export type BulkSalarySlipStatusInput = z.infer<typeof bulkSalarySlipStatusSchema>;
+export type BulkGenerateSalarySlipsInput = z.infer<typeof bulkGenerateSalarySlipsSchema>;

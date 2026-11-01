@@ -9,6 +9,7 @@ import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import Holiday from '../models/Holiday.model.js';
 import { getISTNow, getISTDayBoundaries } from '../utils/timezone.js';
 import AlertService from '../services/alertService.js';
+import { classifyDay, getHolidayMap, getRules } from '../services/workCalendar.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import type { IAuthRequest } from '../types/index.js';
 
@@ -33,10 +34,6 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
     status: 'approved',
     startDate: { $lte: endOfToday.toJSDate() },
     endDate: { $gte: startOfToday.toJSDate() }
-  });
-
-  const holidays = await Holiday.find({
-    date: { $gte: startOfToday.toJSDate(), $lte: endOfToday.toJSDate() }
   });
 
   const [pendingLeaves, pendingHelp, pendingRegularizations, pendingExpenses, pendingPasswordResets, upcomingHolidays] = await Promise.all([
@@ -65,7 +62,12 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
     }
   });
 
-  const isHoliday = holidays.length > 0;
+  const holidays = await getHolidayMap(today, today);
+  const workingDayByDepartment = new Map<string, boolean>();
+  for (const department of new Set(allEmployees.map((e) => e.department || ''))) {
+    const rules = await getRules(department || null);
+    workingDayByDepartment.set(department, classifyDay(today, rules, holidays).type === 'working');
+  }
 
   let presentToday = 0;
   const presentEmployees: EmployeeSummary[] = [];
@@ -82,20 +84,11 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
         employeeId: employee.employeeId || 'N/A'
       });
-    } else if (isOnLeave) {
-      // On leave - don't count as absent
-    } else if (isHoliday) {
-      // Holiday - don't count as absent
-    } else {
-      const dayOfWeek = today.weekday;
-      if (dayOfWeek === 7 || (dayOfWeek === 6 && Math.ceil(today.day / 7) === 2)) {
-        // Weekend - don't count as absent
-      } else {
-        absentEmployees.push({
-          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
-          employeeId: employee.employeeId || 'N/A'
-        });
-      }
+    } else if (!isOnLeave && workingDayByDepartment.get(employee.department || '')) {
+      absentEmployees.push({
+        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+        employeeId: employee.employeeId || 'N/A'
+      });
     }
   });
 

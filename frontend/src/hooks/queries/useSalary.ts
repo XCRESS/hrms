@@ -11,6 +11,7 @@ import type {
   SalarySlipQueryParams,
   SalaryStatistics,
   TaxCalculation,
+  BulkGenerationResponse,
 } from "@/types";
 
 // ============================================================================
@@ -330,6 +331,29 @@ export const useUpdateSalarySlipStatus = () => {
 /**
  * Bulk update salary slip status
  */
+export const useBulkGenerateSalarySlips = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      employeeIds: string[];
+      month: number;
+      year: number;
+      taxRegime: 'old' | 'new';
+      enableTaxDeduction: boolean;
+    }) => {
+      const { data } = await axiosInstance.post<ApiResponse<BulkGenerationResponse>>(
+        API_ENDPOINTS.SALARY_SLIPS.BULK_GENERATE,
+        input
+      );
+      return data.data as BulkGenerationResponse;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.salarySlips.all() });
+    },
+  });
+};
+
 export const useBulkUpdateSalarySlipStatus = () => {
   const queryClient = useQueryClient();
 

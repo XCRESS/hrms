@@ -239,6 +239,7 @@ export interface Holiday {
   description?: string;
   isOptional: boolean;
   type?: 'public' | 'restricted' | 'optional';
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -398,8 +399,13 @@ export interface TaxCalculation {
 export interface BulkGenerationResult {
   employeeId: string;
   employeeName: string;
-  success: boolean;
-  error: string | null;
+  outcome: 'created' | 'updated' | 'skipped' | 'failed';
+  message: string | null;
+}
+
+export interface BulkGenerationResponse {
+  results: BulkGenerationResult[];
+  summary: Record<BulkGenerationResult['outcome'], number>;
 }
 
 /** Employee reference (lightweight) */

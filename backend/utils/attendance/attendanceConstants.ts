@@ -41,11 +41,6 @@ export const BUSINESS_RULES = {
   FULL_DAY_HOURS: 8,
   HALF_DAY_HOURS: 4,
   
-  // Working days configuration
-  WORKING_DAYS: [1, 2, 3, 4, 5, 6], // Monday to Saturday (0=Sunday, 6=Saturday)
-  NON_WORKING_DAYS: [0], // Sunday
-  SECOND_SATURDAY_OFF: true, // 2nd Saturday is off
-  
   // Regularization settings
   REGULARIZATION_LOOKBACK_DAYS: 7,
   MAX_REGULARIZATION_DAYS: 30

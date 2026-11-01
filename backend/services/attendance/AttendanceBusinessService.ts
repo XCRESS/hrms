@@ -18,6 +18,7 @@ import {
 } from '../../utils/timezone.js';
 import { computeAttendanceFlags, computeDayFlags } from '../../utils/attendance/attendanceComputedFlags.js';
 import settingsService from '../settings/SettingsService.js';
+import { classifyDay, getHolidayMap, getRules, type HolidayMap } from '../workCalendar.js';
 
 /**
  * Validation result interface
@@ -178,30 +179,6 @@ export class AttendanceBusinessService {
   }
 
   /**
-   * Check if a date is a working day for the company using dynamic settings
-   * @param date - The IST date to check
-   * @param holidayMap - Pre-fetched holiday map for O(1) lookup (optional)
-   * @param department - Department for settings lookup (optional)
-   * @returns True if it's a working day
-   */
-  static async isWorkingDayForCompany(
-    date: Date,
-    holidayMap: Map<string, any> | null = null,
-    department: string | null = null
-  ): Promise<boolean> {
-    // Check if it's a holiday using pre-fetched map (O(1) lookup)
-    if (holidayMap) {
-      const dateKey = getISTDateString(date);
-      if (holidayMap.has(dateKey)) {
-        return false; // It's a holiday, so not a working day
-      }
-    }
-
-    // Use settings service to check if it's a working day
-    return await settingsService.isWorkingDay(date, department);
-  }
-
-  /**
    * Validate check-in eligibility
    * @param employee - Employee document
    * @param currentTime - Current IST time (optional, defaults to now)
@@ -352,82 +329,24 @@ export class AttendanceBusinessService {
     return await settingsService.getBusinessHours(date, department);
   }
 
-  /**
-   * Determine day type (working day, weekend, holiday)
-   * @param date - Date to check
-   * @param holidayMap - Holiday map (optional)
-   * @param department - Department for settings lookup (optional)
-   * @returns Day type information
-   */
   static async determineDayType(
     date: Date,
-    holidayMap: Map<string, any> | null = null,
+    holidayMap: HolidayMap | null = null,
     department: string | null = null
   ): Promise<DayTypeResult> {
-    const dateKey = getISTDateString(date);
-    const dayOfWeek = date.getDay();
+    const [rules, holidays] = await Promise.all([
+      getRules(department),
+      holidayMap ?? getHolidayMap(date, date)
+    ]);
+    const dayType = classifyDay(date, rules, holidays);
 
-    // Check for holiday first
-    if (holidayMap && holidayMap.has(dateKey)) {
-      const holiday = holidayMap.get(dateKey);
-      return {
-        type: 'holiday',
-        isWorkingDay: false,
-        flags: { isHoliday: true },
-        holidayTitle: holiday.title || holiday.holidayName || 'Holiday'
-      };
+    if (dayType.type === 'holiday') {
+      return { type: 'holiday', isWorkingDay: false, flags: { isHoliday: true }, holidayTitle: dayType.holidayTitle };
     }
-
-    // Check for weekend
-    if (dayOfWeek === 0) { // Sunday
-      return {
-        type: 'weekend',
-        isWorkingDay: false,
-        flags: { isWeekend: true },
-        reason: 'Sunday'
-      };
+    if (dayType.type === 'weekend') {
+      return { type: 'weekend', isWorkingDay: false, flags: { isWeekend: true }, reason: dayType.reason };
     }
-
-    if (dayOfWeek === 6) { // Saturday
-      // Check if it's a holiday Saturday using settings
-      const isWorkingDay = await settingsService.isWorkingDay(date, department);
-      if (!isWorkingDay) {
-        const saturdayWeek = this.getSaturdayWeekOfMonth(date);
-        return {
-          type: 'weekend',
-          isWorkingDay: false,
-          flags: { isWeekend: true },
-          reason: `${this.getOrdinalNumber(saturdayWeek)} Saturday`
-        };
-      }
-    }
-
-    // It's a working day
-    return {
-      type: 'working',
-      isWorkingDay: true,
-      flags: {}
-    };
-  }
-
-  /**
-   * Determine which Saturday of the month a given date is.
-   * Delegates to SettingsService so there is one IST-correct implementation.
-   * @param date - Date to check (should be a Saturday)
-   * @returns 1, 2, 3, or 4 representing 1st, 2nd, 3rd, or 4th Saturday
-   */
-  static getSaturdayWeekOfMonth(date: Date): number {
-    return settingsService.getSaturdayWeekOfMonth(toIST(date));
-  }
-
-  /**
-   * Get ordinal number string (1st, 2nd, 3rd, 4th)
-   * @param num - Number (1-4)
-   * @returns Ordinal string
-   */
-  static getOrdinalNumber(num: number): string {
-    const ordinals: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
-    return ordinals[num] || `${num}th`;
+    return { type: 'working', isWorkingDay: true, flags: {} };
   }
 
   /**

@@ -36,7 +36,7 @@ const attendanceSection = z
     workingDays: z.array(weekday).max(7).optional(),
     nonWorkingDays: z.array(weekday).max(7).optional(),
     saturdayWorkType: z.enum(['full', 'half']).optional(),
-    saturdayHolidays: z.array(z.number().int().min(1).max(4)).max(4).optional(),
+    saturdayHolidays: z.array(z.number().int().min(1).max(5)).max(5).optional(),
   })
   .strict()
   .refine(

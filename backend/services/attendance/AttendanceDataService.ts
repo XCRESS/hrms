@@ -21,6 +21,7 @@ import {
   buildPaginationMeta
 } from '../../utils/attendance/attendanceHelpers.js';
 import { PAGINATION_DEFAULTS } from '../../utils/attendance/attendanceConstants.js';
+import { getHolidayMap, type HolidayMap } from '../workCalendar.js';
 
 /**
  * Query options interface
@@ -414,12 +415,8 @@ export class AttendanceDataService {
 
   // Holiday Data Operations
 
-  /**
-   * @returns Holidays keyed by IST date string (YYYY-MM-DD)
-   */
-  static async getHolidaysInRange(startDate: Date, endDate: Date): Promise<Map<string, any>> {
-    const holidays = await Holiday.find({ date: { $gte: startDate, $lte: endDate } }).lean();
-    return new Map(holidays.map((holiday) => [getISTDateString(holiday.date), holiday]));
+  static async getHolidaysInRange(startDate: Date, endDate: Date): Promise<HolidayMap> {
+    return await getHolidayMap(startDate, endDate);
   }
 
   // Task Report Operations

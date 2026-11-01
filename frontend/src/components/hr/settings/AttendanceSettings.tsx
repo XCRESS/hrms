@@ -266,10 +266,10 @@ const AttendanceSettings: React.FC<AttendanceSettingsProps> = ({
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Select which Saturdays of the month should be holidays. Unselected Saturdays will be working days.
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map((saturdayNumber) => {
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {[1, 2, 3, 4, 5].map((saturdayNumber) => {
                 const isHoliday = formData.attendance.saturdayHolidays.includes(saturdayNumber);
-                const saturdayLabels = ['1st Saturday', '2nd Saturday', '3rd Saturday', '4th Saturday'];
+                const saturdayLabels = ['1st Saturday', '2nd Saturday', '3rd Saturday', '4th Saturday', '5th Saturday'];
 
                 return (
                   <label key={saturdayNumber} className="flex items-center space-x-2 cursor-pointer">

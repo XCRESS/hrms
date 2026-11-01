@@ -1,9 +1,10 @@
-import type { CreateSalarySlipInput, SalarySlipStatusInput, BulkSalarySlipStatusInput } from '../validators/salary.schemas.js';
+import type { CreateSalarySlipInput, SalarySlipStatusInput, BulkSalarySlipStatusInput, BulkGenerateSalarySlipsInput } from '../validators/salary.schemas.js';
 import { canAccessEmployee, paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import SalarySlip from '../models/SalarySlip.model.js';
 import Employee from '../models/Employee.model.js';
+import SalaryStructure from '../models/SalaryStructure.model.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import NotificationService from '../services/notificationService.js';
@@ -435,5 +436,114 @@ export const bulkUpdateSalarySlipStatus = async (req: IAuthRequest, res: Respons
     const err = error instanceof Error ? error : new Error('Unknown error');
     logger.error({ err }, 'Error bulk updating salary slip status');
     res.status(500).json(formatResponse(false, 'Server error while updating salary slip status', err.message));
+  }
+};
+
+type BulkGenerateOutcome = 'created' | 'updated' | 'skipped' | 'failed';
+
+interface BulkGenerateResult {
+  employeeId: string;
+  employeeName: string;
+  outcome: BulkGenerateOutcome;
+  message: string | null;
+}
+
+/**
+ * Builds draft slips from each employee's active salary structure. Finalized
+ * slips are skipped: rewriting one would silently change a payslip the
+ * employee can already see.
+ */
+export const bulkGenerateSalarySlips = async (req: IAuthRequest, res: Response): Promise<void> => {
+  try {
+    const { employeeIds, month, year, taxRegime, enableTaxDeduction } = req.body as BulkGenerateSalarySlipsInput;
+
+    if (!req.user) {
+      res.status(401).json(formatResponse(false, 'Authentication required'));
+      return;
+    }
+
+    const uniqueIds = [...new Set(employeeIds)];
+    const employees = await Employee.find({ employeeId: { $in: uniqueIds } })
+      .select('_id employeeId firstName lastName')
+      .lean();
+    const employeeObjIds = employees.map((e) => e._id);
+
+    const [structures, existingSlips] = await Promise.all([
+      SalaryStructure.find({ employee: { $in: employeeObjIds }, isActive: true }).select('employee earnings').lean(),
+      SalarySlip.find({ employee: { $in: employeeObjIds }, month, year }),
+    ]);
+
+    const employeeById = new Map(employees.map((e) => [e.employeeId, e]));
+    const structureByEmployee = new Map(structures.map((s) => [s.employee.toString(), s]));
+    const slipByEmployee = new Map(existingSlips.map((s) => [s.employee.toString(), s]));
+
+    const results: BulkGenerateResult[] = [];
+
+    for (const employeeId of uniqueIds) {
+      const employee = employeeById.get(employeeId);
+      if (!employee) {
+        results.push({ employeeId, employeeName: employeeId, outcome: 'failed', message: 'Employee not found' });
+        continue;
+      }
+
+      const key = employee._id.toString();
+      const employeeName = `${employee.firstName} ${employee.lastName}`;
+      const structure = structureByEmployee.get(key);
+      if (!structure) {
+        results.push({ employeeId, employeeName, outcome: 'failed', message: 'No active salary structure' });
+        continue;
+      }
+
+      const existing = slipByEmployee.get(key);
+      if (existing?.status === 'finalized') {
+        results.push({
+          employeeId,
+          employeeName,
+          outcome: 'skipped',
+          message: 'Already published. Unpublish it to regenerate.'
+        });
+        continue;
+      }
+
+      const { basic, hra, conveyance, medical, lta, specialAllowance, mobileAllowance } = structure.earnings;
+      const fields = {
+        earnings: { basic, hra, conveyance, medical, lta, specialAllowance, mobileAllowance },
+        taxRegime,
+        enableTaxDeduction
+      };
+
+      try {
+        if (existing) {
+          // Custom deductions (loan recovery, advances) are entered per slip; keep them.
+          Object.assign(existing, fields);
+          await existing.save();
+          results.push({ employeeId, employeeName, outcome: 'updated', message: null });
+        } else {
+          await SalarySlip.create({
+            ...fields,
+            employee: employee._id,
+            employeeId,
+            month,
+            year,
+            deductions: { incomeTax: 0, customDeductions: [] },
+            createdBy: req.user._id
+          });
+          results.push({ employeeId, employeeName, outcome: 'created', message: null });
+        }
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        logger.error({ err, employeeId, month, year }, 'Bulk salary slip generation failed for employee');
+        results.push({ employeeId, employeeName, outcome: 'failed', message: err.message });
+      }
+    }
+
+    const summary = { created: 0, updated: 0, skipped: 0, failed: 0 };
+    for (const result of results) summary[result.outcome]++;
+
+    res.status(200).json(formatResponse(true, 'Bulk generation complete', { results, summary }));
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    logger.error({ err }, 'Error bulk generating salary slips');
+    res.status(500).json(formatResponse(false, 'Server error while generating salary slips', err.message));
   }
 };

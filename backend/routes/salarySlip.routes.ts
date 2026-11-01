@@ -1,5 +1,5 @@
 import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { createSalarySlipSchema, salarySlipStatusSchema, bulkSalarySlipStatusSchema } from "../validators/salary.schemas.js";
+import { createSalarySlipSchema, salarySlipStatusSchema, bulkSalarySlipStatusSchema, bulkGenerateSalarySlipsSchema } from "../validators/salary.schemas.js";
 import express, { type Router } from "express";
 import {
   createOrUpdateSalarySlip,
@@ -9,7 +9,8 @@ import {
   deleteSalarySlip,
   getTaxCalculation,
   updateSalarySlipStatus,
-  bulkUpdateSalarySlipStatus
+  bulkUpdateSalarySlipStatus,
+  bulkGenerateSalarySlips
 } from "../controllers/salarySlip.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
@@ -20,6 +21,9 @@ router.get("/tax-calculation", authMiddleware(["admin", "hr"]), getTaxCalculatio
 
 // Create or update salary slip (HR/Admin only)
 router.post("/", authMiddleware(["admin", "hr"]), validateBody(createSalarySlipSchema), createOrUpdateSalarySlip);
+
+// Generate draft slips from salary structures (HR/Admin only)
+router.post("/bulk/generate", authMiddleware(["admin", "hr"]), validateBody(bulkGenerateSalarySlipsSchema), bulkGenerateSalarySlips);
 
 // Get all salary slips with filters (HR/Admin only)
 router.get("/", authMiddleware(["admin", "hr"]), getAllSalarySlips);

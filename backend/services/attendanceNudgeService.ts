@@ -7,10 +7,10 @@ import Leave from '../models/Leave.model.js';
 import WFHRequest from '../models/WFHRequest.model.js';
 import RegularizationRequest from '../models/Regularization.model.js';
 import Expense from '../models/Expense.model.js';
-import Holiday from '../models/Holiday.model.js';
 import Settings, { type IAttendanceNudgeConfig } from '../models/Settings.model.js';
 import settingsService from './settings/SettingsService.js';
 import NotificationService from './notificationService.js';
+import { getHolidayMap, isWorkingDay } from './workCalendar.js';
 import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
 
@@ -78,8 +78,7 @@ class AttendanceNudgeService {
     const start = startOfDay.toJSDate();
     const end = endOfDay.toJSDate();
 
-    const holiday = await Holiday.exists({ date: { $gte: start, $lte: end }, isActive: true, type: 'public' });
-    if (holiday) return null;
+    if ((await getHolidayMap(now, now)).size > 0) return null;
 
     const [records, leaves, wfh] = await Promise.all([
       Attendance.find({ date: { $gte: start, $lte: end } }).select('employee checkIn checkOut').lean(),
@@ -133,7 +132,7 @@ class AttendanceNudgeService {
     }
 
     for (const [department, members] of byDepartment) {
-      if (!(await settingsService.isWorkingDay(roster.startOfDay, department))) continue;
+      if (!(await isWorkingDay(roster.startOfDay, department))) continue;
 
       const hours = await settingsService.getBusinessHours(now, department);
       const attendanceSettings = await settingsService.getAttendanceSettings(department);
@@ -201,7 +200,7 @@ class AttendanceNudgeService {
     roster: TodayRoster,
     staff: StaffMember[]
   ): Promise<void> {
-    if (!(await settingsService.isWorkingDay(roster.startOfDay))) return;
+    if (!(await isWorkingDay(roster.startOfDay))) return;
 
     const hours = await settingsService.getBusinessHours(now);
     const lateAt = toIST(hours.lateThreshold);

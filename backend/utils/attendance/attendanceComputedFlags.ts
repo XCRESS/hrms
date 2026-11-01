@@ -38,22 +38,6 @@ interface ComputedFlags {
   isWeekend?: boolean;
 }
 
-interface ComputeOptions {
-  attendanceRecord?: AttendanceRecord | null;
-  date: Date;
-  holidayMap?: Map<string, unknown> | null;
-  approvedLeave?: ApprovedLeave | null;
-  dayTypeChecker?: ((date: Date, holidayMap?: Map<string, unknown> | null) => DayType | null) | null;
-  department?: string | null;
-}
-
-interface BatchContextData {
-  holidayMap?: Map<string, unknown> | null;
-  leavesMap?: Map<string, ApprovedLeave> | null;
-  dayTypeChecker?: ((date: Date, holidayMap?: Map<string, unknown> | null) => DayType | null) | null;
-  department?: string | null;
-}
-
 // ============================================================================
 // FLAG COMPUTATION FUNCTIONS
 // ============================================================================
@@ -142,48 +126,6 @@ export const computeDayFlags = (
 };
 
 /**
- * Compute flags from multiple data sources
- */
-export const computeComprehensiveFlags = async (options: ComputeOptions): Promise<ComputedFlags> => {
-  const {
-    attendanceRecord,
-    date,
-    holidayMap,
-    approvedLeave,
-    dayTypeChecker,
-    department
-  } = options;
-
-  // Determine day type
-  let dayType: DayType | null = null;
-  if (dayTypeChecker) {
-    dayType = dayTypeChecker(date, holidayMap || null);
-  } else if (holidayMap) {
-    // Basic day type checking
-    const dateKey = getISTDateString(date);
-    const dayOfWeek = date.getDay();
-
-    if (holidayMap.has(dateKey)) {
-      dayType = { type: 'holiday', isWorkingDay: false };
-    } else if (dayOfWeek === 0) {
-      dayType = { type: 'weekend', isWorkingDay: false };
-    } else if (dayOfWeek === 6) {
-      // Simplified Saturday check - in real usage, use proper business service
-      dayType = { type: 'weekend', isWorkingDay: false };
-    } else {
-      dayType = { type: 'working', isWorkingDay: true };
-    }
-  }
-
-  // Compute flags
-  if (attendanceRecord) {
-    return await computeAttendanceFlags(attendanceRecord, dayType, approvedLeave || null, department || null);
-  } else {
-    return computeDayFlags(date, dayType, approvedLeave || null);
-  }
-};
-
-/**
  * Add computed flags to attendance record
  */
 export const addComputedFlagsToRecord = <T extends Record<string, unknown>>(
@@ -198,39 +140,6 @@ export const addComputedFlagsToRecord = <T extends Record<string, unknown>>(
   };
 };
 
-/**
- * Batch compute flags for multiple records
- */
-export const batchComputeFlags = async <T extends AttendanceRecord>(
-  records: T[],
-  contextData: BatchContextData = {}
-): Promise<Array<T & { flags: ComputedFlags }>> => {
-  const {
-    holidayMap,
-    leavesMap,
-    dayTypeChecker,
-    department
-  } = contextData;
-
-  const flaggedRecords = await Promise.all(records.map(async (record) => {
-    const dateKey = getISTDateString(record.date);
-    const approvedLeave = leavesMap?.get(dateKey) || null;
-
-    const flags = await computeComprehensiveFlags({
-      attendanceRecord: record,
-      date: record.date,
-      holidayMap: holidayMap || null,
-      approvedLeave,
-      dayTypeChecker: dayTypeChecker || null,
-      department: department || null
-    });
-
-    return addComputedFlagsToRecord(record, flags)!;
-  }));
-
-  return flaggedRecords;
-};
-
 // ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
@@ -238,7 +147,5 @@ export const batchComputeFlags = async <T extends AttendanceRecord>(
 export default {
   computeAttendanceFlags,
   computeDayFlags,
-  computeComprehensiveFlags,
-  addComputedFlagsToRecord,
-  batchComputeFlags
+  addComputedFlagsToRecord
 };

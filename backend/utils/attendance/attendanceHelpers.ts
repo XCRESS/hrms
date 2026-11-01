@@ -11,7 +11,6 @@ import {
   type AttendanceStatus
 } from './attendanceConstants.js';
 import { getISTDateString, calculateWorkHours } from '../timezone.js';
-import { computeComprehensiveFlags } from './attendanceComputedFlags.js';
 import type { IEmployee } from '../../types/index.js';
 import type { Document, Types } from 'mongoose';
 
@@ -47,17 +46,6 @@ interface AttendanceFlags {
   isLeave?: boolean;
   isWeekend?: boolean;
   isHoliday?: boolean;
-}
-
-interface DayType {
-  type: 'holiday' | 'weekend' | 'working';
-  isWorkingDay: boolean;
-}
-
-interface ContextData {
-  holidayMap?: Map<string, unknown>;
-  approvedLeave?: { leaveType?: string; leaveReason?: string } | null;
-  dayTypeChecker?: (date: Date, holidayMap?: Map<string, unknown> | null) => DayType | null;
 }
 
 interface ResponseData {
@@ -147,122 +135,6 @@ export const buildEmployeeObject = (employee: IEmployee | null | undefined): Emp
     department: employee.department,
     position: employee.position
   };
-};
-
-/**
- * Build standard attendance record for responses with computed flags
- */
-export const buildAttendanceRecord = async (
-  record: AttendanceRecord | null | undefined,
-  employee: IEmployee | null | undefined,
-  workHours: number | null = null,
-  additionalFields: Record<string, unknown> & { contextData?: ContextData } = {}
-): Promise<(Record<string, unknown> & { flags: AttendanceFlags }) | null> => {
-  if (!employee) return null;
-
-  const baseRecord: Record<string, unknown> = {
-    _id: record?._id || null,
-    employee: buildEmployeeObject(employee),
-    employeeName: `${employee.firstName} ${employee.lastName}`,
-    date: record?.date || null,
-    checkIn: record?.checkIn || null,
-    checkOut: record?.checkOut || null,
-    status: record?.status || ATTENDANCE_STATUS.ABSENT,
-    workHours: workHours !== null ? workHours : (record?.workHours || null),
-    comments: record?.comments || null,
-    reason: record?.reason || null
-  };
-
-  // Compute flags if we have enough context
-  let flags: AttendanceFlags = {};
-  if (record?.date && additionalFields.contextData) {
-    flags = await computeComprehensiveFlags({
-      attendanceRecord: record,
-      date: record.date,
-      holidayMap: additionalFields.contextData.holidayMap,
-      approvedLeave: additionalFields.contextData.approvedLeave,
-      dayTypeChecker: additionalFields.contextData.dayTypeChecker
-    });
-  }
-
-  baseRecord.flags = flags;
-
-  // Merge any additional fields (excluding contextData to avoid leaking internal data)
-  const { contextData, ...cleanAdditionalFields } = additionalFields || {};
-  const result = { ...baseRecord, flags };
-  Object.assign(result, cleanAdditionalFields);
-  return result;
-};
-
-/**
- * Build attendance record for specific status types with computed flags
- */
-export const buildStatusSpecificRecord = async (
-  date: Date,
-  employee: IEmployee | null | undefined,
-  status: AttendanceStatus,
-  additionalData: Record<string, unknown> & {
-    isLeave?: boolean;
-    leaveType?: string;
-    leaveReason?: string;
-    isHoliday?: boolean;
-    holidayTitle?: string;
-    isWeekend?: boolean;
-    reason?: string;
-    holidayMap?: Map<string, unknown>;
-    dayTypeChecker?: (date: Date, holidayMap?: Map<string, unknown> | null) => DayType | null;
-  } = {}
-): Promise<Record<string, unknown> | null> => {
-  if (!employee) return null;
-
-  const baseRecord: Record<string, unknown> = {
-    _id: null,
-    employee: buildEmployeeObject(employee),
-    employeeName: `${employee.firstName} ${employee.lastName}`,
-    date: date,
-    checkIn: null,
-    checkOut: null,
-    status: status,
-    workHours: null,
-    comments: null,
-    reason: null
-  };
-
-  // Handle different types of absences
-  if (additionalData.isLeave) {
-    baseRecord.status = ATTENDANCE_STATUS.ABSENT;
-    if (additionalData.leaveType) {
-      baseRecord.comments = `Leave: ${additionalData.leaveType}`;
-    }
-    if (additionalData.leaveReason) {
-      baseRecord.reason = additionalData.leaveReason;
-    }
-  } else if (additionalData.isHoliday) {
-    baseRecord.status = ATTENDANCE_STATUS.ABSENT;
-    baseRecord.reason = null;
-    if (additionalData.holidayTitle) {
-      baseRecord.holidayTitle = additionalData.holidayTitle;
-    }
-  } else if (additionalData.isWeekend) {
-    baseRecord.status = ATTENDANCE_STATUS.ABSENT;
-    baseRecord.reason = additionalData.reason || 'Weekend';
-  } else if (typeof baseRecord.status === 'string' && baseRecord.status === ATTENDANCE_STATUS.ABSENT && !baseRecord.reason) {
-    baseRecord.reason = 'No check-in recorded';
-  }
-
-  // Compute flags dynamically
-  const flags = await computeComprehensiveFlags({
-    attendanceRecord: null,
-    date: date,
-    holidayMap: additionalData.holidayMap,
-    approvedLeave: additionalData.isLeave ? {
-      leaveType: additionalData.leaveType,
-      leaveReason: additionalData.leaveReason
-    } : null,
-    dayTypeChecker: additionalData.dayTypeChecker
-  });
-
-  return { ...baseRecord, ...additionalData, flags };
 };
 
 // ============================================================================
@@ -617,8 +489,6 @@ export const createSuccessResponse = (
 export default {
   formatResponse,
   buildEmployeeObject,
-  buildAttendanceRecord,
-  buildStatusSpecificRecord,
   buildAttendanceMaps,
   buildSimpleAttendanceMap,
   buildSimpleLeaveMap,

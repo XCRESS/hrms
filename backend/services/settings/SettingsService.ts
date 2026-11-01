@@ -168,57 +168,6 @@ export class SettingsService {
   }
 
   /**
-   * Check if a specific day is a working day for a department
-   * @param date - Date to check
-   * @param department - Department name (optional)
-   * @returns True if working day
-   */
-  async isWorkingDay(date: Date, department: string | null = null): Promise<boolean> {
-    const attendanceSettings = await this.getAttendanceSettings(department);
-
-    // Convert to IST DateTime for consistent timezone handling
-    const istDateTime = toIST(date);
-
-    // Luxon uses 1=Monday, 7=Sunday. Convert to 0=Sunday, 6=Saturday for compatibility
-    const luxonWeekday = istDateTime.weekday; // 1-7
-    const dayOfWeek = luxonWeekday === 7 ? 0 : luxonWeekday; // Convert Sunday from 7 to 0
-
-    // Check if it's in working days
-    if (!attendanceSettings.workingDays.includes(dayOfWeek)) {
-      return false;
-    }
-
-    // Special handling for Saturday - check if it's a holiday Saturday
-    if (dayOfWeek === 6) {
-      // Saturday
-      const saturdayWeek = this.getSaturdayWeekOfMonth(istDateTime);
-      if (attendanceSettings.saturdayHolidays && attendanceSettings.saturdayHolidays.includes(saturdayWeek)) {
-        return false; // This Saturday is configured as a holiday
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Determine which Saturday of the month a given date is.
-   *
-   * Takes an IST DateTime rather than a Date: the previous implementation used
-   * getDate()/getDay(), which read in the server's local zone and could land on
-   * the wrong day (and therefore the wrong week) near month boundaries when the
-   * host runs in UTC.
-   *
-   * @param date - IST DateTime to check (should be a Saturday)
-   * @returns 1-4 for the 1st-4th Saturday. A 5th Saturday clamps to 4, matching
-   *          the settings UI, which only exposes four checkboxes.
-   */
-  getSaturdayWeekOfMonth(date: DateTime): number {
-    const saturdayWeek = Math.ceil(date.day / 7);
-
-    return Math.max(1, Math.min(4, saturdayWeek));
-  }
-
-  /**
    * Get work hour thresholds for a department
    * @param department - Department name (optional)
    * @returns Work hour thresholds
