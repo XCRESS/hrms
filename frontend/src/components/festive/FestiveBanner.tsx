@@ -151,16 +151,6 @@ const TimeUnit = ({ val, label }: { val: number; label: string }) => (
   </div>
 );
 
-const dismissKey = (instanceId: string) => `festive-banner-dismissed:${instanceId}:${localDateKey()}`;
-
-function readDismissed(instanceId: string): boolean {
-  try {
-    return localStorage.getItem(dismissKey(instanceId)) === '1';
-  } catch {
-    return false;
-  }
-}
-
 function FestiveBannerContent({ active, username }: { active: ActiveFestival; username: string }) {
   const { festival, instanceId, anchorDate } = active;
   const { banner } = festival;
@@ -171,7 +161,8 @@ function FestiveBannerContent({ active, username }: { active: ActiveFestival; us
   const isUpcoming = localDateKey() < anchorDate;
   const wishes = [banner.greeting(username), ...festival.greetings];
 
-  const [dismissed, setDismissed] = useState(() => readDismissed(instanceId));
+  // Not persisted on purpose: the banner returns on every app open or refresh.
+  const [dismissed, setDismissed] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
   const [wishIndex, setWishIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => timeLeftUntil(target));
@@ -191,14 +182,7 @@ function FestiveBannerContent({ active, username }: { active: ActiveFestival; us
 
   if (dismissed) return null;
 
-  const dismiss = () => {
-    try {
-      localStorage.setItem(dismissKey(instanceId), '1');
-    } catch {
-      // Storage blocked: hide for this session only.
-    }
-    setDismissed(true);
-  };
+  const dismiss = () => setDismissed(true);
 
   const playButton = (
     <button
