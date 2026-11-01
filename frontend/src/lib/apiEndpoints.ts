@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     GET_ALL: '/employees',
     GET_BY_ID: (id: string) => `/employees/${encodeURIComponent(id)}`,
     UPDATE: (id: string) => `/employees/update/${encodeURIComponent(id)}`,
+    CHANGE_ID: (id: string) => `/employees/${encodeURIComponent(id)}/employee-id`,
     DELETE: (id: string) => `/employees/${encodeURIComponent(id)}`,
   },
 
@@ -106,6 +107,13 @@ export const API_ENDPOINTS = {
     CREATE: '/holidays',
     UPDATE: (id: string) => `/holidays/${id}`,
     DELETE: (id: string) => `/holidays/${id}`,
+  },
+
+  // Festive games
+  FESTIVE: {
+    START: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/start`,
+    FINISH: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/finish`,
+    LEADERBOARD: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/leaderboard`,
   },
 
   // Festive games

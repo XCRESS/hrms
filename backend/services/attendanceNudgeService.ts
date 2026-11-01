@@ -103,15 +103,15 @@ class AttendanceNudgeService {
   private async loadStaff(): Promise<StaffMember[]> {
     const employees = await Employee.find({ isActive: true }).select('_id employeeId department').lean();
     const users = await User.find({
-      employeeId: { $in: employees.map((e) => e.employeeId) },
+      employee: { $in: employees.map((e) => e._id) },
       isActive: true,
     })
-      .select('_id employeeId')
+      .select('_id employee')
       .lean();
-    const userByEmployeeId = new Map(users.map((u) => [u.employeeId as string, u._id]));
+    const userByEmployee = new Map(users.map((u) => [String(u.employee), u._id]));
 
     return employees.flatMap((e) => {
-      const userId = userByEmployeeId.get(e.employeeId);
+      const userId = userByEmployee.get(e._id.toString());
       return userId
         ? [{ employeeObjId: e._id.toString(), employeeId: e.employeeId, department: e.department || null, userId }]
         : [];

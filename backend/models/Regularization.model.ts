@@ -8,6 +8,7 @@ import mongoose, { Schema, type Document } from 'mongoose';
 export type RegularizationStatus = 'pending' | 'approved' | 'rejected';
 
 export interface IRegularizationDoc extends Document {
+  employee?: mongoose.Types.ObjectId;
   employeeId: string;
   user: mongoose.Types.ObjectId;
   date: Date;
@@ -23,6 +24,12 @@ export interface IRegularizationDoc extends Document {
 
 const regularizationSchema = new Schema<IRegularizationDoc>(
   {
+    // The link. Not required only so pre-backfill requests still save.
+    employee: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+    },
+    // Display label, kept in sync by services/employeeIdRename.ts. Never join on it.
     employeeId: {
       type: String,
       required: [true, 'Employee ID is required'],
@@ -73,9 +80,9 @@ const regularizationSchema = new Schema<IRegularizationDoc>(
 );
 
 // Performance indexes for common queries
-regularizationSchema.index({ employeeId: 1, status: 1 }); // Employee regularization queries
+regularizationSchema.index({ employee: 1, status: 1 }); // Employee regularization queries
 regularizationSchema.index({ status: 1, date: 1 }); // Status-based queries with date sorting
-regularizationSchema.index({ employeeId: 1, date: 1 }); // Employee + date lookup
+regularizationSchema.index({ employee: 1, date: 1 }); // Employee + date lookup
 regularizationSchema.index({ date: 1 }); // Date range queries
 regularizationSchema.index({ createdAt: 1 }); // Retention cleanup queries
 

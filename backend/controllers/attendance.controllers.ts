@@ -1,4 +1,5 @@
 import type { CheckInInput, CheckOutInput, GeofenceCheckInput, UpdateAttendanceRecordInput } from '../validators/attendance.schemas.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 /**
  * Refactored Attendance Controllers
  * Simplified controllers using the new service layer architecture
@@ -9,11 +10,8 @@ import type { Response } from 'express';
 import { AttendanceServices } from '../services/attendance/index.js';
 import {
   formatResponse,
-  validateAdminAccess,
   validateEmployeeAccess,
-  getEmployeeObjectId,
-  createErrorResponse,
-  createSuccessResponse
+  getEmployeeObjectId
 } from '../utils/attendance/index.js';
 import {
   ATTENDANCE_STATUS,
@@ -22,18 +20,15 @@ import {
   HTTP_STATUS
 } from '../utils/attendance/attendanceConstants.js';
 import {
-  handleAttendanceError,
   asyncErrorHandler,
   BusinessLogicError,
-  NotFoundError,
-  validateRequiredFields
+  NotFoundError
 } from '../utils/attendance/attendanceErrorHandler.js';
-import { getISTNow, getISTDayBoundaries, toIST } from '../utils/timezone.js';
+import { getISTNow, getISTDayBoundaries } from '../utils/timezone.js';
 import TaskReport from '../models/TaskReport.model.js';
 import GeofenceService, { MAX_TRUSTED_ACCURACY_METERS } from '../services/GeofenceService.js';
 import { DEFAULT_GEOFENCE_RADIUS_METERS } from '../models/OfficeLocation.model.js';
 import WFHRequest from '../models/WFHRequest.model.js';
-import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
 const { Business, Data, Report } = AttendanceServices;
@@ -551,160 +546,114 @@ export const getAttendance = asyncErrorHandler(async (req: IAuthRequest, res: Re
   }));
 }, 'fetch');
 
-export const getMissingCheckouts = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatResponse(false, ERROR_MESSAGES.AUTH_REQUIRED, null, { auth: ERROR_MESSAGES.NO_VALID_USER })
-      );
-      return;
-    }
-
-    const employeeObjId = await getEmployeeObjectId(req.user);
-    if (!employeeObjId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatResponse(false, ERROR_MESSAGES.NO_EMPLOYEE_PROFILE)
-      );
-      return;
-    }
-
-    const missingCheckouts = await Data.getMissingCheckoutRecords(employeeObjId);
-
-    res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
-      missingCheckouts,
-      total: missingCheckouts.length
-    }));
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Get missing checkouts error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, ERROR_MESSAGES.FAILED_TO_FETCH, null, { server: error.message })
+export const getMissingCheckouts = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(HTTP_STATUS.UNAUTHORIZED).json(
+      formatResponse(false, ERROR_MESSAGES.AUTH_REQUIRED, null, { auth: ERROR_MESSAGES.NO_VALID_USER })
     );
+    return;
   }
-};
 
-export const getMyAttendance = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json(
-        formatResponse(false, ERROR_MESSAGES.AUTH_REQUIRED, null, { auth: ERROR_MESSAGES.NO_VALID_USER })
-      );
-      return;
-    }
-
-    const employeeObjId = await getEmployeeObjectId(req.user);
-    if (!employeeObjId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatResponse(false, ERROR_MESSAGES.NO_EMPLOYEE_PROFILE)
-      );
-      return;
-    }
-
-    const employee = await Data.getEmployeeById(employeeObjId);
-    const { startDate, endDate, page = '1', limit = '10' } = req.query;
-
-    const result = await Data.getEmployeeAttendanceRecords(employeeObjId, {
-      startDate: (startDate as string) || (employee as { joiningDate: Date }).joiningDate.toISOString().split('T')[0],
-      endDate: endDate as string,
-      page: parseInt(page as string),
-      limit: parseInt(limit as string)
-    });
-
-    res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
-      records: result.records,
-      pagination: result.pagination
-    }));
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Get my attendance error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, ERROR_MESSAGES.FAILED_TO_FETCH, null, { server: error.message })
+  const employeeObjId = await getEmployeeObjectId(req.user);
+  if (!employeeObjId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatResponse(false, ERROR_MESSAGES.NO_EMPLOYEE_PROFILE)
     );
+    return;
   }
-};
 
-export const getTodayAttendanceWithAbsents = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!validateAdminAccess(req, res)) return;
+  const missingCheckouts = await Data.getMissingCheckoutRecords(employeeObjId);
 
-    const dashboardData = await Report.generateDashboardData();
+  res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
+    missingCheckouts,
+    total: missingCheckouts.length
+  }));
+});
 
-    res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
-      records: dashboardData.records,
-      statistics: dashboardData.statistics,
-      total: dashboardData.totalEmployees,
-      date: dashboardData.date
-    }));
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Get today attendance error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, ERROR_MESSAGES.FAILED_TO_FETCH, null, { server: error.message })
+export const getMyAttendance = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(HTTP_STATUS.UNAUTHORIZED).json(
+      formatResponse(false, ERROR_MESSAGES.AUTH_REQUIRED, null, { auth: ERROR_MESSAGES.NO_VALID_USER })
     );
+    return;
   }
-};
 
-export const getAdminAttendanceRange = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!validateAdminAccess(req, res)) return;
-
-    const { startDate, endDate } = req.query;
-
-    if (!startDate || !endDate) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatResponse(false, 'Start date and end date are required')
-      );
-      return;
-    }
-
-    const report = await Report.generateCustomReport({
-      startDate: new Date(startDate as string),
-      endDate: new Date(endDate as string),
-      includeCharts: true
-    });
-
-    res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, report));
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Get admin attendance range error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, ERROR_MESSAGES.FAILED_TO_FETCH, null, { server: error.message })
+  const employeeObjId = await getEmployeeObjectId(req.user);
+  if (!employeeObjId) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatResponse(false, ERROR_MESSAGES.NO_EMPLOYEE_PROFILE)
     );
+    return;
   }
-};
 
-export const getEmployeeAttendanceWithAbsents = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { employeeId, startDate, endDate } = req.query;
+  const employee = await Data.getEmployeeById(employeeObjId);
+  const { startDate, endDate, page = '1', limit = '10' } = req.query;
 
-    if (!employeeId || !startDate || !endDate) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json(
-        formatResponse(false, 'Employee ID, start date, and end date are required')
-      );
-      return;
-    }
+  const result = await Data.getEmployeeAttendanceRecords(employeeObjId, {
+    startDate: (startDate as string) || (employee as { joiningDate: Date }).joiningDate.toISOString().split('T')[0],
+    endDate: endDate as string,
+    page: parseInt(page as string),
+    limit: parseInt(limit as string)
+  });
 
-    const authResult = await validateEmployeeAccess(req, employeeId as string);
-    if (!authResult.authorized) {
-      res.status(authResult.statusCode || HTTP_STATUS.FORBIDDEN).json(authResult.error);
-      return;
-    }
+  res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
+    records: result.records,
+    pagination: result.pagination
+  }));
+});
 
-    const report = await Report.generateEmployeeReport(employeeId as string, new Date(startDate as string), new Date(endDate as string));
+export const getTodayAttendanceWithAbsents = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const dashboardData = await Report.generateDashboardData();
 
-    res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, report));
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Get employee attendance with absents error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      formatResponse(false, ERROR_MESSAGES.FAILED_TO_FETCH, null, { server: error.message })
+  res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
+    records: dashboardData.records,
+    statistics: dashboardData.statistics,
+    total: dashboardData.totalEmployees,
+    date: dashboardData.date
+  }));
+});
+
+export const getAdminAttendanceRange = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatResponse(false, 'Start date and end date are required')
     );
+    return;
   }
-};
+
+  const report = await Report.generateCustomReport({
+    startDate: new Date(startDate as string),
+    endDate: new Date(endDate as string),
+    includeCharts: true
+  });
+
+  res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, report));
+});
+
+export const getEmployeeAttendanceWithAbsents = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { employeeId, startDate, endDate } = req.query;
+
+  if (!employeeId || !startDate || !endDate) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json(
+      formatResponse(false, 'Employee ID, start date, and end date are required')
+    );
+    return;
+  }
+
+  const authResult = await validateEmployeeAccess(req, employeeId as string);
+  if (!authResult.authorized) {
+    res.status(authResult.statusCode || HTTP_STATUS.FORBIDDEN).json(authResult.error);
+    return;
+  }
+
+  const report = await Report.generateEmployeeReport(employeeId as string, new Date(startDate as string), new Date(endDate as string));
+
+  res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, report));
+});
 
 export const updateAttendanceRecord = asyncErrorHandler(async (req: IAuthRequest, res: Response) => {
-  if (!validateAdminAccess(req, res)) return;
-
   const { recordId } = req.params;
   const { status, checkIn, checkOut, employeeId, date } = req.body as UpdateAttendanceRecordInput;
 

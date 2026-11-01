@@ -53,9 +53,9 @@ export async function applyRegularizationReview({
   let dayStart = null;
 
   if (status === 'approved') {
-    employeeDoc = await Employee.findOne({ employeeId: reg.employeeId });
+    employeeDoc = await Employee.findById(reg.employee);
     if (!employeeDoc) {
-      logger.error({ employeeId: reg.employeeId }, 'Employee not found for regularization');
+      logger.error({ employee: String(reg.employee), employeeId: reg.employeeId }, 'Employee not found for regularization');
       return { ok: false, id, reason: 'Employee not found for regularization' };
     }
 
@@ -125,19 +125,19 @@ export async function applyRegularizationReview({
     }
 
     if (att.checkIn && att.checkOut) {
-      const statusResult = await AttendanceBusinessService.calculateFinalStatus(att.checkIn, att.checkOut);
+      const statusResult = await AttendanceBusinessService.calculateFinalStatus(att.checkIn, att.checkOut, employeeDoc.department || null);
       att.status = statusResult.status;
       att.workHours = statusResult.workHours;
       await att.save();
     } else if (att.checkIn && !att.checkOut) {
-      const statusResult = await AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null);
+      const statusResult = await AttendanceBusinessService.determineAttendanceStatus(att.checkIn, null, employeeDoc.department || null);
       att.status = statusResult.status;
       await att.save();
     }
   }
 
-  if (reg.employeeId) {
-    NotificationService.notifyEmployee(reg.employeeId, 'regularization_status_update', {
+  if (reg.employee) {
+    NotificationService.notifyEmployee(reg.employee, 'regularization_status_update', {
       status,
       date: reg.date ? reg.date.toDateString() : 'Unknown date',
       checkIn: reg.requestedCheckIn ? reg.requestedCheckIn.toLocaleString() : 'Not specified',

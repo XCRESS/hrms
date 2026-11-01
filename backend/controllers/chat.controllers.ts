@@ -4,7 +4,7 @@ import type { Response } from 'express';
 import OpenAI from 'openai';
 import { HR_FUNCTIONS, executeHRFunction } from '../utils/hrChatbotFunctions.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { APIError, ValidationError, NotFoundError } from '../utils/errors.js';
 import { formatSuccessResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
@@ -176,7 +176,7 @@ export const chat = asyncHandler(async (req: IAuthRequest, res: Response) => {
       throw new ValidationError('Too many requests. Please wait a moment before trying again.');
     }
 
-    throw new ValidationError(`Chat service error: ${err.message || 'Unknown error'}`);
+    throw new APIError('The chat service is unavailable right now. Please try again.', 502, 'UPSTREAM_ERROR');
   }
 });
 

@@ -11,7 +11,7 @@ import type { Employee, Leave } from '@/types';
 export function EmployeeProfile({
     employee, leaves, isLinked, isEditing, draft, errors, isSaving, isToggling,
     onEditAttendance,
-    onEdit, onCancel, onSave, onFieldChange, onToggleStatus, onLink, onUnlink, onBack, showBack,
+    onEdit, onCancel, onSave, onFieldChange, onToggleStatus, onLink, onUnlink, onChangeId, onBack, showBack,
 }: {
     employee: Employee;
     leaves: Leave[];
@@ -29,6 +29,7 @@ export function EmployeeProfile({
     onToggleStatus: () => void;
     onLink: () => void;
     onUnlink: () => void;
+    onChangeId: () => void;
     onBack: () => void;
     showBack: boolean;
 }) {
@@ -57,6 +58,7 @@ export function EmployeeProfile({
                 onToggleStatus={onToggleStatus}
                 onLink={onLink}
                 onUnlink={onUnlink}
+                onChangeId={onChangeId}
                 onBack={onBack}
                 showBack={showBack}
             />

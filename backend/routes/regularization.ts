@@ -15,7 +15,7 @@ import {
   bulkRequestStatusSchema,
 } from "../validators/request.schemas.js";
 import type { IAuthRequest } from "../types/index.js";
-import type { Response } from "express";
+import type { Response, NextFunction } from "express";
 
 const router: Router = express.Router();
 
@@ -26,13 +26,9 @@ router.post("/request", authMiddleware(["employee", "hr", "admin"]), validateBod
 router.get("/my", authMiddleware(["employee", "hr", "admin"]), getMyRegularizations);
 
 // Get regularizations - returns appropriate regularizations based on user role
-router.get("/", authMiddleware(["employee", "hr", "admin"]), validateQuery(requestListQuerySchema), async (req: IAuthRequest, res: Response) => {
-  // If user is admin/hr, return all regularizations, otherwise return their own regularizations
-  if (req.user?.role === 'admin' || req.user?.role === 'hr') {
-    return getAllRegularizations(req, res);
-  } else {
-    return getMyRegularizations(req, res);
-  }
+router.get("/", authMiddleware(["employee", "hr", "admin"]), validateQuery(requestListQuerySchema), (req: IAuthRequest, res: Response, next: NextFunction) => {
+  const handler = req.user?.role === 'admin' || req.user?.role === 'hr' ? getAllRegularizations : getMyRegularizations;
+  handler(req, res, next);
 });
 
 // HR/Admin: get all regularization requests

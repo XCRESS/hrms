@@ -1,4 +1,5 @@
 import type { CreatePasswordResetRequestInput, RejectPasswordResetInput } from '../validators/hr.schemas.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import type { Request, Response } from 'express';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import User from '../models/User.model.js';
@@ -10,169 +11,145 @@ import logger from '../utils/logger.js';
 // @desc    Create a new password reset request
 // @route   POST /api/password-reset/request
 // @access  Public
-export const createPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { name, email, newPassword } = req.body as CreatePasswordResetRequestInput;
+export const createPasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, newPassword } = req.body as CreatePasswordResetRequestInput;
 
-    if (!name || !email || !newPassword) {
-      res.status(400).json(formatResponse(false, 'Please provide name, email, and new password.'));
-      return;
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      res.status(404).json(formatResponse(false, 'No user found with this email address.'));
-      return;
-    }
-
-    // Check if there's already a pending request for this user
-    const existingRequest = await PasswordResetRequest.findOne({
-      email,
-      status: 'pending',
-    });
-
-    if (existingRequest) {
-      res.status(400).json(formatResponse(false, 'A password reset request is already pending for this email.'));
-      return;
-    }
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const newRequest = new PasswordResetRequest({
-      name,
-      email,
-      newPassword: hashedPassword,
-      userId: user._id,
-    });
-
-    await newRequest.save();
-
-    res.status(201).json(formatResponse(true, 'Password reset request submitted successfully. It will be reviewed by an administrator.'));
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Error creating password reset request');
-    res.status(500).json(formatResponse(false, 'Server error while creating request.', null, { error: err.message }));
+  if (!name || !email || !newPassword) {
+    res.status(400).json(formatResponse(false, 'Please provide name, email, and new password.'));
+    return;
   }
-};
 
-export const approvePasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const requestId = req.params.id;
-    const request = await PasswordResetRequest.findById(requestId);
-
-    if (!request) {
-      res.status(404).json(formatResponse(false, 'Password reset request not found.'));
-      return;
-    }
-
-    if (request.status !== 'pending') {
-      res.status(400).json(formatResponse(false, `Request is already ${request.status}.`));
-      return;
-    }
-
-    const user = await User.findOne({ email: request.email });
-    if (!user) {
-      await PasswordResetRequest.findByIdAndUpdate(requestId, {
-        status: 'rejected',
-        remarks: 'User not found with this email.',
-      });
-      res.status(404).json(formatResponse(false, 'User associated with this request not found. Request rejected.'));
-      return;
-    }
-
-    // Update user's password
-    user.password = request.newPassword;
-    await user.save();
-
-    // Update request status
-    request.status = 'approved';
-    await request.save();
-
-    // Send email notification
-    try {
-      const subject = 'Your HRMS password was changed';
-      const htmlContent = emailService.getBaseEmailTemplate(`
-        ${emailService.getHeading({
-          eyebrow: 'Security',
-          title: 'Your password was changed',
-          lede: `Hi ${user.name}, your password reset request has been approved.`
-        })}
-
-        ${emailService.getParagraph('You can now sign in with your new password.')}
-        ${emailService.getCallout('If you did not request this change, contact your HR administrator immediately.', 'warning')}
-
-        ${emailService.getActionButton('Sign in')}
-      `);
-      await emailService.send(user.email, subject, htmlContent);
-    } catch (emailError) {
-      const err = emailError instanceof Error ? emailError : new Error('Unknown email error');
-      logger.error({ err }, 'Error sending password change confirmation email');
-    }
-
-    res.status(200).json(formatResponse(true, 'Password reset request approved and password updated.'));
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Error approving password reset request');
-    res.status(500).json(formatResponse(false, 'Server error while approving request.', null, { error: err.message }));
+  // Check if user exists
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(404).json(formatResponse(false, 'No user found with this email address.'));
+    return;
   }
-};
+
+  // Check if there's already a pending request for this user
+  const existingRequest = await PasswordResetRequest.findOne({
+    email,
+    status: 'pending',
+  });
+
+  if (existingRequest) {
+    res.status(400).json(formatResponse(false, 'A password reset request is already pending for this email.'));
+    return;
+  }
+
+  // Hash the new password
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const newRequest = new PasswordResetRequest({
+    name,
+    email,
+    newPassword: hashedPassword,
+    userId: user._id,
+  });
+
+  await newRequest.save();
+
+  res.status(201).json(formatResponse(true, 'Password reset request submitted successfully. It will be reviewed by an administrator.'));
+});
+
+export const approvePasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const request = await PasswordResetRequest.findById(requestId);
+
+  if (!request) {
+    res.status(404).json(formatResponse(false, 'Password reset request not found.'));
+    return;
+  }
+
+  if (request.status !== 'pending') {
+    res.status(400).json(formatResponse(false, `Request is already ${request.status}.`));
+    return;
+  }
+
+  const user = await User.findOne({ email: request.email });
+  if (!user) {
+    await PasswordResetRequest.findByIdAndUpdate(requestId, {
+      status: 'rejected',
+      remarks: 'User not found with this email.',
+    });
+    res.status(404).json(formatResponse(false, 'User associated with this request not found. Request rejected.'));
+    return;
+  }
+
+  // Update user's password
+  user.password = request.newPassword;
+  await user.save();
+
+  // Update request status
+  request.status = 'approved';
+  await request.save();
+
+  // Send email notification
+  try {
+    const subject = 'Your HRMS password was changed';
+    const htmlContent = emailService.getBaseEmailTemplate(`
+      ${emailService.getHeading({
+        eyebrow: 'Security',
+        title: 'Your password was changed',
+        lede: `Hi ${user.name}, your password reset request has been approved.`
+      })}
+
+      ${emailService.getParagraph('You can now sign in with your new password.')}
+      ${emailService.getCallout('If you did not request this change, contact your HR administrator immediately.', 'warning')}
+
+      ${emailService.getActionButton('Sign in')}
+    `);
+    await emailService.send(user.email, subject, htmlContent);
+  } catch (emailError) {
+    const err = emailError instanceof Error ? emailError : new Error('Unknown email error');
+    logger.error({ err }, 'Error sending password change confirmation email');
+  }
+
+  res.status(200).json(formatResponse(true, 'Password reset request approved and password updated.'));
+});
 
 // @desc    Get all password reset requests (or filter by status)
 // @route   GET /api/password-reset/requests
 // @access  Private (Admin/HR)
-export const getAllPasswordResetRequests = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // HR/Admin might want to filter by status, e.g., only "pending"
-    const { status, startDate, endDate } = req.query;
-    const query: Record<string, unknown> = status ? { status: status as string } : {};
+export const getAllPasswordResetRequests = asyncHandler(async (req: Request, res: Response) => {
+  // HR/Admin might want to filter by status, e.g., only "pending"
+  const { status, startDate, endDate } = req.query;
+  const query: Record<string, unknown> = status ? { status: status as string } : {};
 
-    if (startDate || endDate) {
-      const createdAt: { $gte?: Date; $lte?: Date } = {};
-      if (startDate) createdAt.$gte = new Date(startDate as string);
-      if (endDate) createdAt.$lte = new Date(endDate as string);
-      query.createdAt = createdAt;
-    }
-
-    const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }).lean(); // Newest first
-
-    res.status(200).json(
-      formatResponse(true, 'Password reset requests fetched successfully.', {
-        count: requests.length,
-        requests,
-      })
-    );
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Error fetching password reset requests');
-    res.status(500).json(formatResponse(false, 'Server error while fetching requests.', null, { error: err.message }));
+  if (startDate || endDate) {
+    const createdAt: { $gte?: Date; $lte?: Date } = {};
+    if (startDate) createdAt.$gte = new Date(startDate as string);
+    if (endDate) createdAt.$lte = new Date(endDate as string);
+    query.createdAt = createdAt;
   }
-};
+
+  const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }).lean(); // Newest first
+
+  res.status(200).json(
+    formatResponse(true, 'Password reset requests fetched successfully.', {
+      count: requests.length,
+      requests,
+    })
+  );
+});
 
 // @desc    Reject a password reset request
 // @route   PUT /api/password-reset/request/:id/reject
 // @access  Private (Admin/HR)
-export const rejectPasswordResetRequest = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const requestId = req.params.id;
-    const { remarks } = req.body as RejectPasswordResetInput; // Optional remarks from admin
+export const rejectPasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const { remarks } = req.body as RejectPasswordResetInput; // Optional remarks from admin
 
-    const request = await PasswordResetRequest.findByIdAndUpdate(
-      requestId,
-      { status: 'rejected', remarks: remarks || 'Rejected by administrator.' },
-      { new: true } // Returns the updated document
-    );
+  const request = await PasswordResetRequest.findByIdAndUpdate(
+    requestId,
+    { status: 'rejected', remarks: remarks || 'Rejected by administrator.' },
+    { new: true } // Returns the updated document
+  );
 
-    if (!request) {
-      res.status(404).json(formatResponse(false, 'Password reset request not found.'));
-      return;
-    }
-
-    res.status(200).json(formatResponse(true, 'Password reset request rejected.', { request }));
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Error rejecting password reset request');
-    res.status(500).json(formatResponse(false, 'Server error while rejecting request.', null, { error: err.message }));
+  if (!request) {
+    res.status(404).json(formatResponse(false, 'Password reset request not found.'));
+    return;
   }
-};
+
+  res.status(200).json(formatResponse(true, 'Password reset request rejected.', { request }));
+});

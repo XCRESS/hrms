@@ -19,6 +19,7 @@ export type DocumentType =
   | 'Other';
 
 export interface IEmployeeDocumentDoc extends Document {
+  employee?: mongoose.Types.ObjectId;
   employeeId: string;
   documentType: DocumentType | string;
   fileName: string;
@@ -31,6 +32,12 @@ export interface IEmployeeDocumentDoc extends Document {
 
 const employeeDocumentSchema = new Schema<IEmployeeDocumentDoc>(
   {
+    // The link. Not required only so pre-backfill documents still save.
+    employee: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+    },
+    // Display label, kept in sync by services/employeeIdRename.ts. Never join on it.
     employeeId: {
       type: String,
       required: [true, 'Employee ID is required'],
@@ -66,7 +73,7 @@ const employeeDocumentSchema = new Schema<IEmployeeDocumentDoc>(
 );
 
 // Indexes for query performance
-employeeDocumentSchema.index({ employeeId: 1, documentType: 1 });
+employeeDocumentSchema.index({ employee: 1, documentType: 1 });
 employeeDocumentSchema.index({ createdAt: -1 });
 
 const EmployeeDocument = mongoose.model<IEmployeeDocumentDoc>(

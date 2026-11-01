@@ -24,8 +24,8 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 - **`pnpm build` on the frontend does not type-check.** A successful `vite build`
   proves nothing about types. Run `pnpm typecheck` and `pnpm lint` and report
-  actual numbers against these baselines: **typecheck 70**, **lint 117**
-  (104 errors, 13 warnings). Don't increase them; reduce where you touch a file.
+  actual numbers against these baselines: **typecheck 66**, **lint 114**
+  (101 errors, 13 warnings). Don't increase them; reduce where you touch a file.
 - **There is no test suite.** Verify by type-checking, building, and exercising
   code paths directly.
 - The backend type-checks and builds clean. Keep it that way.
@@ -34,14 +34,17 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 ## Auth
 
+- **Open — raise at session start:** password reset lets the requester pick the victim's new password; tokens survive a password change; email templates render user text unescaped; S3 documents are public URLs; search regexes are unescaped; login reveals which emails exist.
 - Roles: `admin`, `hr`, `employee`.
 - **JWT** in `localStorage` via `frontend/src/lib/tokenStorage.ts`. Deliberately
   not httpOnly — tokens are pulled out for CLI/script testing.
 - bcrypt (cost 10) in `controllers/user.controllers.ts`.
 - **Backend guard** `middlewares/auth.middleware.ts` — `authMiddleware([roles])`.
-  Re-checks `User.isActive`, and for `employee` that the linked `Employee` is
-  active, so unlink/deactivate take effect without re-login. Costs 1–2 DB reads
-  per request.
+  Roles go in the route, not inside the handler. `req.user` is read from the DB,
+  not the token. Costs 1–2 DB reads per request.
+- **Link to employees by the `employee` ObjectId, never by `employeeId`** — it's
+  a renameable label. A new model that stores it must be added to `COPIES` in
+  `services/employeeIdRename.ts`.
 - **Frontend guard** `components/auth/RequireRole.tsx`, wired in `main.tsx`.
   Intentionally **synchronous** (decodes the in-memory JWT) — never make it
   fetch, or every navigation pays a round trip. The backend is the real security
@@ -98,6 +101,7 @@ warranted, one line beats five.
 
 ## Backend
 
+- Handlers are `asyncHandler(...)` and throw typed errors (`utils/errors.ts`) — no try/catch returning 500s; the global handler formats and logs them.
 - Route params are typed `string | string[]` (path-to-regexp v8). Narrow with
   `paramValue(req.params.x)` from `utils/helpers.ts` — do not cast.
 - JSON body limit 1mb. `/api/documents` is mounted **before** `express.json()`
@@ -153,8 +157,8 @@ warranted, one line beats five.
 
 ## Business rules
 
-- **Attendance**: no check-in = Absent unless on approved leave. Working-day
-  math excludes weekends and holidays.
+- **Attendance**: no check-in = Absent unless on approved leave. Working days
+  come only from `services/workCalendar.ts`; only active public holidays count.
 - **Salary**: old and new Indian tax regimes, TDS from the structure.
   `SalaryStructure` (recurring) and `SalarySlip` (monthly) are managed
   independently. Draft → Finalized gates employee visibility.

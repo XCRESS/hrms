@@ -76,7 +76,7 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
   allEmployees.forEach(employee => {
     const empId = (employee._id as { toString(): string }).toString();
     const attendanceRecord = attendanceMap.get(empId);
-    const isOnLeave = leaveMap.has(empId) || leaveMap.has(employee.employeeId);
+    const isOnLeave = leaveMap.has(empId);
 
     if (attendanceRecord && (attendanceRecord.status === 'present' || attendanceRecord.checkIn)) {
       presentToday++;

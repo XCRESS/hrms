@@ -7,7 +7,6 @@ import Employee from '../../models/Employee.model.js';
 import {
   ATTENDANCE_STATUS,
   VALID_STATUS_TRANSITIONS,
-  BUSINESS_RULES,
   ERROR_MESSAGES,
   VALIDATION_PATTERNS,
   LOCATION_CONSTRAINTS,
@@ -15,7 +14,6 @@ import {
   type AttendanceStatus
 } from './attendanceConstants.js';
 import { formatResponse } from './attendanceHelpers.js';
-import type { Response } from 'express';
 import type { IAuthRequest, IEmployee } from '../../types/index.js';
 import type { Types } from 'mongoose';
 
@@ -56,27 +54,7 @@ export const getEmployeeObjectId = async (
 ): Promise<Types.ObjectId | null> => {
   if (!user) return null;
 
-  if (user.employee) return user.employee as Types.ObjectId;
-
-  if (user.employeeId) {
-    const employee = await Employee.findOne({ employeeId: user.employeeId });
-    return employee ? employee._id : null;
-  }
-
-  return null;
-};
-
-/**
- * Validate admin/HR access
- */
-export const validateAdminAccess = (req: IAuthRequest, res: Response): boolean => {
-  if (!req.user?.role || !['admin', 'hr'].includes(req.user.role)) {
-    res.status(HTTP_STATUS.FORBIDDEN).json(
-      formatResponse(false, ERROR_MESSAGES.ACCESS_DENIED)
-    );
-    return false;
-  }
-  return true;
+  return (user.employee as Types.ObjectId | undefined) ?? null;
 };
 
 /**
@@ -472,7 +450,6 @@ export const createValidationErrorResponse = (
 
 export default {
   getEmployeeObjectId,
-  validateAdminAccess,
   validateEmployeeAccess,
   validateAttendanceStatus,
   validateStatusTransition,

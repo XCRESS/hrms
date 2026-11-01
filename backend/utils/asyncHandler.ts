@@ -5,17 +5,19 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import type { IAuthRequest, AsyncRequestHandler } from '../types/index.js';
-import { APIError } from './errors.js';
+import { APIError, ConflictError } from './errors.js';
+import { AttendanceError } from './attendance/attendanceErrorHandler.js';
 import logger from './logger.js';
 
 /**
- * Async wrapper that catches errors and passes them to Express error middleware
- * @param fn - Async controller function
- * @returns Express middleware function
+ * Async wrapper that passes errors to the global error handler.
+ * `onDuplicate` turns a Mongo duplicate-key error into a 409 with that message.
  */
-export function asyncHandler(fn: AsyncRequestHandler) {
+export function asyncHandler(fn: AsyncRequestHandler, options: { onDuplicate?: string } = {}) {
   return (req: IAuthRequest, res: Response, next: NextFunction): void => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve(fn(req, res, next)).catch((error: unknown) => {
+      next(options.onDuplicate && isMongoDuplicateKeyError(error) ? new ConflictError(options.onDuplicate) : error);
+    });
   };
 }
 
@@ -116,6 +118,16 @@ export function globalErrorHandler(
     return res.status(err.statusCode).json(err.toJSON());
   }
 
+  // `errors` (not `details`) is the shape the check-in UI reads for geofence failures.
+  if (err instanceof AttendanceError && err.statusCode < 500) {
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      code: err.name,
+      ...(err.details ? { errors: err.details } : {}),
+    });
+  }
+
   // Handle MongoDB validation errors
   if (isMongoValidationError(err)) {
     const validationErrors = Object.values(err.errors).map((error) => ({
@@ -168,7 +180,7 @@ export function globalErrorHandler(
 
   // Log unexpected errors for debugging
   const error = err instanceof Error ? err : new Error('Unknown error');
-  logger.error({ err: error }, 'Unhandled error');
+  logger.error({ err: error, method: req.method, path: req.originalUrl }, 'Unhandled error');
 
   // Default error response
   const errorMessage =

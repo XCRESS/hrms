@@ -37,27 +37,25 @@ const EXPECTED_VALIDATION_MESSAGES = [
   'No check-in record found for today',
 ] as const;
 
+/** The backend re-issues the token when role, name or employee link changed since login. */
+const adoptRefreshedToken = (headers: unknown): void => {
+  const token = (headers as Record<string, unknown> | undefined)?.['x-refreshed-token'];
+  if (typeof token !== 'string' || !token) return;
+  tokenStorage.set(token);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tokenRefreshed', { detail: { token } }));
+  }
+};
+
 // Response interceptor - Handle token refresh and errors
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Handle token refresh from backend
-    const data = response.data as ApiResponse;
-    if (data?.newToken) {
-      tokenStorage.set(data.newToken);
-
-      // Dispatch event for other components to update
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('tokenRefreshed', {
-            detail: { token: data.newToken },
-          })
-        );
-      }
-    }
-
+    adoptRefreshedToken(response.headers);
     return response;
   },
   (error: AxiosError<ApiResponse>) => {
+    adoptRefreshedToken(error.response?.headers);
+
     const customError: ApiError = {
       message: 'An error occurred',
       status: error.response?.status || 500,

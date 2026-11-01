@@ -7,7 +7,7 @@ import NotificationService from '../services/notificationService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
-import type { IAuthRequest, ExpenseStatus } from '../types/index.js';
+import type { IAuthRequest } from '../types/index.js';
 
 /**
  * Submit a new expense request
@@ -177,7 +177,7 @@ export const updateExpenseStatus = asyncHandler(async (req: IAuthRequest, res: R
 
   const employee = await Employee.findById(expense.employee);
   if (employee) {
-    NotificationService.notifyEmployee(employee.employeeId, 'expense_status_update', {
+    NotificationService.notifyEmployee(employee._id, 'expense_status_update', {
       status,
       item: expense.item,
       amount: expense.amount,
@@ -217,11 +217,10 @@ export const bulkUpdateStatus = asyncHandler(async (req: IAuthRequest, res: Resp
   );
 
   // Notify employees in background
-  const updatedExpenses = await Expense.find({ _id: { $in: ids } }).populate('employee', 'employeeId').lean();
+  const updatedExpenses = await Expense.find({ _id: { $in: ids } }).lean();
   for (const expense of updatedExpenses) {
-    const emp: any = expense.employee;
-    if (emp?.employeeId) {
-      NotificationService.notifyEmployee(emp.employeeId, 'expense_status_update', {
+    if (expense.employee) {
+      NotificationService.notifyEmployee(expense.employee, 'expense_status_update', {
         status,
         item: expense.item,
         amount: expense.amount

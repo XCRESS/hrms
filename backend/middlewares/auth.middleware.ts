@@ -6,12 +6,47 @@
 import type { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import type { IAuthRequest, UserRole, IJWTPayload } from '../types/index.js';
-import { verifyToken } from '../utils/jwt.js';
+import { verifyToken, generateTokenFromUser } from '../utils/jwt.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
-import { RequestContext } from '../utils/requestContext.js';
 import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import logger from '../utils/logger.js';
+
+export const REFRESHED_TOKEN_HEADER = 'X-Refreshed-Token';
+
+interface LinkedEmployee {
+  _id: mongoose.Types.ObjectId;
+  employeeId: string;
+  isActive: boolean;
+}
+
+/**
+ * The ObjectId is the link; employeeId is a renameable label read from the
+ * Employee. The string fallback only serves users not yet backfilled
+ * (scripts/backfillUserEmployeeRef.ts).
+ */
+const findLinkedEmployee = async (account: {
+  employee?: unknown;
+  employeeId?: string | null;
+}): Promise<LinkedEmployee | null> => {
+  const filter = account.employee
+    ? { _id: account.employee }
+    : account.employeeId
+      ? { employeeId: account.employeeId }
+      : null;
+  if (!filter) return null;
+  return Employee.findOne(filter).select('_id employeeId isActive').lean<LinkedEmployee>();
+};
+
+const tokenIsStale = (
+  decoded: IJWTPayload,
+  current: { role: string; name: string; email: string; employee?: mongoose.Types.ObjectId; employeeId?: string }
+): boolean =>
+  decoded.role !== current.role ||
+  decoded.name !== current.name ||
+  decoded.email !== current.email ||
+  (decoded.employeeId ?? undefined) !== (current.employeeId ?? undefined) ||
+  (decoded.employee ?? undefined) !== (current.employee?.toString() ?? undefined);
 
 /**
  * Extended request interface with optional warning flag
@@ -71,23 +106,30 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
       }
 
-      const userStatus = await User.findById(userId).select('isActive role employeeId employee').lean();
-      if (!userStatus || !userStatus.isActive) {
+      const account = await User.findById(userId).select('isActive role name email employee employeeId').lean();
+      if (!account || !account.isActive) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
       }
 
-      // 4. Role comes from the DB, not the token, so a role change applies without re-login
+      const linkedEmployee = await findLinkedEmployee(account);
+
+      // 4. Identity comes from the DB, not the token, so role changes, renames and
+      // unlinks apply without re-login.
       req.user = {
         _id: new mongoose.Types.ObjectId(userId),
-        name: decoded.name,
-        email: decoded.email,
-        role: userStatus.role,
-        employee: decoded.employee ? new mongoose.Types.ObjectId(decoded.employee) : undefined,
-        employeeId: decoded.employeeId,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        employee: linkedEmployee?._id,
+        employeeId: linkedEmployee?.employeeId,
       };
 
-      // 4a. Create request context for convenient access
-      req.context = new RequestContext(req.user);
+      // 4a. The client reads role and employeeId from the token, so hand it a
+      // current one whenever the stored claims have drifted. Set before the role
+      // check so a demoted user's 403 still carries it.
+      if (tokenIsStale(decoded, req.user)) {
+        res.setHeader(REFRESHED_TOKEN_HEADER, generateTokenFromUser({ ...req.user, employee: req.user.employee ?? null }));
+      }
 
       // 5. Role-based access control
       if (allowedRoles.length > 0) {
@@ -98,41 +140,19 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         }
       }
 
-      // 6. Additional check for employee role — re-query DB for fresh link status
-      // This ensures unlink takes effect immediately without requiring re-login,
-      // mirroring how isActive enforcement already works above.
+      // 6. Employees must stay linked to an active profile
       if (req.user.role === 'employee') {
-        // userStatus already has employeeId/employee from the select above (IUser fields)
-        const currentEmployeeId = userStatus.employeeId;
-        const currentEmployeeRef = userStatus.employee;
-
-        // Block if not linked to any employee profile (catches post-unlink sessions)
-        if (!currentEmployeeId) {
+        if (!linkedEmployee) {
           throw new AuthorizationError(
             'Access Forbidden: Your account is not linked to an employee profile. Please contact HR.',
             'SESSION_REVOKED'
           );
         }
-
-        // Verify the linked employee is still active.
-        // Read-only existence check on every authenticated request: project to a
-        // single field and skip document hydration entirely.
-        const employee = await Employee.findOne(
-          { employeeId: currentEmployeeId, isActive: true },
-          { _id: 1 }
-        ).lean();
-
-        if (!employee) {
+        if (!linkedEmployee.isActive) {
           throw new AuthorizationError(
             'Access Forbidden: Employee account is deactivated. Please contact HR.',
             'SESSION_REVOKED'
           );
-        }
-
-        // Keep req.user in sync with DB (not stale JWT values)
-        req.user.employeeId = currentEmployeeId;
-        if (currentEmployeeRef) {
-          req.user.employee = currentEmployeeRef as mongoose.Types.ObjectId;
         }
       }
 

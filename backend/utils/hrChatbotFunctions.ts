@@ -4,7 +4,6 @@
  * These functions are read-only and safe for employee use
  */
 
-import type { Document, Types } from 'mongoose';
 import Employee from '../models/Employee.model.js';
 import Attendance from '../models/Attendance.model.js';
 import Leave from '../models/Leave.model.js';
@@ -14,7 +13,7 @@ import Holiday from '../models/Holiday.model.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import Help from '../models/Help.model.js';
 import Regularization from '../models/Regularization.model.js';
-import { getISTNow, toIST, getISTDateString, getISTDayBoundaries, addDaysIST } from './timezone.js';
+import { getISTNow, toIST } from './timezone.js';
 import { DateTime } from 'luxon';
 import logger from './logger.js';
 
@@ -337,6 +336,12 @@ export const HR_FUNCTIONS = [
  * Function Implementations
  * These are the actual functions that will be called when OpenAI determines they should be executed
  */
+// Without this, an unknown ID drops the filter and company-wide data is reported as one person's.
+const employeeNotFound = (employeeId: string): IFunctionResponse => ({
+  success: false,
+  error: `No employee found with ID '${employeeId}'`,
+});
+
 export const HR_FUNCTION_IMPLEMENTATIONS = {
   async get_employee_attendance_summary({
     startDate,
@@ -353,10 +358,9 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       };
 
       if (employeeId) {
-        const employee = await Employee.findOne({ employeeId });
-        if (employee) {
-          filter.employee = employee._id;
-        }
+        const employee = await Employee.findOne({ employeeId }).select('_id').lean();
+        if (!employee) return employeeNotFound(employeeId);
+        filter.employee = employee._id;
       }
 
       const [attendanceRecords, totalEmployees] = await Promise.all([
@@ -448,10 +452,9 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       };
 
       if (employeeId) {
-        const employee = await Employee.findOne({ employeeId });
-        if (employee) {
-          filter.employee = employee._id;
-        }
+        const employee = await Employee.findOne({ employeeId }).select('_id').lean();
+        if (!employee) return employeeNotFound(employeeId);
+        filter.employee = employee._id;
       }
 
       const attendanceRecords = await Attendance.find(filter)
@@ -772,7 +775,9 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       }
 
       if (employeeId) {
-        filter.employeeId = employeeId;
+        const employee = await Employee.findOne({ employeeId }).select('_id').lean();
+        if (!employee) return employeeNotFound(employeeId);
+        filter.employee = employee._id;
       }
 
       const [reports, employeeStats] = await Promise.all([
@@ -781,7 +786,7 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
           { $match: filter },
           {
             $group: {
-              _id: '$employeeId',
+              _id: '$employee',
               reportCount: { $sum: 1 },
               lastSubmission: { $max: '$date' },
               totalTasks: { $sum: { $size: '$tasks' } },
@@ -791,14 +796,14 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
       ]);
 
       // Get employee details for stats
-      const employeeIds = employeeStats.map((stat: { _id: string }) => stat._id);
       const employees = await Employee.find({
-        employeeId: { $in: employeeIds },
+        _id: { $in: employeeStats.map((stat: { _id: unknown }) => stat._id) },
       }).select('employeeId firstName lastName department');
 
-      const employeeMap = new Map<string, { name: string; department: string }>();
+      const employeeMap = new Map<string, { employeeId: string; name: string; department: string }>();
       employees.forEach((emp) => {
-        employeeMap.set(emp.employeeId, {
+        employeeMap.set(emp._id.toString(), {
+          employeeId: emp.employeeId,
           name: `${emp.firstName} ${emp.lastName}`,
           department: emp.department,
         });
@@ -812,10 +817,10 @@ export const HR_FUNCTION_IMPLEMENTATIONS = {
           end: endDate || 'Not specified',
         },
         employeeStats: employeeStats.map(
-          (stat: { _id: string; reportCount: number; totalTasks: number; lastSubmission: Date }) => {
-            const empInfo = employeeMap.get(stat._id) || { name: 'Unknown', department: 'Unknown' };
+          (stat: { _id: unknown; reportCount: number; totalTasks: number; lastSubmission: Date }) => {
+            const empInfo = employeeMap.get(String(stat._id)) || { employeeId: 'Unknown', name: 'Unknown', department: 'Unknown' };
             return {
-              employeeId: stat._id,
+              employeeId: empInfo.employeeId,
               employeeName: empInfo.name,
               department: empInfo.department,
               reportCount: stat.reportCount,

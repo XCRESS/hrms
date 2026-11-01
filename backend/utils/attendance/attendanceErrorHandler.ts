@@ -190,12 +190,7 @@ const getGenericErrorMessage = (operation: string): string => {
 const handleGenericError = (err: Error, operation: string, res: Response): Response => {
   const errorMessage = getGenericErrorMessage(operation);
 
-  return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-    formatResponse(false, errorMessage, null, {
-      server: err.message,
-      type: 'ServerError'
-    })
-  );
+  return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(formatResponse(false, errorMessage));
 };
 
 /**

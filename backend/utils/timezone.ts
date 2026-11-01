@@ -12,7 +12,7 @@
  * - Configurable timezone (not hardcoded)
  */
 
-import { DateTime, Duration, Interval } from 'luxon';
+import { DateTime } from 'luxon';
 
 const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 export const IST_TIMEZONE = DEFAULT_TIMEZONE;
@@ -27,28 +27,6 @@ export const BUSINESS_HOURS_IST = {
   HALF_DAY_END: { hour: 13, minute: 0 }, // 1:00 PM
   LATE_ARRIVAL: { hour: 10, minute: 0 }, // 10:00 AM
 } as const;
-
-/**
- * Settings interface for business hours
- */
-interface BusinessHourSettings {
-  workStartTime?: string; // HH:mm format
-  workEndTime?: string;
-  lateThreshold?: string;
-  halfDayEndTime?: string;
-  minimumWorkHours?: number;
-}
-
-/**
- * Business hours result interface
- */
-interface BusinessHours {
-  workStart: DateTime;
-  workEnd: DateTime;
-  lateThreshold: DateTime;
-  halfDayEnd: DateTime;
-  lateArrival: DateTime;
-}
 
 /**
  * Day boundaries result interface
@@ -145,58 +123,6 @@ export function createISTDateTime(
 ): DateTime {
   const istMoment = toIST(date);
   return istMoment.set({ hour: hours, minute: minutes, second: seconds, millisecond: milliseconds });
-}
-
-/**
- * Parse time string to hours and minutes
- * @param timeStr - Time in HH:mm format
- * @returns Object with hours and minutes
- */
-function parseTime(timeStr: string): { hours: number; minutes: number } {
-  const parts = timeStr.split(':').map(Number);
-  const hours = parts[0];
-  const minutes = parts[1];
-
-  if (hours === undefined || minutes === undefined || isNaN(hours) || isNaN(minutes)) {
-    throw new Error(`Invalid time format: ${timeStr}. Expected HH:mm`);
-  }
-  return { hours, minutes };
-}
-
-/**
- * Create IST business hours for a given date using settings
- * @param date - Base date
- * @param settings - Time settings (workStartTime, workEndTime, etc.)
- * @returns Business hours as DateTime objects
- */
-export function getBusinessHours(
-  date?: Date | string | DateTime | null,
-  settings?: BusinessHourSettings | null
-): BusinessHours {
-  const baseDate = date ? toIST(date) : getISTNow();
-
-  // Use provided settings or defaults
-  const workStart = settings?.workStartTime ?? '09:00';
-  const workEnd = settings?.workEndTime ?? '18:00';
-  const lateThreshold = settings?.lateThreshold ?? '09:55';
-  const halfDayEnd = settings?.halfDayEndTime ?? '13:00';
-
-  const startTime = parseTime(workStart);
-  const endTime = parseTime(workEnd);
-  const lateTime = parseTime(lateThreshold);
-  const halfTime = parseTime(halfDayEnd);
-
-  return {
-    workStart: createISTDateTime(baseDate, startTime.hours, startTime.minutes),
-    workEnd: createISTDateTime(baseDate, endTime.hours, endTime.minutes),
-    lateThreshold: createISTDateTime(baseDate, lateTime.hours, lateTime.minutes),
-    halfDayEnd: createISTDateTime(baseDate, halfTime.hours, halfTime.minutes),
-    lateArrival: createISTDateTime(
-      baseDate,
-      BUSINESS_HOURS_IST.LATE_ARRIVAL.hour,
-      BUSINESS_HOURS_IST.LATE_ARRIVAL.minute
-    ),
-  };
 }
 
 /**
@@ -327,39 +253,6 @@ export function calculateWorkHours(
 }
 
 /**
- * Determine attendance status based on check-in time and work hours
- * @param checkIn - Check-in time in IST
- * @param checkOut - Check-out time in IST (optional)
- * @param settings - Attendance settings (optional)
- * @returns Status: 'present', 'late', 'half-day', 'absent'
- */
-export function determineAttendanceStatus(
-  checkIn: Date | string | DateTime | null,
-  checkOut?: Date | string | DateTime | null,
-  settings?: BusinessHourSettings | null
-): 'present' | 'late' | 'half-day' | 'absent' {
-  if (!checkIn) return 'absent';
-
-  const checkInIST = toIST(checkIn);
-  const businessHours = getBusinessHours(checkInIST, settings);
-
-  // Check if late
-  const isLate = checkInIST > businessHours.lateThreshold;
-
-  // Check if half day (less than minimum work hours)
-  if (checkOut) {
-    const workHours = calculateWorkHours(checkIn, checkOut);
-    const minimumHours = settings?.minimumWorkHours ?? 4;
-
-    if (workHours < minimumHours) {
-      return 'half-day';
-    }
-  }
-
-  return isLate ? 'late' : 'present';
-}
-
-/**
  * Convert DateTime to JavaScript Date
  * @param dateTime - Luxon DateTime object
  * @returns JavaScript Date object
@@ -436,14 +329,12 @@ export default {
   getISTDayBoundaries,
   getISTRangeBoundaries,
   createISTDateTime,
-  getBusinessHours,
   formatISTDate,
   getISTDateString,
   parseISTDateString,
   isSameDayIST,
   addDaysIST,
   calculateWorkHours,
-  determineAttendanceStatus,
   dateTimeToJSDate,
   getISTOffset,
   timeToDecimal,

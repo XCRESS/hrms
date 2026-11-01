@@ -5,14 +5,12 @@
 
 import {
   ATTENDANCE_STATUS,
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES,
-  HTTP_STATUS,
   type AttendanceStatus
 } from './attendanceConstants.js';
 import { getISTDateString, calculateWorkHours } from '../timezone.js';
 import type { IEmployee } from '../../types/index.js';
-import type { Document, Types } from 'mongoose';
+import { formatResponse } from '../response.js';
+import type { Types } from 'mongoose';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -46,13 +44,6 @@ interface AttendanceFlags {
   isLeave?: boolean;
   isWeekend?: boolean;
   isHoliday?: boolean;
-}
-
-interface ResponseData {
-  success: boolean;
-  message: string;
-  data?: unknown;
-  errors?: unknown;
 }
 
 interface ValidationResult {
@@ -89,37 +80,11 @@ interface DateRangeObject {
   isWorkingDay: boolean;
 }
 
-interface ErrorResponseObject {
-  response: ResponseData;
-  statusCode: number;
-}
-
-interface SuccessResponseObject {
-  response: ResponseData;
-  statusCode: number;
-}
-
 // ============================================================================
 // RESPONSE FORMATTERS
 // ============================================================================
 
-/**
- * Standard response formatter for consistency across all endpoints
- */
-export const formatResponse = (
-  success: boolean,
-  message: string,
-  data: unknown = null,
-  errors: unknown = null
-): ResponseData => {
-  const response: ResponseData = {
-    success,
-    message
-  };
-  if (data) response.data = data;
-  if (errors) response.errors = errors;
-  return response;
-};
+export { formatResponse };
 
 /**
  * Build standard employee object for responses
@@ -454,33 +419,6 @@ export const buildPaginationMeta = (total: number, page: number, limit: number):
   };
 };
 
-/**
- * Create error response with standard format
- */
-export const createErrorResponse = (
-  message: string,
-  statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR,
-  details: unknown = null
-): ErrorResponseObject => {
-  return {
-    response: formatResponse(false, message, null, details),
-    statusCode
-  };
-};
-
-/**
- * Create success response with standard format
- */
-export const createSuccessResponse = (
-  message: string,
-  data: unknown = null,
-  statusCode: number = HTTP_STATUS.OK
-): SuccessResponseObject => {
-  return {
-    response: formatResponse(true, message, data),
-    statusCode
-  };
-};
 
 // ============================================================================
 // DEFAULT EXPORT
@@ -501,6 +439,4 @@ export default {
   groupRecordsByDate,
   validateRequiredFields,
   safeParseInt,
-  createErrorResponse,
-  createSuccessResponse
 };

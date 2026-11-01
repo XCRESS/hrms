@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { globalErrorHandler } from "./utils/asyncHandler.js";
 import logger from "./utils/logger.js";
 import { generalLimiter } from "./middlewares/rateLimit.middleware.js";
+import { REFRESHED_TOKEN_HEADER } from "./middlewares/auth.middleware.js";
 
 dotenv.config();
 const app = express();
@@ -53,7 +54,8 @@ app.use(cors({
       callback(null, false); // Reject without throwing error
     }
   },
-  credentials: true
+  credentials: true,
+  exposedHeaders: [REFRESHED_TOKEN_HEADER]
 }));
 
 app.use(generalLimiter);

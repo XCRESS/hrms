@@ -1,8 +1,8 @@
 import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { createEmployeeSchema, updateEmployeeSchema } from "../validators/employee.schemas.js";
+import { createEmployeeSchema, updateEmployeeSchema, changeEmployeeIdSchema } from "../validators/employee.schemas.js";
 import { updateEmployeeIdSchema, unlinkEmployeeSchema } from "../validators/auth.schemas.js";
 import { Router } from "express";
-import { createEmployee, getEmployees, updateEmployee, getProfile, getEmployeeById, toggleEmployeeStatus } from "../controllers/employee.controllers.js";
+import { createEmployee, getEmployees, updateEmployee, changeEmployeeId, getProfile, getEmployeeById, toggleEmployeeStatus } from "../controllers/employee.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import { updateEmployeeId, unlinkEmployee } from "../controllers/user.controllers.js";
 
@@ -10,6 +10,7 @@ const router: Router = Router();
 router.post("/create", authMiddleware(["admin", "hr"]), validateBody(createEmployeeSchema), createEmployee);
 router.get("/", authMiddleware(["admin", "hr"]), getEmployees);
 router.put("/update/:id", authMiddleware(["admin", "hr"]), validateBody(updateEmployeeSchema), updateEmployee);
+router.put("/:id/employee-id", authMiddleware(["admin", "hr"]), validateBody(changeEmployeeIdSchema), changeEmployeeId);
 router.put("/toggle-status/:id", authMiddleware(["admin", "hr"]), toggleEmployeeStatus);
 router.get("/profile", authMiddleware(["admin", "hr", "employee"]), getProfile);
 router.get("/:id", authMiddleware(["admin", "hr"]), getEmployeeById);

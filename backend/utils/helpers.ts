@@ -4,32 +4,7 @@
  */
 
 import crypto from 'crypto';
-import mongoose from 'mongoose';
-import type { Types } from 'mongoose';
 import type { IAuthUser, IJWTPayload, IPaginationQuery } from '../types/index.js';
-import Employee from '../models/Employee.model.js';
-
-/**
- * Get Employee ObjectId from user object
- * Handles both direct employee reference and employeeId lookup
- * @param user - Authenticated user from JWT
- * @returns Employee ObjectId or null
- */
-export async function getEmployeeObjectId(
-  user: IJWTPayload
-): Promise<Types.ObjectId | null> {
-  if (user.employee) {
-    // Employee in JWT is stored as string, convert to ObjectId
-    return new mongoose.Types.ObjectId(user.employee);
-  }
-
-  if (user.employeeId) {
-    const employee = await Employee.findOne({ employeeId: user.employeeId });
-    return employee ? employee._id : null;
-  }
-
-  return null;
-}
 
 /**
  * Validate required fields in request body
@@ -245,4 +220,11 @@ export function canAccessEmployee(user: IAuthUser | undefined, employeeId: strin
   if (user.role === 'admin' || user.role === 'hr') return true;
   if (!user.employeeId || !employeeId) return false;
   return user.employeeId.trim().toUpperCase() === employeeId.trim().toUpperCase();
+}
+
+/** Same rule for a stored record, by its `employee` ObjectId. */
+export function ownsEmployeeRecord(user: IAuthUser | undefined, employeeRef: unknown): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'hr') return true;
+  return Boolean(user.employee && employeeRef && String(user.employee) === String(employeeRef));
 }

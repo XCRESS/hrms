@@ -119,6 +119,27 @@ export const useUpdateEmployee = () => {
 };
 
 /**
+ * Rename an employee's ID. The backend updates every record that stores it.
+ */
+export const useChangeEmployeeId = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+      const { data } = await axiosInstance.put<ApiResponse<Employee>>(
+        API_ENDPOINTS.EMPLOYEES.CHANGE_ID(id),
+        { employeeId }
+      );
+      return data.data as Employee;
+    },
+    onSuccess: () => {
+      // Salary, documents, task reports and requests are all keyed by employeeId.
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
+/**
  * Delete employee
  */
 export const useDeleteEmployee = () => {

@@ -1,7 +1,6 @@
 import type { CreateLeaveInput, UpdateLeaveStatusInput, RequestListQuery } from '../validators/request.schemas.js';
 import type { Response } from 'express';
 import Leave from '../models/Leave.model.js';
-import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import NotificationService from '../services/notificationService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -95,8 +94,8 @@ export const requestLeave = asyncHandler(async (req: IAuthRequest, res: Response
   });
 
   NotificationService.notifyHR('leave_request', {
-    employee: req.user.name,
-    employeeId: req.user.employeeId,
+    employee: `${employee.firstName} ${employee.lastName}`,
+    employeeId: employee.employeeId,
     type: effectiveLeaveType,
     date: startDate || date,
     reason
@@ -168,62 +167,53 @@ export const getMyLeaves = asyncHandler(async (req: IAuthRequest, res: Response)
   });
 });
 
-export const getAllLeaves = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { employeeId, startDate, endDate, status, page, limit } =
-      getValidatedQuery<RequestListQuery>(req);
-    const filter: { employee?: unknown; status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
+export const getAllLeaves = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { employeeId, startDate, endDate, status, page, limit } =
+    getValidatedQuery<RequestListQuery>(req);
+  const filter: { employee?: unknown; status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
 
-    if (employeeId) {
-      const employee = await Employee.findOne({ employeeId }).select('_id').lean();
-      if (employee) {
-        filter.employee = employee._id;
-      }
+  if (employeeId) {
+    const employee = await Employee.findOne({ employeeId }).select('_id').lean();
+    if (employee) {
+      filter.employee = employee._id;
     }
-
-    if (status) {
-      filter.status = status;
-    }
-
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
-    }
-
-    // Counts ignore the status filter so the UI can badge every status at once.
-    const countFilter = { ...filter };
-    delete countFilter.status;
-
-    const [leaves, total, statusCounts] = await Promise.all([
-      Leave.find(filter)
-        .populate('employee', 'firstName lastName employeeId department')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      Leave.countDocuments(filter),
-      Leave.aggregate<{ _id: string; count: number }>([
-        { $match: countFilter },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
-    ]);
-
-    res.json({
-      success: true,
-      leaves,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      statusCounts: Object.fromEntries(statusCounts.map((s) => [s._id, s.count])),
-    });
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error('Unknown error');
-    logger.error({ err: error }, 'Failed to fetch leave requests');
-    res.status(500).json({
-      message: 'Failed to fetch leave requests',
-      error: error.message
-    });
   }
-};
+
+  if (status) {
+    filter.status = status;
+  }
+
+  if (startDate || endDate) {
+    filter.createdAt = {};
+    if (startDate) filter.createdAt.$gte = new Date(startDate);
+    if (endDate) filter.createdAt.$lte = new Date(endDate);
+  }
+
+  // Counts ignore the status filter so the UI can badge every status at once.
+  const countFilter = { ...filter };
+  delete countFilter.status;
+
+  const [leaves, total, statusCounts] = await Promise.all([
+    Leave.find(filter)
+      .populate('employee', 'firstName lastName employeeId department')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Leave.countDocuments(filter),
+    Leave.aggregate<{ _id: string; count: number }>([
+      { $match: countFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  res.json({
+    success: true,
+    leaves,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    statusCounts: Object.fromEntries(statusCounts.map((s) => [s._id, s.count])),
+  });
+});
 
 export const updateLeaveStatus = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { leaveId } = req.params;
@@ -247,9 +237,7 @@ export const updateLeaveStatus = asyncHandler(async (req: IAuthRequest, res: Res
   leave.approvedBy = req.user._id;
   await leave.save();
 
-  const employee = await Employee.findById(leave.employee);
-
-  NotificationService.notifyEmployee(employee?.employeeId || '', 'leave_status_update', {
+  NotificationService.notifyEmployee(leave.employee, 'leave_status_update', {
     status,
     type: leave.leaveType,
     date: leave.startDate.toDateString(),

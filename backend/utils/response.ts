@@ -6,26 +6,6 @@
 import type { ISuccessResponse, IErrorResponse } from '../types/index.js';
 
 /**
- * Type guard for validation errors
- */
-function isValidationErrors(
-  errors: unknown
-): errors is Array<{ field: string; message: string }> {
-  return (
-    Array.isArray(errors) &&
-    errors.every(
-      (e) =>
-        typeof e === 'object' &&
-        e !== null &&
-        'field' in e &&
-        'message' in e &&
-        typeof e.field === 'string' &&
-        typeof e.message === 'string'
-    )
-  );
-}
-
-/**
  * Format successful API response
  * @param message - Human-readable success message
  * @param data - Optional data payload
@@ -74,23 +54,19 @@ export function formatErrorResponse(
 }
 
 /**
- * Legacy format response (backward compatibility)
- * @deprecated Use formatSuccessResponse or formatErrorResponse instead
+ * Never echoes `data` on failure: that is how internal error messages reached
+ * clients. `errors` passes through as given; the check-in UI reads geofence details there.
  */
 export function formatResponse<T = unknown>(
   success: boolean,
   message: string,
   data: T | null = null,
   errors: unknown = null
-): ISuccessResponse<T> | IErrorResponse {
+): ISuccessResponse<T> | { success: false; message: string; errors?: unknown } {
   if (success) {
     return formatSuccessResponse(message, data ?? undefined);
   }
-  return formatErrorResponse(
-    message,
-    undefined,
-    isValidationErrors(errors) ? errors : undefined
-  );
+  return { success: false, message, ...(errors ? { errors } : {}) };
 }
 
 /**

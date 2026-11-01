@@ -11,7 +11,6 @@ import EmailService from './emailService.js';
 import { getISTNow, toIST } from '../utils/timezone.js';
 import logger from '../utils/logger.js';
 import { getDayType } from './workCalendar.js';
-import type { DateTime } from 'luxon';
 
 class SchedulerService {
   private holidayReminderJob: ScheduledTask | null = null;
@@ -242,7 +241,7 @@ class SchedulerService {
 
           const age = todayIST.year - birthday.year;
 
-          await NotificationService.notifyEmployee(employee.employeeId, 'birthday_wish', {
+          await NotificationService.notifyEmployee(employee._id, 'birthday_wish', {
             employee: `${employee.firstName} ${employee.lastName}`,
             age: age,
             department: employee.department,

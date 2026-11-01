@@ -4,7 +4,7 @@
  */
 
 import Settings from '../../models/Settings.model.js';
-import { getISTNow, createISTDateTime, timeToDecimal, toIST } from '../../utils/timezone.js';
+import { getISTNow, createISTDateTime, timeToDecimal } from '../../utils/timezone.js';
 import type { DateTime } from 'luxon';
 import logger from '../../utils/logger.js';
 
@@ -78,10 +78,12 @@ export class SettingsService {
 
       return effectiveSettings;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      logger.error({ err }, 'Error fetching effective settings');
-      // Return default settings if fetch fails
-      return this.getDefaultSettings();
+      // Stale-but-real beats invented defaults: statuses computed against rules
+      // HR never set would be silently wrong.
+      const stale = this.cache.get(cacheKey);
+      logger.error({ err: error, department, servedStale: Boolean(stale) }, 'Error fetching effective settings');
+      if (stale) return stale;
+      throw error;
     }
   }
 
@@ -109,28 +111,6 @@ export class SettingsService {
       this.cache.clear();
       this.cacheExpiry.clear();
     }
-  }
-
-  /**
-   * Get default settings as fallback
-   * @returns Default settings
-   */
-  getDefaultSettings(): EffectiveSettings {
-    return {
-      attendance: {
-        lateThreshold: '09:55',
-        workStartTime: '09:00',
-        workEndTime: '18:00',
-        halfDayEndTime: '13:00',
-        minimumWorkHours: 4,
-        fullDayHours: 8,
-        workingDays: [1, 2, 3, 4, 5, 6],
-        nonWorkingDays: [0],
-        saturdayWorkType: 'full',
-        saturdayHolidays: []
-      },
-      scope: 'global'
-    };
   }
 
   /**

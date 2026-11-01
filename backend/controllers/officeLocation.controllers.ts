@@ -1,4 +1,5 @@
 import type { CreateOfficeLocationInput, OfficeLocationQuery, UpdateOfficeLocationInput } from '../validators/content.schemas.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { Response } from 'express';
 import OfficeLocation, {
@@ -11,7 +12,6 @@ import { BusinessLogicError } from '../utils/attendance/attendanceErrorHandler.j
 import { HTTP_STATUS } from '../utils/attendance/attendanceConstants.js';
 import GeofenceService from '../services/GeofenceService.js';
 import settingsService from '../services/settings/SettingsService.js';
-import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
 const getDefaultRadius = async (): Promise<number> => {
@@ -67,248 +67,176 @@ const serializeLocation = (doc: LeanOfficeLocation) => {
   };
 };
 
-export const getOfficeLocations = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { active } = getValidatedQuery<OfficeLocationQuery>(req);
-    const filter: { isActive?: boolean } = {};
-    if (active !== undefined) {
-      filter.isActive = active === 'true';
-    }
-
-    const locations = (await OfficeLocation.find(filter)
-      .sort({ createdAt: -1 })
-      .lean()) as unknown as LeanOfficeLocation[];
-
-    res.json(
-      formatResponse(true, 'Office locations retrieved', {
-        locations: locations.map(serializeLocation)
-      })
-    );
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Failed to fetch office locations');
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json(
-        formatResponse(false, 'Failed to fetch office locations', null, {
-          server: err.message
-        })
-      );
+export const getOfficeLocations = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { active } = getValidatedQuery<OfficeLocationQuery>(req);
+  const filter: { isActive?: boolean } = {};
+  if (active !== undefined) {
+    filter.isActive = active === 'true';
   }
-};
 
-export const getActiveOfficeLocations = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const locations = (await OfficeLocation.find({ isActive: true })
-      .sort({ name: 1 })
-      .lean()) as unknown as LeanOfficeLocation[];
+  const locations = (await OfficeLocation.find(filter)
+    .sort({ createdAt: -1 })
+    .lean()) as unknown as LeanOfficeLocation[];
 
-    res.json(
-      formatResponse(true, 'Active office locations retrieved', {
-        locations: locations.map(serializeLocation)
-      })
+  res.json(
+    formatResponse(true, 'Office locations retrieved', {
+      locations: locations.map(serializeLocation)
+    })
+  );
+});
+
+export const getActiveOfficeLocations = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const locations = (await OfficeLocation.find({ isActive: true })
+    .sort({ name: 1 })
+    .lean()) as unknown as LeanOfficeLocation[];
+
+  res.json(
+    formatResponse(true, 'Active office locations retrieved', {
+      locations: locations.map(serializeLocation)
+    })
+  );
+});
+
+export const createOfficeLocation = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { name, address, latitude, longitude, radius, isActive } = req.body as CreateOfficeLocationInput;
+
+  if (!name || latitude === undefined || longitude === undefined) {
+    throw new BusinessLogicError(
+      'Name, latitude and longitude are required',
+      { missingFields: ['name', 'latitude', 'longitude'] }
     );
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Failed to fetch active office locations');
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json(
-        formatResponse(false, 'Failed to fetch office locations', null, {
-          server: err.message
-        })
-      );
   }
-};
 
-export const createOfficeLocation = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { name, address, latitude, longitude, radius, isActive } = req.body as CreateOfficeLocationInput;
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!GeofenceService.validateCoordinates(lat, lng)) {
+    throw new BusinessLogicError('Invalid coordinates provided', {
+      latitude,
+      longitude
+    });
+  }
 
-    if (!name || latitude === undefined || longitude === undefined) {
+  // `??` not `||`: an explicit radius of 0 is invalid input to reject below,
+  // not a signal to fall back to the configured default.
+  const effectiveRadius = radius ?? (await getDefaultRadius());
+  assertRadiusInRange(effectiveRadius);
+
+  const location = await OfficeLocation.create({
+    name,
+    address,
+    coordinates: { latitude: lat, longitude: lng },
+    radius: effectiveRadius,
+    isActive,
+    createdBy: req.user?._id
+  });
+
+  GeofenceService.invalidateOfficeCache();
+
+  res
+    .status(HTTP_STATUS.CREATED)
+    .json(formatResponse(true, 'Office location created', { location }));
+});
+
+export const updateOfficeLocation = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { locationId } = req.params;
+  const updates = { ...(req.body as UpdateOfficeLocationInput) };
+
+  // Also fires when only a nested `coordinates` object was sent - the schema
+  // permits that form, and it must not bypass coordinate validation.
+  const hasCoordinateUpdate =
+    updates.latitude !== undefined ||
+    updates.longitude !== undefined ||
+    updates.coordinates !== undefined;
+
+  if (hasCoordinateUpdate) {
+    const lat = updates.latitude ?? updates.coordinates?.latitude;
+    const lng = updates.longitude ?? updates.coordinates?.longitude;
+
+    // A half-supplied pair would otherwise coerce to NaN and be rejected with
+    // a misleading "invalid coordinates"; say what is actually wrong.
+    if (lat === undefined || lat === null || lng === undefined || lng === null) {
       throw new BusinessLogicError(
-        'Name, latitude and longitude are required',
-        { missingFields: ['name', 'latitude', 'longitude'] }
+        'Both latitude and longitude must be provided when updating coordinates',
+        { latitude: lat ?? null, longitude: lng ?? null }
       );
     }
 
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    if (!GeofenceService.validateCoordinates(lat, lng)) {
+    if (!GeofenceService.validateCoordinates(Number(lat), Number(lng))) {
       throw new BusinessLogicError('Invalid coordinates provided', {
-        latitude,
-        longitude
+        latitude: lat,
+        longitude: lng
       });
     }
 
-    // `??` not `||`: an explicit radius of 0 is invalid input to reject below,
-    // not a signal to fall back to the configured default.
-    const effectiveRadius = radius ?? (await getDefaultRadius());
-    assertRadiusInRange(effectiveRadius);
+    updates.coordinates = {
+      latitude: Number(lat),
+      longitude: Number(lng)
+    };
+    delete updates.latitude;
+    delete updates.longitude;
+  }
 
-    const location = await OfficeLocation.create({
-      name,
-      address,
-      coordinates: { latitude: lat, longitude: lng },
-      radius: effectiveRadius,
-      isActive,
-      createdBy: req.user?._id
-    });
+  if (updates.radius !== undefined && updates.radius !== null) {
+    updates.radius = Number(updates.radius);
+    assertRadiusInRange(updates.radius);
+  }
 
-    GeofenceService.invalidateOfficeCache();
+  // Load-and-save rather than findByIdAndUpdate: `coordinates` is a virtual
+  // over the stored GeoJSON, and query-level updates bypass virtual setters -
+  // the update would persist a stray `coordinates` field and leave the real
+  // `location` point untouched.
+  const location = await OfficeLocation.findById(locationId);
 
+  if (!location) {
     res
-      .status(HTTP_STATUS.CREATED)
-      .json(formatResponse(true, 'Office location created', { location }));
-  } catch (error) {
-    const err = error as { statusCode?: number; message?: string; details?: unknown };
-    if (error instanceof BusinessLogicError) {
-      res.status(err.statusCode || 400).json(formatResponse(false, err.message || 'Error', null, err.details));
-      return;
-    }
-
-    const logErr = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err: logErr }, 'Failed to create office location');
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .status(HTTP_STATUS.NOT_FOUND)
       .json(
-        formatResponse(false, 'Failed to create office location', null, {
-          server: logErr.message
+        formatResponse(false, 'Office location not found', null, {
+          locationId
         })
       );
+    return;
   }
-};
 
-export const updateOfficeLocation = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { locationId } = req.params;
-    const updates = { ...(req.body as UpdateOfficeLocationInput) };
+  const { coordinates, ...scalarUpdates } = updates;
 
-    // Also fires when only a nested `coordinates` object was sent - the schema
-    // permits that form, and it must not bypass coordinate validation.
-    const hasCoordinateUpdate =
-      updates.latitude !== undefined ||
-      updates.longitude !== undefined ||
-      updates.coordinates !== undefined;
-
-    if (hasCoordinateUpdate) {
-      const lat = updates.latitude ?? updates.coordinates?.latitude;
-      const lng = updates.longitude ?? updates.coordinates?.longitude;
-
-      // A half-supplied pair would otherwise coerce to NaN and be rejected with
-      // a misleading "invalid coordinates"; say what is actually wrong.
-      if (lat === undefined || lat === null || lng === undefined || lng === null) {
-        throw new BusinessLogicError(
-          'Both latitude and longitude must be provided when updating coordinates',
-          { latitude: lat ?? null, longitude: lng ?? null }
-        );
-      }
-
-      if (!GeofenceService.validateCoordinates(Number(lat), Number(lng))) {
-        throw new BusinessLogicError('Invalid coordinates provided', {
-          latitude: lat,
-          longitude: lng
-        });
-      }
-
-      updates.coordinates = {
-        latitude: Number(lat),
-        longitude: Number(lng)
-      };
-      delete updates.latitude;
-      delete updates.longitude;
+  for (const [key, value] of Object.entries(scalarUpdates)) {
+    if (value !== undefined) {
+      location.set(key, value);
     }
+  }
 
-    if (updates.radius !== undefined && updates.radius !== null) {
-      updates.radius = Number(updates.radius);
-      assertRadiusInRange(updates.radius);
-    }
+  if (coordinates) {
+    location.set('coordinates', coordinates);
+  }
 
-    // Load-and-save rather than findByIdAndUpdate: `coordinates` is a virtual
-    // over the stored GeoJSON, and query-level updates bypass virtual setters -
-    // the update would persist a stray `coordinates` field and leave the real
-    // `location` point untouched.
-    const location = await OfficeLocation.findById(locationId);
+  await location.save();
 
-    if (!location) {
-      res
-        .status(HTTP_STATUS.NOT_FOUND)
-        .json(
-          formatResponse(false, 'Office location not found', null, {
-            locationId
-          })
-        );
-      return;
-    }
+  GeofenceService.invalidateOfficeCache();
 
-    const { coordinates, ...scalarUpdates } = updates;
+  res.json(formatResponse(true, 'Office location updated', { location }));
+});
 
-    for (const [key, value] of Object.entries(scalarUpdates)) {
-      if (value !== undefined) {
-        location.set(key, value);
-      }
-    }
+export const deleteOfficeLocation = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { locationId } = req.params;
+  const location = await OfficeLocation.findByIdAndDelete(locationId);
 
-    if (coordinates) {
-      location.set('coordinates', coordinates);
-    }
-
-    await location.save();
-
-    GeofenceService.invalidateOfficeCache();
-
-    res.json(formatResponse(true, 'Office location updated', { location }));
-  } catch (error) {
-    const err = error as { statusCode?: number; message?: string; details?: unknown };
-    if (error instanceof BusinessLogicError) {
-      res.status(err.statusCode || 400).json(formatResponse(false, err.message || 'Error', null, err.details));
-      return;
-    }
-
-    const logErr = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err: logErr }, 'Failed to update office location');
+  if (!location) {
     res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .status(HTTP_STATUS.NOT_FOUND)
       .json(
-        formatResponse(false, 'Failed to update office location', null, {
-          server: logErr.message
+        formatResponse(false, 'Office location not found', null, {
+          locationId
         })
       );
+    return;
   }
-};
 
-export const deleteOfficeLocation = async (req: IAuthRequest, res: Response): Promise<void> => {
-  try {
-    const { locationId } = req.params;
-    const location = await OfficeLocation.findByIdAndDelete(locationId);
+  GeofenceService.invalidateOfficeCache();
 
-    if (!location) {
-      res
-        .status(HTTP_STATUS.NOT_FOUND)
-        .json(
-          formatResponse(false, 'Office location not found', null, {
-            locationId
-          })
-        );
-      return;
-    }
-
-    GeofenceService.invalidateOfficeCache();
-
-    res.json(
-      formatResponse(true, 'Office location removed', {
-        locationId
-      })
-    );
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error');
-    logger.error({ err }, 'Failed to delete office location');
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json(
-        formatResponse(false, 'Failed to delete office location', null, {
-          server: err.message
-        })
-      );
-  }
-};
+  res.json(
+    formatResponse(true, 'Office location removed', {
+      locationId
+    })
+  );
+});

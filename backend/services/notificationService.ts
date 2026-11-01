@@ -125,18 +125,16 @@ class NotificationService {
   }
 
   async notifyEmployee(
-    employeeId: string,
+    employeeRef: mongoose.Types.ObjectId | null | undefined,
     type: NotificationType,
     data: NotificationData,
     options: DeliverOptions & { email?: boolean } = {}
   ): Promise<void> {
-    if (!employeeId) return;
+    if (!employeeRef) return;
     try {
-      const [employee, user] = await Promise.all([
-        Employee.findOne({ employeeId, isActive: true }).select('email').lean(),
-        User.findOne({ employeeId, isActive: true }).select('_id').lean(),
-      ]);
+      const employee = await Employee.findOne({ _id: employeeRef, isActive: true }).select('_id email').lean();
       if (!employee) return;
+      const user = await User.findOne({ employee: employee._id, isActive: true }).select('_id').lean();
 
       const notified = user ? await this.deliver([user._id], type, data, options) : [];
       const deduped = Boolean(options.dedupeKey) && notified.length === 0 && Boolean(user);
@@ -146,7 +144,7 @@ class NotificationService {
         await EmailService.sendNotification(spec.emailTemplate, data, employee.email);
       }
     } catch (error) {
-      logger.error({ err: error, type }, `Failed to notify employee ${employeeId}`);
+      logger.error({ err: error, type, employee: String(employeeRef) }, 'Failed to notify employee');
     }
   }
 

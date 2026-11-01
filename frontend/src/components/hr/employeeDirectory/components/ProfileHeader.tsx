@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Pencil, MoreVertical, Link2, Link2Off, UserX, UserCheck, Save, X } from 'lucide-react';
+import { ArrowLeft, Pencil, MoreVertical, Link2, Link2Off, UserX, UserCheck, Save, X, IdCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,7 +9,7 @@ import type { Employee } from '@/types';
 
 export function ProfileHeader({
     employee, isEditing, isSaving, isToggling, isLinked,
-    onEdit, onCancel, onSave, onToggleStatus, onLink, onUnlink, onBack, showBack,
+    onEdit, onCancel, onSave, onToggleStatus, onLink, onUnlink, onChangeId, onBack, showBack,
 }: {
     employee: Employee;
     isEditing: boolean;
@@ -22,6 +22,7 @@ export function ProfileHeader({
     onToggleStatus: () => void;
     onLink: () => void;
     onUnlink: () => void;
+    onChangeId: () => void;
     onBack: () => void;
     showBack: boolean;
 }) {
@@ -123,6 +124,14 @@ export function ProfileHeader({
                                             Link user account
                                         </button>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() => { setMenuOpen(false); onChangeId(); }}
+                                        className="flex h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-sm text-foreground hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                                    >
+                                        <IdCard className="size-4" aria-hidden="true" />
+                                        Change employee ID
+                                    </button>
                                     <button
                                         type="button"
                                         disabled={isToggling}

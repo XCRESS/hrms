@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/authjwt';
 import {
     useEmployees, useEmployee, useAllLeaves, useUsers, useDepartments,
     useUpdateEmployee, useToggleEmployeeStatus, useUnlinkEmployeeFromUser,
-    useLinkEmployeeToUser,
+    useLinkEmployeeToUser, useChangeEmployeeId,
 } from '../../../hooks/queries';
 import { useMediaQuery } from '../../../hooks/use-media-query';
 import { useToast } from '../../ui/toast';
@@ -19,6 +19,7 @@ import { useEmployeeFilters } from './useEmployeeFilters';
 import { DirectoryHeader, DirectoryActions, DirectoryStatusTabs } from './components/DirectoryHeader';
 import type { DirectoryView } from './components/DirectoryHeader';
 import { LinkUserDialog } from './components/LinkUserDialog';
+import { ChangeEmployeeIdDialog } from './components/ChangeEmployeeIdDialog';
 import UnlinkedAccounts from './UnlinkedAccounts';
 import { DirectoryToolbar } from './components/DirectoryToolbar';
 import { EmployeeList } from './components/EmployeeList';
@@ -57,6 +58,7 @@ export default function EmployeeDirectory() {
     const [draftFor, setDraftFor] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    const [changeIdOpen, setChangeIdOpen] = useState(false);
 
     const { data: employees = [], isLoading, error: employeesError } = useEmployees({ status: 'active' });
     const { data: users = [] } = useUsers();
@@ -75,6 +77,7 @@ export default function EmployeeDirectory() {
     const toggleStatus = useToggleEmployeeStatus();
     const unlink = useUnlinkEmployeeFromUser();
     const link = useLinkEmployeeToUser();
+    const changeId = useChangeEmployeeId();
 
     const filters = useEmployeeFilters({ employees, users });
 
@@ -213,6 +216,21 @@ export default function EmployeeDirectory() {
         });
     };
 
+    const handleChangeId = (employeeId: string) => {
+        if (!employeeProfile) return;
+        changeId.mutate(
+            { id: employeeProfile._id, employeeId },
+            {
+                onSuccess: (updated) => {
+                    setChangeIdOpen(false);
+                    toast({ title: 'Employee ID changed', description: `Now ${updated.employeeId}.` });
+                },
+                onError: (error: Error) =>
+                    toast({ variant: 'destructive', title: 'Could not change ID', description: error.message }),
+            },
+        );
+    };
+
     const handleLink = (user: User) => {
         if (!employeeProfile) return;
         const name = employeeDisplayName(employeeProfile);
@@ -323,6 +341,7 @@ export default function EmployeeDirectory() {
             onToggleStatus={handleToggleStatus}
             onLink={() => setLinkDialogOpen(true)}
             onUnlink={handleUnlink}
+            onChangeId={() => setChangeIdOpen(true)}
             onBack={goBack}
             showBack={!isDesktop}
         />
@@ -352,14 +371,25 @@ export default function EmployeeDirectory() {
     );
 
     const linkDialog = employeeProfile ? (
-        <LinkUserDialog
-            open={linkDialogOpen}
-            onOpenChange={setLinkDialogOpen}
-            employeeName={employeeDisplayName(employeeProfile)}
-            users={users}
-            isPending={link.isPending}
-            onSelect={handleLink}
-        />
+        <>
+            <LinkUserDialog
+                open={linkDialogOpen}
+                onOpenChange={setLinkDialogOpen}
+                employeeName={employeeDisplayName(employeeProfile)}
+                users={users}
+                isPending={link.isPending}
+                onSelect={handleLink}
+            />
+            <ChangeEmployeeIdDialog
+                key={employeeProfile._id}
+                open={changeIdOpen}
+                onOpenChange={setChangeIdOpen}
+                employeeName={employeeDisplayName(employeeProfile)}
+                currentId={employeeProfile.employeeId}
+                isPending={changeId.isPending}
+                onSubmit={handleChangeId}
+            />
+        </>
     ) : null;
 
     // Mobile is a two-screen flow: the list at /employees, the profile at

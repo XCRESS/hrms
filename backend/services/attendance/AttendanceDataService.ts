@@ -3,19 +3,15 @@
  * Handles all data access operations, complex queries, and database interactions
  */
 
-import { DateTime } from 'luxon';
 import type { Types, FilterQuery } from 'mongoose';
-import type { IAttendance, IEmployee, ILeave, IHoliday } from '../../types/index.js';
+import type { IAttendance, IEmployee, ILeave } from '../../types/index.js';
 import Attendance from '../../models/Attendance.model.js';
 import Employee from '../../models/Employee.model.js';
 import Leave from '../../models/Leave.model.js';
-import Holiday from '../../models/Holiday.model.js';
-import TaskReport from '../../models/TaskReport.model.js';
 import RegularizationRequest from '../../models/Regularization.model.js';
 import {
   getISTDayBoundaries,
-  parseISTDateString,
-  getISTDateString
+  parseISTDateString
 } from '../../utils/timezone.js';
 import {
   buildPaginationMeta
@@ -47,16 +43,6 @@ interface PaginationResult {
     total: number;
     totalPages: number;
   };
-}
-
-/**
- * Multi-employee summary result interface
- */
-interface MultiEmployeeSummaryResult {
-  attendanceRecords: any[];
-  approvedLeaves: any[];
-  holidayMap: Map<string, any>;
-  employeeIdMapping: Record<string, string>;
 }
 
 /**
@@ -225,45 +211,6 @@ export class AttendanceDataService {
    * @param options - Additional options
    * @returns Attendance records
    */
-  static async getAttendanceRecordsInRange(
-    startDate: Date,
-    endDate: Date,
-    options: QueryOptions = {}
-  ): Promise<any[]> {
-    const { employeeId, status, includeEmployee = true } = options;
-
-    const { startOfDay: startBoundary } = getISTDayBoundaries(startDate);
-    const { endOfDay: endBoundary } = getISTDayBoundaries(endDate);
-
-    const filter: FilterQuery<IAttendance> = {
-      date: { $gte: startBoundary.toJSDate(), $lte: endBoundary.toJSDate() }
-    };
-
-    // Add employee filter if specified
-    if (employeeId) {
-      const employee = await this.getEmployee(employeeId);
-      if (employee) {
-        filter.employee = employee._id;
-      } else {
-        return [];
-      }
-    }
-
-    // Add status filter if specified
-    if (status) {
-      filter.status = status;
-    }
-
-    let query = Attendance.find(filter).sort({ date: -1 });
-
-    // Populate employee data if requested
-    if (includeEmployee) {
-      query = query.populate('employee', 'firstName lastName employeeId department');
-    }
-
-    return await query.exec();
-  }
-
   /**
    * Get today's attendance for all employees
    * @param date - Target date (optional, defaults to today)
@@ -314,15 +261,9 @@ export class AttendanceDataService {
       return [];
     }
 
-    // Step 3: Get employee's employeeId for regularization lookup
-    const employee = await Employee.findById(employeeObjectId, 'employeeId');
-    if (!employee) {
-      return missingCheckouts; // Return all if employee not found (shouldn't happen)
-    }
-
-    // Step 4: Get all pending regularization requests for this employee in the date range
+    // Step 3: Get all pending regularization requests for this employee in the date range
     const pendingRegularizations = await RegularizationRequest.find({
-      employeeId: employee.employeeId,
+      employee: employeeObjectId,
       status: 'pending',
       date: {
         $gte: lookbackDate,
@@ -405,14 +346,6 @@ export class AttendanceDataService {
    * @param endDate - End date
    * @returns Employee's approved leaves
    */
-  static async getEmployeeApprovedLeaves(
-    employeeId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<any[]> {
-    return await this.getApprovedLeavesInRange(startDate, endDate, employeeId);
-  }
-
   // Holiday Data Operations
 
   static async getHolidaysInRange(startDate: Date, endDate: Date): Promise<HolidayMap> {
@@ -426,10 +359,6 @@ export class AttendanceDataService {
    * @param taskReportData - Task report data
    * @returns Created task report
    */
-  static async createTaskReport(taskReportData: any): Promise<any> {
-    return await TaskReport.create(taskReportData);
-  }
-
   /**
    * Get task reports for employee in date range
    * @param employeeObjectId - Employee ObjectId
@@ -437,20 +366,6 @@ export class AttendanceDataService {
    * @param endDate - End date
    * @returns Task reports
    */
-  static async getEmployeeTaskReports(
-    employeeObjectId: string | Types.ObjectId,
-    startDate: Date,
-    endDate: Date
-  ): Promise<any[]> {
-    const { startOfDay: startBoundary } = getISTDayBoundaries(startDate);
-    const { endOfDay: endBoundary } = getISTDayBoundaries(endDate);
-
-    return await TaskReport.find({
-      employee: employeeObjectId,
-      date: { $gte: startBoundary.toJSDate(), $lte: endBoundary.toJSDate() }
-    }).sort({ date: -1 });
-  }
-
   // Complex Query Operations
 
   /**
@@ -460,113 +375,12 @@ export class AttendanceDataService {
    * @param endDate - End date
    * @returns Attendance summary data
    */
-  static async getMultiEmployeeAttendanceSummary(
-    employeeIds: (string | Types.ObjectId)[],
-    startDate: Date,
-    endDate: Date
-  ): Promise<MultiEmployeeSummaryResult> {
-    const { startOfDay: startBoundary } = getISTDayBoundaries(startDate);
-    const { endOfDay: endBoundary } = getISTDayBoundaries(endDate);
-
-    // Get attendance records
-    const attendanceRecords = await Attendance.find({
-      employee: { $in: employeeIds },
-      date: { $gte: startBoundary.toJSDate(), $lte: endBoundary.toJSDate() }
-    }).populate('employee', 'firstName lastName employeeId department');
-
-    // Get approved leaves
-    const allEmployees = await Employee.find({ _id: { $in: employeeIds } }, 'employeeId');
-    const employeeIdMapping: Record<string, string> = allEmployees.reduce((acc, emp) => {
-      acc[emp._id.toString()] = emp.employeeId;
-      return acc;
-    }, {} as Record<string, string>);
-
-    const approvedLeaves = await Leave.find({
-      employee: { $in: employeeIds },
-      status: 'approved',
-      startDate: { $lte: endBoundary.toJSDate() },
-      endDate: { $gte: startBoundary.toJSDate() }
-    }).populate('employee', 'firstName lastName employeeId');
-
-    // Get holidays
-    const holidayMap = await this.getHolidaysInRange(startBoundary.toJSDate(), endBoundary.toJSDate());
-
-    return {
-      attendanceRecords,
-      approvedLeaves,
-      holidayMap,
-      employeeIdMapping
-    };
-  }
-
   /**
    * Get department-wise attendance statistics
    * @param startDate - Start date
    * @param endDate - End date
    * @returns Department statistics
    */
-  static async getDepartmentAttendanceStats(startDate: Date, endDate: Date): Promise<any[]> {
-    const { startOfDay: startBoundary } = getISTDayBoundaries(startDate);
-    const { endOfDay: endBoundary } = getISTDayBoundaries(endDate);
-
-    return await Attendance.aggregate([
-      {
-        $match: {
-          date: { $gte: startBoundary.toJSDate(), $lte: endBoundary.toJSDate() }
-        }
-      },
-      {
-        $lookup: {
-          from: 'employees',
-          localField: 'employee',
-          foreignField: '_id',
-          as: 'employeeData'
-        }
-      },
-      {
-        $unwind: '$employeeData'
-      },
-      {
-        $group: {
-          _id: '$employeeData.department',
-          totalRecords: { $sum: 1 },
-          presentCount: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'present'] }, 1, 0]
-            }
-          },
-          absentCount: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'absent'] }, 1, 0]
-            }
-          },
-          halfDayCount: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'half-day'] }, 1, 0]
-            }
-          },
-          totalWorkHours: { $sum: '$workHours' }
-        }
-      },
-      {
-        $project: {
-          department: '$_id',
-          totalRecords: 1,
-          presentCount: 1,
-          absentCount: 1,
-          halfDayCount: 1,
-          totalWorkHours: 1,
-          attendancePercentage: {
-            $multiply: [
-              { $divide: [{ $add: ['$presentCount', '$halfDayCount'] }, '$totalRecords'] },
-              100
-            ]
-          }
-        }
-      }
-    ]);
-  }
-
   /**
    * Get attendance trends for a period
    * @param startDate - Start date
@@ -627,11 +441,6 @@ export class AttendanceDataService {
    * @param date - Target date
    * @returns True if record exists
    */
-  static async attendanceRecordExists(employeeObjectId: string | Types.ObjectId, date: Date): Promise<boolean> {
-    const record = await this.findAttendanceByEmployeeAndDate(employeeObjectId, date);
-    return !!record;
-  }
-
   /**
    * Get attendance record count for employee in date range
    * @param employeeObjectId - Employee ObjectId
@@ -639,38 +448,16 @@ export class AttendanceDataService {
    * @param endDate - End date
    * @returns Record count
    */
-  static async getAttendanceRecordCount(
-    employeeObjectId: string | Types.ObjectId,
-    startDate: Date,
-    endDate: Date
-  ): Promise<number> {
-    const { startOfDay: startBoundary } = getISTDayBoundaries(startDate);
-    const { endOfDay: endBoundary } = getISTDayBoundaries(endDate);
-
-    return await Attendance.countDocuments({
-      employee: employeeObjectId,
-      date: { $gte: startBoundary.toJSDate(), $lte: endBoundary.toJSDate() }
-    });
-  }
-
   /**
    * Bulk create attendance records
    * @param attendanceRecords - Array of attendance record data
    * @returns Created records
    */
-  static async bulkCreateAttendanceRecords(attendanceRecords: Partial<IAttendance>[]): Promise<any[]> {
-    return await Attendance.insertMany(attendanceRecords);
-  }
-
   /**
    * Delete attendance record
    * @param recordId - Attendance record ID
    * @returns True if deleted successfully
    */
-  static async deleteAttendanceRecord(recordId: string): Promise<boolean> {
-    const result = await Attendance.findByIdAndDelete(recordId);
-    return result !== null;
-  }
 }
 
 export default AttendanceDataService;

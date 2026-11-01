@@ -73,7 +73,11 @@ export const createEmployeeSchema = z.object({
  * Updates are a partial of create. The controller merges whatever is present,
  * so unknown keys are stripped rather than rejected.
  */
-export const updateEmployeeSchema = nullishPartial(createEmployeeSchema);
+// employeeId is excluded: renaming must go through changeEmployeeIdSchema, which updates every stored copy.
+export const updateEmployeeSchema = nullishPartial(createEmployeeSchema.omit({ employeeId: true }));
+
+export const changeEmployeeIdSchema = z.object({ employeeId: employeeIdSchema });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
+export type ChangeEmployeeIdInput = z.infer<typeof changeEmployeeIdSchema>;

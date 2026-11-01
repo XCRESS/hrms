@@ -6,6 +6,8 @@ import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router: Router = Router();
 
+const HR_ONLY = authMiddleware(['admin', 'hr']);
+
 // Middleware to prevent caching of attendance data
 const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
   res.set({
@@ -32,15 +34,15 @@ router.get("/records", authMiddleware(), noCacheMiddleware, getAttendance);
 router.get("/my", authMiddleware(), noCacheMiddleware, getMyAttendance);
 
 // Admin/HR: Get today's attendance for all employees (including absent ones)
-router.get("/today-with-absents", authMiddleware(), noCacheMiddleware, getTodayAttendanceWithAbsents);
+router.get("/today-with-absents", HR_ONLY, noCacheMiddleware, getTodayAttendanceWithAbsents);
 
 // Admin/HR: Get attendance data for a date range - optimized for AdminAttendanceTable
-router.get("/admin-range", authMiddleware(), noCacheMiddleware, getAdminAttendanceRange);
+router.get("/admin-range", HR_ONLY, noCacheMiddleware, getAdminAttendanceRange);
 
 // Get employee attendance with absent days included
 router.get("/employee-with-absents", authMiddleware(), noCacheMiddleware, getEmployeeAttendanceWithAbsents);
 
 // HR/Admin: Update attendance record
-router.put("/update/:recordId", authMiddleware(), validateBody(updateAttendanceRecordSchema), updateAttendanceRecord);
+router.put("/update/:recordId", HR_ONLY, validateBody(updateAttendanceRecordSchema), updateAttendanceRecord);
 
 export default router;

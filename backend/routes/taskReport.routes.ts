@@ -4,7 +4,7 @@ import { Router } from "express";
 import { getTaskReports, getMyTaskReports, submitTaskReport } from "../controllers/taskReport.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import type { IAuthRequest } from "../types/index.js";
-import type { Response } from "express";
+import type { Response, NextFunction } from "express";
 
 const router: Router = Router();
 
@@ -12,13 +12,9 @@ const router: Router = Router();
 router.post("/submit", authMiddleware(), validateBody(submitTaskReportSchema), submitTaskReport);
 
 // Get task reports - returns appropriate reports based on user role
-router.get("/", authMiddleware(), async (req: IAuthRequest, res: Response) => {
-  // If user is admin/hr, return all task reports, otherwise return their own task reports
-  if (req.user?.role === 'admin' || req.user?.role === 'hr') {
-    return getTaskReports(req, res);
-  } else {
-    return getMyTaskReports(req, res);
-  }
+router.get("/", authMiddleware(), (req: IAuthRequest, res: Response, next: NextFunction) => {
+  const handler = req.user?.role === 'admin' || req.user?.role === 'hr' ? getTaskReports : getMyTaskReports;
+  handler(req, res, next);
 });
 
 // Employee can get their own task reports

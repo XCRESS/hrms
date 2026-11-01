@@ -37,8 +37,6 @@ export {
   groupRecordsByEmployee,
   groupRecordsByDate,
   safeParseInt,
-  createErrorResponse,
-  createSuccessResponse,
   default as AttendanceHelpers
 } from './attendanceHelpers.js';
 
@@ -53,7 +51,6 @@ export {
 // Validation Functions
 export {
   getEmployeeObjectId,
-  validateAdminAccess,
   validateEmployeeAccess,
   validateAttendanceStatus,
   validateStatusTransition,
