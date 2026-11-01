@@ -6,7 +6,7 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import type { Types } from 'mongoose';
-import type { IJWTPayload, IPaginationQuery } from '../types/index.js';
+import type { IAuthUser, IJWTPayload, IPaginationQuery } from '../types/index.js';
 import Employee from '../models/Employee.model.js';
 
 /**
@@ -234,4 +234,15 @@ export async function retryWithBackoff<T>(
  */
 export function paramValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * Admin and HR may act on any employee; an employee only on themselves.
+ * Use wherever the target employeeId comes from the client (URL or body).
+ */
+export function canAccessEmployee(user: IAuthUser | undefined, employeeId: string | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'hr') return true;
+  if (!user.employeeId || !employeeId) return false;
+  return user.employeeId.trim().toUpperCase() === employeeId.trim().toUpperCase();
 }

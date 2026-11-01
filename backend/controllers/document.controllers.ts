@@ -8,6 +8,8 @@ import multer from 'multer';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '../utils/uploadLimits.js';
 import logger from '../utils/logger.js';
 import { formatSuccessResponse, formatErrorResponse } from '../utils/response.js';
+import { canAccessEmployee, paramValue } from '../utils/helpers.js';
+import type { IAuthRequest } from '../types/index.js';
 
 const storage = multer.memoryStorage();
 export const upload = multer({
@@ -43,7 +45,7 @@ export const handleUpload = (req: Request, res: Response, next: NextFunction): v
   });
 };
 
-interface MulterRequest extends Request {
+interface MulterRequest extends IAuthRequest {
   file?: Express.Multer.File;
 }
 
@@ -59,6 +61,11 @@ export const uploadDocument = async (req: MulterRequest, res: Response): Promise
 
     if (!employeeId) {
       res.status(400).json(formatErrorResponse('Employee ID is required'));
+      return;
+    }
+
+    if (!canAccessEmployee(req.user, employeeId)) {
+      res.status(403).json(formatErrorResponse('Access forbidden'));
       return;
     }
 
@@ -110,9 +117,13 @@ export const uploadDocument = async (req: MulterRequest, res: Response): Promise
   }
 };
 
-export const getEmployeeDocuments = async (req: Request, res: Response): Promise<void> => {
+export const getEmployeeDocuments = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.params;
+    const employeeId = paramValue(req.params.employeeId);
+    if (!canAccessEmployee(req.user, employeeId)) {
+      res.status(403).json(formatErrorResponse('Access forbidden'));
+      return;
+    }
     const documents = await EmployeeDocument.find({ employeeId }).lean();
     res.json(formatSuccessResponse('Documents retrieved successfully', { documents }));
   } catch (error) {
@@ -122,13 +133,18 @@ export const getEmployeeDocuments = async (req: Request, res: Response): Promise
   }
 };
 
-export const deleteDocument = async (req: Request, res: Response): Promise<void> => {
+export const deleteDocument = async (req: IAuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = paramValue(req.params.id);
     const document = await EmployeeDocument.findById(id);
 
     if (!document) {
       res.status(404).json(formatErrorResponse('Document not found'));
+      return;
+    }
+
+    if (!canAccessEmployee(req.user, document.employeeId)) {
+      res.status(403).json(formatErrorResponse('Access forbidden'));
       return;
     }
 

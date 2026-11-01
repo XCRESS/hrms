@@ -1,5 +1,5 @@
 import type { CreateSalarySlipInput, SalarySlipStatusInput, BulkSalarySlipStatusInput } from '../validators/salary.schemas.js';
-import { paramValue } from '../utils/helpers.js';
+import { canAccessEmployee, paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import SalarySlip from '../models/SalarySlip.model.js';
@@ -90,6 +90,11 @@ export const getSalarySlip = async (req: IAuthRequest, res: Response): Promise<v
 
     const decodedEmployeeId = decodeURIComponent(employeeId);
 
+    if (!canAccessEmployee(req.user, decodedEmployeeId)) {
+      res.status(403).json(formatResponse(false, 'Access forbidden'));
+      return;
+    }
+
     const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
       res.status(404).json(formatResponse(false, 'Employee not found'));
@@ -133,6 +138,11 @@ export const getEmployeeSalarySlips = async (req: IAuthRequest, res: Response): 
 
     const decodedEmployeeId = decodeURIComponent(employeeId);
     const { page = '1', limit = '10' } = req.query;
+
+    if (!canAccessEmployee(req.user, decodedEmployeeId)) {
+      res.status(403).json(formatResponse(false, 'Access forbidden'));
+      return;
+    }
 
     const employee = await Employee.findOne({ employeeId: decodedEmployeeId });
     if (!employee) {
