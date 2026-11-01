@@ -1270,7 +1270,21 @@ export interface WFHRequestQueryParams extends PaginationParams {
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 // Custom theme options
-export type CustomTheme = 'default' | 'christmas' | 'newyear' | 'independence' | 'ocean' | 'forest';
+export type CustomTheme = 'default' | 'christmas' | 'newyear' | 'independence' | 'diwali' | 'ocean' | 'forest';
+
+export type FestiveGameKey = 'mithai-match';
+
+export interface FestiveLeaderboard {
+  leaderboard: { rank: number; name: string; score: number; avatar: string | null }[];
+  me: { rank: number; score: number } | null;
+}
+
+export interface FestiveFinishResult {
+  score: number;
+  bestScore: number;
+  isPersonalBest: boolean;
+  rank: number;
+}
 
 // Theme context value
 export interface ThemeContextValue {
@@ -1278,6 +1292,8 @@ export interface ThemeContextValue {
   customTheme: CustomTheme;
   setThemeMode: (mode: ThemeMode) => void;
   setCustomTheme: (theme: CustomTheme) => void;
+  /** Applied by FestiveThemeSync; never overrides a theme the user picked. null = no festival active. */
+  setSeasonalTheme: (theme: CustomTheme | null) => void;
   toggleTheme: () => void;
   applyTheme: () => void;
   // Legacy support (backwards compatibility)

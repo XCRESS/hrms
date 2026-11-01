@@ -211,4 +211,11 @@ export const queryKeys = {
     all: () => ['gift-game'] as const,
     leaderboard: (params?: { limit?: number; period?: string }) => ['gift-game', 'leaderboard', params] as const,
   },
+
+  festive: {
+    all: () => ['festive'] as const,
+    leaderboardFor: (instanceId: string, game: string) => ['festive', 'leaderboard', instanceId, game] as const,
+    leaderboard: (instanceId: string, game: string, limit: number) =>
+      ['festive', 'leaderboard', instanceId, game, limit] as const,
+  },
 } as const;

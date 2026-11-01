@@ -12,7 +12,7 @@ import logger from './logger.js';
  * Ensure JWT_SECRET is configured
  * @throws Error if JWT_SECRET is not set
  */
-function ensureJWTSecret(): string {
+export function ensureJWTSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET environment variable is not set');

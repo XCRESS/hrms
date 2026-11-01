@@ -127,6 +127,7 @@ import officeLocationRoutes from "./routes/officeLocation.js";
 import wfhRequestRoutes from "./routes/wfhRequest.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
+import festiveRoutes from "./routes/festive.routes.js";
 import tetrisRoutes from "./features/tetris/tetris.routes.js";
 
 // Notification Services
@@ -168,6 +169,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/health", healthRoutes);
 app.use("/api/tetris", tetrisRoutes);
+app.use("/api/festive", festiveRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('HRMS API is working!')

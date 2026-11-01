@@ -33,6 +33,7 @@ import { tokenStorage } from "@/lib/tokenStorage";
 import { useQueryClient } from "@tanstack/react-query";
 import { detachPushOnLogout } from "@/services/pushClient";
 import ServiceWorkerBridge from "./notifications/ServiceWorkerBridge";
+import FestiveThemeSync from "./festive/FestiveThemeSync";
 
 interface User {
   name?: string;
@@ -289,6 +290,7 @@ export default function AppLayout() {
         style={{ '--sidebar-offset': `${SIDEBAR_WIDTH_COLLAPSED}px` } as React.CSSProperties}
       >
         <ServiceWorkerBridge />
+        <FestiveThemeSync />
         <Outlet />
         {/* Spacer for the fixed mobile bottom bar. Without it the last rows of
             every scrollable page sit underneath the tabs and cannot be reached.

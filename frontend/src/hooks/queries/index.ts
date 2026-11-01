@@ -24,3 +24,4 @@ export * from './useTaskReports';
 export * from './useDocuments';
 export * from './useExpenses';
 export * from './useGiftGame';
+export * from './useFestiveGames';

@@ -594,6 +594,104 @@ html[data-theme='independence'] ::selection {
   color: #2B1200;
 }
 
+/* =========================================
+   DIWALI THEME
+   Light: Ivory, Maroon, Marigold
+   Dark:  Aubergine, Gold, Marigold
+   [data-festive-theme] scopes the same tokens to one subtree (the festive
+   banner/hub) under any user theme; works because @theme is inline.
+   ========================================= */
+html[data-theme='diwali'],
+[data-festive-theme='diwali'] {
+  --background: #FFF8EC;
+  --foreground: #3B0D0D;
+  --card: #FFFFFF;
+  --card-foreground: #3B0D0D;
+  --popover: #FFFFFF;
+  --popover-foreground: #3B0D0D;
+  --primary: #7F1D1D;
+  --primary-foreground: #FFF4E0;
+  --secondary: #F59E0B;
+  --secondary-foreground: #3B1A00;
+  --accent: #FDE8C4;
+  --accent-foreground: #7F1D1D;
+  --muted: #FBEBD3;
+  --muted-foreground: #7A4A35;
+  --border: #EBC98F;
+  --input: #EBC98F;
+  --ring: #D97706;
+
+  --sidebar: #FBEAD0;
+  --sidebar-foreground: #3B0D0D;
+  --sidebar-primary: #7F1D1D;
+  --sidebar-primary-foreground: #FFF4E0;
+  --sidebar-accent: #FFFFFF;
+  --sidebar-accent-foreground: #3B0D0D;
+  --sidebar-border: #EBC98F;
+  --sidebar-ring: #7F1D1D;
+}
+
+html.dark[data-theme='diwali'],
+.dark [data-festive-theme='diwali'] {
+  --background: #1A0B10;
+  --foreground: #F8EEDD;
+  --card: #2C1519;
+  --card-foreground: #F8EEDD;
+  --popover: #2C1519;
+  --popover-foreground: #F8EEDD;
+  --primary: #D4A017;
+  --primary-foreground: #2A1600;
+  --secondary: #F59E0B;
+  --secondary-foreground: #2A1600;
+  --accent: #3A1E22;
+  --accent-foreground: #FFD27A;
+  --muted: #241015;
+  --muted-foreground: #CDB9A4;
+  --border: #4A2A2E;
+  --input: #4A2A2E;
+  --ring: #F59E0B;
+
+  --sidebar: #12070A;
+  --sidebar-foreground: #F8EEDD;
+  --sidebar-primary: #D4A017;
+  --sidebar-primary-foreground: #2A1600;
+  --sidebar-accent: #3A1E22;
+  --sidebar-accent-foreground: #F8EEDD;
+  --sidebar-border: #4A2A2E;
+  --sidebar-ring: #F59E0B;
+}
+
+html[data-theme='diwali'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+html[data-theme='diwali'] ::selection {
+  background-color: #F59E0B;
+  color: #3B1A00;
+}
+
+/* The festive banner is always a Diwali night, whatever the light/dark mode. */
+[data-festive-theme='diwali'] {
+  --festive-night: #1B0F2E;
+  --festive-night-deep: #2A0E1F;
+  --festive-ivory: #FFF1D6;
+  --festive-gold: #F5C451;
+  --festive-flame: #FFE7A3;
+  --festive-flame-outer: #FF7A1A;
+  --festive-marigold: #F97316;
+  --festive-marigold-light: #FBBF24;
+  --festive-clay: #9A3412;
+  --festive-clay-dark: #5C1A08;
+}
+
+@keyframes diya-flicker {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); opacity: 0.95; }
+  25% { transform: scale(0.93, 1.07) skewX(-3deg); opacity: 1; }
+  50% { transform: scale(1.05, 0.95) skewX(2deg); opacity: 0.85; }
+  75% { transform: scale(0.97, 1.04) skewX(-1deg); opacity: 1; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

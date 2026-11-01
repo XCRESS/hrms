@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, Flag, type LucideIcon } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette, Check, Sparkles, Waves, Trees, Snowflake, Flag, Flame, type LucideIcon } from 'lucide-react';
 import type { ThemeMode, CustomTheme } from '@/types';
 
 /** Renderable option rows. Named *Option to avoid shadowing the value types. */
@@ -52,6 +52,13 @@ const AppearanceSettings: React.FC = () => {
       icon: Flag,
       subtitle: 'Tiranga',
       colors: ['#FF9933', '#FFFFFF', '#138808', '#0F2350']
+    },
+    {
+      value: 'diwali',
+      label: 'Diwali',
+      icon: Flame,
+      subtitle: 'Deepavali',
+      colors: ['#F59E0B', '#7F1D1D', '#D4A017']
     },
     {
       value: 'ocean',
@@ -210,7 +217,7 @@ const AppearanceSettings: React.FC = () => {
         <div className="flex gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
           <Sparkles className="h-4 w-4 text-accent mt-0.5 shrink-0" />
           <div className="text-xs text-foreground/80">
-            <span className="font-medium">Tip:</span> Seasonal themes (Christmas, New Year & Independence Day) auto-activate based on date. Change anytime here.
+            <span className="font-medium">Tip:</span> Seasonal themes (Christmas, New Year, Independence Day & Diwali) auto-activate based on date. Change anytime here.
           </div>
         </div>
       </div>

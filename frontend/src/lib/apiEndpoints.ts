@@ -108,6 +108,13 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/holidays/${id}`,
   },
 
+  // Festive games
+  FESTIVE: {
+    START: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/start`,
+    FINISH: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/finish`,
+    LEADERBOARD: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/leaderboard`,
+  },
+
   // Announcements
   ANNOUNCEMENTS: {
     BASE: '/announcements',

@@ -34,6 +34,7 @@ import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal";
 import NewYearBanner from './ui/NewYearBanner';
 import IndependenceDayBanner from './ui/IndependenceDayBanner';
 import ChristmasBanner from './ui/ChristmasBanner';
+import FestiveBanner from './festive/FestiveBanner';
 
 // Subcomponents
 import Header from './dashboard/Header';
@@ -825,6 +826,7 @@ const HRMSDashboard: React.FC = () => {
     return (
         <div className="bg-background text-foreground">
             <div className="flex flex-col">
+                <FestiveBanner username={employeeFirstName} />
                 <ChristmasBanner username={employeeFirstName} />
                 <NewYearBanner />
                 <IndependenceDayBanner username={employeeFirstName} />

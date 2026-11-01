@@ -11,8 +11,9 @@ import type { ApiResponse, Holiday, CreateHolidayDto, UpdateHolidayDto } from '@
 /**
  * Get all holidays
  */
-export const useHolidays = () => {
+export const useHolidays = (options: { throwOnError?: boolean } = {}) => {
   return useQuery({
+    ...options,
     queryKey: queryKeys.holidays.all(),
     queryFn: async () => {
       // Backend returns { success, holidays } directly
