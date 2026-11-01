@@ -152,7 +152,7 @@ const TimeUnit = ({ val, label }: { val: number; label: string }) => (
 );
 
 function FestiveBannerContent({ active, username }: { active: ActiveFestival; username: string }) {
-  const { festival, instanceId, anchorDate } = active;
+  const { festival, anchorDate } = active;
   const { banner } = festival;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [year, month, day] = anchorDate.split('-').map(Number);
