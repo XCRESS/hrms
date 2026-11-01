@@ -168,25 +168,7 @@ export interface ILeave extends Document {
 // REGULARIZATION TYPES
 // ============================================================================
 
-export type RegularizationType = 'check-in' | 'check-out' | 'both';
 export type RegularizationStatus = 'pending' | 'approved' | 'rejected';
-
-export interface IRegularization extends Document {
-  _id: Types.ObjectId;
-  employee: Types.ObjectId;
-  employeeName: string;
-  date: Date;
-  type: RegularizationType;
-  requestedCheckIn?: Date;
-  requestedCheckOut?: Date;
-  reason: string;
-  status: RegularizationStatus;
-  approvedBy?: Types.ObjectId;
-  approvedAt?: Date;
-  rejectionReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 // ============================================================================
 // SALARY TYPES
@@ -344,32 +326,6 @@ export interface IWFHRequest extends Document {
   approvedBy?: Types.ObjectId;
   approvedAt?: Date;
   rejectionReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// ============================================================================
-// DOCUMENT TYPES
-// ============================================================================
-
-export type DocumentType =
-  | 'aadhaar'
-  | 'pan'
-  | 'passport'
-  | 'driving-license'
-  | 'educational'
-  | 'experience'
-  | 'other';
-
-export interface IEmployeeDocument extends Document {
-  _id: Types.ObjectId;
-  employee: Types.ObjectId;
-  documentType: DocumentType;
-  documentName: string;
-  documentUrl: string;
-  uploadedAt: Date;
-  uploadedBy: Types.ObjectId;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

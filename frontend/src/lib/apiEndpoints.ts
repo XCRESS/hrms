@@ -116,13 +116,6 @@ export const API_ENDPOINTS = {
     LEADERBOARD: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/leaderboard`,
   },
 
-  // Festive games
-  FESTIVE: {
-    START: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/start`,
-    FINISH: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/finish`,
-    LEADERBOARD: (instanceId: string, game: string) => `/festive/${encodeURIComponent(instanceId)}/${encodeURIComponent(game)}/leaderboard`,
-  },
-
   // Announcements
   ANNOUNCEMENTS: {
     BASE: '/announcements',
@@ -251,6 +244,10 @@ export const API_ENDPOINTS = {
     SUBSCRIBE: '/notifications/subscribe',
     UNSUBSCRIBE: '/notifications/unsubscribe',
     VAPID_KEY: '/notifications/vapid-key',
+  },
+
+  CHAT: {
+    SEND: '/chat',
   },
 } as const;
 

@@ -176,33 +176,10 @@ attendanceSchema.pre('save', async function (next) {
   }
 });
 
-// Indexes for performance optimization
-
-// Prevent duplicate attendance records per employee per day
+// Every query filters by employee + date, or by date (+ status). These two cover
+// all of them; each extra index is paid for on every check-in.
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
-
-// Admin queries with date range and status filter
 attendanceSchema.index({ date: 1, status: 1 });
-
-// Employee attendance history (recent first)
-attendanceSchema.index({ employee: 1, date: -1 });
-
-// Date range queries
-attendanceSchema.index({ date: 1 });
-
-// Status-based queries with date sorting
-attendanceSchema.index({ status: 1, date: 1 });
-
-// Missing checkout queries
-attendanceSchema.index({
-  employee: 1,
-  date: 1,
-  checkIn: 1,
-  checkOut: 1,
-});
-
-// Composite index for common dashboard queries
-attendanceSchema.index({ date: 1, employee: 1, status: 1 });
 
 /**
  * Virtual: Check if late arrival

@@ -3,7 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import signupImg from '../../assets/signupImg.png';
-import { apiCallWithFallback, isDevelopment, getEnvironmentInfo } from '../../config/api';
+import { useSendChatMessage } from '@/hooks/queries';
 
 interface Message {
   id: number;
@@ -13,12 +13,7 @@ interface Message {
 }
 
 const ChatBot: React.FC = () => {
-  // Log environment info on component mount
-  useEffect(() => {
-    if (isDevelopment()) {
-      console.log('🤖 [ChatBot] Initialized with environment:', getEnvironmentInfo());
-    }
-  }, []);
+  const sendChatMessage = useSendChatMessage();
 
   const welcomeMessages = [
     "Welcome back! Let's get your HR tasks running smoothly — I'm here to support you.",
@@ -98,45 +93,20 @@ const ChatBot: React.FC = () => {
     }, 1500);
 
     try {
-      // Get the authentication token from localStorage
-      const token = localStorage.getItem('authToken');
+      const reply = await sendChatMessage.mutateAsync({
+        message: currentInput,
+        conversation_id: sessionStorage.getItem('hrms_chat_id') || undefined,
+      });
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Add authorization header if token exists
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const requestOptions: RequestInit = {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          message: currentInput,
-          conversation_id: sessionStorage.getItem('hrms_chat_id') || undefined
-        }),
-      };
-
-      console.log(`🌐 [ChatBot] Environment: ${isDevelopment() ? 'Development' : 'Production'}`);
-
-      const response = await apiCallWithFallback('/chat', requestOptions);
-
-      // apiCallWithFallback already handles response.ok checks
-
-      const data = await response.json();
-
-      // Store conversation ID for future messages
-      if (data.data?.conversation_id) {
-        sessionStorage.setItem('hrms_chat_id', data.data.conversation_id);
+      if (reply?.conversation_id) {
+        sessionStorage.setItem('hrms_chat_id', reply.conversation_id);
       }
 
       const botResponse: Message = {
         id: messages.length + 2,
-        text: data.data?.response || data.response || "I'm sorry, I couldn't process your request right now.",
+        text: reply?.response || "I'm sorry, I couldn't process your request right now.",
         sender: 'bot',
-        timestamp: data.data?.timestamp ? new Date(data.data.timestamp) : new Date(),
+        timestamp: reply?.timestamp ? new Date(reply.timestamp) : new Date(),
       };
 
       setMessages(prev => [...prev, botResponse]);
@@ -145,24 +115,9 @@ const ChatBot: React.FC = () => {
       console.error('Chat API error:', error);
       clearInterval(loadingInterval);
 
-      // Create more informative error message
-      let errorMessage = "I'm sorry, I'm having trouble connecting right now.";
-
-      const errorMsg = (error as Error).message;
-      if (errorMsg.includes('signal is aborted') || errorMsg.includes('timeout')) {
-        errorMessage = "The request is taking longer than usual. This can happen with complex queries.\n\n" +
-                      "Please try:\n" +
-                      "• Wait a moment and try again\n" +
-                      "• Try a simpler question first\n" +
-                      "• Check your internet connection";
-      } else if (errorMsg.includes('Both API endpoints are unavailable')) {
-        errorMessage = "Both local and production servers are unavailable. Please check:\n\n" +
-                      "• Local server: Make sure it's running on localhost:4000\n" +
-                      "• Production server: Check network connectivity\n" +
-                      "• Try refreshing the page";
-      } else if (errorMsg.includes('Primary endpoint failed')) {
-        errorMessage = "Primary server is unavailable, but fallback succeeded. Your request should work normally.";
-      }
+      const errorMessage =
+        (error as { message?: string }).message ||
+        "I'm sorry, I'm having trouble connecting right now. Please try again.";
 
       const errorResponse: Message = {
         id: messages.length + 2,
@@ -219,7 +174,7 @@ const ChatBot: React.FC = () => {
         </div>
 
         {/* Environment indicator (only show in development) */}
-        {isDevelopment() && (
+        {import.meta.env.DEV && (
           <div className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 font-medium">
             DEV MODE
           </div>
