@@ -106,9 +106,15 @@ export const sendTest = asyncHandler(async (req: IAuthRequest, res: Response) =>
 
   switch (type) {
     case 'self': {
+      const blocker = await NotificationService.pushBlocker();
       const devices = await PushService.countForUser(userId);
-      await NotificationService.notifyUser(userId, 'test');
-      res.json(formatResponse(true, devices > 0 ? `Sent to ${devices} device(s)` : 'Added to your inbox; this account has no push devices', { devices }));
+      const delivered = await NotificationService.notifyUser(userId, 'test');
+      const message =
+        blocker === 'disabled-in-settings' ? 'Added to your inbox only: "Browser Push Notifications" is switched off in settings'
+        : blocker === 'vapid-not-configured' ? 'Added to your inbox only: the server has no VAPID keys configured'
+        : devices === 0 ? 'Added to your inbox; this account has no push devices'
+        : `Delivered to ${delivered} of ${devices} registered device(s)`;
+      res.json(formatResponse(true, message, { devices, delivered, blocker }));
       return;
     }
     case 'hr':

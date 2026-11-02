@@ -107,11 +107,17 @@ export const mergeAttendance = (
   ...section,
 });
 
+/** Retired fields linger in old settings documents; the backend schema is strict, so never echo them back. */
+const knownNotificationFields = (section: NotificationSettingsSection | undefined) =>
+  Object.fromEntries(
+    Object.entries(section ?? {}).filter(([key]) => key in DEFAULT_NOTIFICATIONS)
+  ) as Partial<NotificationSettingsData>;
+
 export const mergeNotifications = (
   section: NotificationSettingsSection | undefined
 ): NotificationSettingsData => ({
   ...DEFAULT_NOTIFICATIONS,
-  ...section,
+  ...knownNotificationFields(section),
   milestoneTypes: {
     ...DEFAULT_NOTIFICATIONS.milestoneTypes,
     ...section?.milestoneTypes,

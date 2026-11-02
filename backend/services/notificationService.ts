@@ -19,7 +19,10 @@ export type Audience = 'all' | 'employee' | 'hr' | 'admin';
 interface DeliverOptions {
   /** Per-recipient idempotency key. A recipient whose key exists is skipped entirely. */
   dedupeKey?: (userId: string) => string;
+  onPushed?: (delivered: number) => void;
 }
+
+export type PushBlocker = 'disabled-in-settings' | 'vapid-not-configured' | null;
 
 const HR_EMAIL_TOGGLES: Partial<Record<NotificationType, string>> = {
   leave_request: 'leaveRequests',
@@ -88,7 +91,7 @@ class NotificationService {
       const settings = await Settings.getGlobalSettings();
       if (settings.notifications.pushEnabled) {
         const badges = await this.unreadCounts(recipients);
-        await PushService.sendToUsers(recipients, (userId) => ({
+        const delivered = await PushService.sendToUsers(recipients, (userId) => ({
           type,
           ...content,
           spec,
@@ -96,6 +99,7 @@ class NotificationService {
           inboxId: inboxIds.get(userId),
           badge: badges.get(userId) ?? 0,
         }));
+        options.onPushed?.(delivered);
       }
 
       return recipients;
@@ -167,8 +171,15 @@ class NotificationService {
   }
 
   async notifyUser(userId: string, type: NotificationType, data: NotificationData = {}): Promise<number> {
-    const notified = await this.deliver([new mongoose.Types.ObjectId(userId)], type, data);
-    return notified.length;
+    let pushed = 0;
+    await this.deliver([new mongoose.Types.ObjectId(userId)], type, data, { onPushed: (n) => { pushed = n; } });
+    return pushed;
+  }
+
+  async pushBlocker(): Promise<PushBlocker> {
+    if (!PushService.initialized) return 'vapid-not-configured';
+    const settings = await Settings.getGlobalSettings();
+    return settings.notifications.pushEnabled ? null : 'disabled-in-settings';
   }
 
   private async unreadCounts(userIds: mongoose.Types.ObjectId[]): Promise<Map<string, number>> {

@@ -253,13 +253,11 @@ const SettingsPage: React.FC = () => {
         setTestingNotification(true);
         try {
             const response = await testNotificationMutation.mutateAsync('self');
-            const devices = response.data?.devices ?? 0;
+            const delivered = response.data?.delivered ?? 0;
             toast({
-                variant: devices > 0 ? 'success' : 'warning',
-                title: devices > 0 ? 'Test sent' : 'No devices registered',
-                description: devices > 0
-                    ? `Sent to ${devices} of your device(s). It is also in your notification inbox.`
-                    : 'Added to your inbox. Turn on notifications from the dashboard to receive push on this device.'
+                variant: delivered > 0 ? 'success' : 'warning',
+                title: delivered > 0 ? 'Test delivered' : 'Not pushed',
+                description: response.message
             });
         } catch (err) {
             showError(err, 'Test Failed');

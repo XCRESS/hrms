@@ -18,6 +18,7 @@ import { EmployeeAvatar } from '@/components/hr/employeeDirectory/components/Emp
 import { festiveButtonClass } from './decor';
 
 const GAME = 'mithai-match' as const;
+const LEADERBOARD_LIMIT = 500;
 const CARD_SIZES = '(min-width: 768px) 140px, 22vw';
 const ARROW_STEP: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -4, ArrowDown: 4 };
 const ZERO_WIDTH = '​';
@@ -87,7 +88,7 @@ export default function MithaiMatch({ instanceId }: { instanceId: string }) {
   const [startError, setStartError] = useState(false);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const { data: board, isPending: boardLoading } = useFestiveLeaderboard(instanceId, GAME);
+  const { data: board, isPending: boardLoading } = useFestiveLeaderboard(instanceId, GAME, LEADERBOARD_LIMIT);
   const startGame = useStartFestiveGame();
   const finishGame = useFinishFestiveGame();
 
@@ -306,8 +307,8 @@ export default function MithaiMatch({ instanceId }: { instanceId: string }) {
 
       <aside
         className={cn(
-          'shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:block md:w-72',
-          showLeaderboard ? 'block' : 'hidden'
+          'min-h-0 shrink-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-md:max-h-96 md:flex md:w-72',
+          showLeaderboard ? 'flex' : 'hidden'
         )}
       >
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-orange-50">
@@ -318,7 +319,7 @@ export default function MithaiMatch({ instanceId }: { instanceId: string }) {
         ) : leaderboard.length === 0 ? (
           <p className="text-sm text-orange-50/70">No scores yet. Finish a game to take the top spot.</p>
         ) : (
-          <ol className="space-y-2 text-sm">
+          <ol className="-mr-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-2 text-sm">
             {leaderboard.map((row) => {
               const isMe = board?.me?.rank === row.rank;
               const medal = MEDAL[row.rank - 1];

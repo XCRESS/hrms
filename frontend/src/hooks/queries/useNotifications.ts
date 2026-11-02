@@ -129,7 +129,7 @@ export type NotificationTestType = 'self' | 'hr' | 'all' | 'milestone' | 'holida
 export const useTestNotification = () =>
   useMutation({
     mutationFn: async (type: NotificationTestType) => {
-      const { data } = await axiosInstance.post<ApiResponse<{ devices?: number }>>(
+      const { data } = await axiosInstance.post<ApiResponse<{ devices?: number; delivered?: number; blocker?: string | null }>>(
         API_ENDPOINTS.NOTIFICATIONS.TEST,
         { type }
       );
