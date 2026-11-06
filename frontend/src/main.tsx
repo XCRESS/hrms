@@ -39,7 +39,7 @@ const AdminRequestsPage = lazy(() => import('./components/hr/AdminRequestsPage')
 const PoliciesPage = lazy(() => import('./components/hr/PoliciesPage'));
 const SettingsPage = lazy(() => import('./components/hr/SettingsPage'));
 const AppearancePage = lazy(() => import('./components/employee/AppearancePage'));
-const ChatBot = lazy(() => import('./components/chatbot/chatbot'));
+const AssistantPage = lazy(() => import('./components/assistant/AssistantPage'));
 const MyExpenses = lazy(() => import('./components/employee/MyExpenses'));
 const ExpenseManagement = lazy(() => import('./components/hr/ExpenseManagement'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -150,7 +150,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                                 <Route path="expenses" element={<RequireRole roles={HR_ONLY}><ExpenseManagement /></RequireRole>} />
                                             </Route>
 
-                                            <Route path="/chatbot" element={<ChatBot />} />
+                                            <Route path="/chatbot" element={<RequireRole roles={HR_ONLY}><AssistantPage /></RequireRole>} />
                                         </Route>
 
                                         <Route path="/privacy-policy" element={<PrivacyPolicy />} />

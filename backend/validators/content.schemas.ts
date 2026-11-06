@@ -1,5 +1,5 @@
 /**
- * Validation schemas for chat, office locations, policies and task reports.
+ * Validation schemas for office locations, policies and task reports.
  */
 
 import { z } from 'zod';
@@ -8,24 +8,6 @@ import {
   MIN_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
 } from '../models/OfficeLocation.model.js';
-
-// ---------------------------------------------------------------------------
-// Chat
-// ---------------------------------------------------------------------------
-
-export const chatMessageSchema = z.object({
-  // 4000 mirrors the limit the controller already enforced by hand.
-  message: z
-    .string()
-    .trim()
-    .min(1, 'Message is required and cannot be empty')
-    .max(4000, 'Message is too long. Please keep messages under 4000 characters.'),
-  conversation_id: z.string().trim().nullish(),
-});
-
-export const clearConversationSchema = z.object({
-  clear_all: z.boolean().nullish(),
-});
 
 // ---------------------------------------------------------------------------
 // Office locations
@@ -74,8 +56,6 @@ export const submitTaskReportSchema = z.object({
   date: dateStringSchema.nullish(),
 });
 
-export type ChatMessageInput = z.infer<typeof chatMessageSchema>;
-export type ClearConversationInput = z.infer<typeof clearConversationSchema>;
 export type CreateOfficeLocationInput = z.infer<typeof createOfficeLocationSchema>;
 export type CreatePolicyInput = z.infer<typeof createPolicySchema>;
 export type SubmitTaskReportInput = z.infer<typeof submitTaskReportSchema>;

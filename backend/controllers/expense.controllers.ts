@@ -8,6 +8,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
+import { expenseQuery, type ExpenseFilter } from '../services/expenseQueries.js';
 
 /**
  * Submit a new expense request
@@ -123,26 +124,17 @@ export const getMyExpenses = asyncHandler(async (req: IAuthRequest, res: Respons
  */
 export const getAllExpenses = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { employeeId, status, startDate, endDate } = req.query;
-  const filter: any = {};
+  const filter: ExpenseFilter = {};
 
   if (employeeId && typeof employeeId === 'string') {
-    const employee = await Employee.findOne({ employeeId });
+    const employee = await Employee.findOne({ employeeId }).select('_id').lean();
     if (employee) filter.employee = employee._id;
   }
+  if (status && typeof status === 'string') filter.status = status;
+  if (startDate) filter.startDate = new Date(startDate as string);
+  if (endDate) filter.endDate = new Date(endDate as string);
 
-  if (status && typeof status === 'string') {
-    filter.status = status;
-  }
-
-  if (startDate || endDate) {
-    filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate as string);
-    if (endDate) filter.date.$lte = new Date(endDate as string);
-  }
-
-  const expenses = await Expense.find(filter)
-    .populate('employee', 'firstName lastName employeeId department')
-    .sort({ date: -1 });
+  const expenses = await expenseQuery(filter);
 
   res.json({
     success: true,

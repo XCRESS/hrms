@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, ApiResponse } from '@/types';
 import { tokenStorage } from './tokenStorage';
+import { currentAssistantThread } from './assistantAudit';
 
 // Base URL from environment or fallback
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
@@ -24,6 +25,11 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    const assistantThread = currentAssistantThread();
+    if (assistantThread && config.headers) {
+      config.headers['X-Assistant-Thread'] = assistantThread;
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -38,13 +44,35 @@ const EXPECTED_VALIDATION_MESSAGES = [
 ] as const;
 
 /** The backend re-issues the token when role, name or employee link changed since login. */
-const adoptRefreshedToken = (headers: unknown): void => {
-  const token = (headers as Record<string, unknown> | undefined)?.['x-refreshed-token'];
+export const adoptRefreshedToken = (headers: unknown): void => {
+  const token =
+    headers instanceof Headers
+      ? headers.get('x-refreshed-token')
+      : (headers as Record<string, unknown> | undefined)?.['x-refreshed-token'];
   if (typeof token !== 'string' || !token) return;
   tokenStorage.set(token);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('tokenRefreshed', { detail: { token } }));
   }
+};
+
+/** Ends the session on 401, and on 403 only for SESSION_REVOKED; a plain role mismatch must not log the user out. */
+export const handleAuthFailure = (status: number | undefined, body: { message?: string; code?: string } | undefined): string | null => {
+  const redirect = (reason: string) => {
+    tokenStorage.remove();
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
+      window.location.href = `/auth/login?reason=${reason}`;
+    }
+  };
+  if (status === 401) {
+    redirect('session_expired');
+    return body?.message || 'Authentication failed. Please login again.';
+  }
+  if (status === 403 && body?.code === 'SESSION_REVOKED') {
+    redirect('session_revoked');
+    return body.message || 'Your session has been revoked. Please contact HR.';
+  }
+  return null;
 };
 
 // Response interceptor - Handle token refresh and errors
@@ -63,30 +91,13 @@ axiosInstance.interceptors.response.use(
       timestamp: new Date().toISOString(),
     };
 
-    // Handle 401 - Unauthorized (includes deactivated account caught by middleware)
-    if (error.response?.status === 401) {
-      tokenStorage.remove();
-      customError.message = error.response.data?.message || 'Authentication failed. Please login again.';
-      // Redirect to login with context so the page can show a relevant banner
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
-        window.location.href = '/auth/login?reason=session_expired';
-      }
+    const authMessage = handleAuthFailure(error.response?.status, error.response?.data as { message?: string; code?: string } | undefined);
+    if (authMessage) {
+      customError.message = authMessage;
     }
 
-    // Handle 403 - only SESSION_REVOKED (unlinked/deactivated employee) ends the session;
-    // a plain role mismatch must not log the user out.
     else if (error.response?.status === 403) {
-      const msg = error.response.data?.message || '';
-
-      if (error.response.data?.code === 'SESSION_REVOKED') {
-        tokenStorage.remove();
-        customError.message = msg || 'Your session has been revoked. Please contact HR.';
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/')) {
-          window.location.href = '/auth/login?reason=session_revoked';
-        }
-      } else {
-        customError.message = msg || 'Access forbidden.';
-      }
+      customError.message = error.response.data?.message || 'Access forbidden.';
     }
 
     // Handle 400 - Validation errors

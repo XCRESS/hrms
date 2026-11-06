@@ -53,3 +53,12 @@ export const loginIpLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const assistantLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 30,
+  keyGenerator: userOrIpKey,
+  message: 'HR Buddy is getting a lot of messages from you. Please wait a few minutes.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});

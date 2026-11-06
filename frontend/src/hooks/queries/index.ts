@@ -25,4 +25,4 @@ export * from './useDocuments';
 export * from './useExpenses';
 export * from './useGiftGame';
 export * from './useFestiveGames';
-export * from './useChat';
+export * from './useAssistant';

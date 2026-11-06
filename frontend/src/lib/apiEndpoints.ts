@@ -91,6 +91,7 @@ export const API_ENDPOINTS = {
     MY_REGULARIZATIONS: '/regularizations/my',
     ALL_REGULARIZATIONS: '/regularizations',
     REVIEW: (id: string) => `/regularizations/${id}/review`,
+    BULK_REVIEW: '/regularizations/bulk-review',
   },
 
   // Task Reports
@@ -246,8 +247,17 @@ export const API_ENDPOINTS = {
     VAPID_KEY: '/notifications/vapid-key',
   },
 
-  CHAT: {
-    SEND: '/chat',
+  ASSISTANT: {
+    CHAT: '/assistant/chat',
+    THREADS: '/assistant/threads',
+    THREAD: (id: string) => `/assistant/threads/${id}`,
+    MESSAGES: (id: string) => `/assistant/threads/${id}/messages`,
+    TITLE: (id: string) => `/assistant/threads/${id}/title`,
+    RECEIPTS: (id: string) => `/assistant/threads/${id}/receipts`,
+    EMAIL: '/assistant/email',
+    FILES: '/assistant/files',
+    FILE: (id: string) => `/assistant/files/${id}`,
+    EXPORT: '/assistant/export',
   },
 } as const;
 

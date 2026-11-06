@@ -65,3 +65,7 @@ export default {
   updateEmployeeIdSchema,
   unlinkEmployeeSchema,
 };
+
+export const updateUserRoleSchema = z.object({ role: roleSchema });
+
+export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>;

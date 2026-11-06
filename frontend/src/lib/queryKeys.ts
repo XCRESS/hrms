@@ -218,4 +218,11 @@ export const queryKeys = {
     leaderboard: (instanceId: string, game: string, limit: number) =>
       ['festive', 'leaderboard', instanceId, game, limit] as const,
   },
+
+  assistant: {
+    all: () => ['assistant'] as const,
+    threads: () => ['assistant', 'threads'] as const,
+    thread: (id: string) => ['assistant', 'thread', id] as const,
+    messages: (id: string) => ['assistant', 'messages', id] as const,
+  },
 } as const;

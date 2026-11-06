@@ -867,6 +867,7 @@ export interface ApiResponse<T = unknown> {
   message?: string;
   code?: string;
   data?: T;
+  details?: Array<{ field: string; message: string }>;
 }
 
 export interface ApiError {

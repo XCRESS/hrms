@@ -228,3 +228,8 @@ export function ownsEmployeeRecord(user: IAuthUser | undefined, employeeRef: unk
   if (user.role === 'admin' || user.role === 'hr') return true;
   return Boolean(user.employee && employeeRef && String(user.employee) === String(employeeRef));
 }
+
+/** For user- or model-supplied text inside a RegExp. */
+export function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

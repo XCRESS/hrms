@@ -1,4 +1,5 @@
 import type { CreateLeaveInput, UpdateLeaveStatusInput, RequestListQuery } from '../validators/request.schemas.js';
+import { requestFilter } from '../services/requestQueries.js';
 import type { Response } from 'express';
 import Leave from '../models/Leave.model.js';
 import Employee from '../models/Employee.model.js';
@@ -170,24 +171,13 @@ export const getMyLeaves = asyncHandler(async (req: IAuthRequest, res: Response)
 export const getAllLeaves = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { employeeId, startDate, endDate, status, page, limit } =
     getValidatedQuery<RequestListQuery>(req);
-  const filter: { employee?: unknown; status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
-
-  if (employeeId) {
-    const employee = await Employee.findOne({ employeeId }).select('_id').lean();
-    if (employee) {
-      filter.employee = employee._id;
-    }
-  }
-
-  if (status) {
-    filter.status = status;
-  }
-
-  if (startDate || endDate) {
-    filter.createdAt = {};
-    if (startDate) filter.createdAt.$gte = new Date(startDate);
-    if (endDate) filter.createdAt.$lte = new Date(endDate);
-  }
+  const employee = employeeId ? await Employee.findOne({ employeeId }).select('_id').lean() : null;
+  const filter: { status?: string } = requestFilter({
+    ...(employee ? { employee: employee._id } : {}),
+    ...(status ? { status } : {}),
+    ...(startDate ? { createdFrom: new Date(startDate) } : {}),
+    ...(endDate ? { createdTo: new Date(endDate) } : {}),
+  });
 
   // Counts ignore the status filter so the UI can badge every status at once.
   const countFilter = { ...filter };

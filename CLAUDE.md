@@ -127,6 +127,8 @@ warranted, one line beats five.
   refresh, 401/403 redirect).
 - **Never call axios from a component**, and `useEffect` is not a data-fetching
   tool — add or extend a query hook.
+- One exception: HR Buddy's chat stream goes through `lib/assistantTransport.ts`
+  (AI SDK transport), which mirrors axios's auth handling.
 - `src/components/` is feature-first: `dashboard/`, `hr/`, `employee/`, `ui/`,
   `auth/`. `src/services/` is for non-API browser services; there is no
   `src/service/` (singular) — do not recreate it.

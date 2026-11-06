@@ -165,7 +165,7 @@ class EmailService {
     }
   }
 
-  async send(to: string, subject: string, htmlContent: string): Promise<EmailResult> {
+  async send(to: string, subject: string, htmlContent: string, options: { replyTo?: string } = {}): Promise<EmailResult> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -182,7 +182,8 @@ class EmailService {
           from: process.env.EMAIL_FROM || 'HRMS System <onboarding@resend.dev>',
           to: [to],
           subject,
-          html: htmlContent
+          html: htmlContent,
+          ...(options.replyTo ? { replyTo: options.replyTo } : {})
         });
 
         if (error) {
@@ -438,6 +439,18 @@ class EmailService {
   }
 
   /** Key/value spec list. Values right-aligned on desktop, stacked on mobile. */
+  /** Cells must already be escaped. */
+  getDataTable(headers: string[], rows: string[][]): string {
+    const cell = (value: string, header: boolean) =>
+      `<td style="padding: 8px 10px; border-bottom: 1px solid ${T.borderSubtle}; font-family: ${T.font}; font-size: 13px; line-height: 1.4; color: ${header ? T.muted : T.ink}; font-weight: ${header ? 600 : 400}; text-align: left; vertical-align: top;">${value}</td>`;
+    return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 16px 0 24px; border: 1px solid ${T.border}; border-radius: 8px; border-collapse: separate;">
+        <tr>${headers.map((h) => cell(h, true)).join('')}</tr>
+        ${rows.map((r) => `<tr>${r.map((v) => cell(v, false)).join('')}</tr>`).join('')}
+      </table>
+    `;
+  }
+
   getInfoCard(items: EmailTemplateItem[]): string {
     const rows = items
       .filter(item => item && item.value !== undefined && item.value !== null && item.value !== '')

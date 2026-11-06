@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { globalErrorHandler } from "./utils/asyncHandler.js";
 import logger from "./utils/logger.js";
 import { generalLimiter } from "./middlewares/rateLimit.middleware.js";
+import { assistantAudit } from "./middlewares/assistantAudit.middleware.js";
 import { REFRESHED_TOKEN_HEADER } from "./middlewares/auth.middleware.js";
 
 dotenv.config();
@@ -69,6 +70,7 @@ app.use("/api/documents", documentRoutes);
 // so no JSON body legitimately needs more than a bulk array of IDs.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(assistantAudit);
 
 // MongoDB connection with Pino logging
 const connectToMongoDB = async (): Promise<void> => {
@@ -124,7 +126,7 @@ import salaryStructureRoutes from "./routes/salaryStructure.routes.js";
 import policyRoutes from "./routes/policy.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import healthRoutes from "./routes/health.js";
-import chatRoutes from "./routes/chat.routes.js";
+import assistantRoutes from "./routes/assistant.routes.js";
 import officeLocationRoutes from "./routes/officeLocation.js";
 import wfhRequestRoutes from "./routes/wfhRequest.js";
 import notificationRoutes from "./routes/notification.routes.js";
@@ -164,7 +166,7 @@ app.use("/api/salary-slips", salarySlipRoutes);
 app.use("/api/salary-structures", salaryStructureRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/api/settings", settingsRoutes);
-app.use("/api/chat", chatRoutes);
+app.use("/api/assistant", assistantRoutes);
 app.use("/api/office-locations", officeLocationRoutes);
 app.use("/api/wfh-requests", wfhRequestRoutes);
 app.use("/api/notifications", notificationRoutes);

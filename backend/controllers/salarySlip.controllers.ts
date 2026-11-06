@@ -9,6 +9,7 @@ import SalaryStructure from '../models/SalaryStructure.model.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import NotificationService from '../services/notificationService.js';
+import { salarySlipFilter } from '../services/salary/salarySlipQueries.js';
 import { DateTime } from 'luxon';
 import type { IAuthRequest } from '../types/index.js';
 
@@ -140,11 +141,7 @@ export const getEmployeeSalarySlips = asyncHandler(async (req: IAuthRequest, res
   const limitNum = parseInt(typeof limit === 'string' ? limit : '10', 10);
   const skip = (pageNum - 1) * limitNum;
 
-  const filter: { employee: unknown; status?: string } = { employee: employee._id };
-
-  if (req.user?.role === 'employee') {
-    filter.status = 'finalized';
-  }
+  const filter = salarySlipFilter(employee._id, { finalizedOnly: req.user?.role === 'employee' });
 
   const [salarySlips, total] = await Promise.all([
     SalarySlip.find(filter)

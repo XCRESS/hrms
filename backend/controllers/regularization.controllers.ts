@@ -1,4 +1,5 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { requestFilter } from '../services/requestQueries.js';
 import type {
   CreateRegularizationInput,
   ReviewRegularizationInput,
@@ -151,15 +152,11 @@ export const getAllRegularizations = asyncHandler(async (req: IAuthRequest, res:
   }
 
   const { startDate, endDate, status, page, limit } = getValidatedQuery<RequestListQuery>(req);
-  const filter: { status?: string; createdAt?: { $gte?: Date; $lte?: Date } } = {};
-  if (status) {
-    filter.status = status;
-  }
-  if (startDate || endDate) {
-    filter.createdAt = {};
-    if (startDate) filter.createdAt.$gte = new Date(startDate);
-    if (endDate) filter.createdAt.$lte = new Date(endDate);
-  }
+  const filter: { status?: string } = requestFilter({
+    ...(status ? { status } : {}),
+    ...(startDate ? { createdFrom: new Date(startDate) } : {}),
+    ...(endDate ? { createdTo: new Date(endDate) } : {}),
+  });
 
   // Counts ignore the status filter so the UI can badge every status at once.
   const countFilter = { ...filter };

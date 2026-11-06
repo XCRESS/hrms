@@ -4,6 +4,7 @@ import type {
   LoginInput,
   UpdateEmployeeIdInput,
   UnlinkEmployeeInput,
+  UpdateUserRoleInput,
 } from '../validators/auth.schemas.js';
 import type { Response } from 'express';
 import bcrypt from 'bcryptjs';
@@ -11,7 +12,8 @@ import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import { generateTokenFromUser } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { ValidationError, NotFoundError, BadRequestError } from '../utils/errors.js';
+import { Types } from 'mongoose';
 import type { IAuthRequest } from '../types/index.js';
 
 export const register = asyncHandler(async (req: IAuthRequest, res: Response) => {
@@ -247,4 +249,16 @@ export const deleteUser = asyncHandler(async (req: IAuthRequest, res: Response) 
 
   await User.findByIdAndDelete(userId);
   res.json({ success: true, message: 'User deleted successfully' });
+});
+
+export const updateUserRole = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const userId = paramValue(req.params.userId);
+  if (!userId || !Types.ObjectId.isValid(userId)) throw new BadRequestError('Invalid user id');
+  if (String(req.user?._id) === userId) throw new BadRequestError("You can't change your own role");
+
+  const { role } = req.body as UpdateUserRoleInput;
+  const user = await User.findByIdAndUpdate(userId, { $set: { role } }, { new: true }).select('_id name email role').lean();
+  if (!user) throw new NotFoundError('User not found');
+
+  res.json({ success: true, message: `Role changed to ${role}`, data: user });
 });

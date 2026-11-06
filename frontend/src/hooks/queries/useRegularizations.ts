@@ -111,3 +111,19 @@ export const useReviewRegularization = () => {
     },
   });
 };
+
+export const useBulkReviewRegularizations = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { ids: string[]; status: 'approved' | 'rejected'; reviewComment?: string }) => {
+      const { data } = await axiosInstance.post<ApiResponse<unknown>>(API_ENDPOINTS.REGULARIZATIONS.BULK_REVIEW, input);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.regularizations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
+    },
+  });
+};
