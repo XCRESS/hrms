@@ -16,6 +16,11 @@ export const handleLetterheadUpload = singleUpload('pdf', 2 * 1024 * 1024, (f) =
 
 const LETTERHEAD_FIELDS = 'company marginsMm signatory referencePrefix pdfSize pageSize updatedAt';
 
+export const listLetterheads = asyncHandler(async (_req: IAuthRequest, res: Response) => {
+  const letterheads = await Letterhead.find().select(LETTERHEAD_FIELDS).lean();
+  res.json(formatResponse(true, 'Letterheads retrieved', letterheads.map((l) => ({ ...l, hasPdf: Boolean(l.pdfSize) }))));
+});
+
 export const getLetterhead = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { companyId } = getValidatedParams<CompanyParams>(req);
   const letterhead = await Letterhead.findOne({ company: companyId }).select(LETTERHEAD_FIELDS).lean();

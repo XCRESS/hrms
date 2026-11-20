@@ -13,6 +13,8 @@ const PAGE_PX: Record<PageSize, { width: number; height: number }> = { A4: { wid
 
 export interface LetterEditorHandle {
   setHtml: (html: string) => void;
+  setDoc: (doc: LetterDoc) => void;
+  insertField: (key: string) => void;
   isEmpty: () => boolean;
 }
 
@@ -32,11 +34,22 @@ export const LetterEditor = ({ value, onChange, fields, marginsMm = DEFAULT_MARG
   const canInsert = mode === 'template';
 
   const editor = useEditor({
-    extensions: letterExtensions({ onFieldTrigger: canInsert ? () => setPickerOpen(true) : undefined }),
+    extensions: letterExtensions({
+      onFieldTrigger: canInsert ? () => setPickerOpen(true) : undefined,
+      placeholder: canInsert ? 'Type your letter here, or use Import .docx above. Add fields with {{ or from the field list.' : undefined,
+    }),
     content: value,
     editorProps: {
       transformPastedHTML: cleanWordPaste,
-      attributes: { class: 'letter-content focus:outline-none', 'aria-label': 'Letter text', role: 'textbox', 'aria-multiline': 'true' },
+      attributes: {
+        class: 'letter-content focus:outline-none',
+        'aria-label': 'Letter text',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'data-gramm': 'false',
+        'data-gramm_editor': 'false',
+        'data-enable-grammarly': 'false',
+      },
     },
     onUpdate: ({ editor: e }) => onChange(e.getJSON()),
   });
@@ -44,6 +57,12 @@ export const LetterEditor = ({ value, onChange, fields, marginsMm = DEFAULT_MARG
   useImperativeHandle(ref, () => ({
     setHtml: (html: string) => {
       editor?.commands.setContent(html, { emitUpdate: true });
+    },
+    setDoc: (doc: LetterDoc) => {
+      editor?.commands.setContent(doc, { emitUpdate: true });
+    },
+    insertField: (key: string) => {
+      editor?.chain().focus().insertField(key).run();
     },
     isEmpty: () => editor?.isEmpty ?? true,
   }), [editor]);

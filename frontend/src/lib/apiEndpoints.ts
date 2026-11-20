@@ -265,6 +265,7 @@ export const API_ENDPOINTS = {
     TEMPLATE: (id: string) => `/letters/templates/${id}`,
     TEMPLATE_PREVIEW: '/letters/templates/preview',
     IMPORT_DOCX: '/letters/import-docx',
+    LETTERHEADS: '/letters/letterheads',
     LETTERHEAD: (companyId: string) => `/letters/letterheads/${companyId}`,
     LETTERHEAD_PREVIEW: (companyId: string) => `/letters/letterheads/${companyId}/preview`,
     LETTER: (id: string) => `/letters/${id}`,

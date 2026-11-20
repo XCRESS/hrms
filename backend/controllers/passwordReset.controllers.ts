@@ -1,11 +1,11 @@
 import type { ConfirmPasswordResetInput, RequestPasswordResetInput } from '../validators/auth.schemas.js';
 import type { Request, Response } from 'express';
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
-import bcrypt from 'bcryptjs';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { BadRequestError } from '../utils/errors.js';
 import { ensureJWTSecret } from '../utils/jwt.js';
 import { escapeHtml } from '../utils/escapeHtml.js';
+import { setPassword } from '../utils/password.js';
 import { formatResponse } from '../utils/response.js';
 import PasswordResetCode from '../models/PasswordResetCode.model.js';
 import User from '../models/User.model.js';
@@ -72,8 +72,7 @@ export const confirmPasswordReset = asyncHandler(async (req: Request, res: Respo
   const { deletedCount } = await PasswordResetCode.deleteOne({ _id: record._id });
   if (deletedCount !== 1) throw new BadRequestError(CODE_REJECTED);
 
-  const password = await bcrypt.hash(newPassword, 10);
-  await User.updateOne({ _id: user._id }, { $set: { password }, $inc: { tokenVersion: 1 } });
+  await setPassword(user._id, newPassword);
 
   const html = emailService.getBaseEmailTemplate(`
     ${emailService.getHeading({

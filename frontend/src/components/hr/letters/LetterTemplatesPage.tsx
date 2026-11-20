@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { ArrowLeft, Archive, FileText, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowLeft, Archive, Copy, FileText, Loader2, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
-import { useArchiveLetterTemplate, useCompanies, useLetterTemplates } from '@/hooks/queries';
+import { useArchiveLetterTemplate, useCompanies, useDuplicateLetterTemplate, useLetterTemplates } from '@/hooks/queries';
 import { errorMessage } from './shared';
 
 const LetterTemplatesPage = () => {
@@ -14,6 +14,8 @@ const LetterTemplatesPage = () => {
   const { data: templates = [], isLoading, error } = useLetterTemplates(showArchived);
   const { data: companies = [] } = useCompanies();
   const archive = useArchiveLetterTemplate();
+  const duplicate = useDuplicateLetterTemplate();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const { toast } = useToast();
   const companyName = new Map(companies.map((c) => [c._id, c.name]));
@@ -25,6 +27,16 @@ const LetterTemplatesPage = () => {
       toast({ variant: 'success', title: 'Template archived' });
     } catch (e) {
       toast({ variant: 'error', title: 'Could not archive', description: errorMessage(e) });
+    }
+  };
+
+  const onDuplicate = async (id: string) => {
+    try {
+      const copy = await duplicate.mutateAsync(id);
+      toast({ variant: 'success', title: 'Template copied', description: 'Rename it and change the company if needed.' });
+      navigate(`/letters/templates/${copy._id}`);
+    } catch (e) {
+      toast({ variant: 'error', title: 'Could not copy', description: errorMessage(e) });
     }
   };
 
@@ -73,8 +85,11 @@ const LetterTemplatesPage = () => {
                 <Button asChild variant="outline" size="sm">
                   <Link to={`/letters/new?template=${t._id}`}>Issue</Link>
                 </Button>
+                <Button variant="ghost" size="icon" aria-label={`Duplicate ${t.name}`} title="Duplicate" onClick={() => onDuplicate(t._id)} disabled={duplicate.isPending}>
+                  {duplicate.isPending && duplicate.variables === t._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                </Button>
                 {t.active && (
-                  <Button variant="ghost" size="icon" aria-label={`Archive ${t.name}`} onClick={() => onArchive(t._id, t.name)}>
+                  <Button variant="ghost" size="icon" aria-label={`Archive ${t.name}`} title="Archive" onClick={() => onArchive(t._id, t.name)}>
                     <Archive className="h-4 w-4" />
                   </Button>
                 )}

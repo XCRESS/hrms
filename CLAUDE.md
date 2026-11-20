@@ -34,12 +34,12 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 ## Auth
 
-- **Open — raise at session start:** S3 documents are public URLs; login reveals which emails exist.
-- Any password change must `$inc: { tokenVersion: 1 }` — that is what revokes existing JWTs.
+- **Open — raise at session start:** S3 documents are public URLs.
+- Change a password only via `setPassword` (`utils/password.ts`) — it bumps `tokenVersion`, which revokes existing JWTs.
 - Roles: `admin`, `hr`, `employee`.
 - **JWT** in `localStorage` via `frontend/src/lib/tokenStorage.ts`. Deliberately
   not httpOnly — tokens are pulled out for CLI/script testing.
-- bcrypt (cost 10) in `controllers/user.controllers.ts`.
+- bcrypt (cost 10) lives only in `utils/password.ts`.
 - **Backend guard** `middlewares/auth.middleware.ts` — `authMiddleware([roles])`.
   Roles go in the route, not inside the handler. `req.user` is read from the DB,
   not the token. Costs 1–2 DB reads per request.
@@ -78,7 +78,7 @@ controllers/x.ts     const { ... } = req.body as SomeInput;   // guaranteed by m
 ## Comments — write almost none
 
 Default to **zero comments**. Code says what it does; a comment must earn its
-line. The bar: *would someone break this if the comment weren't there?*
+line. The bar: _would someone break this if the comment weren't there?_
 
 Worth keeping:
 

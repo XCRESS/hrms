@@ -61,7 +61,7 @@ const NewLetterPage = () => {
         <div className="space-y-1.5">
           <Label htmlFor="letter-template">Template</Label>
           <Select value={templateId} onValueChange={setTemplateId} disabled={isLoading}>
-            <SelectTrigger id="letter-template"><SelectValue placeholder={isLoading ? 'Loading…' : 'Choose a template'} /></SelectTrigger>
+            <SelectTrigger id="letter-template" className="w-full"><SelectValue placeholder={isLoading ? 'Loading…' : 'Choose a template'} /></SelectTrigger>
             <SelectContent>
               {templates.map((t) => <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>)}
             </SelectContent>

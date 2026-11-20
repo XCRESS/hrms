@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
-import { useCompanies, useLetterPdf, useLetterhead, useSaveLetterhead } from '@/hooks/queries';
+import { useCompanies, useLetterPdf, useLetterhead, useLetterheads, useSaveLetterhead } from '@/hooks/queries';
 import type { Letterhead, Margins } from '@/types/letters';
 import { PdfPreviewDialog } from './PdfPreviewDialog';
 import { usePdfPreview } from './usePdfPreview';
@@ -107,6 +107,8 @@ const LetterheadSettingsPage = () => {
   const [chosen, setChosen] = useState<string>();
   const companyId = chosen ?? companies[0]?._id;
   const { data: letterhead, isLoading } = useLetterhead(companyId);
+  const { data: configured = [] } = useLetterheads();
+  const done = new Set(configured.map((l) => l.company));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
@@ -119,9 +121,9 @@ const LetterheadSettingsPage = () => {
       <div className="max-w-sm space-y-1.5">
         <Label htmlFor="letterhead-company">Company</Label>
         <Select value={companyId ?? ''} onValueChange={setChosen}>
-          <SelectTrigger id="letterhead-company"><SelectValue placeholder="Choose a company" /></SelectTrigger>
+          <SelectTrigger id="letterhead-company" className="w-full"><SelectValue placeholder="Choose a company" /></SelectTrigger>
           <SelectContent>
-            {companies.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
+            {companies.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}{done.has(c._id) ? ' — set up' : ' — not set up'}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

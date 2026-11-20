@@ -43,6 +43,16 @@ export const collectFieldKeys = (doc: LetterDoc | null | undefined): string[] =>
   return [...keys];
 };
 
+/** Copy of `doc` without the field nodes whose key `drop` matches. */
+export const removeFields = (doc: LetterDoc, drop: (key: string) => boolean): LetterDoc => ({
+  ...doc,
+  ...(doc.content && {
+    content: doc.content
+      .filter((node) => !(node.type === 'field' && typeof node.attrs?.key === 'string' && drop(node.attrs.key)))
+      .map((node) => removeFields(node, drop)),
+  }),
+});
+
 export const errorMessage =(error: unknown, fallback = 'Something went wrong'): string => {
   const response = (error as { response?: { data?: { message?: string } } }).response;
   return response?.data?.message ?? (error instanceof Error ? error.message : fallback);

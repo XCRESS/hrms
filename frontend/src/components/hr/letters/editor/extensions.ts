@@ -6,6 +6,7 @@ import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import { TableKit } from '@tiptap/extension-table';
 import { Extension } from '@tiptap/core';
+import { Placeholder } from '@tiptap/extensions';
 import { FieldNode } from './FieldNode';
 
 declare module '@tiptap/core' {
@@ -57,7 +58,7 @@ const FieldTrigger = Extension.create<{ onTrigger: () => void }>({
   },
 });
 
-export const letterExtensions = ({ onFieldTrigger }: { onFieldTrigger?: () => void }): Extensions => [
+export const letterExtensions = ({ onFieldTrigger, placeholder }: { onFieldTrigger?: () => void; placeholder?: string }): Extensions => [
   StarterKit.configure({ link: { protocols: ['http', 'https', 'mailto'], openOnClick: false } }),
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
   TextStyle,
@@ -67,5 +68,6 @@ export const letterExtensions = ({ onFieldTrigger }: { onFieldTrigger?: () => vo
   TableKit.configure({ table: { resizable: false } }),
   PageBreakNode,
   FieldNode,
+  ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
   ...(onFieldTrigger ? [FieldTrigger.configure({ onTrigger: onFieldTrigger })] : []),
 ];

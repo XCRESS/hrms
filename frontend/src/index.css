@@ -901,3 +901,4 @@ html[data-theme='diwali'] ::selection {
 .letter-content .page-break { position: relative; height: 0; margin: 14pt 0; border-top: 1px dashed #9ca3af; }
 .letter-content .page-break::after { content: 'Page break'; position: absolute; left: 50%; top: -0.7em; transform: translateX(-50%); padding: 0 6px; font-family: system-ui, sans-serif; font-size: 11px; color: #6b7280; background: #fff; }
 .letter-content .page-break.ProseMirror-selectednode { border-top-color: #4472c4; }
+.letter-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #9ca3af; }

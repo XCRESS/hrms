@@ -56,6 +56,18 @@ export const useSaveLetterTemplate = () => {
   });
 };
 
+export const useDuplicateLetterTemplate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const source = unwrap<LetterTemplate>(await axiosInstance.get(API_ENDPOINTS.LETTERS.TEMPLATE(id)));
+      const { name, kind, company, body, askFields, email } = source;
+      return unwrap<LetterTemplate>(await axiosInstance.post(API_ENDPOINTS.LETTERS.TEMPLATES, { name: `Copy of ${name}`.slice(0, 100), kind, company, body, askFields, email }));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['letters', 'templates'] }),
+  });
+};
+
 export const useArchiveLetterTemplate = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -64,10 +76,17 @@ export const useArchiveLetterTemplate = () => {
   });
 };
 
+export const useLetterheads = () =>
+  useQuery({
+    queryKey: queryKeys.letters.letterheads(),
+    queryFn: async () => unwrap<Letterhead[]>(await axiosInstance.get(API_ENDPOINTS.LETTERS.LETTERHEADS)),
+  });
+
+/** `null` when the company has no letterhead yet (the API omits a null `data`). */
 export const useLetterhead = (companyId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.letters.letterhead(companyId ?? ''),
-    queryFn: async () => unwrap<Letterhead | null>(await axiosInstance.get(API_ENDPOINTS.LETTERS.LETTERHEAD(companyId!))),
+    queryFn: async () => unwrap<Letterhead | undefined>(await axiosInstance.get(API_ENDPOINTS.LETTERS.LETTERHEAD(companyId!))) ?? null,
     enabled: Boolean(companyId),
   });
 
@@ -80,7 +99,10 @@ export const useSaveLetterhead = () => {
       form.append('data', JSON.stringify(data));
       return unwrap<Letterhead>(await axiosInstance.put(API_ENDPOINTS.LETTERS.LETTERHEAD(companyId), form));
     },
-    onSuccess: (letterhead, { companyId }) => queryClient.setQueryData(queryKeys.letters.letterhead(companyId), letterhead),
+    onSuccess: (letterhead, { companyId }) => {
+      queryClient.setQueryData(queryKeys.letters.letterhead(companyId), letterhead);
+      queryClient.invalidateQueries({ queryKey: queryKeys.letters.letterheads() });
+    },
   });
 };
 
@@ -112,6 +134,15 @@ export const useLetterWording = (id: string | undefined, enabled: boolean) =>
     queryFn: async () => unwrap<LetterDoc>(await axiosInstance.get(API_ENDPOINTS.LETTERS.WORDING(id!))),
     enabled: Boolean(id) && enabled,
     gcTime: 0,
+  });
+
+/** An issued letter's PDF never changes, so it is fetched once and kept. */
+export const useIssuedLetterPdf = (id: string | undefined) =>
+  useQuery({
+    queryKey: queryKeys.letters.pdf(id ?? ''),
+    queryFn: async () => (await axiosInstance.get<Blob>(API_ENDPOINTS.LETTERS.PDF(id!), { responseType: 'blob' })).data,
+    enabled: Boolean(id),
+    staleTime: Infinity,
   });
 
 export const useMyLetters = () =>

@@ -7,10 +7,10 @@ import type {
   UpdateUserRoleInput,
 } from '../validators/auth.schemas.js';
 import type { Response } from 'express';
-import bcrypt from 'bcryptjs';
 import User from '../models/User.model.js';
 import Employee from '../models/Employee.model.js';
 import { generateTokenFromUser } from '../utils/jwt.js';
+import { hashPassword, verifyPassword } from '../utils/password.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError, BadRequestError } from '../utils/errors.js';
 import { Types } from 'mongoose';
@@ -31,7 +31,7 @@ export const register = asyncHandler(async (req: IAuthRequest, res: Response) =>
     throw new ValidationError('User already exists');
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await hashPassword(password);
   const userData: {
     name: string;
     email: string;
@@ -82,7 +82,7 @@ export const login = asyncHandler(async (req: IAuthRequest, res: Response) => {
     );
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await verifyPassword(password, user.password);
   if (!isMatch) {
     throw new ValidationError('Invalid credentials');
   }

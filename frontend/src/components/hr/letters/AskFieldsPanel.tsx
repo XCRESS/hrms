@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Braces, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,10 +13,11 @@ const TYPE_LABEL: Record<FieldType, string> = { text: 'Text', longText: 'Long te
 interface AskFieldsPanelProps {
   fields: AskField[];
   onChange: (fields: AskField[]) => void;
+  onInsert: (key: string) => void;
 }
 
 /** Fields HR fills in when issuing (grade, posting city…). Keys are fixed once created so chips keep working. */
-export const AskFieldsPanel = ({ fields, onChange }: AskFieldsPanelProps) => {
+export const AskFieldsPanel = ({ fields, onChange, onInsert }: AskFieldsPanelProps) => {
   const [newLabel, setNewLabel] = useState('');
 
   const add = () => {
@@ -38,6 +39,9 @@ export const AskFieldsPanel = ({ fields, onChange }: AskFieldsPanelProps) => {
         <div key={field.key} className="space-y-2 rounded-md border border-border p-3">
           <div className="flex items-center gap-2">
             <Input aria-label="Field label" value={field.label} onChange={(e) => update(index, { label: e.target.value })} />
+            <Button type="button" variant="ghost" size="icon" aria-label={`Insert ${field.label} into the letter`} title="Insert into the letter" onMouseDown={(e) => e.preventDefault()} onClick={() => onInsert(`ask.${field.key}`)}>
+              <Braces className="h-4 w-4" />
+            </Button>
             <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${field.label}`} onClick={() => onChange(fields.filter((_, i) => i !== index))}>
               <Trash2 className="h-4 w-4" />
             </Button>
