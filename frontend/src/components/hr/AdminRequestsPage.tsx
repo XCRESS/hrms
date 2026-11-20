@@ -3,7 +3,6 @@ import {
   Calendar,
   HelpCircle,
   Clock,
-  Key,
   RefreshCw,
   FileText,
   Filter,
@@ -25,9 +24,6 @@ import {
   useAllLeaves,
   useAllHelpInquiries,
   useRegularizationRequests,
-  usePasswordResetRequests,
-  useApprovePasswordReset,
-  useRejectPasswordReset,
   useAllExpenses,
   useUpdateExpenseStatus,
   useUpdateLeaveStatus,
@@ -37,11 +33,10 @@ import {
 import type {
   Expense,
   HelpInquiryQueryParams,
-  PasswordResetQueryParams,
   ExpenseQueryParams,
 } from '@/types';
 
-type RequestType = 'leave' | 'help' | 'regularization' | 'password' | 'expense';
+type RequestType = 'leave' | 'help' | 'regularization' | 'expense';
 
 /** Statuses that still need someone to act. Drives the default view and badges. */
 const OPEN_STATUSES = new Set<RequestStatus>(['pending', 'in-progress']);
@@ -51,22 +46,15 @@ const daysWaiting = (createdAt: Date): number =>
   Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000));
 
 /**
- * Only `help` has a triage flow, and only `password` can expire, so a flat
- * status list would offer options that match nothing on most tabs. "Open"
- * covers pending + in-progress, which is why there is no separate "Pending".
+ * Only `help` has a triage flow, so a flat status list would offer options
+ * that match nothing on most tabs. "Open" covers pending + in-progress, which
+ * is why there is no separate "Pending".
  */
 const STATUS_FILTERS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
   help: [
     { value: 'open', label: 'Open' },
     { value: 'in-progress', label: 'In progress' },
     { value: 'resolved', label: 'Resolved' },
-  ],
-  password: [
-    { value: 'open', label: 'Open' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'expired', label: 'Expired' },
-    { value: 'completed', label: 'Completed' },
   ],
   default: [
     { value: 'open', label: 'Open' },
@@ -92,7 +80,7 @@ const STATUS_OPTIONS = {
     { value: 'resolved', label: 'Resolved' },
   ],
 } as const;
-type RequestStatus = 'pending' | 'approved' | 'rejected' | 'resolved' | 'expired' | 'completed' | 'in-progress';
+type RequestStatus = 'pending' | 'approved' | 'rejected' | 'resolved' | 'in-progress';
 
 interface BaseRequest {
   _id: string;
@@ -107,12 +95,6 @@ interface BaseRequest {
   reviewComment?: string;
 }
 
-interface PasswordRequest extends BaseRequest {
-  type: 'password';
-  email: string;
-  name: string;
-}
-
 interface HelpRequest extends BaseRequest {
   type: 'help';
   category?: string;
@@ -125,7 +107,7 @@ interface ExpenseRequest extends BaseRequest {
   amount?: number;
 }
 
-type UnifiedRequest = BaseRequest | PasswordRequest | HelpRequest | ExpenseRequest;
+type UnifiedRequest = BaseRequest | HelpRequest | ExpenseRequest;
 
 interface EditState {
   [key: string]: {
@@ -192,7 +174,6 @@ const AdminRequestsPage = () => {
   const shouldFetchLeaves = activeTab === 'all' || activeTab === 'leave';
   const shouldFetchHelp = activeTab === 'all' || activeTab === 'help';
   const shouldFetchReg = activeTab === 'all' || activeTab === 'regularization';
-  const shouldFetchPassword = activeTab === 'all' || activeTab === 'password';
   const shouldFetchExpense = activeTab === 'all' || activeTab === 'expense';
 
   // Each endpoint narrows `status` to its own union; the page-level filter is a
@@ -203,10 +184,6 @@ const AdminRequestsPage = () => {
     enabled: isAdminOrHR && shouldFetchHelp,
   });
   const regQuery = useRegularizationRequests({ params: queryParams, enabled: isAdminOrHR && shouldFetchReg });
-  const passwordQuery = usePasswordResetRequests({
-    params: queryParams as PasswordResetQueryParams,
-    enabled: isAdminOrHR && shouldFetchPassword,
-  });
   const expenseQuery = useAllExpenses(queryParams as ExpenseQueryParams, {
     enabled: isAdminOrHR && shouldFetchExpense,
   });
@@ -214,11 +191,10 @@ const AdminRequestsPage = () => {
   const leavesData = leavesQuery.data;
   const helpData = helpQuery.data;
   const regData = regQuery.data;
-  const passwordData = passwordQuery.data;
   const expenseData = expenseQuery.data;
 
   const loading = leavesQuery.isLoading || helpQuery.isLoading || regQuery.isLoading ||
-    passwordQuery.isLoading || expenseQuery.isLoading;
+    expenseQuery.isLoading;
 
   // A partial failure must be visible: otherwise a list that is missing an
   // entire request type looks indistinguishable from a complete one.
@@ -226,7 +202,6 @@ const AdminRequestsPage = () => {
     leavesQuery.isError && 'leave',
     helpQuery.isError && 'help desk',
     regQuery.isError && 'regularization',
-    passwordQuery.isError && 'password reset',
     expenseQuery.isError && 'expense',
   ].filter(Boolean) as string[];
 
@@ -250,7 +225,6 @@ const AdminRequestsPage = () => {
     if (shouldFetchLeaves) leavesQuery.refetch();
     if (shouldFetchHelp) helpQuery.refetch();
     if (shouldFetchReg) regQuery.refetch();
-    if (shouldFetchPassword) passwordQuery.refetch();
     if (shouldFetchExpense) expenseQuery.refetch();
   };
 
@@ -258,8 +232,6 @@ const AdminRequestsPage = () => {
   const updateLeaveStatusMutation = useUpdateLeaveStatus();
   const updateHelpInquiryMutation = useUpdateHelpInquiry();
   const reviewRegularizationMutation = useReviewRegularization();
-  const approvePasswordResetMutation = useApprovePasswordReset();
-  const rejectPasswordResetMutation = useRejectPasswordReset();
   const updateExpenseStatusMutation = useUpdateExpenseStatus();
 
   const tabs: Tab[] = [
@@ -267,7 +239,6 @@ const AdminRequestsPage = () => {
     { id: 'leave', label: 'Leave Requests', icon: Calendar },
     { id: 'help', label: 'Help Desk', icon: HelpCircle },
     { id: 'regularization', label: 'Regularization', icon: Clock },
-    { id: 'password', label: 'Password Resets', icon: Key },
     { id: 'expense', label: 'Expenses', icon: Receipt }
   ];
 
@@ -350,21 +321,6 @@ const AdminRequestsPage = () => {
     });
     allRequests.push(...formattedReg);
 
-    // Format password reset requests
-    const passwordRequests = passwordData || [];
-    // PasswordResetRequest has no token-expiry field; the API decides the status.
-    const formattedPassword = passwordRequests.map((pwd): PasswordRequest => ({
-      ...pwd,
-      type: 'password' as const,
-      title: 'Password Reset Request',
-      description: `User: ${pwd.email}`,
-      date: new Date(pwd.createdAt || fallbackTime),
-      createdAt: new Date(pwd.createdAt || fallbackTime),
-      status: pwd.status as RequestStatus,
-      user: { name: pwd.name, email: pwd.email }
-    }));
-    allRequests.push(...formattedPassword);
-
     // Format expense requests
     const expenses = expenseData || [];
     const formattedExpenses = expenses.map((exp: Expense): ExpenseRequest => ({
@@ -417,7 +373,6 @@ const AdminRequestsPage = () => {
       case 'leave': return Calendar;
       case 'help': return HelpCircle;
       case 'regularization': return Clock;
-      case 'password': return Key;
       case 'expense': return Receipt;
       default: return FileText;
     }
@@ -429,8 +384,6 @@ const AdminRequestsPage = () => {
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'expired': return 'bg-muted text-muted-foreground';
-      case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       case 'in-progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
       default: return 'bg-muted text-muted-foreground';
     }
@@ -519,11 +472,8 @@ const AdminRequestsPage = () => {
     }
   };
 
-  // Password and help requests need a reason or a triage status, so they are
-  // excluded from bulk approve/reject.
-  const bulkEligible = filteredRequests.filter(
-    r => r.status === 'pending' && r.type !== 'password' && r.type !== 'help'
-  );
+  // Help requests need a triage status, so they are excluded from bulk approve/reject.
+  const bulkEligible = filteredRequests.filter(r => r.status === 'pending' && r.type !== 'help');
   const selectedRequests = bulkEligible.filter(r => selected.has(`${r.type}-${r._id}`));
 
   const toggleSelected = (key: string) => {
@@ -559,38 +509,6 @@ const AdminRequestsPage = () => {
         ? `${targets.length - failed} succeeded, ${failed} failed.`
         : `Marked as ${status}.`,
     });
-  };
-
-  const handlePasswordAction = async (requestId: string, action: 'approve' | 'reject') => {
-    setActionLoading(prev => ({ ...prev, [`${requestId}_${action}`]: true }));
-    try {
-      if (action === 'approve') {
-        await approvePasswordResetMutation.mutateAsync(requestId);
-        toast({
-          variant: "success",
-          title: "Request Approved",
-          description: "Password reset request has been approved."
-        });
-      } else if (action === 'reject') {
-        await rejectPasswordResetMutation.mutateAsync({
-          requestId,
-          reason: 'Rejected by administrator.'
-        });
-        toast({
-          variant: "success",
-          title: "Request Rejected",
-          description: "Password reset request has been rejected."
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: "error",
-        title: `${action} Failed`,
-        description: error instanceof Error ? error.message : `Failed to ${action} request.`
-      });
-    } finally {
-      setActionLoading(prev => ({ ...prev, [`${requestId}_${action}`]: false }));
-    }
   };
 
   // No local authorization branch here: both /admin/* routes are wrapped in
@@ -809,11 +727,8 @@ const AdminRequestsPage = () => {
             filteredRequests.map((request) => {
               const Icon = getTypeIcon(request.type);
               const isEditing = !!editing[request._id];
-              const isPasswordRequest = request.type === 'password';
-              const passwordReq = isPasswordRequest ? (request as PasswordRequest) : null;
-
               const rowKey = `${request.type}-${request._id}`;
-              const isSelectable = request.status === 'pending' && !isPasswordRequest && request.type !== 'help';
+              const isSelectable = request.status === 'pending' && request.type !== 'help';
               const age = daysWaiting(request.createdAt);
 
               return (
@@ -896,98 +811,73 @@ const AdminRequestsPage = () => {
                       </div>
 
                       {/* Action buttons and editing interface */}
-                      {isPasswordRequest && passwordReq ? (
-                        <>
-                          {request.status === 'pending' && (
-                            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
+                      <>
+                        {isEditing ? (
+                          <div className="pt-3 border-t border-border space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <Select
+                                value={editing[request._id]?.status || request.status}
+                                onValueChange={(value) => handleEdit(request._id, "status", value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {STATUS_OPTIONS[request.type === 'help' ? 'help' : 'approval'].map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {(request.type === 'help' || request.type === 'regularization' || request.type === 'expense') && (
+                                <Input
+                                  placeholder={request.type === 'help' ? "Response message..." : request.type === 'expense' ? "Review comment (optional)..." : "Review comment..."}
+                                  value={editing[request._id]?.response || ""}
+                                  onChange={(e) => handleEdit(request._id, "response", e.target.value)}
+                                />
+                              )}
+                            </div>
+
+                            <div className="flex justify-end gap-2">
                               <Button
-                                onClick={() => handlePasswordAction(request._id, 'approve')}
-                                disabled={actionLoading[`${request._id}_approve`]}
-                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => handleSave(request)}
+                                disabled={actionLoading[request._id]}
+                                variant="secondary"
                                 size="sm"
                               >
-                                {actionLoading[`${request._id}_approve`] ? 'Approving...' : 'Approve & Generate Token'}
+                                {actionLoading[request._id] ? 'Saving...' : 'Save'}
                               </Button>
                               <Button
-                                onClick={() => handlePasswordAction(request._id, 'reject')}
-                                disabled={actionLoading[`${request._id}_reject`]}
-                                variant="destructive"
+                                onClick={() => handleCancelEdit(request._id)}
+                                variant="outline"
                                 size="sm"
                               >
-                                {actionLoading[`${request._id}_reject`] ? 'Rejecting...' : 'Reject'}
+                                Cancel
                               </Button>
                             </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {isEditing ? (
-                            <div className="pt-3 border-t border-border space-y-3">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <Select
-                                  value={editing[request._id]?.status || request.status}
-                                  onValueChange={(value) => handleEdit(request._id, "status", value)}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STATUS_OPTIONS[request.type === 'help' ? 'help' : 'approval'].map(opt => (
-                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-
-                                {(request.type === 'help' || request.type === 'regularization' || request.type === 'expense') && (
-                                  <Input
-                                    placeholder={request.type === 'help' ? "Response message..." : request.type === 'expense' ? "Review comment (optional)..." : "Review comment..."}
-                                    value={editing[request._id]?.response || ""}
-                                    onChange={(e) => handleEdit(request._id, "response", e.target.value)}
-                                  />
-                                )}
-                              </div>
-
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  onClick={() => handleSave(request)}
-                                  disabled={actionLoading[request._id]}
-                                  variant="secondary"
-                                  size="sm"
-                                >
-                                  {actionLoading[request._id] ? 'Saving...' : 'Save'}
-                                </Button>
-                                <Button
-                                  onClick={() => handleCancelEdit(request._id)}
-                                  variant="outline"
-                                  size="sm"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
+                          </div>
+                        ) : (
+                          (request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
+                            <div className="flex justify-end border-t border-border pt-3">
+                              <Button
+                                onClick={() => handleStartEdit(request)}
+                                variant="secondary"
+                                size="sm"
+                              >
+                                {request.status === 'in-progress' ? 'Update Request' : 'Review Request'}
+                              </Button>
                             </div>
-                          ) : (
-                            (request.status === 'pending' || (request.type === 'help' && request.status === 'in-progress')) && (
-                              <div className="flex justify-end border-t border-border pt-3">
-                                <Button
-                                  onClick={() => handleStartEdit(request)}
-                                  variant="secondary"
-                                  size="sm"
-                                >
-                                  {request.status === 'in-progress' ? 'Update Request' : 'Review Request'}
-                                </Button>
-                              </div>
-                            )
-                          )}
+                          )
+                        )}
 
-                          {(request.response || request.reviewComment) && !isEditing && (
-                            <div className="pt-3 border-t border-border">
-                              <p className="text-sm text-muted-foreground">
-                                <span className="font-medium">Response:</span> {request.response || request.reviewComment}
-                              </p>
-                            </div>
-                          )}
-                        </>
-                      )}
+                        {(request.response || request.reviewComment) && !isEditing && (
+                          <div className="pt-3 border-t border-border">
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium">Response:</span> {request.response || request.reviewComment}
+                            </p>
+                          </div>
+                        )}
+                      </>
                     </div>
                   </CardContent>
                 </Card>

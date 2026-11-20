@@ -7,11 +7,9 @@ import Department from '../models/Department.model.js';
 import SchedulerService from '../services/schedulerService.js';
 import settingsService from '../services/settings/SettingsService.js';
 import { formatResponse } from '../utils/response.js';
-import { paramValue } from '../utils/helpers.js';
+import { escapeRegExp, paramValue } from '../utils/helpers.js';
 import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
-
-const escapeRegex = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Merge a validated partial settings section into the stored section.
@@ -264,7 +262,7 @@ export const addDepartment = asyncHandler(async (req: IAuthRequest, res: Respons
   // rows, so a previously deleted department must be reactivated rather than
   // re-created (which would fail with a duplicate key error).
   const existingDepartment = await Department.findOne({
-    name: { $regex: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') }
+    name: { $regex: new RegExp(`^${escapeRegExp(trimmedName)}$`, 'i') }
   });
 
   if (existingDepartment?.isActive) {
@@ -313,7 +311,7 @@ export const renameDepartment = asyncHandler(async (req: IAuthRequest, res: Resp
   // Spans soft-deleted rows for the same reason as addDepartment: the
   // unique index on name does not respect isActive.
   const conflictingDepartment = await Department.findOne({
-    name: { $regex: new RegExp(`^${escapeRegex(trimmedNewName)}$`, 'i') }
+    name: { $regex: new RegExp(`^${escapeRegExp(trimmedNewName)}$`, 'i') }
   });
 
   // A case-only rename of the department itself is allowed; a collision

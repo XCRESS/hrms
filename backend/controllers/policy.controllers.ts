@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import Policy from '../models/Policy.model.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
+import { escapeRegExp } from '../utils/helpers.js';
 import type { IAuthRequest } from '../types/index.js';
 
 export const createPolicy = asyncHandler(async (req: IAuthRequest, res: Response) => {
@@ -82,9 +83,9 @@ export const getAllPolicies = asyncHandler(async (req: IAuthRequest, res: Respon
 
   if (search && typeof search === 'string') {
     filter.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { content: { $regex: search, $options: 'i' } },
-      { tags: { $in: [new RegExp(search, 'i')] } }
+      { title: { $regex: escapeRegExp(search), $options: 'i' } },
+      { content: { $regex: escapeRegExp(search), $options: 'i' } },
+      { tags: { $in: [new RegExp(escapeRegExp(search), 'i')] } }
     ];
   }
 

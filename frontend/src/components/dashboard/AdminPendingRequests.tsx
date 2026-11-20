@@ -1,5 +1,5 @@
 import React, { useState, useMemo, ReactElement } from 'react';
-import { FileText, HelpCircle, Calendar, RefreshCw, Clock, Key, MapPin, IndianRupee } from 'lucide-react';
+import { FileText, HelpCircle, Calendar, RefreshCw, Clock, MapPin, IndianRupee } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import RequestDetailModal from './RequestDetailModal';
 import { formatISTDate } from '@/utils/luxonUtils';
@@ -7,7 +7,6 @@ import {
   useAllLeaves,
   useAllHelpInquiries,
   useRegularizationRequests,
-  usePasswordResetRequests,
   useWFHRequests,
   useAllExpenses
 } from '@/hooks/queries';
@@ -20,7 +19,7 @@ interface BaseRequest {
   status: RequestStatus;
   createdAt?: string;
   date?: string;
-  type: 'leave' | 'help' | 'regularization' | 'password' | 'wfh' | 'expense';
+  type: 'leave' | 'help' | 'regularization' | 'wfh' | 'expense';
   icon: ReactElement<{ className?: string }>;
   title: string;
   description: string;
@@ -51,12 +50,6 @@ interface RegularizationRequest extends BaseRequest {
   };
 }
 
-interface PasswordRequest extends BaseRequest {
-  type: 'password';
-  email?: string;
-  name?: string;
-}
-
 interface WFHRequest extends BaseRequest {
   type: 'wfh';
   reason?: string;
@@ -70,7 +63,7 @@ interface ExpenseRequest extends BaseRequest {
   amount?: number;
 }
 
-type UnifiedRequest = LeaveRequest | HelpRequest | RegularizationRequest | PasswordRequest | WFHRequest | ExpenseRequest;
+type UnifiedRequest = LeaveRequest | HelpRequest | RegularizationRequest | WFHRequest | ExpenseRequest;
 
 const AdminPendingRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState<UnifiedRequest | null>(null);
@@ -81,11 +74,10 @@ const AdminPendingRequests = () => {
   const { data: leavesData, isLoading: leavesLoading, refetch: refetchLeaves } = useAllLeaves();
   const { data: helpData, isLoading: helpLoading, refetch: refetchHelp } = useAllHelpInquiries({ params: { status: 'pending' } });
   const { data: regData, isLoading: regLoading, refetch: refetchReg } = useRegularizationRequests();
-  const { data: passwordData, isLoading: passwordLoading, refetch: refetchPassword } = usePasswordResetRequests();
   const { data: wfhData, isLoading: wfhLoading, refetch: refetchWFH } = useWFHRequests({ status: 'pending' });
   const { data: expensesData, isLoading: expensesLoading, refetch: refetchExpenses } = useAllExpenses({ status: 'pending' });
 
-  const isLoading = leavesLoading || helpLoading || regLoading || passwordLoading || wfhLoading || expensesLoading;
+  const isLoading = leavesLoading || helpLoading || regLoading || wfhLoading || expensesLoading;
 
   // Process and combine all pending requests
   const requests = useMemo<UnifiedRequest[]>(() => {
@@ -134,20 +126,6 @@ const AdminPendingRequests = () => {
       })));
     }
 
-    // Process password resets
-    if (passwordData) {
-      const pendingPasswords = passwordData.filter((req) => req.status === 'pending');
-      allRequests.push(...pendingPasswords.map((req): PasswordRequest => ({
-        ...req,
-        type: 'password',
-        icon: <Key className="w-5 h-5 text-cyan-500" />,
-        title: 'Password Reset Request',
-        description: `User: ${req.email}`,
-        employee: req.name || 'Unknown User',
-        date: req.createdAt
-      })));
-    }
-
     // Process WFH requests (already filtered by status: pending)
     if (wfhData) {
       allRequests.push(...wfhData.map((request): WFHRequest => ({
@@ -181,7 +159,7 @@ const AdminPendingRequests = () => {
     return allRequests
       .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
       .slice(0, 10);
-  }, [leavesData, helpData, regData, passwordData, wfhData, expensesData]);
+  }, [leavesData, helpData, regData, wfhData, expensesData]);
 
   const handleRequestClick = (request: UnifiedRequest): void => {
     setSelectedRequest(request);
@@ -203,7 +181,6 @@ const AdminPendingRequests = () => {
     refetchLeaves();
     refetchHelp();
     refetchReg();
-    refetchPassword();
     refetchWFH();
     refetchExpenses();
   };

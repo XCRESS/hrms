@@ -1,6 +1,6 @@
 import type { CreateSalarySlipInput, SalarySlipStatusInput, BulkSalarySlipStatusInput, BulkGenerateSalarySlipsInput } from '../validators/salary.schemas.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { canAccessEmployee, paramValue } from '../utils/helpers.js';
+import { canAccessEmployee, escapeRegExp, paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import mongoose from 'mongoose';
 import SalarySlip from '../models/SalarySlip.model.js';
@@ -180,10 +180,10 @@ export const getAllSalarySlips = asyncHandler(async (req: IAuthRequest, res: Res
   if (search && typeof search === 'string') {
     const employees = await Employee.find({
       $or: [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { employeeId: { $regex: search, $options: 'i' } },
-        { department: { $regex: search, $options: 'i' } }
+        { firstName: { $regex: escapeRegExp(search), $options: 'i' } },
+        { lastName: { $regex: escapeRegExp(search), $options: 'i' } },
+        { employeeId: { $regex: escapeRegExp(search), $options: 'i' } },
+        { department: { $regex: escapeRegExp(search), $options: 'i' } }
       ]
     });
 

@@ -19,7 +19,6 @@ export * from './useUsers';
 export * from './useHelp';
 export * from './useOfficeLocations';
 export * from './useNotifications';
-export * from './usePasswordReset';
 export * from './useTaskReports';
 export * from './useDocuments';
 export * from './useExpenses';

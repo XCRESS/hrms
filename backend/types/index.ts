@@ -24,6 +24,8 @@ export interface IUser extends Document {
   isActive: boolean;
   employee?: Types.ObjectId;
   employeeId?: string;
+  /** Bumped on password change; tokens carrying an older `tv` are rejected. */
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,7 @@ export interface IJWTPayload extends JwtPayload {
   role: UserRole;
   employee?: string;  // ObjectId as string
   employeeId?: string;
+  tv?: number;
 }
 
 export interface IAuthUser {
@@ -418,28 +421,6 @@ export interface IExpense extends Document {
   // and they are reset to null when a rejected expense is edited for re-review.
   approvedBy?: Types.ObjectId | null;
   approvedAt?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// ============================================================================
-// PASSWORD RESET TYPES
-// ============================================================================
-
-export type ResetRequestStatus = 'pending' | 'approved' | 'rejected' | 'completed';
-
-export interface IPasswordResetRequest extends Document {
-  _id: Types.ObjectId;
-  employee: Types.ObjectId;
-  employeeName: string;
-  reason: string;
-  status: ResetRequestStatus;
-  approvedBy?: Types.ObjectId;
-  approvedAt?: Date;
-  rejectionReason?: string;
-  resetToken?: string;
-  resetTokenExpires?: Date;
-  completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

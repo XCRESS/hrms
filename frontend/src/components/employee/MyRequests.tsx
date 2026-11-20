@@ -3,7 +3,6 @@ import {
   Calendar,
   HelpCircle,
   Clock,
-  Key,
   FileText,
   User,
   Clock4,
@@ -51,7 +50,7 @@ interface Tab {
 // Unified request type for the UI
 interface UnifiedRequest {
   _id: string;
-  type: 'leave' | 'help' | 'regularization' | 'wfh' | 'password' | 'expense';
+  type: 'leave' | 'help' | 'regularization' | 'wfh' | 'expense';
   title: string;
   description: string;
   date: Date;
@@ -260,7 +259,6 @@ const MyRequests = () => {
       case 'regularization': return Clock;
       case 'wfh': return MapPin;
       case 'expense': return Receipt;
-      case 'password': return Key;
       default: return FileText;
     }
   };

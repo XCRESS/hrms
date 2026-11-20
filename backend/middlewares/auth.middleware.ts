@@ -106,9 +106,14 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
         throw new AuthenticationError('Invalid token payload: missing user ID');
       }
 
-      const account = await User.findById(userId).select('isActive role name email employee employeeId').lean();
+      const account = await User.findById(userId).select('isActive role name email employee employeeId tokenVersion').lean();
       if (!account || !account.isActive) {
         throw new AuthenticationError('Access Denied: User not found or inactive');
+      }
+
+      const tokenVersion = account.tokenVersion ?? 0;
+      if ((decoded.tv ?? 0) !== tokenVersion) {
+        throw new AuthenticationError('Your password was changed. Please sign in again.');
       }
 
       const linkedEmployee = await findLinkedEmployee(account);
@@ -128,7 +133,10 @@ export function authMiddleware(allowedRoles: UserRole[] = []) {
       // current one whenever the stored claims have drifted. Set before the role
       // check so a demoted user's 403 still carries it.
       if (tokenIsStale(decoded, req.user)) {
-        res.setHeader(REFRESHED_TOKEN_HEADER, generateTokenFromUser({ ...req.user, employee: req.user.employee ?? null }));
+        res.setHeader(
+          REFRESHED_TOKEN_HEADER,
+          generateTokenFromUser({ ...req.user, employee: req.user.employee ?? null, tokenVersion })
+        );
       }
 
       // 5. Role-based access control

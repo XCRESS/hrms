@@ -24,8 +24,8 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 - **`pnpm build` on the frontend does not type-check.** A successful `vite build`
   proves nothing about types. Run `pnpm typecheck` and `pnpm lint` and report
-  actual numbers against these baselines: **typecheck 66**, **lint 114**
-  (101 errors, 13 warnings). Don't increase them; reduce where you touch a file.
+  actual numbers against these baselines: **typecheck 64**, **lint 112**
+  (100 errors, 12 warnings). Don't increase them; reduce where you touch a file.
 - **There is no test suite.** Verify by type-checking, building, and exercising
   code paths directly.
 - The backend type-checks and builds clean. Keep it that way.
@@ -34,7 +34,8 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 ## Auth
 
-- **Open — raise at session start:** password reset lets the requester pick the victim's new password; tokens survive a password change; email templates render user text unescaped; S3 documents are public URLs; search regexes are unescaped; login reveals which emails exist.
+- **Open — raise at session start:** S3 documents are public URLs; login reveals which emails exist.
+- Any password change must `$inc: { tokenVersion: 1 }` — that is what revokes existing JWTs.
 - Roles: `admin`, `hr`, `employee`.
 - **JWT** in `localStorage` via `frontend/src/lib/tokenStorage.ts`. Deliberately
   not httpOnly — tokens are pulled out for CLI/script testing.

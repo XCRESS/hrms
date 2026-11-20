@@ -10,6 +10,7 @@ import type {
   LoginCredentials,
   CreateAccountData,
   PasswordResetRequestDto,
+  ConfirmPasswordResetDto,
 } from '@/types';
 
 // ============================================================================
@@ -141,10 +142,7 @@ export const useLogout = () => {
   });
 };
 
-/**
- * Request password reset
- * Employee requests password reset (requires admin approval)
- */
+/** Emails a one-time code. Succeeds whether or not the account exists. */
 export const useRequestPasswordReset = () => {
   return useMutation({
     mutationFn: async (resetData: PasswordResetRequestDto) => {
@@ -154,16 +152,10 @@ export const useRequestPasswordReset = () => {
   });
 };
 
-/**
- * Reset password with token (Admin approved)
- */
-export const useResetPassword = () => {
+export const useConfirmPasswordReset = () => {
   return useMutation({
-    mutationFn: async ({ resetToken, newPassword }: { resetToken: string; newPassword: string }) => {
-      const { data } = await axiosInstance.post<ApiResponse>('/password-reset/reset', {
-        resetToken,
-        newPassword,
-      });
+    mutationFn: async (resetData: ConfirmPasswordResetDto) => {
+      const { data } = await axiosInstance.post<ApiResponse>(API_ENDPOINTS.PASSWORD_RESET.CONFIRM, resetData);
       return data;
     },
   });

@@ -14,8 +14,6 @@ import {
   useUpdateLeaveStatus,
   useUpdateHelpInquiry,
   useReviewRegularization,
-  useApprovePasswordReset,
-  useRejectPasswordReset,
   useUpdateWFHStatus,
   useUpdateExpenseStatus
 } from '@/hooks/queries';
@@ -28,7 +26,7 @@ interface AttemptedLocation {
 interface Request {
   _id?: string;
   id?: string;
-  type: 'leave' | 'help' | 'regularization' | 'password' | 'wfh' | 'expense';
+  type: 'leave' | 'help' | 'regularization' | 'wfh' | 'expense';
   status: 'pending' | 'approved' | 'rejected' | 'in-progress' | 'resolved' | 'expired' | 'completed';
   employee: string;
   date?: string;
@@ -53,10 +51,6 @@ interface Request {
   requestedCheckIn?: string;
   requestedCheckOut?: string;
   reason?: string;
-
-  // Password reset fields
-  email?: string;
-  name?: string;
 
   // WFH request fields
   nearestOffice?: string;
@@ -91,8 +85,6 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
   const updateLeaveMutation = useUpdateLeaveStatus();
   const updateHelpMutation = useUpdateHelpInquiry();
   const reviewRegularizationMutation = useReviewRegularization();
-  const approvePasswordResetMutation = useApprovePasswordReset();
-  const rejectPasswordResetMutation = useRejectPasswordReset();
   const updateWFHMutation = useUpdateWFHStatus();
   const updateExpenseMutation = useUpdateExpenseStatus();
 
@@ -100,8 +92,6 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
     updateLeaveMutation.isPending ||
     updateHelpMutation.isPending ||
     reviewRegularizationMutation.isPending ||
-    approvePasswordResetMutation.isPending ||
-    rejectPasswordResetMutation.isPending ||
     updateWFHMutation.isPending ||
     updateExpenseMutation.isPending;
 
@@ -148,15 +138,6 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
             status: status as 'pending' | 'approved' | 'rejected',
             comment: reviewComment
           });
-          break;
-        case 'password':
-          if (status === 'approved') {
-            await approvePasswordResetMutation.mutateAsync(requestId);
-          } else if (status === 'rejected') {
-            await rejectPasswordResetMutation.mutateAsync({ requestId, reason: reviewComment });
-          } else {
-            throw new Error('Invalid status for password reset request');
-          }
           break;
         case 'wfh':
           await updateWFHMutation.mutateAsync({ requestId, status: status as 'pending' | 'approved' | 'rejected', reviewComment });
@@ -331,23 +312,6 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
             <div>
               <label className="text-xs sm:text-sm font-medium text-muted-foreground">Reason</label>
               <p className="text-sm sm:text-base text-foreground mt-1 leading-relaxed">{request.reason}</p>
-            </div>
-          </div>
-        );
-      }
-
-      case 'password': {
-        return (
-          <div className="space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-muted-foreground">Email</label>
-                <p className="text-sm sm:text-base text-foreground mt-1 font-mono">{request.email}</p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-muted-foreground">Name</label>
-                <p className="text-sm sm:text-base text-foreground mt-1">{request.name || 'Not provided'}</p>
-              </div>
             </div>
           </div>
         );
@@ -562,7 +526,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
                 </button>
               </>
             ) : (
-              // Leave, regularization, and password reset request buttons
+              // Leave, regularization, WFH and expense request buttons
               <>
                 <button
                   onClick={() => handleStatusUpdate('rejected')}
@@ -578,7 +542,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onUpdate }: RequestDetai
                   className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base order-1 sm:order-3"
                 >
                   <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {isProcessing ? 'Processing...' : (request.type === 'password' ? 'Approve ' : 'Approve')}
+                  {isProcessing ? 'Processing...' : 'Approve'}
                 </button>
               </>
             )}

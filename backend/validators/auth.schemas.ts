@@ -52,7 +52,19 @@ export const changePasswordSchema = z.object({
   }
 );
 
+export const requestPasswordResetSchema = z.object({
+  email: emailSchema,
+});
+
+export const confirmPasswordResetSchema = z.object({
+  email: emailSchema,
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code from your email'),
+  newPassword: passwordSchema,
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+export type ConfirmPasswordResetInput = z.infer<typeof confirmPasswordResetSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type UpdateEmployeeIdInput = z.infer<typeof updateEmployeeIdSchema>;

@@ -1,35 +1,12 @@
-import { validateBody } from "../middlewares/zodValidation.middleware.js";
-import { createPasswordResetRequestSchema, rejectPasswordResetSchema } from "../validators/hr.schemas.js";
 import express, { type Router } from "express";
-import {
-  createPasswordResetRequest,
-  getAllPasswordResetRequests,
-  approvePasswordResetRequest,
-  rejectPasswordResetRequest,
-} from "../controllers/passwordReset.controllers.js";
-import authMiddleware from "../middlewares/auth.middleware.js";
+import { validateBody } from "../middlewares/zodValidation.middleware.js";
+import { confirmPasswordResetSchema, requestPasswordResetSchema } from "../validators/auth.schemas.js";
+import { passwordResetIpLimiter, passwordResetRequestLimiter } from "../middlewares/rateLimit.middleware.js";
+import { confirmPasswordReset, requestPasswordReset } from "../controllers/passwordReset.controllers.js";
 
 const router: Router = express.Router();
 
-// @route   POST /api/password-reset/request
-// @desc    User submits a password reset request
-// @access  Public
-router.post("/request", validateBody(createPasswordResetRequestSchema), createPasswordResetRequest);
-
-// @route   GET /api/password-reset/requests
-// @desc    Admin/HR gets all password reset requests (can filter by status e.g., ?status=pending)
-// @access  Private (Admin, HR)
-router.get("/requests", authMiddleware(["admin", "hr"]), getAllPasswordResetRequests);
-
-// @route   PUT /api/password-reset/request/:id/approve
-// @desc    Admin/HR approves a password reset request
-// @access  Private (Admin, HR)
-router.put("/request/:id/approve", authMiddleware(["admin", "hr"]), approvePasswordResetRequest);
-
-// @route   PUT /api/password-reset/request/:id/reject
-// @desc    Admin/HR rejects a password reset request
-// @access  Private (Admin, HR)
-router.put("/request/:id/reject", authMiddleware(["admin", "hr"]), validateBody(rejectPasswordResetSchema), rejectPasswordResetRequest);
-
+router.post("/request", passwordResetIpLimiter, passwordResetRequestLimiter, validateBody(requestPasswordResetSchema), requestPasswordReset);
+router.post("/confirm", passwordResetIpLimiter, validateBody(confirmPasswordResetSchema), confirmPasswordReset);
 
 export default router;

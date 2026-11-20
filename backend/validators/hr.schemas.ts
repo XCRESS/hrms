@@ -1,13 +1,9 @@
 /**
- * Validation schemas for announcements, holidays, help desk and the
- * admin-mediated password reset flow.
+ * Validation schemas for announcements, holidays, help desk and documents.
  */
 
 import { z } from 'zod';
 import {
-  emailSchema,
-  nameSchema,
-  passwordSchema,
   shortTextSchema,
   longTextSchema,
   dateStringSchema,
@@ -79,20 +75,6 @@ export const updateInquirySchema = z
   );
 
 // ---------------------------------------------------------------------------
-// Password reset requests (admin-approved flow)
-// ---------------------------------------------------------------------------
-
-export const createPasswordResetRequestSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  newPassword: passwordSchema,
-});
-
-export const rejectPasswordResetSchema = z.object({
-  remarks: shortTextSchema.nullish(),
-});
-
-// ---------------------------------------------------------------------------
 // Documents
 // ---------------------------------------------------------------------------
 
@@ -107,6 +89,4 @@ export type HolidayInput = z.infer<typeof holidaySchema>;
 export type UpdateHolidayInput = z.infer<typeof updateHolidaySchema>;
 export type SubmitInquiryInput = z.infer<typeof submitInquirySchema>;
 export type UpdateInquiryInput = z.infer<typeof updateInquirySchema>;
-export type CreatePasswordResetRequestInput = z.infer<typeof createPasswordResetRequestSchema>;
-export type RejectPasswordResetInput = z.infer<typeof rejectPasswordResetSchema>;
 export type UploadDocumentInput = z.infer<typeof uploadDocumentSchema>;

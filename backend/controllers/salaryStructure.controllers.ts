@@ -1,6 +1,6 @@
 import type { CreateSalaryStructureInput } from '../validators/salary.schemas.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { paramValue } from '../utils/helpers.js';
+import { escapeRegExp, paramValue } from '../utils/helpers.js';
 import type { Response } from 'express';
 import SalaryStructure from '../models/SalaryStructure.model.js';
 import SalarySlip from '../models/SalarySlip.model.js';
@@ -166,10 +166,10 @@ export const getAllSalaryStructures = asyncHandler(async (req: IAuthRequest, res
   if (search && typeof search === 'string') {
     const employees = await Employee.find({
       $or: [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { employeeId: { $regex: search, $options: 'i' } },
-        { department: { $regex: search, $options: 'i' } }
+        { firstName: { $regex: escapeRegExp(search), $options: 'i' } },
+        { lastName: { $regex: escapeRegExp(search), $options: 'i' } },
+        { employeeId: { $regex: escapeRegExp(search), $options: 'i' } },
+        { department: { $regex: escapeRegExp(search), $options: 'i' } }
       ]
     });
 

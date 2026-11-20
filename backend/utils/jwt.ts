@@ -138,6 +138,7 @@ export function generateTokenFromUser(
     role: string;
     employee?: { toString(): string } | null;
     employeeId?: string;
+    tokenVersion?: number;
   },
   expiresIn: string = '7d'
 ): string {
@@ -148,6 +149,7 @@ export function generateTokenFromUser(
     role: user.role as any,
     employee: user.employee?.toString(),
     employeeId: user.employeeId,
+    tv: user.tokenVersion ?? 0,
   };
 
   return generateToken(payload, expiresIn);
@@ -163,7 +165,7 @@ export async function regenerateTokenForUser(userId: string): Promise<string> {
   const User = (await import('../models/User.model.js')).default;
   
   const user = await User.findById(userId)
-    .select('_id name email role employee employeeId')
+    .select('_id name email role employee employeeId tokenVersion')
     .lean();
 
   if (!user) {

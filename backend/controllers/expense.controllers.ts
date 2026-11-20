@@ -7,6 +7,7 @@ import NotificationService from '../services/notificationService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
+import { escapeRegExp } from '../utils/helpers.js';
 import type { IAuthRequest } from '../types/index.js';
 import { expenseQuery, type ExpenseFilter } from '../services/expenseQueries.js';
 
@@ -247,7 +248,7 @@ export const exportExpensesExcel = asyncHandler(async (req: IAuthRequest, res: R
     if (endDate) filter.date.$lte = new Date(endDate as string);
   }
   if (search && typeof search === 'string') {
-    const regex = new RegExp(search, 'i');
+    const regex = new RegExp(escapeRegExp(search), 'i');
     filter.$or = [
       { employeeName: regex },
       { item: regex }

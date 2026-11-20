@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import Settings from '../models/Settings.model.js';
 import logger from '../utils/logger.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 interface EmailData {
   [key: string]: unknown;
@@ -42,6 +43,17 @@ interface HeadingOptions {
 }
 
 const APP_URL = process.env.APP_URL || 'https://hr.intakesense.com';
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+
+/** Escapes every string in template data; Dates, ObjectIds and numbers pass through. */
+const escapeDeep = (value: unknown): unknown => {
+  if (typeof value === 'string') return escapeHtml(value);
+  if (Array.isArray(value)) return value.map(escapeDeep);
+  if (isPlainObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, escapeDeep(v)]));
+  return value;
+};
 
 // ---------------------------------------------------------------------------
 // Send retry policy
@@ -438,7 +450,12 @@ class EmailService {
     `;
   }
 
-  /** Key/value spec list. Values right-aligned on desktop, stacked on mobile. */
+  getOneTimeCode(code: string): string {
+    return `
+      <p style="margin: 24px 0; font-family: ${T.mono}; font-size: 32px; font-weight: 600; letter-spacing: 0.3em; color: ${T.ink}; text-align: center; background-color: ${T.pageBg}; border: 1px solid ${T.border}; border-radius: 8px; padding: 16px 0;">${code}</p>
+    `;
+  }
+
   /** Cells must already be escaped. */
   getDataTable(headers: string[], rows: string[][]): string {
     const cell = (value: string, header: boolean) =>
@@ -542,10 +559,11 @@ class EmailService {
   // Templates
   // ---------------------------------------------------------------------------
 
-  getTemplate(type: string, data: EmailData): EmailTemplate {
+  getTemplate(type: string, raw: EmailData): EmailTemplate {
+    const data = escapeDeep(raw) as EmailData;
     const templates: Record<string, () => EmailTemplate> = {
       leave_request: () => ({
-        subject: `Leave request from ${data.employee as string}`,
+        subject: `Leave request from ${raw.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Leave request',
@@ -565,7 +583,7 @@ class EmailService {
       }),
 
       expense_request: () => ({
-        subject: `Expense claim from ${data.employee as string} · ₹${Number(data.amount || 0).toLocaleString('en-IN')}`,
+        subject: `Expense claim from ${raw.employee as string} · ₹${Number(raw.amount || 0).toLocaleString('en-IN')}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Expense claim',
@@ -620,7 +638,7 @@ class EmailService {
       },
 
       wfh_request: () => ({
-        subject: `Work from home request from ${data.employee as string}`,
+        subject: `Work from home request from ${raw.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Work from home',
@@ -640,7 +658,7 @@ class EmailService {
       }),
 
       help_request: () => ({
-        subject: `Help request from ${data.employee as string} · ${data.subject as string}`,
+        subject: `Help request from ${raw.employee as string} · ${raw.subject as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Help request',
@@ -661,7 +679,7 @@ class EmailService {
       }),
 
       regularization_request: () => ({
-        subject: `Attendance regularization from ${data.employee as string}`,
+        subject: `Attendance regularization from ${raw.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Regularization',
@@ -753,7 +771,7 @@ class EmailService {
       },
 
       holiday_reminder: () => ({
-        subject: `Upcoming holiday · ${data.title as string}`,
+        subject: `Upcoming holiday · ${raw.title as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Holiday',
@@ -772,7 +790,7 @@ class EmailService {
       }),
 
       announcement: () => ({
-        subject: `${data.title as string}`,
+        subject: `${raw.title as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Announcement',
@@ -786,7 +804,7 @@ class EmailService {
       }),
 
       employee_milestone: () => ({
-        subject: `Work anniversary · ${data.employee as string}`,
+        subject: `Work anniversary · ${raw.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Work anniversary',
@@ -808,7 +826,7 @@ class EmailService {
       }),
 
       birthday_wish: () => ({
-        subject: `Happy birthday, ${data.employee as string}`,
+        subject: `Happy birthday, ${raw.employee as string}`,
         htmlContent: this.getBaseEmailTemplate(`
           ${this.getHeading({
             eyebrow: 'Birthday',
@@ -896,7 +914,7 @@ class EmailService {
         `).join('');
 
         return {
-          subject: (data.subjectLine as string) || `Daily attendance report · ${data.reportDateFormatted as string}`,
+          subject: (raw.subjectLine as string) || `Daily attendance report · ${raw.reportDateFormatted as string}`,
           htmlContent: this.getBaseEmailTemplate(`
             ${this.getHeading({
               eyebrow: 'Daily report',

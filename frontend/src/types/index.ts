@@ -1117,22 +1117,13 @@ export interface UpdateHelpInquiryDto {
 // PASSWORD RESET
 // ============================================================================
 
-
-export interface PasswordResetRequest {
-  _id: string;
-  userId: string;
-  name: string;
+export interface PasswordResetRequestDto {
   email: string;
-  status: 'pending' | 'approved' | 'rejected';
-  reviewedBy?: string;
-  remarks?: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export interface PasswordResetRequestDto {
-  name: string;
+export interface ConfirmPasswordResetDto {
   email: string;
+  code: string;
   newPassword: string;
 }
 
@@ -1217,13 +1208,6 @@ export interface TaskReportQueryParams extends PaginationParams {
   startDate?: string;
   endDate?: string;
   // Fix duplication in range?
-}
-
-// Password reset request query params
-export interface PasswordResetQueryParams extends PaginationParams {
-  status?: 'pending' | 'approved' | 'rejected';
-  startDate?: string;
-  endDate?: string;
 }
 
 // Leave list query params (Admin/HR)

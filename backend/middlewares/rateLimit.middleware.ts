@@ -54,6 +54,28 @@ export const loginIpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const bodyEmail = (req: Request): string =>
+  typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+
+// Keyed by email alone so rotating IPs can't mint more codes (and guesses) per account.
+export const passwordResetRequestLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES,
+  limit: 3,
+  keyGenerator: (req) => `reset-request:${bodyEmail(req)}`,
+  message: { success: false, message: 'Too many reset codes requested. Please wait 15 minutes and try again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const passwordResetIpLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES,
+  limit: 30,
+  keyGenerator: (req) => `reset-ip:${clientIp(req)}`,
+  message: { success: false, message: 'Too many password reset attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export const assistantLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   limit: 30,

@@ -1,155 +1,91 @@
-import type { CreatePasswordResetRequestInput, RejectPasswordResetInput } from '../validators/hr.schemas.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import type { ConfirmPasswordResetInput, RequestPasswordResetInput } from '../validators/auth.schemas.js';
 import type { Request, Response } from 'express';
-import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
-import User from '../models/User.model.js';
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { BadRequestError } from '../utils/errors.js';
+import { ensureJWTSecret } from '../utils/jwt.js';
+import { escapeHtml } from '../utils/escapeHtml.js';
 import { formatResponse } from '../utils/response.js';
+import PasswordResetCode from '../models/PasswordResetCode.model.js';
+import User from '../models/User.model.js';
 import emailService from '../services/emailService.js';
 import logger from '../utils/logger.js';
 
-// @desc    Create a new password reset request
-// @route   POST /api/password-reset/request
-// @access  Public
-export const createPasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, newPassword } = req.body as CreatePasswordResetRequestInput;
+const CODE_TTL_MINUTES = 10;
+const MAX_ATTEMPTS = 5;
+const REQUEST_ACCEPTED = 'If an account exists for that email, a reset code is on its way.';
+const CODE_REJECTED = 'That code is invalid or has expired. Request a new one.';
 
-  if (!name || !email || !newPassword) {
-    res.status(400).json(formatResponse(false, 'Please provide name, email, and new password.'));
-    return;
-  }
+const hashCode = (code: string): Buffer => createHmac('sha256', ensureJWTSecret()).update(code).digest();
 
-  // Check if user exists
-  const user = await User.findOne({ email });
-  if (!user) {
-    res.status(404).json(formatResponse(false, 'No user found with this email address.'));
-    return;
-  }
+const sendInBackground = (to: string, subject: string, html: string, what: string): void => {
+  emailService.send(to, subject, html).catch((err: unknown) => logger.error({ err }, `Failed to send ${what}`));
+};
 
-  // Check if there's already a pending request for this user
-  const existingRequest = await PasswordResetRequest.findOne({
-    email,
-    status: 'pending',
-  });
+// Same response whether or not the account exists, and the email is not awaited,
+// so neither the body nor the timing reveals which addresses are registered.
+export const requestPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body as RequestPasswordResetInput;
 
-  if (existingRequest) {
-    res.status(400).json(formatResponse(false, 'A password reset request is already pending for this email.'));
-    return;
-  }
+  const user = await User.findOne({ email, isActive: true }).select('_id name email').lean();
+  if (user) {
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+    await PasswordResetCode.findOneAndUpdate(
+      { user: user._id },
+      { codeHash: hashCode(code).toString('hex'), attempts: 0, expiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60_000) },
+      { upsert: true }
+    );
 
-  // Hash the new password
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  const newRequest = new PasswordResetRequest({
-    name,
-    email,
-    newPassword: hashedPassword,
-    userId: user._id,
-  });
-
-  await newRequest.save();
-
-  res.status(201).json(formatResponse(true, 'Password reset request submitted successfully. It will be reviewed by an administrator.'));
-});
-
-export const approvePasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
-  const requestId = req.params.id;
-  const request = await PasswordResetRequest.findById(requestId);
-
-  if (!request) {
-    res.status(404).json(formatResponse(false, 'Password reset request not found.'));
-    return;
-  }
-
-  if (request.status !== 'pending') {
-    res.status(400).json(formatResponse(false, `Request is already ${request.status}.`));
-    return;
-  }
-
-  const user = await User.findOne({ email: request.email });
-  if (!user) {
-    await PasswordResetRequest.findByIdAndUpdate(requestId, {
-      status: 'rejected',
-      remarks: 'User not found with this email.',
-    });
-    res.status(404).json(formatResponse(false, 'User associated with this request not found. Request rejected.'));
-    return;
-  }
-
-  // Update user's password
-  user.password = request.newPassword;
-  await user.save();
-
-  // Update request status
-  request.status = 'approved';
-  await request.save();
-
-  // Send email notification
-  try {
-    const subject = 'Your HRMS password was changed';
-    const htmlContent = emailService.getBaseEmailTemplate(`
+    const html = emailService.getBaseEmailTemplate(`
       ${emailService.getHeading({
         eyebrow: 'Security',
-        title: 'Your password was changed',
-        lede: `Hi ${user.name}, your password reset request has been approved.`
+        title: 'Reset your password',
+        lede: `Hi ${escapeHtml(user.name)}, use this code to set a new password.`,
       })}
-
-      ${emailService.getParagraph('You can now sign in with your new password.')}
-      ${emailService.getCallout('If you did not request this change, contact your HR administrator immediately.', 'warning')}
-
-      ${emailService.getActionButton('Sign in')}
+      ${emailService.getOneTimeCode(code)}
+      ${emailService.getParagraph(`The code expires in ${CODE_TTL_MINUTES} minutes and can only be used once.`)}
+      ${emailService.getCallout('If you did not ask to reset your password, ignore this email. Your password will not change.', 'neutral')}
     `);
-    await emailService.send(user.email, subject, htmlContent);
-  } catch (emailError) {
-    const err = emailError instanceof Error ? emailError : new Error('Unknown email error');
-    logger.error({ err }, 'Error sending password change confirmation email');
+    sendInBackground(user.email, `${code} is your HRMS password reset code`, html, 'password reset code');
   }
 
-  res.status(200).json(formatResponse(true, 'Password reset request approved and password updated.'));
+  res.status(200).json(formatResponse(true, REQUEST_ACCEPTED));
 });
 
-// @desc    Get all password reset requests (or filter by status)
-// @route   GET /api/password-reset/requests
-// @access  Private (Admin/HR)
-export const getAllPasswordResetRequests = asyncHandler(async (req: Request, res: Response) => {
-  // HR/Admin might want to filter by status, e.g., only "pending"
-  const { status, startDate, endDate } = req.query;
-  const query: Record<string, unknown> = status ? { status: status as string } : {};
+export const confirmPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+  const { email, code, newPassword } = req.body as ConfirmPasswordResetInput;
 
-  if (startDate || endDate) {
-    const createdAt: { $gte?: Date; $lte?: Date } = {};
-    if (startDate) createdAt.$gte = new Date(startDate as string);
-    if (endDate) createdAt.$lte = new Date(endDate as string);
-    query.createdAt = createdAt;
+  const user = await User.findOne({ email, isActive: true }).select('_id name email').lean();
+  if (!user) throw new BadRequestError(CODE_REJECTED);
+
+  // The attempt is counted before comparing, so parallel guesses can't exceed the cap.
+  const record = await PasswordResetCode.findOneAndUpdate(
+    { user: user._id, expiresAt: { $gt: new Date() }, attempts: { $lt: MAX_ATTEMPTS } },
+    { $inc: { attempts: 1 } },
+    { new: true }
+  ).lean();
+  if (!record || !timingSafeEqual(Buffer.from(record.codeHash, 'hex'), hashCode(code))) {
+    throw new BadRequestError(CODE_REJECTED);
   }
 
-  const requests = await PasswordResetRequest.find(query).sort({ createdAt: -1 }).lean(); // Newest first
+  const { deletedCount } = await PasswordResetCode.deleteOne({ _id: record._id });
+  if (deletedCount !== 1) throw new BadRequestError(CODE_REJECTED);
 
-  res.status(200).json(
-    formatResponse(true, 'Password reset requests fetched successfully.', {
-      count: requests.length,
-      requests,
-    })
-  );
-});
+  const password = await bcrypt.hash(newPassword, 10);
+  await User.updateOne({ _id: user._id }, { $set: { password }, $inc: { tokenVersion: 1 } });
 
-// @desc    Reject a password reset request
-// @route   PUT /api/password-reset/request/:id/reject
-// @access  Private (Admin/HR)
-export const rejectPasswordResetRequest = asyncHandler(async (req: Request, res: Response) => {
-  const requestId = req.params.id;
-  const { remarks } = req.body as RejectPasswordResetInput; // Optional remarks from admin
+  const html = emailService.getBaseEmailTemplate(`
+    ${emailService.getHeading({
+      eyebrow: 'Security',
+      title: 'Your password was changed',
+      lede: `Hi ${escapeHtml(user.name)}, the password for your HRMS account was just reset.`,
+    })}
+    ${emailService.getParagraph('Every device that was signed in has been signed out.')}
+    ${emailService.getCallout('If you did not make this change, contact your HR administrator immediately.', 'warning')}
+    ${emailService.getActionButton('Sign in')}
+  `);
+  sendInBackground(user.email, 'Your HRMS password was changed', html, 'password change confirmation');
 
-  const request = await PasswordResetRequest.findByIdAndUpdate(
-    requestId,
-    { status: 'rejected', remarks: remarks || 'Rejected by administrator.' },
-    { new: true } // Returns the updated document
-  );
-
-  if (!request) {
-    res.status(404).json(formatResponse(false, 'Password reset request not found.'));
-    return;
-  }
-
-  res.status(200).json(formatResponse(true, 'Password reset request rejected.', { request }));
+  res.status(200).json(formatResponse(true, 'Password updated. Sign in with your new password.'));
 });

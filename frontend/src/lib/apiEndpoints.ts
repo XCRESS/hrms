@@ -173,9 +173,7 @@ export const API_ENDPOINTS = {
   // Password Reset
   PASSWORD_RESET: {
     REQUEST: '/password-reset/request',
-    REQUESTS: '/password-reset/requests',
-    APPROVE: (id: string) => `/password-reset/request/${id}/approve`,
-    REJECT: (id: string) => `/password-reset/request/${id}/reject`,
+    CONFIRM: '/password-reset/confirm',
   },
 
   // Salary Slips

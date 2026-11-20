@@ -5,7 +5,6 @@ import Leave from '../models/Leave.model.js';
 import Help from '../models/Help.model.js';
 import RegularizationRequest from '../models/Regularization.model.js';
 import Expense from '../models/Expense.model.js';
-import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import Holiday from '../models/Holiday.model.js';
 import { getISTNow, getISTDayBoundaries } from '../utils/timezone.js';
 import AlertService from '../services/alertService.js';
@@ -36,12 +35,11 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
     endDate: { $gte: startOfToday.toJSDate() }
   });
 
-  const [pendingLeaves, pendingHelp, pendingRegularizations, pendingExpenses, pendingPasswordResets, upcomingHolidays] = await Promise.all([
+  const [pendingLeaves, pendingHelp, pendingRegularizations, pendingExpenses, upcomingHolidays] = await Promise.all([
     Leave.countDocuments({ status: 'pending' }),
     Help.countDocuments({ status: 'pending' }),
     RegularizationRequest.countDocuments({ status: 'pending' }),
     Expense.countDocuments({ status: 'pending' }),
-    PasswordResetRequest.countDocuments({ status: 'pending' }),
     Holiday.countDocuments({ date: { $gte: startOfToday.toJSDate() } })
   ]);
 
@@ -92,7 +90,7 @@ export const getAdminDashboardSummary = asyncHandler(async (req: IAuthRequest, r
     }
   });
 
-  const totalPendingRequests = pendingLeaves + pendingHelp + pendingRegularizations + pendingExpenses + pendingPasswordResets;
+  const totalPendingRequests = pendingLeaves + pendingHelp + pendingRegularizations + pendingExpenses;
 
   res.status(200).json({
     success: true,

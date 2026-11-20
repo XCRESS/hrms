@@ -16,7 +16,6 @@ import type {
   OfficeLocationQueryParams,
   HelpInquiryQueryParams,
   TaskReportQueryParams,
-  PasswordResetQueryParams,
   WFHRequestQueryParams,
   ExpenseQueryParams,
   LeaveQueryParams,
@@ -183,12 +182,6 @@ export const queryKeys = {
     departments: () => ['settings', 'departments'] as const,
     departmentStats: () => ['settings', 'department-stats'] as const,
     companies: () => ['settings', 'companies'] as const,
-  },
-
-  // Password Reset
-  passwordReset: {
-    all: () => ['password-reset'] as const,
-    requests: (params?: PasswordResetQueryParams) => ['password-reset', 'requests', params] as const,
   },
 
   // Notifications
