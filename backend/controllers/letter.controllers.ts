@@ -18,9 +18,9 @@ import type { CreateLetterInput, LetterIdParams, LetterListQuery, SendLetterInpu
 import type { LetterEmployee } from '../services/letters/fields.js';
 import { assertWordingBody, buildDraftValues, issueLetter, renderDraftPdf, withLetterValues, wordingBody } from '../services/letters/issue.js';
 import { loadLetterhead } from '../services/letters/letterheads.js';
+import { EMPLOYEE_FIELDS } from '../services/letters/person.js';
 import { sendPdf, toBuffer } from '../services/letters/upload.js';
 
-const EMPLOYEE_FIELDS = 'firstName lastName gender employeeId position department employmentType reportingSupervisor address email phone joiningDate companyName';
 const LIST_PROJECTION = '-pdf -body -values';
 
 const loadDraft = async (id: string) => {

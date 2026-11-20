@@ -26,3 +26,4 @@ export * from './useGiftGame';
 export * from './useFestiveGames';
 export * from './useAssistant';
 export * from './useLetters';
+export * from './useAccess';

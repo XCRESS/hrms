@@ -68,10 +68,18 @@ export const resolveFields = (
   return { doc: resolved ?? doc, missing: [...missing], unknown: [...unknown] };
 };
 
-export const assertResolvable = ({ missing, unknown }: ResolveResult): void => {
+/** "employee.joiningDate" → "Joining date", for keys with no catalogue label. */
+export const humanizeKey = (key: string): string => {
+  const words = (key.split('.').pop() ?? key).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/** Throws a message HR can act on, naming fields by their labels. */
+export const assertResolvable = ({ missing, unknown }: ResolveResult, labels: Record<string, string> = {}): void => {
+  const name = (key: string) => labels[key] ?? humanizeKey(key);
   const problems = [
-    ...(unknown.length ? [`Unknown fields: ${unknown.join(', ')}`] : []),
-    ...(missing.length ? [`Missing values: ${missing.join(', ')}`] : []),
+    ...(unknown.length ? [`This uses details that don’t exist: ${unknown.map(name).join(', ')}. Remove them from the text`] : []),
+    ...(missing.length ? [`Please fill in: ${missing.map(name).join(', ')}`] : []),
   ];
-  if (problems.length) throw new ValidationError(problems.join('. '));
+  if (problems.length) throw new ValidationError(`${problems.join('. ')}.`);
 };

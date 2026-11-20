@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon';
-import mammoth from 'mammoth';
 import { IST_TIMEZONE } from '../../utils/timezone.js';
 import type { IAskField, LetterKind } from '../../models/LetterTemplate.model.js';
-import type { LetterDoc } from '../../validators/letter.schemas.js';
+import { letterDocSchema, type LetterDoc } from '../../validators/letter.schemas.js';
+import { detectFields } from './detect.js';
+import { docxToDoc } from './docx.js';
 import { AUTO_FIELDS, RECIPIENT_FIELDS, resolveAutoValues } from './fields.js';
 import { previewReferenceNo } from './referenceNo.js';
 import { collectFieldKeys } from './resolve.js';
@@ -59,14 +60,27 @@ export const sampleValues = (
   };
 };
 
-/** Converts a Word file to HTML for the editor. Images are dropped: template bodies carry none. */
-export const docxToHtml = async (buffer: Buffer): Promise<{ html: string; messages: string[] }> => {
-  const result = await mammoth.convertToHtml(
-    { buffer },
-    { ignoreEmptyParagraphs: false, convertImage: mammoth.images.imgElement(async () => ({ src: '' })) }
-  );
+export interface ImportedLetter {
+  doc: LetterDoc;
+  found: Array<{ key: string; label: string; count: number }>;
+  warnings: string[];
+}
+
+/**
+ * Converts a Word letter into a template body. When `personValues` (the auto
+ * values of the person the letter was written for) is given, their details in
+ * the text become fields.
+ */
+export const importWordLetter = async (buffer: Buffer, personValues?: Record<string, string>): Promise<ImportedLetter> => {
+  const { doc, warnings } = await docxToDoc(buffer);
+  if (!personValues) return { doc: letterDocSchema.parse(doc), found: [], warnings };
+
+  const types = Object.fromEntries(AUTO_FIELDS.filter((f) => f.group !== 'letter').map((f) => [f.key, f.type]));
+  const detected = detectFields(doc, personValues, types);
+  const labels = new Map(AUTO_FIELDS.map((f) => [f.key, f.label]));
   return {
-    html: result.value.replace(/<img\b[^>]*>/gi, ''),
-    messages: result.messages.map((m) => m.message),
+    doc: letterDocSchema.parse(detected.doc),
+    found: Object.entries(detected.found).map(([key, count]) => ({ key, label: labels.get(key) ?? key, count })),
+    warnings,
   };
 };

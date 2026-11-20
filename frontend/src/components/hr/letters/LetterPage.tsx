@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Ban, Eye, FileCheck2, Loader2, PenLine, Save, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Ban, Eye, FileCheck2, Loader2, MoreHorizontal, PenLine, Save, Send, Trash2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -162,16 +163,31 @@ const DraftView = ({ letter, template }: { letter: Letter; template: LetterTempl
           {dirty && ' · Unsaved changes'}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" className="gap-1.5" onClick={onDelete} disabled={busy}><Trash2 className="h-4 w-4" /> Delete draft</Button>
-          <Button variant="outline" className="gap-1.5" onClick={onSave} disabled={!dirty || busy}>
-            {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
-          </Button>
-          <Button variant="outline" className="gap-1.5" onClick={onEditWording} disabled={busy}><PenLine className="h-4 w-4" /> {editingWording ? 'Back to values' : letter.body ? 'Wording edited' : 'Edit wording'}</Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" className="gap-1.5" disabled={busy}><MoreHorizontal className="h-4 w-4" /> More</Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1">
+              {[
+                { label: 'Save values', icon: <Save className="h-4 w-4" />, run: onSave, disabled: !dirty },
+                { label: editingWording ? 'Back to values' : letter.body ? 'Edit wording (edited)' : 'Edit wording for this letter', icon: <PenLine className="h-4 w-4" />, run: onEditWording, disabled: false },
+                { label: 'Issue without sending', icon: <FileCheck2 className="h-4 w-4" />, run: () => onIssue(false), disabled: missing.length > 0 },
+                { label: 'Delete draft', icon: <Trash2 className="h-4 w-4" />, run: onDelete, disabled: false },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={item.run}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                >
+                  {item.icon} {item.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" className="gap-1.5" onClick={onPreview} disabled={busy}>
-            {pdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Preview
-          </Button>
-          <Button variant="outline" className="gap-1.5" onClick={() => onIssue(false)} disabled={busy || missing.length > 0}>
-            <FileCheck2 className="h-4 w-4" /> Issue
+            {pdf.isPending || update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Preview
           </Button>
           <Button
             className="gap-1.5"

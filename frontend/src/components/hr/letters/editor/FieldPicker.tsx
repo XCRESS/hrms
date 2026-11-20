@@ -10,7 +10,7 @@ interface FieldPickerProps {
   onPick: (key: string) => void;
 }
 
-const GROUP_ORDER = ['Employee', 'Recipient', 'Company', 'Letter', 'Signatory', 'Asked when issuing'];
+const GROUP_ORDER = ['Employee', 'Recipient', 'Company', 'Letter', 'Signatory', 'Details to fill in'];
 
 export const FieldPicker = ({ open, onOpenChange, fields, onPick }: FieldPickerProps) => {
   const [query, setQuery] = useState('');
@@ -57,7 +57,6 @@ export const FieldPicker = ({ open, onOpenChange, fields, onPick }: FieldPickerP
                   className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                 >
                   <span>{field.label}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{field.key}</span>
                 </button>
               ))}
             </div>

@@ -4,7 +4,8 @@
  */
 
 import type { Types, FilterQuery } from 'mongoose';
-import type { IAttendance, IEmployee, ILeave } from '../../types/index.js';
+import type { EmployeeScope, IAttendance, IEmployee, ILeave } from '../../types/index.js';
+import { employeeScopeFilter } from '../access/scope.js';
 import Attendance from '../../models/Attendance.model.js';
 import Employee from '../../models/Employee.model.js';
 import Leave from '../../models/Leave.model.js';
@@ -53,8 +54,8 @@ export class AttendanceDataService {
 
   // Employee Data Operations
 
-  static async getActiveEmployees(): Promise<any[]> {
-    return await Employee.find({ isActive: true })
+  static async getActiveEmployees(scope: EmployeeScope = { kind: 'all' }): Promise<any[]> {
+    return await Employee.find({ isActive: true, ...employeeScopeFilter(scope) })
       .select('_id firstName lastName employeeId department position joiningDate')
       .sort({ firstName: 1, lastName: 1 })
       .lean();

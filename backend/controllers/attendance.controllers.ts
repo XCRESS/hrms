@@ -603,7 +603,7 @@ export const getMyAttendance = asyncHandler(async (req: IAuthRequest, res: Respo
 });
 
 export const getTodayAttendanceWithAbsents = asyncHandler(async (req: IAuthRequest, res: Response) => {
-  const dashboardData = await Report.generateDashboardData();
+  const dashboardData = await Report.generateDashboardData(new Date(), req.accessScope);
 
   res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, {
     records: dashboardData.records,
@@ -626,7 +626,8 @@ export const getAdminAttendanceRange = asyncHandler(async (req: IAuthRequest, re
   const report = await Report.generateCustomReport({
     startDate: new Date(startDate as string),
     endDate: new Date(endDate as string),
-    includeCharts: true
+    includeCharts: true,
+    scope: req.accessScope
   });
 
   res.json(formatResponse(true, SUCCESS_MESSAGES.RECORDS_RETRIEVED, report));

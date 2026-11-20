@@ -1,7 +1,12 @@
 import { useImperativeHandle, useState, type Ref } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import { Braces } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { LetterDoc, Margins, PageSize } from '@/types/letters';
 import { cleanWordPaste } from './cleanWordPaste';
+import { MakeFieldDialog } from './MakeFieldDialog';
+import { countElsewhere, replaceWithField, selectedText } from './makeField';
 import { EditorToolbar } from './EditorToolbar';
 import { letterExtensions } from './extensions';
 import { FieldContext, type FieldOption } from './fieldContext';
@@ -25,12 +30,15 @@ interface LetterEditorProps {
   marginsMm?: Margins;
   pageSize?: PageSize;
   mode: 'template' | 'letter';
+  /** Adds a new detail to fill in for each letter; returns its field key. */
+  onCreateDetail?: (label: string, defaultValue?: string) => string;
   ref?: Ref<LetterEditorHandle>;
 }
 
 /** Page-width editing surface whose CSS matches the PDF renderer, so line lengths agree. */
-export const LetterEditor = ({ value, onChange, fields, marginsMm = DEFAULT_MARGINS, pageSize = 'A4', mode, ref }: LetterEditorProps) => {
+export const LetterEditor = ({ value, onChange, fields, marginsMm = DEFAULT_MARGINS, pageSize = 'A4', mode, onCreateDetail, ref }: LetterEditorProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [making, setMaking] = useState<{ text: string; elsewhere: number } | null>(null);
   const canInsert = mode === 'template';
 
   const editor = useEditor({
@@ -82,6 +90,43 @@ export const LetterEditor = ({ value, onChange, fields, marginsMm = DEFAULT_MARG
           </div>
         </div>
       </div>
+      {canInsert && editor && (
+        <BubbleMenu
+          editor={editor}
+          appendTo={() => document.body}
+          shouldShow={({ state }) => !state.selection.empty && Boolean(state.doc.textBetween(state.selection.from, state.selection.to).trim())}
+        >
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 shadow-md"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const text = selectedText(editor);
+              setMaking({ text, elsewhere: countElsewhere(editor, text) });
+            }}
+          >
+            <Braces className="h-4 w-4" /> Make this a field
+          </Button>
+        </BubbleMenu>
+      )}
+      {canInsert && editor && making && (
+        <MakeFieldDialog
+          text={making.text}
+          elsewhere={making.elsewhere}
+          fields={fields}
+          onClose={() => setMaking(null)}
+          onPick={(key, everywhere) => {
+            replaceWithField(editor, key, everywhere);
+            setMaking(null);
+          }}
+          onCreate={(label, defaultValue, everywhere) => {
+            const key = onCreateDetail?.(label, defaultValue);
+            if (key) replaceWithField(editor, key, everywhere);
+            setMaking(null);
+          }}
+        />
+      )}
       {canInsert && (
         <FieldPicker
           open={pickerOpen}

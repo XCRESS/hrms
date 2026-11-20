@@ -14,6 +14,7 @@ import Attendance from '../../models/Attendance.model.js';
 import Leave from '../../models/Leave.model.js';
 import { getISTDayBoundaries } from '../../utils/timezone.js';
 import type { HolidayMap } from '../workCalendar.js';
+import type { EmployeeScope } from '../../types/index.js';
 
 /**
  * Custom report filters interface
@@ -25,6 +26,7 @@ interface CustomReportFilters {
   departments?: string[];
   status?: string;
   includeCharts?: boolean;
+  scope?: EmployeeScope;
 }
 
 /**
@@ -183,9 +185,8 @@ export class AttendanceReportService {
    * @param date - Target date (optional, defaults to today)
    * @returns Dashboard data
    */
-  static async generateDashboardData(date: Date = new Date()): Promise<any> {
-    // Get all active employees
-    const allEmployees = await AttendanceDataService.getActiveEmployees();
+  static async generateDashboardData(date: Date = new Date(), scope: EmployeeScope = { kind: 'all' }): Promise<any> {
+    const allEmployees = await AttendanceDataService.getActiveEmployees(scope);
 
     // Get today's attendance records
     const todayAttendance = await AttendanceDataService.getTodayAttendanceRecords(date);
@@ -348,11 +349,11 @@ export class AttendanceReportService {
       endDate,
       employeeIds,
       departments,
-      includeCharts = false
+      includeCharts = false,
+      scope
     } = filters;
 
-    // Build employee filter
-    let targetEmployees = await AttendanceDataService.getActiveEmployees();
+    let targetEmployees = await AttendanceDataService.getActiveEmployees(scope);
 
     if (employeeIds && employeeIds.length > 0) {
       targetEmployees = targetEmployees.filter(emp => employeeIds.includes(emp.employeeId));
@@ -379,7 +380,7 @@ export class AttendanceReportService {
     });
 
     return {
-      filters,
+      filters: { startDate, endDate, employeeIds, departments, includeCharts },
       period: {
         startDate: getISTDateString(startDate),
         endDate: getISTDateString(endDate)

@@ -11,7 +11,8 @@ import {
     SelectValue,
 } from "../../../components/ui/select";
 import { Label } from "../../../components/ui/label";
-import { useDepartments, useCompanies, useCreateEmployee } from "../../../hooks/queries";
+import { useDepartments, useCompanies, useCreateEmployee, useEmployees } from "../../../hooks/queries";
+import { employeeDisplayName } from "./employeeName";
 import { useToast } from "../../../components/ui/toast";
 import BackButton from "../../../components/ui/BackButton";
 import EnhancedDateField from "../../../components/ui/enhanced-date-field";
@@ -43,11 +44,14 @@ interface EmployeeFormData {
     bankAccountNumber: string;
     bankIFSCCode: string;
     employmentType: string;
-    reportingSupervisor: string;
+    supervisorId: string;
     joiningDate: Date | null;
     emergencyContactName: string;
     emergencyContactNumber: string;
 }
+
+// Radix Select reserves "" for "unchosen", so a deliberate "no supervisor" needs its own value.
+const NO_SUPERVISOR = "__none__";
 
 const AddEmployee: React.FC = () => {
     const navigate = useNavigate();
@@ -56,6 +60,9 @@ const AddEmployee: React.FC = () => {
     // React Query hooks
     const { data: departmentsData, isLoading: loadingDepartments } = useDepartments();
     const { data: companies = [], isLoading: loadingCompanies } = useCompanies();
+    const { data: activeEmployees = [], isLoading: loadingEmployees } = useEmployees({ status: 'active' });
+    const supervisorOptions = [...activeEmployees].sort((a, b) =>
+        employeeDisplayName(a).localeCompare(employeeDisplayName(b)));
     const createEmployeeMutation = useCreateEmployee();
 
     const departments = departmentsData || [];
@@ -85,7 +92,7 @@ const AddEmployee: React.FC = () => {
         bankAccountNumber: "",
         bankIFSCCode: "",
         employmentType: "",
-        reportingSupervisor: "",
+        supervisorId: "",
         joiningDate: null,
         emergencyContactName: "",
         emergencyContactNumber: "",
@@ -116,7 +123,7 @@ const AddEmployee: React.FC = () => {
             "employeeId", "firstName", "lastName", "gender",
             "maritalStatus", "email", "phone", "aadhaarNumber", "panNumber",
             "officeAddress", "companyName", "department", "position", "employmentType",
-            "reportingSupervisor", "paymentMode", "bankName",
+            "supervisorId", "paymentMode", "bankName",
             "bankAccountNumber", "bankIFSCCode",
         ];
 
@@ -124,7 +131,7 @@ const AddEmployee: React.FC = () => {
             if (!formData[field]) {
                 toast({
                     title: "Validation Error",
-                    description: `${field.replace(/([A-Z])/g, ' $1').toLowerCase()} is required.`,
+                    description: `${field === "supervisorId" ? "reporting supervisor" : field.replace(/([A-Z])/g, ' $1').toLowerCase()} is required.`,
                     variant: "destructive",
                 });
                 return;
@@ -166,6 +173,7 @@ const AddEmployee: React.FC = () => {
             bankIFSCCode: formData.bankIFSCCode?.trim().toUpperCase() || undefined,
             dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.toISOString() : null,
             joiningDate: formData.joiningDate ? formData.joiningDate.toISOString() : null,
+            supervisorId: formData.supervisorId === NO_SUPERVISOR ? null : formData.supervisorId,
         };
 
         createEmployeeMutation.mutate(employeeData, {
@@ -538,16 +546,29 @@ const AddEmployee: React.FC = () => {
                                 </Select>
                             </LabelInputContainer>
                             <LabelInputContainer>
-                                <Label htmlFor="reportingSupervisor">
+                                <Label htmlFor="supervisorId">
                                     Reporting Supervisor
                                 </Label>
-                                <Input
-                                    id="reportingSupervisor"
-                                    name="reportingSupervisor"
-                                    value={formData.reportingSupervisor}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                <Select
+                                    value={formData.supervisorId}
+                                    onValueChange={(value) => handleSelectChange("supervisorId", value)}
+                                    disabled={loadingEmployees}
+                                >
+                                    <SelectTrigger id="supervisorId">
+                                        <SelectValue placeholder={loadingEmployees ? "Loading..." : "Select reporting supervisor"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NO_SUPERVISOR}>No supervisor (top of the organisation)</SelectItem>
+                                        {supervisorOptions.map((emp) => (
+                                            <SelectItem key={emp._id} value={emp._id}>
+                                                {employeeDisplayName(emp)} ({emp.employeeId})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    They'll see this employee's attendance. Change it later in Settings → Team &amp; Access.
+                                </p>
                             </LabelInputContainer>
                         </CardContent>
                     </Card>

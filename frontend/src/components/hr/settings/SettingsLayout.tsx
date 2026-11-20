@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { Settings, Clock, Building2, Landmark, Bell, MapPin, Palette, type LucideIcon } from 'lucide-react';
+import { Settings, Clock, Building2, Landmark, Bell, MapPin, Palette, Network, type LucideIcon } from 'lucide-react';
 
 interface SettingsNavItem {
   id: string;
@@ -18,6 +18,7 @@ const SettingsLayout: React.FC<SettingsLayoutProps> = ({ activeSection, onSectio
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'departments', label: 'Departments', icon: Building2 },
     { id: 'companies', label: 'Companies', icon: Landmark },
+    { id: 'access', label: 'Team & Access', icon: Network },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'geofence', label: 'Geo Fence', icon: MapPin },
     { id: 'appearance', label: 'Appearance', icon: Palette },

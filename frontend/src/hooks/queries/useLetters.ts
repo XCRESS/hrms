@@ -5,6 +5,7 @@ import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
 import type { ApiResponse } from '@/types';
 import type {
   CreateLetterInput,
+  ImportedLetter,
   Letter,
   LetterDoc,
   LetterFields,
@@ -108,10 +109,11 @@ export const useSaveLetterhead = () => {
 
 export const useImportDocx = () =>
   useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, employee }: { file: File; employee?: string }) => {
       const form = new FormData();
       form.append('docx', file);
-      return unwrap<{ html: string; messages: string[] }>(await axiosInstance.post(API_ENDPOINTS.LETTERS.IMPORT_DOCX, form));
+      if (employee) form.append('employee', employee);
+      return unwrap<ImportedLetter>(await axiosInstance.post(API_ENDPOINTS.LETTERS.IMPORT_DOCX, form));
     },
   });
 

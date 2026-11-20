@@ -37,6 +37,12 @@ export const queryKeys = {
     withoutStructure: () => ['employees', 'without-structure'] as const,
   },
 
+  access: {
+    all: () => ['access'] as const,
+    me: () => ['access', 'me'] as const,
+    grants: () => ['access', 'grants'] as const,
+  },
+
   // Attendance
   attendance: {
     all: () => ['attendance'] as const,

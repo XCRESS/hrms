@@ -48,9 +48,14 @@ export const cleanWordPaste = (html: string): string => {
     if (style.textDecoration.includes('underline') && !el.closest('u')) wrap(el, 'u');
     const align = style.textAlign;
     const color = style.color;
+    const size = /^(\d{1,2}(\.\d+)?)pt$/.exec(style.fontSize)?.[1];
+    const highlight = style.backgroundColor;
     el.removeAttribute('style');
     if (align && ['left', 'center', 'right', 'justify'].includes(align)) el.style.textAlign = align;
-    if (color && el.tagName === 'SPAN') el.style.color = color;
+    if (el.tagName !== 'SPAN') return;
+    if (color) el.style.color = color;
+    if (size && Number(size) !== 11) el.style.fontSize = `${Number(size)}pt`;
+    if (highlight && highlight !== 'transparent' && highlight !== 'white') el.style.backgroundColor = highlight;
   });
   doc.body.querySelectorAll('[class]').forEach((el) => el.removeAttribute('class'));
   return doc.body.innerHTML;

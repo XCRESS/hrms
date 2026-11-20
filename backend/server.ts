@@ -134,6 +134,7 @@ import wfhRequestRoutes from "./routes/wfhRequest.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import letterRoutes from "./routes/letter.routes.js";
+import accessRoutes from "./routes/access.routes.js";
 import festiveRoutes from "./routes/festive.routes.js";
 import tetrisRoutes from "./features/tetris/tetris.routes.js";
 
@@ -174,6 +175,7 @@ app.use("/api/office-locations", officeLocationRoutes);
 app.use("/api/wfh-requests", wfhRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/access", accessRoutes);
 app.use("/api/letters", letterRoutes);
 app.use("/health", healthRoutes);
 app.use("/api/tetris", tetrisRoutes);

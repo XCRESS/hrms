@@ -199,11 +199,18 @@ const employeeSchema = new Schema<IEmployee>(
       },
       required: [true, 'Employment type is required'],
     },
+    /** Display copy of the supervisor's name, kept in sync from `supervisor`; letters print it. */
     reportingSupervisor: {
       type: String,
-      required: [true, 'Reporting supervisor is required'],
+      default: '',
       trim: true,
       maxlength: [100, 'Reporting supervisor name cannot exceed 100 characters'],
+    },
+    /** Grants the supervisor attendance access to this employee and everyone below them. */
+    supervisor: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+      default: null,
     },
     joiningDate: {
       type: Date,
@@ -262,6 +269,7 @@ employeeSchema.index({ panNumber: 1 }, { unique: true });
 employeeSchema.index({ isActive: 1, firstName: 1, lastName: 1 });
 employeeSchema.index({ isActive: 1, department: 1 });
 employeeSchema.index({ joiningDate: 1 });
+employeeSchema.index({ supervisor: 1 });
 employeeSchema.index({ companyName: 1, isActive: 1 });
 
 /**

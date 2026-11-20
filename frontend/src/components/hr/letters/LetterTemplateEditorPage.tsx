@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Eye, FileUp, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Eye, FileUp, Loader2, Save, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
-import { useCompanies, useLetterFields, useLetterPdf, useLetterTemplate, useLetterhead, useImportDocx, useSaveLetterTemplate } from '@/hooks/queries';
-import type { LetterKind, LetterTemplate, LetterTemplateInput } from '@/types/letters';
+import { useCompanies, useLetterFields, useLetterPdf, useLetterTemplate, useLetterhead, useSaveLetterTemplate } from '@/hooks/queries';
+import type { ImportedLetter, LetterKind, LetterTemplate, LetterTemplateInput } from '@/types/letters';
 import { AskFieldsPanel } from './AskFieldsPanel';
 import { LetterEditor, type LetterEditorHandle } from './editor/LetterEditor';
 import { FieldListPanel } from './FieldListPanel';
+import { TokenTextEditor, type TokenTextEditorHandle } from './editor/TokenTextEditor';
+import { StarterPicker } from './StarterPicker';
+import type { StarterTemplate } from './starterTemplates';
+import { ImportWordDialog } from './ImportWordDialog';
 import { PdfPreviewDialog } from './PdfPreviewDialog';
 import { usePdfPreview } from './usePdfPreview';
-import { collectFieldKeys, errorMessage, fieldOptionsFor, removeFields } from './shared';
+import { collectFieldKeys, errorMessage, fieldOptionsFor, hasContent, keyFromLabel, removeFields } from './shared';
 
 const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
 const DEFAULT_EMAIL = {
@@ -34,10 +37,10 @@ const readDraft = (id?: string): LetterTemplateInput | null => {
   }
 };
 
-const fromTemplate = (template?: LetterTemplate): LetterTemplateInput => ({
+const fromTemplate = (template?: LetterTemplate | StarterTemplate): LetterTemplateInput => ({
   name: template?.name ?? '',
   kind: template?.kind ?? 'employee',
-  company: template?.company ?? '',
+  company: template && 'company' in template ? template.company : '',
   body: template?.body ?? EMPTY_DOC,
   askFields: template?.askFields ?? [],
   email: template?.email ?? DEFAULT_EMAIL,
@@ -45,14 +48,14 @@ const fromTemplate = (template?: LetterTemplate): LetterTemplateInput => ({
 
 type EmailTarget = 'subject' | 'body';
 
-const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
+const TemplateForm = ({ template, starter, startWithImport = false }: { template?: LetterTemplate; starter?: StarterTemplate; startWithImport?: boolean }) => {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { toast } = useToast();
   const editorRef = useRef<LetterEditorHandle>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const subjectRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const subjectRef = useRef<TokenTextEditorHandle>(null);
+  const bodyRef = useRef<TokenTextEditorHandle>(null);
+  const [emailVersion, setEmailVersion] = useState(0);
   const [emailTarget, setEmailTarget] = useState<EmailTarget>('body');
 
   const [saved, setSaved] = useState(() => JSON.stringify(fromTemplate(template)));
@@ -60,7 +63,7 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
     const draft = readDraft(template?._id);
     return Boolean(draft && JSON.stringify(draft) !== JSON.stringify(fromTemplate(template)));
   });
-  const [form, setForm] = useState<LetterTemplateInput>(() => (restored ? readDraft(template?._id) : null) ?? fromTemplate(template));
+  const [form, setForm] = useState<LetterTemplateInput>(() => (restored ? readDraft(template?._id) : null) ?? fromTemplate(template ?? starter));
   const patch = (next: Partial<LetterTemplateInput>) => setForm((f) => ({ ...f, ...next }));
   const dirty = JSON.stringify(form) !== saved;
 
@@ -77,7 +80,8 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
   const { data: catalogue } = useLetterFields();
   const { data: letterhead } = useLetterhead(form.company || undefined);
   const save = useSaveLetterTemplate();
-  const importDocx = useImportDocx();
+  const [importing, setImporting] = useState(startWithImport);
+  const [summary, setSummary] = useState<ImportedLetter | null>(null);
   const pdf = useLetterPdf();
   const { preview, show, close } = usePdfPreview();
 
@@ -88,6 +92,7 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
     const original = fromTemplate(template);
     setForm(original);
     editorRef.current?.setDoc(original.body);
+    setEmailVersion((v) => v + 1);
     setRestored(false);
   };
 
@@ -111,29 +116,18 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
     patch({ kind });
   };
 
-  const insertIntoEmail = (key: string) => {
-    const token = `{{${key}}}`;
-    const element = emailTarget === 'subject' ? subjectRef.current : bodyRef.current;
-    const current = form.email[emailTarget];
-    const start = element?.selectionStart ?? current.length;
-    const end = element?.selectionEnd ?? current.length;
-    patch({ email: { ...form.email, [emailTarget]: current.slice(0, start) + token + current.slice(end) } });
-    requestAnimationFrame(() => {
-      element?.focus();
-      element?.setSelectionRange(start + token.length, start + token.length);
-    });
+  const insertIntoEmail = (key: string) => (emailTarget === 'subject' ? subjectRef : bodyRef).current?.insertField(key);
+
+  const onImported = (result: ImportedLetter) => {
+    editorRef.current?.setDoc(result.doc);
+    setImporting(false);
+    setSummary(result);
   };
 
-  const onImport = async (file: File | undefined) => {
-    if (!file) return;
-    if (!editorRef.current?.isEmpty() && !(await confirm({ title: 'Replace the letter text?', description: 'Importing replaces everything in the editor with the Word file’s text.', confirmText: 'Replace' }))) return;
-    try {
-      const { html, messages } = await importDocx.mutateAsync(file);
-      editorRef.current?.setHtml(html);
-      toast({ variant: 'success', title: 'Word file imported', description: messages.length ? `${messages.length} item(s) could not be converted exactly; check the text, including alignment.` : 'Check alignment, then replace personal details with fields.' });
-    } catch (error) {
-      toast({ variant: 'error', title: 'Import failed', description: errorMessage(error) });
-    }
+  const onCreateDetail = (label: string, defaultValue?: string): string => {
+    const key = keyFromLabel(label, form.askFields.map((f) => f.key));
+    patch({ askFields: [...form.askFields, { key, label, type: 'text', required: !defaultValue, ...(defaultValue ? { default: defaultValue } : {}) }] });
+    return `ask.${key}`;
   };
 
   const onPreview = async () => {
@@ -172,13 +166,17 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {missing.length > 0 && <span className="text-xs text-muted-foreground">Add {missing.join(', ')} to save</span>}
-          <input ref={fileRef} type="file" accept=".docx" className="hidden" onChange={(e) => { void onImport(e.target.files?.[0]); e.target.value = ''; }} />
-          <Button variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={importDocx.isPending}>
-            {importDocx.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} Import .docx
+          <Button variant="outline" className="gap-1.5" onClick={() => setImporting(true)}>
+            <FileUp className="h-4 w-4" /> Import Word letter
           </Button>
           <Button variant="outline" className="gap-1.5" onClick={onPreview} disabled={!form.company || pdf.isPending} title={form.company ? undefined : 'Choose a company first'}>
             {pdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Preview PDF
           </Button>
+          {template && !dirty && (
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link to={`/letters/new?template=${template._id}`}><Send className="h-4 w-4" /> Issue a letter</Link>
+            </Button>
+          )}
           <Button className="gap-1.5" onClick={onSave} disabled={missing.length > 0 || !dirty || save.isPending}>
             {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
           </Button>
@@ -198,14 +196,15 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
           <Input id="template-name" value={form.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Appointment letter" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="template-kind">Letter for</Label>
+          <Label htmlFor="template-kind">Who is this template for?</Label>
           <Select value={form.kind} onValueChange={(kind) => void changeKind(kind as LetterKind)} disabled={Boolean(template)}>
             <SelectTrigger id="template-kind" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="employee">An employee (fills from their record)</SelectItem>
-              <SelectItem value="manual">Someone not in the system (e.g. offer letter)</SelectItem>
+              <SelectItem value="employee">Employees (details filled in automatically)</SelectItem>
+              <SelectItem value="manual">New candidates / people not in the HRMS</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">You choose the person each time you issue a letter.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="template-company">Company and letterhead</Label>
@@ -223,8 +222,23 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
         </div>
       </div>
 
+      {summary && (
+        <div className="space-y-1 rounded-md border border-border bg-muted/50 px-4 py-3 text-sm" role="status">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-medium">
+              {summary.found.length
+                ? `Imported. Turned ${summary.found.reduce((n, f) => n + f.count, 0)} details into fields: ${summary.found.map((f) => (f.count > 1 ? `${f.label} ×${f.count}` : f.label)).join(', ')}.`
+                : 'Imported.'}
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => setSummary(null)}>Dismiss</Button>
+          </div>
+          <p className="text-muted-foreground">Check the text, then select anything else that changes per letter (a grade, a date, a city) and choose <strong>Make this a field</strong>.</p>
+          {summary.warnings.map((w) => <p key={w} className="text-muted-foreground">{w}</p>)}
+        </div>
+      )}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <LetterEditor ref={editorRef} value={form.body} onChange={(body) => patch({ body })} fields={fields} marginsMm={letterhead?.marginsMm} pageSize={letterhead?.pageSize} mode="template" />
+        <LetterEditor ref={editorRef} value={form.body} onChange={(body) => patch({ body })} fields={fields} marginsMm={letterhead?.marginsMm} pageSize={letterhead?.pageSize} mode="template" onCreateDetail={onCreateDetail} />
 
         <aside className="space-y-6 rounded-lg border border-border bg-card p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
           <FieldListPanel fields={fields} onInsert={(key) => editorRef.current?.insertField(key)} />
@@ -236,11 +250,11 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email-subject">Subject</Label>
-              <Input id="email-subject" ref={subjectRef} onFocus={() => setEmailTarget('subject')} value={form.email.subject} onChange={(e) => patch({ email: { ...form.email, subject: e.target.value } })} data-gramm="false" />
+              <TokenTextEditor key={`subject-${emailVersion}`} id="email-subject" ref={subjectRef} singleLine fields={fields} onFocus={() => setEmailTarget('subject')} value={form.email.subject} onChange={(subject) => setForm((f) => ({ ...f, email: { ...f.email, subject } }))} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email-body">Message</Label>
-              <Textarea id="email-body" ref={bodyRef} onFocus={() => setEmailTarget('body')} className="h-40" value={form.email.body} onChange={(e) => patch({ email: { ...form.email, body: e.target.value } })} data-gramm="false" />
+              <TokenTextEditor key={`body-${emailVersion}`} id="email-body" ref={bodyRef} fields={fields} onFocus={() => setEmailTarget('body')} className="min-h-40" value={form.email.body} onChange={(body) => setForm((f) => ({ ...f, email: { ...f.email, body } }))} />
             </div>
             <Select value="" onValueChange={insertIntoEmail}>
               <SelectTrigger className="w-full" aria-label={`Insert a field into the email ${emailTarget === 'subject' ? 'subject' : 'message'}`}>
@@ -255,6 +269,15 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
       </div>
 
       <PdfPreviewDialog preview={preview} onClose={close} />
+      {importing && (
+        <ImportWordDialog
+          kind={form.kind}
+          replacing={hasContent(form.body)}
+          onClose={() => setImporting(false)}
+          onImported={onImported}
+          onError={(error) => toast({ variant: 'error', title: 'Import failed', description: errorMessage(error) })}
+        />
+      )}
     </div>
   );
 };
@@ -262,10 +285,12 @@ const TemplateForm = ({ template }: { template?: LetterTemplate }) => {
 const LetterTemplateEditorPage = () => {
   const { id } = useParams();
   const { data: template, isLoading, error } = useLetterTemplate(id);
+  const [start, setStart] = useState<{ starter?: StarterTemplate; importWord?: boolean } | null>(() => (id || readDraft() ? {} : null));
 
   if (id && isLoading) return <div className="p-8 text-center text-muted-foreground">Loading template…</div>;
   if (id && (error || !template)) return <div className="p-8 text-center text-destructive">{errorMessage(error, 'Template not found')}</div>;
-  return <TemplateForm key={template?._id ?? 'new'} template={template} />;
+  if (!start) return <StarterPicker onPick={setStart} />;
+  return <TemplateForm key={template?._id ?? 'new'} template={template} starter={start.starter} startWithImport={start.importWord} />;
 };
 
 export default LetterTemplateEditorPage;

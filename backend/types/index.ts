@@ -49,8 +49,13 @@ export interface IAuthUser {
   employeeId?: string;
 }
 
+/** The employees a user may act on for one permission. */
+export type EmployeeScope = { kind: 'all' } | { kind: 'some'; ids: Types.ObjectId[] };
+
 export interface IAuthRequest extends Request {
   user?: IAuthUser;
+  /** Set by `requirePermission`. */
+  accessScope?: EmployeeScope;
 }
 
 // ============================================================================
@@ -90,6 +95,7 @@ export interface IEmployee extends Document {
   bankIFSCCode: string;
   employmentType: EmploymentType;
   reportingSupervisor: string;
+  supervisor?: Types.ObjectId | null;
   joiningDate: Date;
   emergencyContactNumber?: string;
   emergencyContactName?: string;

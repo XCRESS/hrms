@@ -80,6 +80,8 @@ export interface Employee {
   // Direct fields from backend
   officeAddress?: string;
   reportingSupervisor?: string;
+  /** Employee `_id` of their reporting supervisor; `reportingSupervisor` is that person's name. */
+  supervisor?: string | null;
   paymentMode?: string;
   fatherPhone?: string;
   motherPhone?: string;
@@ -982,7 +984,7 @@ export interface CreateEmployeeDto {
   officeAddress?: string;
   companyName?: string;
   employmentType?: string;
-  reportingSupervisor?: string;
+  supervisorId?: string | null;
   paymentMode?: string;
   bankName?: string;
   bankAccountNumber?: string;
@@ -1283,4 +1285,31 @@ export interface ThemeContextValue {
   // Legacy support (backwards compatibility)
   theme: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
+}
+
+export type AccessPermission = 'attendance.view';
+
+export type AccessScopeSummary =
+  | { scope: 'all' }
+  | { scope: 'team'; count: number }
+  | { scope: 'none' };
+
+export interface MyAccess {
+  permissions: Record<AccessPermission, AccessScopeSummary>;
+}
+
+export interface AccessGrant {
+  _id: string;
+  permission: AccessPermission;
+  permissionLabel: string;
+  user: { _id: string; name: string; email: string; role: UserRole };
+  employees: { _id: string; firstName: string; lastName: string; employeeId: string; isActive: boolean }[];
+  grantedBy: string | null;
+  updatedAt: string;
+}
+
+export interface UpsertAccessGrantDto {
+  userId: string;
+  permission: AccessPermission;
+  employeeIds: string[];
 }

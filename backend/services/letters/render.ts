@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Node } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
-import { Color, TextStyle } from '@tiptap/extension-text-style';
+import { BackgroundColor, Color, FontSize, LineHeight, TextStyle } from '@tiptap/extension-text-style';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import { TableKit } from '@tiptap/extension-table';
@@ -11,6 +11,7 @@ import { renderToHTMLString } from '@tiptap/static-renderer/pm/html-string';
 import type { LetterDoc } from '../../validators/letter.schemas.js';
 import { htmlToPdf, type PdfAsset } from './gotenberg.js';
 import { composeLetterPdf, type PageSize } from './pdf.js';
+import { Indent } from './indent.js';
 import { collectFieldKeys } from './resolve.js';
 
 export interface PageLayout {
@@ -30,6 +31,10 @@ const EXTENSIONS = [
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
   TextStyle,
   Color,
+  BackgroundColor,
+  FontSize,
+  LineHeight,
+  Indent,
   Superscript,
   Subscript,
   TableKit,
@@ -73,6 +78,7 @@ th { font-weight: 700; }
 tr { break-inside: avoid; }
 thead { display: table-header-group; }
 .page-break { break-before: page; height: 0; }
+hr { border: 0; border-top: 0.75pt solid #000; margin: 6pt 0; }
 `;
 
 export const renderLetterHtml = (doc: LetterDoc, { marginsMm: m, pageSize = 'A4' }: PageLayout): string => {

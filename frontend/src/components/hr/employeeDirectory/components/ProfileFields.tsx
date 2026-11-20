@@ -23,7 +23,7 @@ const GROUPS: { title: string; fields: FieldDef[] }[] = [
             { label: 'Employment type', name: 'employmentType', type: 'select', options: ['fulltime', 'intern', 'remote'] },
             { label: 'Joining date', name: 'joiningDate', type: 'date' },
             { label: 'Office', name: 'officeAddress', type: 'select', options: ['SanikColony', 'Indore', 'N.F.C.', 'Offsite'] },
-            { label: 'Supervisor', name: 'reportingSupervisor' },
+            { label: 'Reporting supervisor', name: 'reportingSupervisor', readOnly: true },
         ],
     },
     {

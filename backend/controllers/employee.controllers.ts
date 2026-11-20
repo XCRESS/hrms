@@ -1,16 +1,18 @@
-import type { CreateEmployeeInput, UpdateEmployeeInput, ChangeEmployeeIdInput } from '../validators/employee.schemas.js';
+import type { CreateEmployeeInput, UpdateEmployeeInput, ChangeEmployeeIdInput, SetSupervisorInput } from '../validators/employee.schemas.js';
 import type { Response } from 'express';
+import mongoose from 'mongoose';
 import Employee from '../models/Employee.model.js';
 import Department from '../models/Department.model.js';
 import Company from '../models/Company.model.js';
 import User from '../models/User.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { ValidationError } from '../utils/errors.js';
+import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { formatResponse } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 import { renameEmployeeId } from '../services/employeeIdRename.js';
 import { paramValue } from '../utils/helpers.js';
+import { getReportingTree } from '../services/access/index.js';
 
 export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const {
@@ -38,7 +40,7 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     bankAccountNumber,
     bankIFSCCode,
     employmentType,
-    reportingSupervisor,
+    supervisorId,
     joiningDate,
     emergencyContactName,
     emergencyContactNumber
@@ -75,6 +77,8 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     throw new ValidationError(`Company '${companyName}' does not exist. Please select from available companies.`);
   }
 
+  const reportingSupervisor = supervisorId ? await activeSupervisorName(supervisorId) : '';
+
   const employee = await Employee.create({
     employeeId,
     firstName,
@@ -100,6 +104,7 @@ export const createEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     bankAccountNumber,
     bankIFSCCode,
     employmentType,
+    supervisor: supervisorId ?? null,
     reportingSupervisor,
     joiningDate,
     emergencyContactName,
@@ -136,7 +141,8 @@ export const getEmployees = asyncHandler(async (req: IAuthRequest, res: Response
     joiningDate: employee.joiningDate,
     companyName: employee.companyName,
     isActive: employee.isActive,
-    profilePicture: employee.profilePicture
+    profilePicture: employee.profilePicture,
+    supervisor: employee.supervisor ?? null
   }));
   res.json(formatResponse(true, 'Employees fetched successfully', { employees: employeeList }));
 });
@@ -179,6 +185,13 @@ export const updateEmployee = asyncHandler(async (req: IAuthRequest, res: Respon
     runValidators: true
   });
 
+  if (employee && (employee.firstName !== existingEmployee.firstName || employee.lastName !== existingEmployee.lastName)) {
+    await Employee.updateMany(
+      { supervisor: employee._id },
+      { reportingSupervisor: `${employee.firstName} ${employee.lastName}` }
+    );
+  }
+
   res.json(formatResponse(true, 'Employee updated successfully', employee));
 });
 
@@ -191,6 +204,40 @@ export const changeEmployeeId = asyncHandler(async (req: IAuthRequest, res: Resp
   const employee = await Employee.findById(id).lean();
 
   res.json(formatResponse(true, `Employee ID changed from ${result.from} to ${result.to}`, employee));
+});
+
+/** Loads a would-be supervisor and returns their name for `reportingSupervisor`. */
+async function activeSupervisorName(supervisorId: string): Promise<string> {
+  const supervisor = await Employee.findById(supervisorId).select('firstName lastName isActive').lean();
+  if (!supervisor?.isActive) throw new ValidationError('The reporting supervisor must be an active employee');
+  return `${supervisor.firstName} ${supervisor.lastName}`;
+}
+
+export const setEmployeeSupervisor = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const id = paramValue(req.params.id);
+  if (!id || !mongoose.isValidObjectId(id)) throw new ValidationError('Employee is required');
+
+  const { supervisorId } = req.body as SetSupervisorInput;
+
+  const employee = await Employee.findById(id).select('_id').lean();
+  if (!employee) throw new NotFoundError('Employee not found');
+
+  let reportingSupervisor = '';
+  if (supervisorId) {
+    if (supervisorId === id) throw new ValidationError('An employee cannot be their own reporting supervisor');
+    reportingSupervisor = await activeSupervisorName(supervisorId);
+
+    const reports = await getReportingTree(employee._id);
+    if (reports.some((reportId) => reportId.equals(supervisorId))) {
+      throw new ValidationError('That person already reports to this employee');
+    }
+  }
+
+  const updated = await Employee.findByIdAndUpdate(id, { supervisor: supervisorId, reportingSupervisor }, { new: true })
+    .select('_id employeeId supervisor reportingSupervisor')
+    .lean();
+
+  res.json(formatResponse(true, 'Reporting supervisor updated', updated));
 });
 
 export const getProfile = asyncHandler(async (req: IAuthRequest, res: Response) => {

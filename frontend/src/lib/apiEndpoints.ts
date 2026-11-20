@@ -21,7 +21,14 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (id: string) => `/employees/${encodeURIComponent(id)}`,
     UPDATE: (id: string) => `/employees/update/${encodeURIComponent(id)}`,
     CHANGE_ID: (id: string) => `/employees/${encodeURIComponent(id)}/employee-id`,
+    SET_SUPERVISOR: (id: string) => `/employees/${encodeURIComponent(id)}/supervisor`,
     DELETE: (id: string) => `/employees/${encodeURIComponent(id)}`,
+  },
+
+  ACCESS: {
+    ME: '/access/me',
+    GRANTS: '/access/grants',
+    GRANT: (id: string) => `/access/grants/${encodeURIComponent(id)}`,
   },
 
   // Attendance Management

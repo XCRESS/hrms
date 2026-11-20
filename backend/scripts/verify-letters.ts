@@ -24,8 +24,10 @@ import { AUTO_FIELDS, RECIPIENT_FIELDS, fieldTypesFor, resolveAutoValues } from 
 import { letterDocSchema, letterheadBodySchema, type LetterDoc } from '../validators/letter.schemas.js';
 import { letterheadPageSize } from '../services/letters/pdf.js';
 import { createTemplateSchema } from '../validators/letter.schemas.js';
-import { docxToHtml, sampleValues, templateFieldProblems } from '../services/letters/templates.js';
-import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
+import { importWordLetter, sampleValues, templateFieldProblems } from '../services/letters/templates.js';
+import { AlignmentType, Document, HeadingLevel, ImageRun, LevelFormat, Packer, PageBreak, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx';
+import { docxToDoc } from '../services/letters/docx.js';
+import { detectFields } from '../services/letters/detect.js';
 import { assertIssuable, assertWordingBody, buildDraftValues, finalDoc, withLetterValues, wordingBody } from '../services/letters/issue.js';
 import { fillTokens, renderEmailText } from '../services/letters/email.js';
 import { assertResolvable, collectFieldKeys, resolveFields } from '../services/letters/resolve.js';
@@ -154,8 +156,8 @@ await section('resolveFields reports missing and unknown fields', () => {
   assert.deepEqual(miss.missing, ['employee.firstName']);
   const unk = resolveFields(letterDocSchema.parse({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'field', attrs: { key: 'employee.grade' } }] }] }), {}, types);
   assert.deepEqual(unk.unknown, ['employee.grade']);
-  assert.throws(() => assertResolvable(miss), /Missing values: employee\.firstName/);
-  assert.throws(() => assertResolvable(unk), /Unknown fields: employee\.grade/);
+  assert.throws(() => assertResolvable(miss), /Please fill in: First name/);
+  assert.throws(() => assertResolvable(unk), /details that don’t exist: Grade/);
   assert.throws(() => resolveFields(letterDocSchema.parse(doc), { 'employee.firstName': 'A', 'employee.joiningDate': '1st July' }, types), /employee\.joiningDate/);
 });
 
@@ -296,16 +298,31 @@ await section('sampleValues fills every key a preview needs', () => {
   assert.equal(values['recipient.name'], 'Asha Verma');
 });
 
-await section('docxToHtml keeps formatting and drops images', async () => {
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+await section('docxToDoc leaves pictures out and says so', async () => {
   const file = await Packer.toBuffer(new Document({ sections: [{ children: [
-    new Paragraph({ text: 'Appointment', heading: HeadingLevel.HEADING_1 }),
     new Paragraph({ children: [new TextRun({ text: 'Bold', bold: true }), new ImageRun({ type: 'png', data: png, transformation: { width: 10, height: 10 } })] }),
   ] }] }));
-  const { html } = await docxToHtml(file);
-  assert.ok(html.includes('<h1>Appointment</h1>'));
-  assert.ok(html.includes('<strong>Bold</strong>'));
-  assert.ok(!html.includes('<img'));
+  const { doc, warnings } = await docxToDoc(file);
+  assert.deepEqual(doc.content![0]!.content, [{ type: 'text', text: 'Bold', marks: [{ type: 'bold' }] }]);
+  assert.match(warnings[0]!, /1 picture/);
+});
+
+await section('importWordLetter turns a letter written for someone into a template', async () => {
+  const file = await Packer.toBuffer(new Document({ sections: [{ children: [
+    new Paragraph({ children: [new TextRun({ text: 'Mr. Veshant Singh Dahiya', bold: true })] }),
+    new Paragraph({ children: [new TextRun('Dear Veshant, your grade is BERYL 13.')] }),
+  ] }] }));
+  const result = await importWordLetter(file, { 'employee.salutation': 'Mr.', 'employee.fullName': 'Veshant Singh Dahiya', 'employee.firstName': 'Veshant' });
+  assert.deepEqual(result.found, [
+    { key: 'employee.salutation', label: 'Salutation (Mr./Ms.)', count: 1 },
+    { key: 'employee.fullName', label: 'Full name', count: 1 },
+    { key: 'employee.firstName', label: 'First name', count: 1 },
+  ]);
+  assert.ok(JSON.stringify(result.doc).includes('BERYL 13'));
+  const plain = await importWordLetter(file);
+  assert.deepEqual(plain.found, []);
 });
 
 const lh = { signatory: { name: 'Archana Sapra', designation: 'HR- HEAD' }, referencePrefix: 'CFG/HR', marginsMm: layout.marginsMm };
@@ -340,7 +357,7 @@ await section('wordingBody keeps letter.* chips and requires other values', () =
   const values = buildDraftValues({ kind: 'employee', askFields, employee, company: { name: 'C' }, letterhead: lh, overrides: { 'ask.grade': 'BERYL 13' } });
   const wording = wordingBody(letterBody, values, askFields);
   assert.deepEqual(collectFieldKeys(wording), ['letter.referenceNo']);
-  assert.throws(() => wordingBody(letterBody, { ...values, 'ask.grade': '' }, askFields), /Missing values: ask\.grade/);
+  assert.throws(() => wordingBody(letterBody, { ...values, 'ask.grade': '' }, askFields), /Please fill in: Grade/);
 });
 
 await section('finalDoc resolves letter.* at issue time', () => {
@@ -378,6 +395,116 @@ await section('issuing requires a configured letterhead; previews still work wit
 
 await section('email subject stays on one line', () => {
   assert.equal(fillTokens('Offer for {{recipient.address}}', { 'recipient.address': 'P-50\nSector 75' }, { 'recipient.address': 'longText' }, { singleLine: true }), 'Offer for P-50 Sector 75');
+});
+
+await section('letterDocSchema allows size, line spacing, highlight, indent and rules', () => {
+  const ok = letterDocSchema.parse({ type: 'doc', content: [
+    { type: 'paragraph', attrs: { indent: 2 }, content: [{ type: 'text', text: 'x', marks: [{ type: 'textStyle', attrs: { fontSize: '14pt', lineHeight: '1.5', backgroundColor: '#FFFF00' } }] }] },
+    { type: 'paragraph', content: [{ type: 'text', text: 'y', marks: [{ type: 'textStyle', attrs: { fontSize: '14.6667px' } }] }] },
+    { type: 'horizontalRule' },
+  ] });
+  assert.equal(ok.content![0]!.attrs!.indent, 2);
+  letterDocSchema.parse({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'textStyle', attrs: { color: 'red', backgroundColor: 'yellow' } }] }] }] });
+  assert.throws(() => letterDocSchema.parse({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'textStyle', attrs: { fontSize: 'calc(1px)' } }] }] }] }));
+  assert.throws(() => letterDocSchema.parse({ type: 'doc', content: [{ type: 'paragraph', attrs: { indent: 40 } }] }));
+});
+
+await section('renderLetterHtml prints size, highlight, indent and rules', () => {
+  const html = renderLetterHtml(letterDocSchema.parse({ type: 'doc', content: [
+    { type: 'paragraph', attrs: { indent: 1 }, content: [{ type: 'text', text: 'x', marks: [{ type: 'textStyle', attrs: { fontSize: '14pt', backgroundColor: '#FFFF00' } }] }] },
+    { type: 'horizontalRule' },
+  ] }), layout);
+  assert.match(html, /font-size:\s*14pt/);
+  assert.match(html, /background-color:\s*#FFFF00/i);
+  assert.match(html, /margin-left:\s*1\.27cm/);
+  assert.ok(html.includes('<hr'));
+});
+
+const sampleDocx = async (): Promise<Buffer> =>
+  Packer.toBuffer(new Document({
+    numbering: { config: [{ reference: 'dots', levels: [{ level: 0, format: LevelFormat.BULLET, text: '•', alignment: AlignmentType.LEFT }] }] },
+    sections: [{ children: [
+      new Paragraph({ text: 'Appointment', heading: HeadingLevel.HEADING_1 }),
+      new Paragraph({ alignment: AlignmentType.JUSTIFIED, children: [
+        new TextRun({ text: '1. ' }),
+        new TextRun({ text: 'Appointment', bold: true, underline: {} }),
+        new TextRun({ text: ': with effect from 1' }),
+        new TextRun({ text: 'st', superScript: true }),
+        new TextRun({ text: ' July 2025 for ' }),
+        new TextRun({ text: '“COSMOS”', bold: true, color: '4472C4', size: 28 }),
+      ] }),
+      new Paragraph({ children: [] }),
+      new Paragraph({ text: 'First point', numbering: { reference: 'dots', level: 0 } }),
+      new Paragraph({ text: 'Second point', numbering: { reference: 'dots', level: 0 } }),
+      new Table({ rows: [
+        new TableRow({ children: [new TableCell({ children: [new Paragraph('Basic')] }), new TableCell({ children: [new Paragraph('10000')] })] }),
+        new TableRow({ children: [new TableCell({ children: [new Paragraph('HRA')] }), new TableCell({ children: [new Paragraph('5000')] })] }),
+      ] }),
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun('Agreed and Accepted')] }),
+    ] }],
+  }));
+
+await section('docxToDoc keeps alignment, underline, colour, size, superscript, lists, tables and page breaks', async () => {
+  const { doc } = await docxToDoc(await sampleDocx());
+  letterDocSchema.parse(doc);
+  const blocks = doc.content!;
+  assert.equal(blocks[0]!.type, 'heading');
+  assert.equal(blocks[0]!.attrs!.level, 1);
+  const clause = blocks[1]!;
+  assert.equal(clause.attrs!.textAlign, 'justify');
+  const runs = clause.content!;
+  const heading = runs.find((n) => n.text === 'Appointment')!;
+  assert.deepEqual(heading.marks!.map((m) => m.type).sort(), ['bold', 'underline']);
+  assert.ok(runs.find((n) => n.text === 'st')!.marks!.some((m) => m.type === 'superscript'));
+  const cosmos = runs.find((n) => n.text === '“COSMOS”')!;
+  const style = cosmos.marks!.find((m) => m.type === 'textStyle')!.attrs!;
+  assert.equal(style.color, '#4472C4');
+  assert.equal(style.fontSize, '14pt');
+  assert.equal(blocks[2]!.type, 'paragraph');
+  assert.equal(blocks[2]!.content, undefined);
+  const list = blocks.find((b) => b.type === 'bulletList')!;
+  assert.equal(list.content!.length, 2);
+  const table = blocks.find((b) => b.type === 'table')!;
+  assert.equal(table.content!.length, 2);
+  assert.equal(table.content![0]!.content![1]!.content![0]!.content![0]!.text, '10000');
+  const breakAt = blocks.findIndex((b) => b.type === 'pageBreak');
+  assert.ok(breakAt > 0);
+  assert.equal(blocks[breakAt + 1]!.attrs!.textAlign, 'center');
+});
+
+await section('docxToDoc rejects files that are not Word documents', async () => {
+  await assert.rejects(docxToDoc(Buffer.from('not a zip')), /Word \(\.docx\)/);
+});
+
+const block = (...content: object[]) => ({ type: "paragraph", content });
+const tx = (text: string, marks?: object[]) => ({ type: 'text', text, ...(marks ? { marks } : {}) });
+
+await section('detectFields turns a real person’s details into fields', () => {
+  const doc = letterDocSchema.parse({ type: 'doc', content: [
+    block(tx('Mr. Veshant Singh Dahiya', [{ type: 'bold' }])),
+    block(tx('E. Code- '), tx('CFG/CIAML/15FBD', [{ type: 'bold' }])),
+    block(tx('Dear Veshant,')),
+    block(tx('with effect from 1'), tx('st', [{ type: 'superscript' }]), tx(' July 2025. Veshantx stays.')),
+    block(tx('Joined 01.07.2025 as Junior Web Developer.')),
+  ] });
+  const values = { 'employee.salutation': 'Mr.', 'employee.fullName': 'Veshant Singh Dahiya', 'employee.firstName': 'Veshant', 'employee.code': 'CFG/CIAML/15FBD', 'employee.joiningDate': '2025-07-01', 'employee.position': 'Junior Web Developer', 'company.name': 'NOT IN TEXT' };
+  const typesFor = { 'employee.salutation': 'text', 'employee.fullName': 'text', 'employee.firstName': 'text', 'employee.code': 'text', 'employee.joiningDate': 'date', 'employee.position': 'text', 'company.name': 'text' } as const;
+  const { doc: out, found } = detectFields(doc, values, typesFor);
+  letterDocSchema.parse(out);
+  const p0 = out.content![0]!.content!;
+  assert.deepEqual(p0.map((n) => (n.type === 'field' ? n.attrs!.key : n.text)), ['employee.salutation', ' ', 'employee.fullName']);
+  assert.deepEqual(p0[2]!.marks, [{ type: 'bold' }]);
+  assert.equal(out.content![1]!.content![1]!.attrs!.key, 'employee.code');
+  assert.deepEqual(out.content![2]!.content!.map((n) => (n.type === 'field' ? n.attrs!.key : n.text)), ['Dear ', 'employee.firstName', ',']);
+  const p3 = out.content![3]!.content!;
+  const date = p3.find((n) => n.type === 'field')!;
+  assert.equal(date.attrs!.key, 'employee.joiningDate');
+  assert.equal(date.attrs!.format, 'ordinal');
+  assert.ok(p3.some((n) => n.text?.includes('Veshantx stays')));
+  const p4 = out.content![4]!.content!;
+  assert.deepEqual(p4.filter((n) => n.type === 'field').map((n) => [n.attrs!.key, n.attrs!.format ?? null]), [['employee.joiningDate', 'dotted'], ['employee.position', null]]);
+  assert.deepEqual(found, { 'employee.salutation': 1, 'employee.fullName': 1, 'employee.code': 1, 'employee.firstName': 1, 'employee.joiningDate': 2, 'employee.position': 1 });
 });
 
 await section(

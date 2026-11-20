@@ -7,7 +7,7 @@ import type { IAskField, LetterKind } from '../../models/LetterTemplate.model.js
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { IST_TIMEZONE } from '../../utils/timezone.js';
 import type { LetterDoc } from '../../validators/letter.schemas.js';
-import { fieldTypesFor, resolveAutoValues, type LetterEmployee } from './fields.js';
+import { fieldLabelsFor, fieldTypesFor, resolveAutoValues, type LetterEmployee } from './fields.js';
 import { loadLetterhead } from './letterheads.js';
 import { nextReferenceNo, previewReferenceNo } from './referenceNo.js';
 import { renderLetterPdf } from './render.js';
@@ -56,7 +56,7 @@ export const withLetterValues = (values: Record<string, string>, prefix: string,
 /** The body HR edits for one letter: every field filled except `letter.*`, which only issue knows. */
 export const wordingBody = (templateBody: LetterDoc, values: Record<string, string>, askFields: IAskField[]): LetterDoc => {
   const result = resolveFields(templateBody, values, fieldTypesFor(askFields), { keep: isLetterKey });
-  assertResolvable(result);
+  assertResolvable(result, fieldLabelsFor(askFields));
   return result.doc;
 };
 
@@ -67,7 +67,7 @@ export const assertWordingBody = (body: LetterDoc): void => {
 
 export const finalDoc = (body: LetterDoc, values: Record<string, string>, askFields: IAskField[]): LetterDoc => {
   const result = resolveFields(body, values, fieldTypesFor(askFields));
-  assertResolvable(result);
+  assertResolvable(result, fieldLabelsFor(askFields));
   return result.doc;
 };
 

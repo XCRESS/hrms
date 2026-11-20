@@ -41,6 +41,9 @@ importers:
       '@tiptap/static-renderer':
         specifier: 3.32.2
         version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))(@tiptap/pm@3.32.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@xmldom/xmldom':
+        specifier: 0.9.12
+        version: 0.9.12
       ai:
         specifier: 7.0.163
         version: 7.0.163(zod@4.4.3)
@@ -77,6 +80,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
+      jszip:
+        specifier: 3.10.1
+        version: 3.10.1
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -709,6 +715,10 @@ packages:
   '@xmldom/xmldom@0.8.15':
     resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
+
+  '@xmldom/xmldom@0.9.12':
+    resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
+    engines: {node: '>=14.6'}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -2488,6 +2498,8 @@ snapshots:
   '@workflow/serde@4.1.0': {}
 
   '@xmldom/xmldom@0.8.15': {}
+
+  '@xmldom/xmldom@0.9.12': {}
 
   accepts@2.0.0:
     dependencies:

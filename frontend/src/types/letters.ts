@@ -129,3 +129,9 @@ export interface CreateLetterInput {
   recipient?: { name: string; email: string; address?: string };
   values?: Record<string, string>;
 }
+
+export interface ImportedLetter {
+  doc: LetterDoc;
+  found: Array<{ key: string; label: string; count: number }>;
+  warnings: string[];
+}

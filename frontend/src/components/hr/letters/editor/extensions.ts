@@ -1,13 +1,14 @@
 import { InputRule, Node, type Extensions } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
-import { Color, TextStyle } from '@tiptap/extension-text-style';
+import { BackgroundColor, Color, FontSize, LineHeight, TextStyle } from '@tiptap/extension-text-style';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import { TableKit } from '@tiptap/extension-table';
 import { Extension } from '@tiptap/core';
 import { Placeholder } from '@tiptap/extensions';
 import { FieldNode } from './FieldNode';
+import { Indent } from './indent';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -63,6 +64,10 @@ export const letterExtensions = ({ onFieldTrigger, placeholder }: { onFieldTrigg
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
   TextStyle,
   Color,
+  BackgroundColor,
+  FontSize,
+  LineHeight,
+  Indent,
   Superscript,
   Subscript,
   TableKit.configure({ table: { resizable: false } }),

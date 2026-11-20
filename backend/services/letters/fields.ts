@@ -92,6 +92,12 @@ export const resolveAutoValues = (ctx: {
   };
 };
 
+/** Field key → label, for messages. */
+export const fieldLabelsFor = (askFields: Array<{ key: string; label: string }>): Record<string, string> => ({
+  ...Object.fromEntries([...AUTO_FIELDS, ...RECIPIENT_FIELDS].map((f) => [f.key, f.label])),
+  ...Object.fromEntries(askFields.map((f) => [`ask.${f.key}`, f.label])),
+});
+
 /** Field key → type for a template: catalogue fields plus its ask fields (`ask.<key>`). */
 export const fieldTypesFor = (askFields: Array<{ key: string; type: FieldType }>): Record<string, FieldType> => ({
   ...Object.fromEntries([...AUTO_FIELDS, ...RECIPIENT_FIELDS].map((f) => [f.key, f.type])),

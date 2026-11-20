@@ -1,7 +1,7 @@
 import express, { type Router } from 'express';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import { validateBody, validateParams } from '../middlewares/zodValidation.middleware.js';
-import { companyParamsSchema, letterheadBodySchema } from '../validators/letter.schemas.js';
+import { companyParamsSchema, importDocxSchema, letterheadBodySchema } from '../validators/letter.schemas.js';
 import { getLetterhead, handleLetterheadUpload, listLetterheads, previewLetterhead, saveLetterhead } from '../controllers/letterhead.controllers.js';
 import { handleDocxUpload, importDocx } from '../controllers/letterTemplate.controllers.js';
 
@@ -14,6 +14,6 @@ router.get('/letterheads', hr, listLetterheads);
 router.get('/letterheads/:companyId', hr, validateParams(companyParamsSchema), getLetterhead);
 router.put('/letterheads/:companyId', hr, validateParams(companyParamsSchema), handleLetterheadUpload, validateBody(letterheadBodySchema), saveLetterhead);
 router.post('/letterheads/:companyId/preview', hr, validateParams(companyParamsSchema), previewLetterhead);
-router.post('/import-docx', hr, handleDocxUpload, importDocx);
+router.post('/import-docx', hr, handleDocxUpload, validateBody(importDocxSchema), importDocx);
 
 export default router;

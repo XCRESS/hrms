@@ -14,6 +14,7 @@ import {
   shortTextSchema,
   dateStringSchema,
   nullishPartial,
+  objectIdSchema,
 } from './common.schemas.js';
 
 /** Allow "" (field left blank) alongside a valid value. */
@@ -63,7 +64,7 @@ export const createEmployeeSchema = z.object({
   ),
 
   employmentType: z.string().trim().max(50).nullish(),
-  reportingSupervisor: z.string().trim().max(100).nullish(),
+  supervisorId: objectIdSchema.nullish(),
   joiningDate: optionalOrBlank(dateStringSchema),
   emergencyContactName: z.string().trim().max(100).nullish(),
   emergencyContactNumber: phoneOrBlank,
@@ -74,10 +75,14 @@ export const createEmployeeSchema = z.object({
  * so unknown keys are stripped rather than rejected.
  */
 // employeeId is excluded: renaming must go through changeEmployeeIdSchema, which updates every stored copy.
-export const updateEmployeeSchema = nullishPartial(createEmployeeSchema.omit({ employeeId: true }));
+// supervisorId is excluded: it changes access, so it goes through setSupervisorSchema and its cycle check.
+export const updateEmployeeSchema = nullishPartial(createEmployeeSchema.omit({ employeeId: true, supervisorId: true }));
 
 export const changeEmployeeIdSchema = z.object({ employeeId: employeeIdSchema });
+
+export const setSupervisorSchema = z.object({ supervisorId: objectIdSchema.nullable() });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type ChangeEmployeeIdInput = z.infer<typeof changeEmployeeIdSchema>;
+export type SetSupervisorInput = z.infer<typeof setSupervisorSchema>;

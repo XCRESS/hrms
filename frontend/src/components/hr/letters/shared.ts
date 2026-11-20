@@ -9,7 +9,7 @@ const GROUP_LABEL: Record<FieldDef['group'], string> = {
   signatory: 'Signatory',
 };
 
-export const ASK_GROUP = 'Asked when issuing';
+export const ASK_GROUP = 'Details to fill in';
 
 /** Every field a template of this kind may use, in picker order. */
 export const fieldOptionsFor = (kind: LetterKind, catalogue: LetterFields | undefined, askFields: AskField[]): FieldOption[] => {
@@ -53,7 +53,10 @@ export const removeFields = (doc: LetterDoc, drop: (key: string) => boolean): Le
   }),
 });
 
-export const errorMessage =(error: unknown, fallback = 'Something went wrong'): string => {
+export const hasContent = (doc: LetterDoc): boolean =>
+  doc.type === 'text' ? Boolean(doc.text?.trim()) : doc.type === 'field' || doc.type === 'table' || Boolean(doc.content?.some(hasContent));
+
+export const errorMessage = (error: unknown, fallback = 'Something went wrong'): string => {
   const response = (error as { response?: { data?: { message?: string } } }).response;
   return response?.data?.message ?? (error instanceof Error ? error.message : fallback);
 };

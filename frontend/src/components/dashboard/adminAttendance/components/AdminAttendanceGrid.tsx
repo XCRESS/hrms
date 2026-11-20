@@ -11,7 +11,8 @@ export function AdminAttendanceGrid({
 }: {
     records: EmployeeAttendance[];
     days: Date[];
-    onEdit: (record: EmployeeAttendance, day: Date) => void;
+    /** Omit for a read-only grid. */
+    onEdit?: (record: EmployeeAttendance, day: Date) => void;
 }) {
     return (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -76,17 +77,24 @@ export function AdminAttendanceGrid({
                                     const dayLabel = day.toLocaleDateString('en-GB', {
                                         weekday: 'short', day: 'numeric', month: 'short',
                                     });
+                                    const label = dayCellLabel(row, record.name, dayLabel);
                                     return (
                                         <td key={localDateKey(day)} className="py-2 sm:py-4 px-1 sm:px-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => onEdit(record, day)}
-                                                title={dayCellLabel(row, record.name, dayLabel)}
-                                                aria-label={dayCellLabel(row, record.name, dayLabel)}
-                                                className="flex w-full justify-center rounded-lg p-1 sm:p-2 hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                                            >
-                                                <AttendanceDayCell row={row} />
-                                            </button>
+                                            {onEdit ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onEdit(record, day)}
+                                                    title={label}
+                                                    aria-label={label}
+                                                    className="flex w-full justify-center rounded-lg p-1 sm:p-2 hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                >
+                                                    <AttendanceDayCell row={row} />
+                                                </button>
+                                            ) : (
+                                                <div title={label} aria-label={label} role="img" className="flex w-full justify-center p-1 sm:p-2">
+                                                    <AttendanceDayCell row={row} />
+                                                </div>
+                                            )}
                                         </td>
                                     );
                                 })}

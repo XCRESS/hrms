@@ -31,8 +31,8 @@ export const AskFieldsPanel = ({ fields, onChange, onInsert }: AskFieldsPanelPro
   return (
     <section className="space-y-3" aria-labelledby="ask-fields-heading">
       <div>
-        <h3 id="ask-fields-heading" className="text-sm font-semibold">Asked when issuing</h3>
-        <p className="text-xs text-muted-foreground">Details the system doesn’t store, such as grade or posting city. HR fills them in for each letter.</p>
+        <h3 id="ask-fields-heading" className="text-sm font-semibold">Details to fill in for each letter</h3>
+        <p className="text-xs text-muted-foreground">Things the HRMS doesn’t store, like grade or posting city. You’ll be asked for them each time you issue a letter.</p>
       </div>
 
       {fields.map((field, index) => (
@@ -60,7 +60,6 @@ export const AskFieldsPanel = ({ fields, onChange, onInsert }: AskFieldsPanelPro
               <Checkbox checked={field.required} onCheckedChange={(checked) => update(index, { required: checked === true })} />
               Required
             </label>
-            <code className="text-xs text-muted-foreground">ask.{field.key}</code>
           </div>
         </div>
       ))}

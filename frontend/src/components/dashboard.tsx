@@ -18,6 +18,7 @@ import {
     useRequestLeave,
     useSubmitHelpInquiry,
     useAdminDashboard,
+    useMyAccess,
 } from "../hooks/queries";
 import { useCreateExpense } from "../hooks/queries/useExpenses";
 import LeaveRequestModal from "./LeaveRequestModal";
@@ -210,6 +211,9 @@ const HRMSDashboard: React.FC = () => {
     const { data: myRegularizations = [] } = useMyRegularizations({ enabled: !isAdmin });
     const { data: missingCheckouts = [] } = useMissingCheckouts();
     const { data: adminSummary } = useAdminDashboard({ enabled: !!isAdmin });
+    const { data: myAccess } = useMyAccess({ enabled: !isAdmin });
+    const teamAttendance = myAccess?.permissions['attendance.view'];
+    const canViewTeamAttendance = !isAdmin && teamAttendance?.scope === 'team';
 
     // Mutations
     const checkInMutation = useCheckIn();
@@ -926,6 +930,16 @@ const HRMSDashboard: React.FC = () => {
                                             />
                                         </Suspense>
                                     </div>
+                                    {canViewTeamAttendance && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h2 className="text-base font-semibold text-foreground">My Team</h2>
+                                            </div>
+                                            <Suspense fallback={<ComponentSkeleton />}>
+                                                <AdminAttendanceTable title="Team Attendance" readOnly />
+                                            </Suspense>
+                                        </div>
+                                    )}
                                     <div>
                                         <div className="flex items-center justify-between mb-3">
                                             <h2 className="text-base font-semibold text-foreground">Requests</h2>

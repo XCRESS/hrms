@@ -13,7 +13,16 @@ import {
     useAdminAttendanceGrid, rowFor, windowStats, type EmployeeAttendance,
 } from './adminAttendance/useAdminAttendanceGrid';
 
-export default function AdminAttendanceTable() {
+interface AdminAttendanceTableProps {
+    title?: string;
+    /** Hides the edit action; for supervisors, who can view but not correct. */
+    readOnly?: boolean;
+}
+
+export default function AdminAttendanceTable({
+    title = 'Attendance Overview',
+    readOnly = false,
+}: AdminAttendanceTableProps) {
     const {
         monthValue, visibleDays, offset, maxOffset, range, setMonth, stepWindow,
     } = useAdminAttendanceMonth();
@@ -33,7 +42,7 @@ export default function AdminAttendanceTable() {
             <div className="mb-4 sm:mb-6 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                     <h3 className="text-lg sm:text-xl font-bold text-foreground truncate">
-                        Attendance Overview
+                        {title}
                     </h3>
                     <AdminAttendanceToolbar
                         monthValue={monthValue}
@@ -60,14 +69,16 @@ export default function AdminAttendanceTable() {
                 <AdminAttendanceGrid
                     records={records}
                     days={visibleDays}
-                    onEdit={handleEdit}
+                    onEdit={readOnly ? undefined : handleEdit}
                 />
             )}
 
-            <AdminEditAttendanceModal
-                target={editTarget}
-                onClose={() => setEditTarget(null)}
-            />
+            {!readOnly && (
+                <AdminEditAttendanceModal
+                    target={editTarget}
+                    onClose={() => setEditTarget(null)}
+                />
+            )}
         </div>
     );
 }

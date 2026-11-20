@@ -22,11 +22,13 @@ export const FIELD_KEY = /^[a-z]+\.[A-Za-z0-9_]+$/;
 
 const NODE_TYPES = [
   'doc', 'paragraph', 'heading', 'text', 'hardBreak', 'bulletList', 'orderedList', 'listItem',
-  'table', 'tableRow', 'tableHeader', 'tableCell', 'pageBreak', 'field',
+  'table', 'tableRow', 'tableHeader', 'tableCell', 'pageBreak', 'field', 'horizontalRule',
 ] as const;
 
-const COLOR = /^(#[0-9a-f]{6}|rgb\(\d{1,3}, ?\d{1,3}, ?\d{1,3}\))$/i;
+const COLOR = /^([a-z]{3,20}|#[0-9a-f]{6}|rgb\(\d{1,3}, ?\d{1,3}, ?\d{1,3}\))$/i;
 const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
+const FONT_SIZE = /^\d{1,3}(\.\d{1,4})?(pt|px)$/;
+const LINE_HEIGHT = /^\d(\.\d{1,2})?$/;
 
 const opt = <T extends z.ZodType>(schema: T) => schema.nullable().optional();
 
@@ -41,6 +43,7 @@ const nodeAttrsSchema = z.object({
   colwidth: opt(z.array(z.number().int().min(0).max(2000)).max(50)),
   key: opt(z.string().regex(FIELD_KEY, 'Invalid field key')),
   format: opt(z.enum(FIELD_FORMATS)),
+  indent: opt(z.number().int().min(0).max(8)),
 });
 
 const plainMark = (type: string) => z.object({ type: z.literal(type), attrs: z.record(z.string(), z.unknown()).optional() });
@@ -53,7 +56,17 @@ const markSchema = z.discriminatedUnion('type', [
   plainMark('superscript'),
   plainMark('subscript'),
   z.object({ type: z.literal('link'), attrs: z.object({ href: z.string().max(2000).regex(SAFE_HREF, 'Links must be http(s) or mailto') }) }),
-  z.object({ type: z.literal('textStyle'), attrs: z.object({ color: opt(z.string().regex(COLOR, 'Invalid colour')) }).optional() }),
+  z.object({
+    type: z.literal('textStyle'),
+    attrs: z
+      .object({
+        color: opt(z.string().regex(COLOR, 'Invalid colour')),
+        backgroundColor: opt(z.string().regex(COLOR, 'Invalid highlight colour')),
+        fontSize: opt(z.string().regex(FONT_SIZE, 'Invalid text size')),
+        lineHeight: opt(z.string().regex(LINE_HEIGHT, 'Invalid line spacing')),
+      })
+      .optional(),
+  }),
 ]);
 
 export const letterNodeSchema: z.ZodType<LetterNode> = z
@@ -168,6 +181,9 @@ export const letterListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type LetterListQuery = z.infer<typeof letterListQuerySchema>;
+
+export const importDocxSchema = z.object({ employee: objectIdSchema.optional() });
+export type ImportDocxInput = z.infer<typeof importDocxSchema>;
 
 export const companyParamsSchema = z.object({ companyId: objectIdSchema });
 export type CompanyParams = z.infer<typeof companyParamsSchema>;

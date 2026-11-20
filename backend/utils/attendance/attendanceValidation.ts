@@ -16,6 +16,7 @@ import {
 import { formatResponse } from './attendanceHelpers.js';
 import type { IAuthRequest, IEmployee } from '../../types/index.js';
 import type { Types } from 'mongoose';
+import { resolveScope, scopeIncludes } from '../../services/access/index.js';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -58,31 +59,32 @@ export const getEmployeeObjectId = async (
 };
 
 /**
- * Validate employee access (employees can only access their own data)
+ * Admin/HR see anyone; others see themselves and their attendance.view scope.
  */
 export const validateEmployeeAccess = async (
   req: IAuthRequest,
   employeeId: string
 ): Promise<AuthorizationResult> => {
-  // Admin/HR can access any employee data
   if (['admin', 'hr'].includes(req.user?.role || '')) {
     return { authorized: true };
   }
 
-  // Regular employees can only access their own data
-  const userEmployeeObjId = await getEmployeeObjectId(req.user);
-  const requestedEmployee = await Employee.findOne({ employeeId });
+  const denied: AuthorizationResult = {
+    authorized: false,
+    error: formatResponse(false, ERROR_MESSAGES.EMPLOYEE_ACCESS_ONLY) as { success: false; message: string },
+    statusCode: HTTP_STATUS.FORBIDDEN
+  };
 
-  if (!userEmployeeObjId || !requestedEmployee ||
-    userEmployeeObjId.toString() !== requestedEmployee._id.toString()) {
-    return {
-      authorized: false,
-      error: formatResponse(false, ERROR_MESSAGES.EMPLOYEE_ACCESS_ONLY) as { success: false; message: string },
-      statusCode: HTTP_STATUS.FORBIDDEN
-    };
+  const requestedEmployee = await Employee.findOne({ employeeId }).select('_id').lean();
+  if (!req.user || !requestedEmployee) return denied;
+
+  const userEmployeeObjId = await getEmployeeObjectId(req.user);
+  const isSelf = !!userEmployeeObjId && userEmployeeObjId.equals(requestedEmployee._id);
+  if (!isSelf && !scopeIncludes(await resolveScope(req.user, 'attendance.view'), requestedEmployee._id)) {
+    return denied;
   }
 
-  return { authorized: true, employeeObjectId: userEmployeeObjId };
+  return { authorized: true, employeeObjectId: requestedEmployee._id };
 };
 
 // ============================================================================

@@ -3,6 +3,7 @@ import { checkInSchema, checkOutSchema, geofenceCheckSchema, updateAttendanceRec
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { checkIn, checkOut, checkGeofence, getAttendance, getMissingCheckouts, getMyAttendance, getTodayAttendanceWithAbsents, getAdminAttendanceRange, getEmployeeAttendanceWithAbsents, updateAttendanceRecord } from "../controllers/attendance.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { requirePermission } from "../middlewares/access.middleware.js";
 
 const router: Router = Router();
 
@@ -33,11 +34,10 @@ router.get("/records", authMiddleware(), noCacheMiddleware, getAttendance);
 // Employee-specific attendance with pagination
 router.get("/my", authMiddleware(), noCacheMiddleware, getMyAttendance);
 
-// Admin/HR: Get today's attendance for all employees (including absent ones)
-router.get("/today-with-absents", HR_ONLY, noCacheMiddleware, getTodayAttendanceWithAbsents);
+const CAN_VIEW_ATTENDANCE = [authMiddleware(), requirePermission('attendance.view')];
 
-// Admin/HR: Get attendance data for a date range - optimized for AdminAttendanceTable
-router.get("/admin-range", HR_ONLY, noCacheMiddleware, getAdminAttendanceRange);
+router.get("/today-with-absents", CAN_VIEW_ATTENDANCE, noCacheMiddleware, getTodayAttendanceWithAbsents);
+router.get("/admin-range", CAN_VIEW_ATTENDANCE, noCacheMiddleware, getAdminAttendanceRange);
 
 // Get employee attendance with absent days included
 router.get("/employee-with-absents", authMiddleware(), noCacheMiddleware, getEmployeeAttendanceWithAbsents);
