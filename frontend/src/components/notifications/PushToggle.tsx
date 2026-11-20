@@ -34,14 +34,20 @@ export default function PushToggle({ compact = false }: { compact?: boolean }) {
 
   if (state === 'prompt') {
     return (
-      <div className={compact ? 'flex items-center justify-between gap-3' : 'space-y-3'}>
+      <div className={compact ? 'flex flex-wrap items-center justify-between gap-3' : 'space-y-3'}>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <BellOff className="size-4" />
           Get check-in reminders and approvals on this device
         </p>
         <Button size="sm" disabled={enable.isPending} onClick={() => enable.mutate()}>
-          {enable.isPending ? 'Enabling…' : 'Turn on'}
+          {enable.isPending ? 'Enabling…' : enable.isError ? 'Try again' : 'Turn on'}
         </Button>
+        {enable.isError && (
+          <p role="alert" className="flex basis-full items-start gap-2 text-xs text-destructive">
+            <ShieldAlert className="size-4 shrink-0 mt-0.5" />
+            {enable.error.message}
+          </p>
+        )}
       </div>
     );
   }

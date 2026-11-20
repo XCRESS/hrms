@@ -1,6 +1,7 @@
 import useProfilePicture from '../../hooks/useProfilePicture';
+import { cn } from '@/lib/utils';
 
-const Avatar = ({ name }: { name: string }) => {
+const Avatar = ({ name, className }: { name: string; className?: string }) => {
   const { imageUrl } = useProfilePicture();
   const firstLetter = name.charAt(0).toUpperCase();
   const bgColors = [
@@ -18,15 +19,16 @@ const Avatar = ({ name }: { name: string }) => {
     return (
       <img
         src={imageUrl}
-        alt={name}
-        className="h-7 w-7 min-w-7 shrink-0 rounded-full object-cover object-center"
+        alt=""
+        className={cn('h-7 w-7 min-w-7 shrink-0 rounded-full object-cover object-center', className)}
       />
     );
   }
 
   return (
     <div
-      className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-white text-sm font-medium ${color}`}
+      aria-hidden="true"
+      className={cn('h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-white text-sm font-medium', color, className)}
     >
       {firstLetter}
     </div>

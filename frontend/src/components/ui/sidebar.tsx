@@ -88,13 +88,13 @@ export const Sidebar = ({
 
 export const SidebarBody = ({
   tabs,
+  menu,
   ...props
-}: React.ComponentProps<"div"> & { tabs?: Links[] }) => {
+}: React.ComponentProps<"div"> & { tabs?: Links[]; menu?: React.ReactNode }) => {
   return (
     <>
-      {/* `tabs` is mobile-only: the desktop rail shows every link already. */}
       <DesktopSidebar {...props} />
-      <MobileSidebar tabs={tabs} {...props} />
+      <MobileSidebar tabs={tabs} menu={menu} className={props.className} />
     </>
   );
 };
@@ -154,17 +154,17 @@ export const DesktopSidebar = ({
 };
 
 /**
- * Mobile navigation: a fixed bottom tab bar plus an overflow drawer.
+ * Mobile navigation: a fixed bottom tab bar plus a full-screen menu.
  *
  * `tabs` are the primary destinations, one tap each in the thumb zone;
- * `children` is the full link list, shown in the drawer behind "More".
+ * `menu` is the page pushed in by the "more" button.
  */
 export const MobileSidebar = ({
   className,
-  children,
+  menu,
   tabs = [],
   ...props
-}: React.ComponentProps<"div"> & { tabs?: Links[] }) => {
+}: React.ComponentProps<"div"> & { tabs?: Links[]; menu?: React.ReactNode }) => {
   const { open, setOpen } = useSidebar();
   return (
     <div
@@ -209,9 +209,8 @@ export const MobileSidebar = ({
           </NavLink>
         ))}
 
-        {/* Opens the drawer holding every destination that is not a tab. */}
         <DialogPrimitive.Trigger
-          aria-label="More navigation options"
+          aria-label="Menu"
           className={cn(
             "flex flex-1 items-center justify-center min-h-14 px-1 transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
@@ -224,31 +223,23 @@ export const MobileSidebar = ({
           <IconDots className="h-6 w-6 shrink-0" aria-hidden="true" />
         </DialogPrimitive.Trigger>
 
-        {/* Radix supplies the focus trap, ESC handling, scroll lock, inert
-            background and aria-modal that the hand-rolled overlay lacked. */}
         <DialogPortal>
           <DialogOverlay className="md:hidden" />
+          {/* `menu` must render a DialogTitle — Radix requires one for aria-modal labelling. */}
           <DialogPrimitive.Content
             aria-describedby={undefined}
             className={cn(
-              // Slides up from the bottom, matching where the trigger lives.
-              "fixed inset-x-0 bottom-0 z-100 flex max-h-[85dvh] flex-col overflow-y-auto rounded-t-2xl bg-sidebar p-6 shadow-xl md:hidden",
-              "duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out",
-              "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+              "fixed inset-0 z-100 flex flex-col bg-background md:hidden",
+              "duration-250 ease-out data-[state=open]:animate-in data-[state=closed]:animate-out",
+              "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+              "motion-reduce:animate-none"
             )}
-            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+            style={{
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
           >
-            {/* Required for aria-modal labelling; visually hidden because the
-                drawer shows navigation, not a heading. */}
-            <DialogPrimitive.Title className="sr-only">
-              Navigation menu
-            </DialogPrimitive.Title>
-            {/* Grab handle: the affordance that says "this sheet dismisses". */}
-            <div
-              aria-hidden="true"
-              className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-sidebar-foreground/20"
-            />
-            {children}
+            {menu}
           </DialogPrimitive.Content>
         </DialogPortal>
       </Dialog>

@@ -85,13 +85,35 @@ export async function getPushState(): Promise<PushState> {
   return 'prompt';
 }
 
-/** Must run inside a user gesture: it may show the browser's permission prompt. */
+/**
+ * Must run inside a user gesture: it may show the browser's permission prompt.
+ * Throws with a user-facing message when it can't finish, so the caller never
+ * silently stays on "Turn on".
+ */
 export async function enablePush(): Promise<PushState> {
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return permission === 'denied' ? 'denied' : 'prompt';
-  const subscription = await subscribe();
+  if (permission === 'denied') return 'denied';
+  if (permission !== 'granted') {
+    // Chrome on Android resolves 'default' without showing anything once it has
+    // quieted or embargoed the prompt, so tell the user where the switch is.
+    throw new Error(
+      'Notifications were not allowed. If no prompt appeared, tap the icon left of the address bar → Permissions → Notifications → Allow, then try again.'
+    );
+  }
+  let subscription: PushSubscription | null;
+  try {
+    subscription = await subscribe();
+  } catch {
+    throw new Error(
+      "This device couldn't reach its push service. On Android, make sure Google Play services is enabled and up to date, then try again."
+    );
+  }
   if (!subscription) return 'unconfigured';
-  await register(subscription);
+  try {
+    await register(subscription);
+  } catch {
+    throw new Error("Couldn't save this device. Check your connection and try again.");
+  }
   return 'subscribed';
 }
 

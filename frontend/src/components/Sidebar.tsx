@@ -35,6 +35,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { detachPushOnLogout } from "@/services/pushClient";
 import ServiceWorkerBridge from "./notifications/ServiceWorkerBridge";
 import FestiveThemeSync from "./festive/FestiveThemeSync";
+import MoreMenu from "./MoreMenu";
 
 interface User {
   name?: string;
@@ -48,13 +49,11 @@ interface LinkItem {
   onClick?: () => void;
   icon: React.ReactNode;
   activeIcon?: React.ReactNode;
+  /** Heading the link is grouped under in the mobile menu; unsectioned links are left out of it. */
+  section?: string;
 }
 
-/**
- * Layout route for every authenticated page: renders the persistent sidebar
- * once and swaps only the <Outlet />. Was named `SidebarDemo`, a leftover from
- * the component this was originally adapted from.
- */
+/** Layout route for every authenticated page: renders the sidebar once and swaps only the <Outlet />. */
 export default function AppLayout() {
   // All hooks must be called at the top level, before any conditional returns.
   const location = useLocation();
@@ -133,46 +132,55 @@ export default function AppLayout() {
             },
             {
               label: "Expenses",
+              section: "Workspace",
               href: "/admin/expenses",
               icon: <Receipt className={iconClass} />,
             },
             {
               label: "Holidays",
+              section: "Workspace",
               href: "/holidays",
               icon: <CalendarDays className={iconClass} />,
             },
             {
               label: "Announcements",
+              section: "Workspace",
               href: "/announcements",
               icon: <Megaphone className={iconClass} />,
             },
             {
               label: "Policies",
+              section: "Workspace",
               href: "/policies",
               icon: <Shield className={iconClass} />,
             },
             {
               label: "Task Reports",
+              section: "People & payroll",
               href: "/task-reports",
               icon: <FileText className={iconClass} />,
             },
             {
               label: "Salary",
+              section: "People & payroll",
               href: "/salary",
               icon: <DollarSign className={iconClass} />,
             },
             {
               label: "Letters",
+              section: "People & payroll",
               href: "/letters",
               icon: <FilePen className={iconClass} />,
             },
             {
               label: "HR Buddy",
+              section: "Tools",
               href: "/chatbot",
               icon: <MessageCircle className={iconClass} />,
             },
             {
               label: "Settings",
+              section: "Preferences",
               href: "/settings",
               icon: <Settings className={iconClass} />,
             },
@@ -181,46 +189,55 @@ export default function AppLayout() {
       ? [
             {
               label: "Attendance",
+              section: "Your work",
               href: "/attendance/my",
               icon: <CalendarDays className={iconClass} />,
             },
             {
               label: "Task Reports",
+              section: "Your work",
               href: "/task-reports/my",
               icon: <FileText className={iconClass} />,
             },
             {
               label: "Salary Slips",
+              section: "Your work",
               href: "/salary-slips/my",
               icon: <Receipt className={iconClass} />,
             },
             {
               label: "My Letters",
+              section: "Your work",
               href: "/letters/my",
               icon: <FilePen className={iconClass} />,
             },
             {
               label: "Requests",
+              section: "Your work",
               href: "/requests",
               icon: <FileText className={iconClass} />,
             },
             {
               label: "Expenses",
+              section: "Your work",
               href: "/expenses/my",
               icon: <Receipt className={iconClass} />,
             },
             {
               label: "Holidays",
+              section: "Company",
               href: "/holidays",
               icon: <CalendarDays className={iconClass} />,
             },
             {
               label: "Announcements",
+              section: "Company",
               href: "/announcements",
               icon: <Megaphone className={iconClass} />,
             },
             {
               label: "Appearance",
+              section: "Preferences",
               href: "/appearance",
               icon: <Palette className={iconClass} />,
             },
@@ -254,23 +271,22 @@ export default function AppLayout() {
         {/* No border class here: this className reaches both the desktop rail
             and the mobile bottom bar, and each needs its own edge (right vs
             top). They set their own in ui/sidebar.tsx. */}
-        <SidebarBody className="justify-between gap-4 z-50" tabs={mobileTabs}>
+        <SidebarBody
+          className="justify-between gap-4 z-50"
+          tabs={mobileTabs}
+          menu={
+            <MoreMenu
+              user={user}
+              items={links.filter((link) => !mobileTabs.some((t) => t.href === link.href))}
+              onLogout={handleLogout}
+            />
+          }
+        >
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto scrollbar-hide min-h-0">
             <div className="mt-4 flex flex-col gap-0.5">
-              {links.map((link, idx) => {
-                // Destinations already in the mobile bottom bar are hidden from
-                // the "More" drawer, which otherwise repeats them one tap away
-                // from where the user just was. The desktop rail still shows
-                // every link, since it has no bottom bar.
-                const inMobileTabs = mobileTabs.some((t) => t.href === link.href);
-                return (
-                  <SidebarLink
-                    key={idx}
-                    link={link}
-                    className={inMobileTabs ? "max-md:hidden" : undefined}
-                  />
-                );
-              })}
+              {links.map((link, idx) => (
+                <SidebarLink key={idx} link={link} />
+              ))}
             </div>
           </div>
           <div className="shrink-0 pt-2 border-t border-sidebar-border">
