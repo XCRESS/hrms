@@ -177,7 +177,12 @@ class EmailService {
     }
   }
 
-  async send(to: string, subject: string, htmlContent: string, options: { replyTo?: string } = {}): Promise<EmailResult> {
+  async send(
+    to: string,
+    subject: string,
+    htmlContent: string,
+    options: { replyTo?: string; attachments?: Array<{ filename: string; content: Buffer }> } = {}
+  ): Promise<EmailResult> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -195,7 +200,11 @@ class EmailService {
           to: [to],
           subject,
           html: htmlContent,
-          ...(options.replyTo ? { replyTo: options.replyTo } : {})
+          ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+          // Resend's SDK serialises Buffers wrongly; it expects base64 strings.
+          ...(options.attachments?.length
+            ? { attachments: options.attachments.map((a) => ({ filename: a.filename, content: a.content.toString('base64') })) }
+            : {})
         });
 
         if (error) {

@@ -7,6 +7,7 @@ import {
   Megaphone,
   LogOut,
   FileText,
+  FilePen,
   Receipt,
   DollarSign,
   MessageCircle,
@@ -118,11 +119,8 @@ export default function AppLayout() {
       href: "/dashboard",
       icon: <LayoutDashboard className={iconClass} />,
     },
-    // HR/admin links
-    ...(() => {
-      try {
-        if (user && (user.role === "hr" || user.role === "admin")) {
-          return [
+    ...((isHR
+      ? [
             {
               label: "Employees",
               href: "/employees",
@@ -164,6 +162,11 @@ export default function AppLayout() {
               icon: <DollarSign className={iconClass} />,
             },
             {
+              label: "Letters",
+              href: "/letters",
+              icon: <FilePen className={iconClass} />,
+            },
+            {
               label: "HR Buddy",
               href: "/chatbot",
               icon: <MessageCircle className={iconClass} />,
@@ -173,9 +176,9 @@ export default function AppLayout() {
               href: "/settings",
               icon: <Settings className={iconClass} />,
             },
-          ] as LinkItem[];
-        } else if (user && user.role === "employee") {
-          return [
+        ]
+      : user?.role === "employee"
+      ? [
             {
               label: "Attendance",
               href: "/attendance/my",
@@ -190,6 +193,11 @@ export default function AppLayout() {
               label: "Salary Slips",
               href: "/salary-slips/my",
               icon: <Receipt className={iconClass} />,
+            },
+            {
+              label: "My Letters",
+              href: "/letters/my",
+              icon: <FilePen className={iconClass} />,
             },
             {
               label: "Requests",
@@ -216,13 +224,8 @@ export default function AppLayout() {
               href: "/appearance",
               icon: <Palette className={iconClass} />,
             },
-          ] as LinkItem[];
-        }
-      } catch (err) {
-        console.error("Sidebar role check failed", err);
-      }
-      return [];
-    })(),
+        ]
+      : []) as LinkItem[]),
     {
       label: "Logout",
       onClick: handleLogout,

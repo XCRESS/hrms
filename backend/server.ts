@@ -63,11 +63,13 @@ app.use(generalLimiter);
 
 // Document upload route BEFORE JSON middleware
 import documentRoutes from "./routes/document.js";
+import letterUploadRoutes from "./routes/letterUpload.routes.js";
 app.use("/api/documents", documentRoutes);
+app.use("/api/letters", letterUploadRoutes);
 
 // JSON middleware for all other routes.
-// File uploads never reach this — /api/documents is mounted above and uses multer,
-// so no JSON body legitimately needs more than a bulk array of IDs.
+// File uploads never reach this — /api/documents and the letter uploads are mounted
+// above and use multer, so no JSON body legitimately needs more than a bulk array of IDs.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(assistantAudit);
@@ -131,6 +133,7 @@ import officeLocationRoutes from "./routes/officeLocation.js";
 import wfhRequestRoutes from "./routes/wfhRequest.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
+import letterRoutes from "./routes/letter.routes.js";
 import festiveRoutes from "./routes/festive.routes.js";
 import tetrisRoutes from "./features/tetris/tetris.routes.js";
 
@@ -171,6 +174,7 @@ app.use("/api/office-locations", officeLocationRoutes);
 app.use("/api/wfh-requests", wfhRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/letters", letterRoutes);
 app.use("/health", healthRoutes);
 app.use("/api/tetris", tetrisRoutes);
 app.use("/api/festive", festiveRoutes);

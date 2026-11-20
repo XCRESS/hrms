@@ -43,6 +43,13 @@ const AssistantPage = lazy(() => import('./components/assistant/AssistantPage'))
 const MyExpenses = lazy(() => import('./components/employee/MyExpenses'));
 const ExpenseManagement = lazy(() => import('./components/hr/ExpenseManagement'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
+const LettersPage = lazy(() => import('./components/hr/letters/LettersPage'));
+const NewLetterPage = lazy(() => import('./components/hr/letters/NewLetterPage'));
+const LetterPage = lazy(() => import('./components/hr/letters/LetterPage'));
+const LetterTemplatesPage = lazy(() => import('./components/hr/letters/LetterTemplatesPage'));
+const LetterTemplateEditorPage = lazy(() => import('./components/hr/letters/LetterTemplateEditorPage'));
+const LetterheadSettingsPage = lazy(() => import('./components/hr/letters/LetterheadSettingsPage'));
+const MyLetters = lazy(() => import('./components/employee/MyLetters'));
 
 // Routes only admin/HR may reach. Employees hitting these URLs directly are
 // redirected to /dashboard instead of rendering a shell that 403s on every call.
@@ -148,6 +155,17 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                             <Route path="/admin">
                                                 <Route path="requests" element={<RequireRole roles={HR_ONLY}><AdminRequestsPage /></RequireRole>} />
                                                 <Route path="expenses" element={<RequireRole roles={HR_ONLY}><ExpenseManagement /></RequireRole>} />
+                                            </Route>
+
+                                            <Route path="/letters">
+                                                <Route index element={<RequireRole roles={HR_ONLY}><LettersPage /></RequireRole>} />
+                                                <Route path="new" element={<RequireRole roles={HR_ONLY}><NewLetterPage /></RequireRole>} />
+                                                <Route path="templates" element={<RequireRole roles={HR_ONLY}><LetterTemplatesPage /></RequireRole>} />
+                                                <Route path="templates/new" element={<RequireRole roles={HR_ONLY}><LetterTemplateEditorPage /></RequireRole>} />
+                                                <Route path="templates/:id" element={<RequireRole roles={HR_ONLY}><LetterTemplateEditorPage /></RequireRole>} />
+                                                <Route path="letterheads" element={<RequireRole roles={HR_ONLY}><LetterheadSettingsPage /></RequireRole>} />
+                                                <Route path="my" element={<MyLetters />} />
+                                                <Route path=":id" element={<RequireRole roles={HR_ONLY}><LetterPage /></RequireRole>} />
                                             </Route>
 
                                             <Route path="/chatbot" element={<RequireRole roles={HR_ONLY}><AssistantPage /></RequireRole>} />

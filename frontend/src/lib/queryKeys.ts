@@ -218,4 +218,17 @@ export const queryKeys = {
     thread: (id: string) => ['assistant', 'thread', id] as const,
     messages: (id: string) => ['assistant', 'messages', id] as const,
   },
+
+  letters: {
+    all: () => ['letters'] as const,
+    fields: () => ['letters', 'fields'] as const,
+    templates: (all?: boolean) => ['letters', 'templates', { all: Boolean(all) }] as const,
+    template: (id: string) => ['letters', 'template', id] as const,
+    letterhead: (companyId: string) => ['letters', 'letterhead', companyId] as const,
+    lists: () => ['letters', 'list'] as const,
+    list: (params: object) => ['letters', 'list', params] as const,
+    detail: (id: string) => ['letters', 'detail', id] as const,
+    wording: (id: string) => ['letters', 'wording', id] as const,
+    mine: () => ['letters', 'mine'] as const,
+  },
 } as const;

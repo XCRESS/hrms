@@ -260,6 +260,16 @@ export const NOTIFICATION_CATALOG = {
     ttl: DAY,
     urgency: 'low',
   },
+  letter_issued: {
+    category: 'people',
+    build: (d) => ({
+      title: 'New letter',
+      body: `Your ${text(d.title, 'letter')} is ready to view.`,
+      url: '/letters/my',
+    }),
+    ttl: 7 * DAY,
+    urgency: 'normal',
+  },
   test: {
     category: 'company',
     build: () => ({

@@ -878,3 +878,26 @@ html[data-theme='diwali'] ::selection {
   background-size: 24px 24px;
   opacity: 0.06;
 }
+@font-face { font-family: 'Carlito'; src: url('/fonts/Carlito-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/Carlito-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/Carlito-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/Carlito-BoldItalic.ttf') format('truetype'); font-weight: 700; font-style: italic; font-display: swap; }
+
+/* Mirrors backend/services/letters/render.ts so the editor and the PDF wrap lines alike. */
+.letter-content { font-family: 'Carlito', sans-serif; font-size: 11pt; line-height: 1.25; color: #000; min-height: 200px; }
+.letter-content p { margin: 0 0 6pt; }
+.letter-content h1 { font-size: 16pt; font-weight: 700; margin: 0 0 8pt; }
+.letter-content h2 { font-size: 13pt; font-weight: 700; margin: 0 0 6pt; }
+.letter-content h3 { font-size: 11pt; font-weight: 700; margin: 0 0 6pt; }
+.letter-content ul, .letter-content ol { margin: 0 0 6pt; padding-left: 1.5em; }
+.letter-content ul { list-style: disc; }
+.letter-content ol { list-style: decimal; }
+.letter-content li > p { margin: 0; }
+.letter-content a { color: inherit; text-decoration: underline; }
+.letter-content table { width: 100%; border-collapse: collapse; margin: 0 0 6pt; }
+.letter-content th, .letter-content td { border: 0.75pt solid #000; padding: 3pt 6pt; vertical-align: top; text-align: left; }
+.letter-content th { font-weight: 700; }
+.letter-content .selectedCell { background: rgb(68 114 196 / 0.15); }
+.letter-content .page-break { position: relative; height: 0; margin: 14pt 0; border-top: 1px dashed #9ca3af; }
+.letter-content .page-break::after { content: 'Page break'; position: absolute; left: 50%; top: -0.7em; transform: translateX(-50%); padding: 0 6px; font-family: system-ui, sans-serif; font-size: 11px; color: #6b7280; background: #fff; }
+.letter-content .page-break.ProseMirror-selectednode { border-top-color: #4472c4; }

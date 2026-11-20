@@ -257,6 +257,24 @@ export const API_ENDPOINTS = {
     FILE: (id: string) => `/assistant/files/${id}`,
     EXPORT: '/assistant/export',
   },
+  LETTERS: {
+    BASE: '/letters',
+    FIELDS: '/letters/fields',
+    MINE: '/letters/mine',
+    TEMPLATES: '/letters/templates',
+    TEMPLATE: (id: string) => `/letters/templates/${id}`,
+    TEMPLATE_PREVIEW: '/letters/templates/preview',
+    IMPORT_DOCX: '/letters/import-docx',
+    LETTERHEAD: (companyId: string) => `/letters/letterheads/${companyId}`,
+    LETTERHEAD_PREVIEW: (companyId: string) => `/letters/letterheads/${companyId}/preview`,
+    LETTER: (id: string) => `/letters/${id}`,
+    WORDING: (id: string) => `/letters/${id}/wording`,
+    PREVIEW: (id: string) => `/letters/${id}/preview`,
+    ISSUE: (id: string) => `/letters/${id}/issue`,
+    SEND: (id: string) => `/letters/${id}/send`,
+    VOID: (id: string) => `/letters/${id}/void`,
+    PDF: (id: string) => `/letters/${id}/pdf`,
+  },
 } as const;
 
 // Helper function to build query string

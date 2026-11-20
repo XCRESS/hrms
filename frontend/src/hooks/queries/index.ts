@@ -25,3 +25,4 @@ export * from './useExpenses';
 export * from './useGiftGame';
 export * from './useFestiveGames';
 export * from './useAssistant';
+export * from './useLetters';
