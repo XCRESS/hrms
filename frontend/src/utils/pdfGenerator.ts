@@ -1,7 +1,6 @@
-import { formatIndianNumber, convertToWords } from './indianNumber';
+import { formatIndianNumber } from './indianNumber';
 import type { Company } from '@/types';
 
-// Types for salary slip PDF generation - minimal local types for flexibility
 interface Earnings {
   basic: number;
   hra: number;
@@ -48,20 +47,65 @@ interface SalarySlipForPDF {
   employee?: EmployeeInfo;
 }
 
-// Sanitize HTML to prevent XSS attacks
+interface LineItem {
+  label: string;
+  value: number;
+}
+
 const escapeHtml = (text: unknown): string => {
-  if (!text) return '';
+  if (text === null || text === undefined || text === '') return '';
   const div = document.createElement('div');
   div.textContent = String(text);
   return div.innerHTML;
 };
 
+const formatDate = (value?: string): string => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return 'N/A';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${date.getFullYear()}`;
+};
+
+const buildEarnings = (slip: SalarySlipForPDF): LineItem[] => [
+  { label: 'Basic Salary', value: slip.earnings?.basic ?? 0 },
+  { label: 'HRA', value: slip.earnings?.hra ?? 0 },
+  { label: 'Conveyance Allowance', value: slip.earnings?.conveyance ?? 0 },
+  { label: 'Medical Allowance', value: slip.earnings?.medical ?? 0 },
+  { label: 'LTA', value: slip.earnings?.lta ?? 0 },
+  { label: 'Special Allowance', value: slip.earnings?.specialAllowance ?? 0 },
+  { label: 'Mobile Allowance', value: slip.earnings?.mobileAllowance ?? 0 },
+];
+
+const buildDeductions = (slip: SalarySlipForPDF): LineItem[] => {
+  const custom = (slip.deductions?.customDeductions ?? [])
+    .filter((d) => d.amount > 0)
+    .map((d) => ({ label: d.name, value: d.amount }));
+  return [...custom, { label: 'Income Tax', value: slip.deductions?.incomeTax ?? 0 }];
+};
+
+const renderRows = (items: LineItem[]): string =>
+  items
+    .map(
+      (item) => `
+        <div class="row">
+          <div class="cell">${escapeHtml(item.label)}</div>
+          <div class="cell amount">${formatIndianNumber(item.value)}</div>
+        </div>`
+    )
+    .join('');
+
+const renderDetail = (label: string, value: string): string => `
+  <div class="detail">
+    <span class="detail-label">${label}</span>
+    <span class="detail-colon">:</span>
+    <span class="detail-value">${value}</span>
+  </div>`;
+
 /**
- * Download salary slip as PDF
- * @param slip - The salary slip data
- * @param employeeName - Employee's full name
- * @param monthName - Month name string
- * @param employeeData - Optional additional employee data
+ * Opens the salary slip in a new window and triggers the browser print dialog
+ * (users save it as PDF from there).
  */
 export const downloadSalarySlipPDF = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,7 +116,6 @@ export const downloadSalarySlipPDF = (
   employeeData: EmployeeInfo | any = null,
   companies: Company[] = []
 ): void => {
-  // Create a new window for PDF
   const printWindow = window.open('', '_blank');
 
   if (!printWindow) {
@@ -80,396 +123,309 @@ export const downloadSalarySlipPDF = (
     return;
   }
 
-  // Get base URL for assets (absolute path for blob context)
-  const baseUrl = window.location.origin;
-  const companyLogo = `${baseUrl}/cfg-logo.jpg`; // Logo from public folder with absolute path
+  // Absolute URL: the print window is about:blank, so relative paths don't resolve.
+  const companyLogo = `${window.location.origin}/cfg-logo.jpg`;
 
   const companyName: string = employeeData?.companyName || slip.employee?.companyName || '';
   const companyAddress = companies.find((c) => c.name.toLowerCase() === companyName.toLowerCase())?.address ?? '';
 
-  // Generate netSalaryInWords using shared utility if not provided
-  const netSalaryInWords = slip.netSalaryInWords || convertToWords(slip.netSalary);
+  const fallbackName = employeeData
+    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim()
+    : slip.employee
+      ? `${slip.employee.firstName || ''} ${slip.employee.lastName || ''}`.trim()
+      : 'N/A';
+  const pick = (key: keyof EmployeeInfo): string =>
+    escapeHtml(employeeData?.[key] || slip.employee?.[key] || 'N/A');
 
-  // Sanitize all user-provided data
-  const safeCompanyName = escapeHtml(companyName);
-  const safeCompanyAddress = escapeHtml(companyAddress);
-  const safeEmployeeName = escapeHtml(employeeName && employeeName.trim() !== '' ? employeeName : (employeeData ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() : (slip.employee ? `${slip.employee.firstName || ''} ${slip.employee.lastName || ''}`.trim() : 'N/A')));
-  const safeMonthName = escapeHtml(monthName);
-  const safeEmployeeId = escapeHtml(slip.employeeId);
-  const safeDepartment = escapeHtml(employeeData?.department || slip.employee?.department || 'N/A');
-  const safePosition = escapeHtml(employeeData?.position || slip.employee?.position || 'N/A');
-  const safeBankName = escapeHtml(employeeData?.bankName || slip.employee?.bankName || 'N/A');
-  const safeBankAccountNumber = escapeHtml(employeeData?.bankAccountNumber || slip.employee?.bankAccountNumber || 'N/A');
-  const safePanNumber = escapeHtml(employeeData?.panNumber || slip.employee?.panNumber || 'N/A');
-  const safeNetSalaryInWords = escapeHtml(netSalaryInWords);
+  const safeEmployeeName = escapeHtml(employeeName?.trim() ? employeeName : fallbackName);
+  const safePeriod = escapeHtml(`${monthName} ${slip.year}`.toUpperCase());
+  const joiningDate = escapeHtml(formatDate(employeeData?.joiningDate || slip.employee?.joiningDate));
 
   const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-      <title>Salary Slip - ${safeEmployeeName}</title>
+      <title>Salary Slip - ${safeEmployeeName} - ${safePeriod}</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          color: #333;
-          line-height: 1.4;
+        @page { size: A4 landscape; margin: 8mm; }
+
+        :root {
+          --navy: #0f2f7a;
+          --blue: #1f63ad;
+          --tint: #d6e9fb;
+          --tint-soft: #eaf4fd;
+          --line: #9cc7ee;
+          --text: #1b2a4a;
         }
 
-        .container {
-          max-width: 800px;
-          margin: 0 auto;
-          border: 2px solid #000;
-          padding: 0;
+        * { box-sizing: border-box; }
+
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          margin: 0;
+          padding: 16px;
+          color: var(--text);
+          background: #fff;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
+
+        .slip { width: 1040px; margin: 0 auto; break-inside: avoid; }
 
         .header {
+          position: relative;
           display: flex;
           align-items: center;
-          padding: 20px;
-          border-bottom: 2px solid #000;
-          background-color: #f8f9fa;
-        }
-
-        .logo {
-          width: 80px;
-          height: 80px;
-          margin-right: 20px;
-          border-radius: 8px;
-        }
-
-        .company-info {
-          flex: 1;
-        }
-
-        .company-name {
-          font-size: 24px;
-          font-weight: bold;
-          margin: 0;
-          color: #2c3e50;
-        }
-
-        .company-address {
-          font-size: 14px;
-          color: #7f8c8d;
-          margin: 5px 0 0 0;
-          line-height: 1.3;
-        }
-
-        .payslip-info {
-          text-align: right;
-        }
-
-        .payslip-title {
-          font-size: 20px;
-          font-weight: bold;
-          margin: 0;
-          color: #e74c3c;
-        }
-
-        .period {
-          font-size: 16px;
-          margin: 5px 0 0 0;
-          color: #7f8c8d;
-        }
-
-        .employee-details {
-          padding: 20px;
-          background-color: #f8f9fa;
-          border-bottom: 1px solid #dee2e6;
-        }
-
-        .employee-details h3 {
-          margin: 0 0 15px 0;
-          font-size: 18px;
-          color: #2c3e50;
-          border-bottom: 1px solid #bdc3c7;
-          padding-bottom: 5px;
-        }
-
-        .employee-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 15px;
-        }
-
-        .employee-field {
-          display: flex;
-        }
-
-        .field-label {
-          font-weight: bold;
-          width: 120px;
-          color: #34495e;
-        }
-
-        .field-value {
-          color: #2c3e50;
-        }
-
-        .salary-section {
-          padding: 20px;
-        }
-
-        .salary-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 20px;
-          background-color: #fff;
-        }
-
-        .salary-table th {
-          background-color: #34495e;
-          color: white;
-          padding: 12px 8px;
-          text-align: left;
-          font-weight: bold;
-        }
-
-        .salary-table td {
-          border: 1px solid #dee2e6;
-          padding: 10px 8px;
-        }
-
-        .salary-table tbody tr:nth-child(even) {
-          background-color: #f8f9fa;
-        }
-
-        .earnings-header {
-          background-color: #27ae60 !important;
-        }
-
-        .deductions-header {
-          background-color: #e74c3c !important;
-        }
-
-        .amount {
-          text-align: right;
-          font-weight: 500;
-        }
-
-        .total-row {
-          font-weight: bold;
-          background-color: #ecf0f1 !important;
-          border-top: 2px solid #34495e;
-        }
-
-        .net-salary {
-          background-color: #2c3e50;
-          color: white;
-          padding: 15px 20px;
+          justify-content: center;
+          min-height: 84px;
+          padding: 2px 200px 8px;
+          border-bottom: 2px solid var(--navy);
           text-align: center;
+        }
+        .company-info { width: 100%; min-width: 0; }
+        .company-name {
+          margin: 0;
+          font-size: 30px;
+          font-weight: 700;
+          color: var(--navy);
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        .company-address {
+          margin: 6px 0 0;
+          font-size: 16px;
+          line-height: 1.35;
+          text-wrap: balance;
+        }
+        .logo {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 170px;
+          height: 88px;
+          object-fit: cover;
+          mix-blend-mode: multiply;
+        }
+
+        .title-bar {
+          margin-top: 12px;
+          padding: 10px 16px;
+          background: var(--tint);
+          border-radius: 8px;
+          font-size: 19px;
+          font-weight: 700;
+          color: var(--navy);
+          letter-spacing: 0.3px;
+        }
+
+        .panel {
+          margin-top: 10px;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .panel-heading {
+          padding: 7px 16px;
+          background: var(--tint);
           font-size: 18px;
-          font-weight: bold;
-          margin: 20px 0;
+          font-weight: 700;
+          color: var(--navy);
+        }
+        .details {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          column-gap: 32px;
+          padding: 8px 20px 10px;
+        }
+        .detail {
+          display: grid;
+          grid-template-columns: 150px 24px 1fr;
+          padding: 3px 0;
+          font-size: 15px;
+        }
+        .detail-label { font-weight: 700; color: var(--navy); }
+        .detail-colon { color: var(--navy); }
+        .detail-value { word-break: break-word; }
+
+        .tables {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-top: 12px;
+        }
+        .table {
+          display: flex;
+          flex-direction: column;
+          border: 1px solid var(--line);
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .table-title {
+          padding: 7px 16px;
+          background: var(--blue);
+          color: #fff;
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .row {
+          display: grid;
+          grid-template-columns: 1fr 200px;
+          border-bottom: 1px solid #cfe3f6;
+          font-size: 14.5px;
+        }
+        .cell { padding: 5px 16px; }
+        .cell + .cell { border-left: 1px solid var(--line); }
+        .amount { text-align: right; }
+        .row.head {
+          background: var(--tint-soft);
+          font-weight: 700;
+          color: var(--navy);
+          font-size: 15px;
+        }
+        .rows { flex: 1; }
+        .row.total {
+          border-bottom: none;
+          border-top: 1px solid var(--line);
+          background: var(--tint);
+          font-weight: 700;
+          color: var(--navy);
+          font-size: 15.5px;
         }
 
-        .amount-words {
-          background-color: #f8f9fa;
-          border: 1px solid #dee2e6;
-          padding: 15px 20px;
-          margin-top: 20px;
-          border-radius: 5px;
+        .net {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 22px;
+          margin-top: 14px;
+          padding: 12px 16px;
+          background: var(--tint);
+          border-radius: 8px;
+          font-size: 19px;
+          font-weight: 700;
+          color: var(--navy);
         }
+        .net-divider { width: 2px; height: 28px; background: var(--navy); }
 
-        .amount-words-label {
-          font-weight: bold;
-          color: #2c3e50;
-          display: block;
-          margin-bottom: 5px;
+        .footnote {
+          margin: 10px 0 0;
+          text-align: center;
+          font-size: 13px;
+          color: var(--navy);
         }
-
-
 
         @media print {
-          body { margin: 0; padding: 0; }
-          .container { border: none; }
+          body { padding: 0; }
         }
       </style>
     </head>
     <body>
-      <div class="container">
-        <!-- Header -->
+      <div class="slip">
         <div class="header">
-          <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'">
           <div class="company-info">
-            <h1 class="company-name">${safeCompanyName}</h1>
-            ${safeCompanyAddress ? `<p class="company-address">${safeCompanyAddress}</p>` : ''}
+            <h1 class="company-name">${escapeHtml(companyName)}</h1>
+            ${companyAddress ? `<p class="company-address">${escapeHtml(companyAddress)}</p>` : ''}
           </div>
-          <div class="payslip-info">
-            <h2 class="payslip-title">PAYSLIP</h2>
-            <p class="period">${safeMonthName} ${slip.year}</p>
-          </div>
+          <img src="${companyLogo}" alt="" class="logo" onerror="this.style.display='none'">
         </div>
 
-        <!-- Employee Details -->
-        <div class="employee-details">
-          <h3>Employee Details</h3>
-          <div class="employee-grid">
-            <div class="employee-field">
-              <span class="field-label">Employee ID:</span>
-              <span class="field-value">${safeEmployeeId}</span>
+        <div class="title-bar">SALARY SLIP &ndash; ${safePeriod}</div>
+
+        <div class="panel">
+          <div class="panel-heading">Employee Details</div>
+          <div class="details">
+            <div>
+              ${renderDetail('Employee ID', escapeHtml(slip.employeeId))}
+              ${renderDetail('Department', pick('department'))}
+              ${renderDetail('Position', pick('position'))}
+              ${renderDetail('Bank Name', pick('bankName'))}
+              ${renderDetail('Joining Date', joiningDate)}
             </div>
-            <div class="employee-field">
-              <span class="field-label">Name:</span>
-              <span class="field-value">${safeEmployeeName}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">Department:</span>
-              <span class="field-value">${safeDepartment}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">Position:</span>
-              <span class="field-value">${safePosition}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">Bank Name:</span>
-              <span class="field-value">${safeBankName}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">A/C Number:</span>
-              <span class="field-value">${safeBankAccountNumber}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">Joining Date:</span>
-              <span class="field-value">${(() => { const joiningDate = employeeData?.joiningDate || slip.employee?.joiningDate; return joiningDate ? new Date(joiningDate).toLocaleDateString('en-IN') : 'N/A'; })()}</span>
-            </div>
-            <div class="employee-field">
-              <span class="field-label">PAN Number:</span>
-              <span class="field-value">${safePanNumber}</span>
+            <div>
+              ${renderDetail('Name', safeEmployeeName)}
+              ${renderDetail('A/C Number', pick('bankAccountNumber'))}
+              ${renderDetail('PAN Number', pick('panNumber'))}
             </div>
           </div>
         </div>
 
-        <!-- Salary Table -->
-        <div class="salary-section">
-          <table class="salary-table">
-            <thead>
-              <tr>
-                <th class="earnings-header">EARNINGS</th>
-                <th class="earnings-header">AMOUNT (₹)</th>
-                <th class="deductions-header">DEDUCTIONS</th>
-                <th class="deductions-header">AMOUNT (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${generateSalaryRows(slip)}
-              <tr class="total-row">
-                <td><strong>GROSS SALARY</strong></td>
-                <td class="amount"><strong>₹${formatIndianNumber(slip.grossSalary)}</strong></td>
-                <td><strong>TOTAL DEDUCTIONS</strong></td>
-                <td class="amount"><strong>₹${formatIndianNumber(slip.totalDeductions)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="net-salary">
-            <strong>NET SALARY: ₹${formatIndianNumber(slip.netSalary)}</strong>
+        <div class="tables">
+          <div class="table">
+            <div class="table-title">EARNINGS</div>
+            <div class="row head">
+              <div class="cell">Earnings Component</div>
+              <div class="cell amount">Amount (&#8377;)</div>
+            </div>
+            <div class="rows">${renderRows(buildEarnings(slip))}</div>
+            <div class="row total">
+              <div class="cell">Total Earnings</div>
+              <div class="cell amount">${formatIndianNumber(slip.grossSalary)}</div>
+            </div>
           </div>
 
-          <div class="amount-words">
-            <span class="amount-words-label">Amount in Words:</span>
-            ${safeNetSalaryInWords}
+          <div class="table">
+            <div class="table-title">DEDUCTIONS</div>
+            <div class="row head">
+              <div class="cell">Deduction Component</div>
+              <div class="cell amount">Amount (&#8377;)</div>
+            </div>
+            <div class="rows">${renderRows(buildDeductions(slip))}</div>
+            <div class="row total">
+              <div class="cell">Total Deductions</div>
+              <div class="cell amount">${formatIndianNumber(slip.totalDeductions)}</div>
+            </div>
           </div>
         </div>
 
+        <div class="net">
+          <span>NET SALARY</span>
+          <span class="net-divider"></span>
+          <span>&#8377;${formatIndianNumber(slip.netSalary)}</span>
+        </div>
 
+        <p class="footnote">This salary slip is system-generated and does not require signature.</p>
       </div>
     </body>
     </html>
   `;
 
-  // Write content directly to the new window and trigger print
-  // Using document.write is safe here since we're controlling all the content
-  // and have already escaped all user-provided data
   printWindow.document.open();
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 
-  // Wait for content and images to load before printing
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-    }, 300);
-  };
-
-  // Fallback: If onload doesn't fire (some browsers), trigger print after a delay
-  setTimeout(() => {
-    if (printWindow.document.readyState === 'complete') {
-      printWindow.focus();
-      printWindow.print();
+  // A4 landscape minus 8mm margins leaves ~733px of height; long deduction
+  // lists would otherwise push Net Salary onto a second page.
+  const PRINTABLE_HEIGHT_PX = 720;
+  const fitCompanyName = () => {
+    const nameEl = printWindow.document.querySelector<HTMLElement>('.company-name');
+    if (!nameEl) return;
+    for (let size = 30; size >= 18 && nameEl.scrollWidth > nameEl.clientWidth; size--) {
+      nameEl.style.fontSize = `${size}px`;
     }
-  }, 1000);
-};
-
-// Helper function to generate salary rows - only show non-zero values
-const generateSalaryRows = (slip: SalarySlipForPDF): string => {
-  // Helper to escape HTML in the row generation context
-  const escapeHtml = (text: unknown): string => {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = String(text);
-    return div.innerHTML;
   };
 
-  interface EarningDeductionItem {
-    label: string;
-    value: number;
-  }
+  const fitToSinglePage = () => {
+    const slipEl = printWindow.document.querySelector<HTMLElement>('.slip');
+    if (!slipEl) return;
+    slipEl.style.zoom = '1';
+    const scale = PRINTABLE_HEIGHT_PX / slipEl.scrollHeight;
+    if (scale < 1) slipEl.style.zoom = String(Math.floor(scale * 100) / 100);
+  };
 
-  const earnings: EarningDeductionItem[] = [
-    { label: 'Basic Salary', value: slip.earnings.basic },
-    { label: 'HRA', value: slip.earnings.hra },
-    { label: 'Conveyance Allowance', value: slip.earnings.conveyance },
-    { label: 'Medical Allowance', value: slip.earnings.medical },
-    { label: 'LTA', value: slip.earnings.lta },
-    { label: 'Special Allowance', value: slip.earnings.specialAllowance },
-    { label: 'Mobile Allowance', value: slip.earnings.mobileAllowance }
-  ].filter(item => item.value > 0); // Only show non-zero earnings
+  let printed = false;
+  const triggerPrint = () => {
+    if (printed) return;
+    printed = true;
+    fitCompanyName();
+    fitToSinglePage();
+    printWindow.focus();
+    printWindow.print();
+  };
 
-  // Build deductions array including custom deductions
-  const deductions: EarningDeductionItem[] = [];
-
-  // Add custom deductions first (sanitize custom names to prevent XSS)
-  if (slip.deductions?.customDeductions && slip.deductions.customDeductions.length > 0) {
-    slip.deductions.customDeductions.forEach((customDeduction: CustomDeduction) => {
-      if (customDeduction.amount > 0) {
-        deductions.push({
-          label: escapeHtml(customDeduction.name),
-          value: customDeduction.amount
-        });
-      }
-    });
-  }
-
-  // Add income tax if greater than 0
-  if (slip.deductions?.incomeTax && slip.deductions.incomeTax > 0) {
-    deductions.push({
-      label: 'Income Tax (TDS)',
-      value: slip.deductions.incomeTax
-    });
-  }
-
-  const maxRows = Math.max(earnings.length, deductions.length);
-  let rows = '';
-
-  for (let i = 0; i < maxRows; i++) {
-    const earning = earnings[i];
-    const deduction = deductions[i];
-
-    rows += `
-      <tr>
-        <td>${earning ? earning.label : ''}</td>
-        <td class="amount">${earning ? '₹' + formatIndianNumber(earning.value) : ''}</td>
-        <td>${deduction ? deduction.label : ''}</td>
-        <td class="amount">${deduction ? '₹' + formatIndianNumber(deduction.value) : ''}</td>
-      </tr>
-    `;
-  }
-
-  return rows;
+  printWindow.onload = () => setTimeout(triggerPrint, 300);
+  setTimeout(() => {
+    if (printWindow.document.readyState === 'complete') triggerPrint();
+  }, 1000);
 };
