@@ -76,6 +76,7 @@ const letterSchema = new Schema<ILetter>(
 
 letterSchema.index({ employee: 1, createdAt: -1 });
 letterSchema.index({ status: 1, createdAt: -1 });
-letterSchema.index({ referenceNo: 1 }, { unique: true, sparse: true });
+// Numbers repeat across companies (each has its own sequence), so uniqueness is per company.
+letterSchema.index({ company: 1, referenceNo: 1 }, { unique: true, partialFilterExpression: { referenceNo: { $type: 'string' } } });
 
 export default mongoose.model<ILetter>('Letter', letterSchema);

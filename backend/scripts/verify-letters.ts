@@ -28,6 +28,8 @@ import { importWordLetter, sampleValues, templateFieldProblems } from '../servic
 import { AlignmentType, Document, HeadingLevel, ImageRun, LevelFormat, Packer, PageBreak, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx';
 import { docxToDoc } from '../services/letters/docx.js';
 import { detectFields } from '../services/letters/detect.js';
+import { applyFieldMapping, countSuggestionPlaces } from '../services/letters/mapping.js';
+import Letter from '../models/Letter.model.js';
 import { assertIssuable, assertWordingBody, buildDraftValues, finalDoc, withLetterValues, wordingBody } from '../services/letters/issue.js';
 import { fillTokens, renderEmailText } from '../services/letters/email.js';
 import { assertResolvable, collectFieldKeys, resolveFields } from '../services/letters/resolve.js';
@@ -505,6 +507,73 @@ await section('detectFields turns a real person’s details into fields', () => 
   const p4 = out.content![4]!.content!;
   assert.deepEqual(p4.filter((n) => n.type === 'field').map((n) => [n.attrs!.key, n.attrs!.format ?? null]), [['employee.joiningDate', 'dotted'], ['employee.position', null]]);
   assert.deepEqual(found, { 'employee.salutation': 1, 'employee.fullName': 1, 'employee.code': 1, 'employee.firstName': 1, 'employee.joiningDate': 2, 'employee.position': 1 });
+});
+
+await section('applyFieldMapping maps catalogue fields, creates new details, joins split addresses', () => {
+  const doc = letterDocSchema.parse({ type: 'doc', content: [
+    block(tx('Dated: - 30.07.2025')),
+    block(tx('Mr. Veshant Singh Dahiya', [{ type: 'bold' }])),
+    block(tx('P-50, second floor,')),
+    block(tx('Sector 75,')),
+    block(tx('HR- 121004')),
+    block(tx('Positioned in '), tx('BERYL 13', [{ type: 'bold' }]), tx(' with '), tx('3 months', [{ type: 'bold' }]), tx(' probation.')),
+    block(tx('Posted at Faridabad'), { type: 'hardBreak' }, tx('Sector 15')),
+  ] });
+  const result = applyFieldMapping(doc, 'employee', [], [
+    { text: '30.07.2025', field: 'letter.date', format: 'dotted' },
+    { text: 'Veshant Singh Dahiya', field: 'employee.fullName' },
+    { text: 'P-50, second floor,\nSector 75,\nHR- 121004', field: 'employee.address' },
+    { text: 'BERYL 13', newDetail: { label: 'Grade', type: 'text' } },
+    { text: '3 months', newDetail: { label: 'Probation period', type: 'text', usualValue: true } },
+    { text: 'Faridabad\nSector 15', newDetail: { label: 'Posting address', type: 'longText' } },
+    { text: 'not in the letter', field: 'employee.code' },
+    { text: 'Mr.', field: 'employee.salary' },
+  ]);
+  letterDocSchema.parse(result.doc);
+  const blocks = result.doc.content!;
+  assert.equal(blocks.length, 5, 'three address paragraphs become one');
+  assert.equal(blocks[0]!.content![1]!.attrs!.key, 'letter.date');
+  assert.equal(blocks[0]!.content![1]!.attrs!.format, 'dotted');
+  assert.deepEqual(blocks[1]!.content![1], { type: 'field', attrs: { key: 'employee.fullName' }, marks: [{ type: 'bold' }] });
+  assert.deepEqual(blocks[2]!.content, [{ type: 'field', attrs: { key: 'employee.address' } }]);
+  assert.deepEqual(result.askFields, [
+    { key: 'grade', label: 'Grade', type: 'text', required: true },
+    { key: 'probationPeriod', label: 'Probation period', type: 'text', required: false, default: '3 months' },
+    { key: 'postingAddress', label: 'Posting address', type: 'longText', required: true },
+  ]);
+  assert.deepEqual(blocks[3]!.content!.filter((n) => n.type === 'field').map((n) => n.attrs!.key), ['ask.grade', 'ask.probationPeriod']);
+  assert.deepEqual(blocks[4]!.content!.map((n) => (n.type === 'field' ? n.attrs!.key : n.text)), ['Posted at ', 'ask.postingAddress']);
+  assert.deepEqual(result.skipped, ['not in the letter', 'Mr.']);
+  assert.equal(result.applied.length, 6);
+});
+
+await section('reference numbers are unique per company, not across companies', () => {
+  const indexes = Letter.schema.indexes();
+  assert.ok(!indexes.some(([fields, opts]) => Object.keys(fields).join() === 'referenceNo' && opts?.unique), 'no global unique referenceNo index');
+  const perCompany = indexes.find(([fields]) => Object.keys(fields).join() === 'company,referenceNo');
+  assert.ok(perCompany?.[1]?.unique, 'unique per company');
+  assert.deepEqual(perCompany?.[1]?.partialFilterExpression, { referenceNo: { $type: 'string' } });
+});
+
+await section('detectFields matches the record’s exact capitals, so ordinary words stay', () => {
+  const doc = letterDocSchema.parse({ type: 'doc', content: [block(tx('Appointed as Manager. Report to your manager in Sales; sales targets apply.'))] });
+  const { doc: out, found } = detectFields(doc, { 'employee.position': 'Manager', 'employee.department': 'Sales' }, { 'employee.position': 'text', 'employee.department': 'text' });
+  assert.deepEqual(found, { 'employee.position': 1, 'employee.department': 1 });
+  assert.deepEqual(out.content![0]!.content!.map((n) => (n.type === 'field' ? `[${n.attrs!.key}]` : n.text)).join(''), 'Appointed as [employee.position]. Report to your manager in [employee.department]; sales targets apply.');
+});
+
+await section('countSuggestionPlaces says how often each suggestion appears', () => {
+  const doc = letterDocSchema.parse({ type: 'doc', content: [block(tx('3 months probation. Notice: 3 months.')), block(tx('Grade BERYL 13'))] });
+  assert.deepEqual(countSuggestionPlaces(doc, 'employee', [{ text: '3 months', newDetail: { label: 'Probation', type: 'text' } }, { text: 'BERYL 13', newDetail: { label: 'Grade', type: 'text' } }, { text: 'absent', field: 'employee.code' }]), [2, 1, 0]);
+});
+
+await section('docxToDoc refuses files that unpack to something huge', async () => {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  zip.file('word/document.xml', 'x'.repeat(60 * 1024 * 1024));
+  const bomb = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  assert.ok(bomb.length < 1024 * 1024, 'small when compressed');
+  await assert.rejects(docxToDoc(bomb), /too large/);
 });
 
 await section(

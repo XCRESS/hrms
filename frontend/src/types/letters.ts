@@ -130,8 +130,25 @@ export interface CreateLetterInput {
   values?: Record<string, string>;
 }
 
+export interface FieldSuggestion {
+  text: string;
+  field?: string;
+  newDetail?: { label: string; type: FieldType; usualValue?: boolean };
+  format?: FieldFormat;
+  /** How many places in the letter this text appears (all are replaced). */
+  places?: number;
+}
+
 export interface ImportedLetter {
   doc: LetterDoc;
   found: Array<{ key: string; label: string; count: number }>;
   warnings: string[];
+  suggestions: FieldSuggestion[];
+}
+
+export interface MappingResult {
+  doc: LetterDoc;
+  askFields: AskField[];
+  applied: Array<{ text: string; label: string; count: number }>;
+  skipped: string[];
 }

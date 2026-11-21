@@ -11,6 +11,7 @@ import {
   listLetters,
   myLetters,
   previewLetter,
+  previewUnsavedLetter,
   sendLetter,
   updateLetter,
   voidLetter,
@@ -26,6 +27,7 @@ import {
   previewTemplateSchema,
   templateListQuerySchema,
   updateTemplateSchema,
+  applyMappingSchema,
 } from '../validators/letter.schemas.js';
 import {
   createTemplate,
@@ -35,6 +37,7 @@ import {
   listTemplates,
   previewTemplate,
   updateTemplate,
+  applyMapping,
 } from '../controllers/letterTemplate.controllers.js';
 
 const router: Router = express.Router();
@@ -42,6 +45,7 @@ const hr = authMiddleware(['admin', 'hr']);
 const id = validateParams(letterIdParamsSchema);
 
 router.get('/fields', hr, getLetterFields);
+router.post('/apply-mapping', hr, validateBody(applyMappingSchema), applyMapping);
 
 router.get('/templates', hr, validateQuery(templateListQuerySchema), listTemplates);
 router.post('/templates', hr, validateBody(createTemplateSchema), createTemplate);
@@ -53,6 +57,7 @@ router.delete('/templates/:id', hr, id, deactivateTemplate);
 router.get('/', hr, validateQuery(letterListQuerySchema), listLetters);
 router.get('/mine', authMiddleware(['employee', 'hr', 'admin']), myLetters);
 router.post('/', hr, validateBody(createLetterSchema), createLetter);
+router.post('/preview', hr, validateBody(createLetterSchema), previewUnsavedLetter);
 router.get('/:id', hr, id, getLetter);
 router.put('/:id', hr, id, validateBody(updateLetterSchema), updateLetter);
 router.delete('/:id', hr, id, deleteLetter);

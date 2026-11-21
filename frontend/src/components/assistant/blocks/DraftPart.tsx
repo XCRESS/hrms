@@ -8,6 +8,8 @@ import { SalaryBatchBlock } from './SalaryBatchBlock';
 import { SalaryBlock } from './SalaryBlock';
 import { EmployeeStatusBlock, RoleChangeBlock } from './ConfirmActionBlock';
 import { AttendanceFixBlock } from './AttendanceFixBlock';
+import { LetterDraftBlock } from './LetterDraftBlock';
+import { LetterTemplateDraftBlock } from './LetterTemplateDraftBlock';
 
 /** A draft renders once, at its first revision's spot, always showing the latest revision; later revisions leave a pointer. */
 export function DraftPart({ draft, toolCallId }: { draft: Draft; toolName: string; toolCallId: string }) {
@@ -47,6 +49,10 @@ export function DraftPart({ draft, toolCallId }: { draft: Draft; toolName: strin
       return <RoleChangeBlock entries={entries} />;
     case 'employeeStatus':
       return <EmployeeStatusBlock entries={entries} />;
+    case 'letter':
+      return <LetterDraftBlock entries={entries} />;
+    case 'letterTemplate':
+      return <LetterTemplateDraftBlock entries={entries} />;
     default:
       return <FormBlock entries={entries} />;
   }

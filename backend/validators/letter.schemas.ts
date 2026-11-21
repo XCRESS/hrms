@@ -182,8 +182,27 @@ export const letterListQuerySchema = z.object({
 });
 export type LetterListQuery = z.infer<typeof letterListQuerySchema>;
 
-export const importDocxSchema = z.object({ employee: objectIdSchema.optional() });
+export const importDocxSchema = z.object({
+  employee: objectIdSchema.optional(),
+  kind: z.enum(['employee', 'manual']).default('employee'),
+  suggest: z.enum(['true', 'false']).optional(),
+});
 export type ImportDocxInput = z.infer<typeof importDocxSchema>;
+
+export const fieldSuggestionSchema = z.object({
+  text: z.string().min(1).max(2000),
+  field: z.string().regex(FIELD_KEY).optional(),
+  newDetail: z.object({ label: z.string().trim().min(1).max(80), type: z.enum(FIELD_TYPES), usualValue: z.boolean().optional() }).optional(),
+  format: z.enum(FIELD_FORMATS).optional(),
+});
+
+export const applyMappingSchema = z.object({
+  doc: letterDocSchema,
+  kind: z.enum(['employee', 'manual']),
+  askFields: z.array(z.object({ key: z.string().max(40), label: z.string().max(80) })).max(30).default([]),
+  suggestions: z.array(fieldSuggestionSchema).max(80),
+});
+export type ApplyMappingInput = z.infer<typeof applyMappingSchema>;
 
 export const companyParamsSchema = z.object({ companyId: objectIdSchema });
 export type CompanyParams = z.infer<typeof companyParamsSchema>;

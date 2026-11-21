@@ -6,6 +6,7 @@ import type { LetterDoc, LetterMark, LetterNode } from '../../validators/letter.
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const BASE_HALF_POINTS = 22;
 const TAB = '    ';
+const MAX_UNZIPPED_BYTES = 40 * 1024 * 1024;
 
 interface RunProps {
   bold?: boolean;
@@ -148,6 +149,8 @@ export const docxToDoc = async (buffer: Buffer): Promise<DocxResult> => {
   } catch {
     throw new ValidationError('This is not a Word (.docx) file');
   }
+  const unzipped = Object.values(zip.files).reduce((sum, f) => sum + ((f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0), 0);
+  if (unzipped > MAX_UNZIPPED_BYTES) throw new ValidationError('This Word file is too large to import');
   const documentXml = await zip.file('word/document.xml')?.async('string');
   if (!documentXml) throw new ValidationError('This is not a Word (.docx) file');
 

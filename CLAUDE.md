@@ -110,7 +110,7 @@ warranted, one line beats five.
 - Mongoose 8, one model per file. **`.lean()` on read-only queries**; not where
   you then `.save()`. Prefer projections for existence checks.
 - Email via **Resend**, Web Push via `services/pushService.ts`.
-- **Letters**: PDFs render in the Gotenberg Railway service (`GOTENBERG_URL`); issued letter PDFs live in MongoDB, never S3. Template bodies must pass `letterDocSchema` (allow-list). Editor CSS (`.letter-content`) mirrors `services/letters/render.ts` — change both. Checks: `pnpm exec tsx scripts/verify-letters.ts`.
+- **Letters**: PDFs render in the Gotenberg Railway service (`GOTENBERG_URL`); issued letter PDFs live in MongoDB, never S3. Template bodies must pass `letterDocSchema` (allow-list). Editor CSS (`.letter-content`) mirrors `services/letters/render.ts` — change both. AI field suggestions (`aiMapping.ts`) are only ever applied by exact text match (`mapping.ts`), never by letting the model rewrite the letter; keep its output schema bare (descriptions/enums/maxItems made it stop after one item). Checks: `pnpm exec tsx scripts/verify-letters.ts`.
 - **Notifications**: every type is declared in `services/notifications/catalog.ts`
   (copy, deep link, TTL, urgency, email template). Send through
   `NotificationService` — it writes the in-app inbox, pushes, and emails. Push

@@ -5,6 +5,9 @@ import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
 import type { ApiResponse } from '@/types';
 import type {
   CreateLetterInput,
+  FieldSuggestion,
+  LetterKind,
+  MappingResult,
   ImportedLetter,
   Letter,
   LetterDoc,
@@ -109,12 +112,20 @@ export const useSaveLetterhead = () => {
 
 export const useImportDocx = () =>
   useMutation({
-    mutationFn: async ({ file, employee }: { file: File; employee?: string }) => {
+    mutationFn: async ({ file, employee, kind, suggest }: { file: File; employee?: string; kind: LetterKind; suggest: boolean }) => {
       const form = new FormData();
       form.append('docx', file);
+      form.append('kind', kind);
+      if (suggest) form.append('suggest', 'true');
       if (employee) form.append('employee', employee);
       return unwrap<ImportedLetter>(await axiosInstance.post(API_ENDPOINTS.LETTERS.IMPORT_DOCX, form));
     },
+  });
+
+export const useApplyMapping = () =>
+  useMutation({
+    mutationFn: async (input: { doc: LetterDoc; kind: LetterKind; askFields: Array<{ key: string; label: string }>; suggestions: FieldSuggestion[] }) =>
+      unwrap<MappingResult>(await axiosInstance.post(API_ENDPOINTS.LETTERS.APPLY_MAPPING, input)),
   });
 
 export const useLetters = (params: LetterListParams) =>
@@ -193,6 +204,7 @@ export type PdfRequest =
   | { kind: 'template'; input: Pick<LetterTemplateInput, 'kind' | 'company' | 'body' | 'askFields'> }
   | { kind: 'letterhead'; companyId: string }
   | { kind: 'draft'; id: string }
+  | { kind: 'unsaved'; input: CreateLetterInput }
   | { kind: 'issued'; id: string };
 
 const fetchPdf = async (request: PdfRequest): Promise<Blob> => {
@@ -204,6 +216,8 @@ const fetchPdf = async (request: PdfRequest): Promise<Blob> => {
       return (await axiosInstance.post<Blob>(API_ENDPOINTS.LETTERS.LETTERHEAD_PREVIEW(request.companyId), undefined, blob)).data;
     case 'draft':
       return (await axiosInstance.post<Blob>(API_ENDPOINTS.LETTERS.PREVIEW(request.id), undefined, blob)).data;
+    case 'unsaved':
+      return (await axiosInstance.post<Blob>(API_ENDPOINTS.LETTERS.PREVIEW_UNSAVED, request.input, blob)).data;
     case 'issued':
       return (await axiosInstance.get<Blob>(API_ENDPOINTS.LETTERS.PDF(request.id), blob)).data;
   }

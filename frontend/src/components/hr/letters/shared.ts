@@ -9,6 +9,11 @@ const GROUP_LABEL: Record<FieldDef['group'], string> = {
   signatory: 'Signatory',
 };
 
+export const DEFAULT_TEMPLATE_EMAIL = {
+  subject: 'Your letter from {{company.name}}',
+  body: 'Dear {{recipient.name}},\n\nPlease find your letter attached.\n\nRegards,\n{{signatory.name}}\n{{signatory.designation}}',
+};
+
 export const ASK_GROUP = 'Details to fill in';
 
 /** Every field a template of this kind may use, in picker order. */

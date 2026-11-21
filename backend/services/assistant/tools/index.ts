@@ -12,6 +12,7 @@ import { approvalDraftTools } from './drafts/approvals.js';
 import { attendanceFixDraftTools } from './drafts/attendanceFix.js';
 import { profileTools } from './profile.js';
 import { fileTools } from './files.js';
+import { letterTools } from './letters.js';
 import type { AssistantToolDef, ToolContext } from './types.js';
 
 export const TOOL_REGISTRY: AssistantToolDef[] = [
@@ -27,6 +28,7 @@ export const TOOL_REGISTRY: AssistantToolDef[] = [
   ...approvalDraftTools,
   ...attendanceFixDraftTools,
   ...fileTools,
+  ...letterTools,
 ];
 
 export const buildToolsFor = (ctx: ToolContext): ToolSet => {

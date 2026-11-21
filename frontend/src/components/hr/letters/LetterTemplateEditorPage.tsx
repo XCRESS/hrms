@@ -8,23 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useCompanies, useLetterFields, useLetterPdf, useLetterTemplate, useLetterhead, useSaveLetterTemplate } from '@/hooks/queries';
-import type { ImportedLetter, LetterKind, LetterTemplate, LetterTemplateInput } from '@/types/letters';
+import type { LetterKind, LetterTemplate, LetterTemplateInput } from '@/types/letters';
 import { AskFieldsPanel } from './AskFieldsPanel';
 import { LetterEditor, type LetterEditorHandle } from './editor/LetterEditor';
 import { FieldListPanel } from './FieldListPanel';
 import { TokenTextEditor, type TokenTextEditorHandle } from './editor/TokenTextEditor';
 import { StarterPicker } from './StarterPicker';
 import type { StarterTemplate } from './starterTemplates';
-import { ImportWordDialog } from './ImportWordDialog';
+import { ImportWordDialog, type ImportOutcome } from './ImportWordDialog';
 import { PdfPreviewDialog } from './PdfPreviewDialog';
 import { usePdfPreview } from './usePdfPreview';
-import { collectFieldKeys, errorMessage, fieldOptionsFor, hasContent, keyFromLabel, removeFields } from './shared';
+import { DEFAULT_TEMPLATE_EMAIL, collectFieldKeys, errorMessage, fieldOptionsFor, hasContent, keyFromLabel, removeFields } from './shared';
 
 const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
-const DEFAULT_EMAIL = {
-  subject: 'Your letter from {{company.name}}',
-  body: 'Dear {{recipient.name}},\n\nPlease find your letter attached.\n\nRegards,\n{{signatory.name}}\n{{signatory.designation}}',
-};
 
 const draftKey = (id?: string) => `letter-template-draft:${id ?? 'new'}`;
 
@@ -43,7 +39,7 @@ const fromTemplate = (template?: LetterTemplate | StarterTemplate): LetterTempla
   company: template && 'company' in template ? template.company : '',
   body: template?.body ?? EMPTY_DOC,
   askFields: template?.askFields ?? [],
-  email: template?.email ?? DEFAULT_EMAIL,
+  email: template?.email ?? DEFAULT_TEMPLATE_EMAIL,
 });
 
 type EmailTarget = 'subject' | 'body';
@@ -81,7 +77,7 @@ const TemplateForm = ({ template, starter, startWithImport = false }: { template
   const { data: letterhead } = useLetterhead(form.company || undefined);
   const save = useSaveLetterTemplate();
   const [importing, setImporting] = useState(startWithImport);
-  const [summary, setSummary] = useState<ImportedLetter | null>(null);
+  const [summary, setSummary] = useState<ImportOutcome | null>(null);
   const pdf = useLetterPdf();
   const { preview, show, close } = usePdfPreview();
 
@@ -118,10 +114,13 @@ const TemplateForm = ({ template, starter, startWithImport = false }: { template
 
   const insertIntoEmail = (key: string) => (emailTarget === 'subject' ? subjectRef : bodyRef).current?.insertField(key);
 
-  const onImported = (result: ImportedLetter) => {
-    editorRef.current?.setDoc(result.doc);
+  const onImported = (outcome: ImportOutcome) => {
+    editorRef.current?.setDoc(outcome.doc);
+    const known = new Set(form.askFields.map((f) => f.key));
+    const added = outcome.newAskFields.filter((f) => !known.has(f.key));
+    if (added.length) patch({ askFields: [...form.askFields, ...added] });
     setImporting(false);
-    setSummary(result);
+    setSummary(outcome);
   };
 
   const onCreateDetail = (label: string, defaultValue?: string): string => {
@@ -226,8 +225,8 @@ const TemplateForm = ({ template, starter, startWithImport = false }: { template
         <div className="space-y-1 rounded-md border border-border bg-muted/50 px-4 py-3 text-sm" role="status">
           <div className="flex items-start justify-between gap-2">
             <p className="font-medium">
-              {summary.found.length
-                ? `Imported. Turned ${summary.found.reduce((n, f) => n + f.count, 0)} details into fields: ${summary.found.map((f) => (f.count > 1 ? `${f.label} ×${f.count}` : f.label)).join(', ')}.`
+              {summary.converted.length
+                ? `Imported. Turned ${summary.converted.reduce((n, f) => n + f.count, 0)} details into fields: ${summary.converted.map((f) => (f.count > 1 ? `${f.label} ×${f.count}` : f.label)).join(', ')}.`
                 : 'Imported.'}
             </p>
             <Button variant="ghost" size="sm" onClick={() => setSummary(null)}>Dismiss</Button>
@@ -273,6 +272,8 @@ const TemplateForm = ({ template, starter, startWithImport = false }: { template
         <ImportWordDialog
           kind={form.kind}
           replacing={hasContent(form.body)}
+          fields={fields}
+          askFields={form.askFields}
           onClose={() => setImporting(false)}
           onImported={onImported}
           onError={(error) => toast({ variant: 'error', title: 'Import failed', description: errorMessage(error) })}

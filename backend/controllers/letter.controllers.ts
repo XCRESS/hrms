@@ -1,7 +1,5 @@
 import type { Response } from 'express';
 import type { FilterQuery } from 'mongoose';
-import Company from '../models/Company.model.js';
-import Employee from '../models/Employee.model.js';
 import Letter, { type ILetter } from '../models/Letter.model.js';
 import LetterTemplate from '../models/LetterTemplate.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -15,10 +13,10 @@ import { formatResponse } from '../utils/response.js';
 import { getValidatedParams, getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
 import type { CreateLetterInput, LetterIdParams, LetterListQuery, SendLetterInput, UpdateLetterInput, VoidLetterInput } from '../validators/letter.schemas.js';
-import type { LetterEmployee } from '../services/letters/fields.js';
-import { assertWordingBody, buildDraftValues, issueLetter, renderDraftPdf, withLetterValues, wordingBody } from '../services/letters/issue.js';
+import { assertWordingBody, finalDoc, issueLetter, renderDraftPdf, withLetterValues, wordingBody } from '../services/letters/issue.js';
+import { prepareLetter } from '../services/letters/prepare.js';
+import { renderLetterPdf } from '../services/letters/render.js';
 import { loadLetterhead } from '../services/letters/letterheads.js';
-import { EMPLOYEE_FIELDS } from '../services/letters/person.js';
 import { sendPdf, toBuffer } from '../services/letters/upload.js';
 
 const LIST_PROJECTION = '-pdf -body -values';
@@ -77,31 +75,7 @@ export const getLetter = asyncHandler(async (req: IAuthRequest, res: Response) =
 
 export const createLetter = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const input = req.body as CreateLetterInput;
-  const template = await LetterTemplate.findOne({ _id: input.template, active: true }).select('name kind company askFields').lean();
-  if (!template) throw new NotFoundError('Template not found');
-
-  const company = await Company.findById(template.company).select('name address').lean();
-  if (!company) throw new NotFoundError('The template’s company no longer exists');
-
-  let employee: (LetterEmployee & { _id: unknown; companyName?: string }) | null = null;
-  if (template.kind === 'employee') {
-    if (!input.employee) throw new ValidationError('Choose an employee for this letter');
-    employee = await Employee.findById(input.employee).select(EMPLOYEE_FIELDS).lean<LetterEmployee & { _id: unknown; companyName?: string }>();
-    if (!employee) throw new NotFoundError('Employee not found');
-  } else if (!input.recipient) {
-    throw new ValidationError('Enter the recipient’s name and email');
-  }
-
-  const letterhead = await loadLetterhead(template.company);
-  const values = buildDraftValues({
-    kind: template.kind,
-    askFields: template.askFields,
-    employee: employee ?? undefined,
-    company,
-    letterhead,
-    recipient: input.recipient,
-    overrides: input.values,
-  });
+  const { template, employee, values, employeeCompanyMismatch } = await prepareLetter(input);
 
   const letter = await Letter.create({
     template: template._id,
@@ -113,8 +87,14 @@ export const createLetter = asyncHandler(async (req: IAuthRequest, res: Response
     values,
     createdBy: req.user!._id,
   });
-  const employeeCompanyMismatch = Boolean(employee?.companyName && employee.companyName.toLowerCase() !== company.name.toLowerCase());
   res.status(201).json(formatResponse(true, 'Draft created', { ...letter.toObject(), employeeCompanyMismatch }));
+});
+
+/** DRAFT-stamped PDF of a letter that hasn't been saved: HR Buddy previews without leaving drafts behind. */
+export const previewUnsavedLetter = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { template, letterhead, values } = await prepareLetter(req.body as CreateLetterInput);
+  const doc = finalDoc(template.body, withLetterValues(values, letterhead.referencePrefix, new Date()), template.askFields);
+  sendPdf(res, await renderLetterPdf(doc, letterhead, { draft: true }), `draft ${values['recipient.name'] ?? 'letter'}`);
 });
 
 export const updateLetter = asyncHandler(async (req: IAuthRequest, res: Response) => {

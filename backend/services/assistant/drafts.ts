@@ -21,7 +21,9 @@ export type DraftKind =
   | 'salaryBatch'
   | 'roleChange'
   | 'employeeStatus'
-  | 'attendanceFix';
+  | 'attendanceFix'
+  | 'letter'
+  | 'letterTemplate';
 
 export type Receipt = ReceiptInput;
 

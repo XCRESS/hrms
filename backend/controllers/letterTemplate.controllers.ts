@@ -6,13 +6,15 @@ import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { formatResponse } from '../utils/response.js';
 import { getValidatedParams, getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
 import type { IAuthRequest } from '../types/index.js';
-import type { CreateTemplateInput, ImportDocxInput, LetterIdParams, PreviewTemplateInput, TemplateListQuery, UpdateTemplateInput } from '../validators/letter.schemas.js';
+import type { ApplyMappingInput, CreateTemplateInput, ImportDocxInput, LetterIdParams, PreviewTemplateInput, TemplateListQuery, UpdateTemplateInput } from '../validators/letter.schemas.js';
 import { AUTO_FIELDS, RECIPIENT_FIELDS, fieldLabelsFor, fieldTypesFor } from '../services/letters/fields.js';
 import { loadLetterhead } from '../services/letters/letterheads.js';
 import { renderLetterPdf } from '../services/letters/render.js';
 import { assertResolvable, humanizeKey, resolveFields } from '../services/letters/resolve.js';
 import { importWordLetter, sampleValues, templateFieldProblems } from '../services/letters/templates.js';
 import { personValues } from '../services/letters/person.js';
+import { suggestFieldMapping } from '../services/letters/aiMapping.js';
+import { applyFieldMapping, countSuggestionPlaces } from '../services/letters/mapping.js';
 import { sendPdf, singleUpload } from '../services/letters/upload.js';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -89,7 +91,16 @@ export const previewTemplate = asyncHandler(async (req: IAuthRequest, res: Respo
 
 export const importDocx = asyncHandler(async (req: IAuthRequest, res: Response) => {
   if (!req.file) throw new ValidationError('Attach a .docx file');
-  const { employee } = req.body as ImportDocxInput;
+  const { employee, kind, suggest } = req.body as ImportDocxInput;
   const values = employee ? await personValues(employee) : undefined;
-  res.json(formatResponse(true, 'Word file converted', await importWordLetter(req.file.buffer, values)));
+  const imported = await importWordLetter(req.file.buffer, values);
+  const raw = suggest === 'true' ? await suggestFieldMapping(imported.doc, kind, req.user!.role) : [];
+  const places = countSuggestionPlaces(imported.doc, kind, raw);
+  const suggestions = raw.map((s, i) => ({ ...s, places: places[i] ?? 0 }));
+  res.json(formatResponse(true, 'Word file converted', { ...imported, suggestions }));
+});
+
+export const applyMapping = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { doc, kind, askFields, suggestions } = req.body as ApplyMappingInput;
+  res.json(formatResponse(true, 'Fields applied', applyFieldMapping(doc, kind, askFields, suggestions)));
 });

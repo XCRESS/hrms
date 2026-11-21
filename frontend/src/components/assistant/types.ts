@@ -42,7 +42,9 @@ export type DraftKind =
   | 'salaryBatch'
   | 'roleChange'
   | 'employeeStatus'
-  | 'attendanceFix';
+  | 'attendanceFix'
+  | 'letter'
+  | 'letterTemplate';
 
 export interface Receipt {
   at: string;
@@ -131,3 +133,24 @@ export const isToolError = (value: unknown): value is { kind: 'error'; message: 
 
 export const isResultView = (value: unknown): value is ResultView => (value as Partial<ResultView> | null)?.kind === 'result';
 export const isDraft = (value: unknown): value is Draft => (value as Partial<Draft> | null)?.kind === 'draft';
+
+export interface LetterDraftFields {
+  templateId: string;
+  templateName: string;
+  kind: 'employee' | 'manual';
+  employeeId: string | null;
+  employeeName: string | null;
+  entries: Array<{ key: string; label: string; type: 'text' | 'longText' | 'date' | 'money' | 'number'; required: boolean }>;
+  values: Record<string, string>;
+  sendTo: string;
+}
+
+export interface LetterTemplateDraftFields {
+  name: string;
+  kind: 'employee' | 'manual';
+  companyId: string | null;
+  body: import('@/types/letters').LetterDoc;
+  askFields: import('@/types/letters').AskField[];
+  applied: Array<{ text: string; label: string; count: number }>;
+  warnings: string[];
+}
