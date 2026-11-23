@@ -4,7 +4,7 @@
  */
 
 import crypto from 'crypto';
-import type { IAuthUser, IJWTPayload, IPaginationQuery } from '../types/index.js';
+import type { IAuthUser, IPaginationQuery } from '../types/index.js';
 
 /**
  * Validate required fields in request body
@@ -60,21 +60,6 @@ export function createDateRange(
   return { start, end };
 }
 
-/**
- * Check if user has permission to access employee data
- * @param user - Authenticated user
- * @param targetEmployeeId - Employee ID to access
- * @returns Has permission (true/false)
- */
-export function hasEmployeeAccess(user: IJWTPayload, targetEmployeeId: string): boolean {
-  // Admin and HR can access all employee data
-  if (user.role === 'admin' || user.role === 'hr') {
-    return true;
-  }
-
-  // Employees can only access their own data
-  return user.employeeId === targetEmployeeId;
-}
 
 /**
  * Sanitize user input to prevent XSS attacks

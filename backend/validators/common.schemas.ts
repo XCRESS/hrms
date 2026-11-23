@@ -83,7 +83,7 @@ export const paginationSchema = z.object({
 });
 
 // Employee ID validation
-export const employeeIdSchema = z.string().min(1, 'Employee ID is required').toUpperCase();
+export const employeeIdSchema = z.string().trim().min(1, 'Employee ID is required').toUpperCase();
 
 // Human name validation
 export const nameSchema = z
