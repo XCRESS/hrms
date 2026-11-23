@@ -11,7 +11,7 @@ import type { ApiResponse, Employee, CreateEmployeeDto, UpdateEmployeeDto, Emplo
 /**
  * Get all employees with optional filtering
  */
-export const useEmployees = (params?: EmployeeQueryParams) => {
+export const useEmployees = (params?: EmployeeQueryParams, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.employees.list(params),
     queryFn: async () => {
@@ -22,6 +22,7 @@ export const useEmployees = (params?: EmployeeQueryParams) => {
     // Active and inactive are separate query keys, so switching tabs would
     // otherwise render an empty list until the new fetch resolved.
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 };
 

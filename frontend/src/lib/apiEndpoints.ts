@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
 
   ACCESS: {
     ME: '/access/me',
+    TEAM: '/access/team',
     GRANTS: '/access/grants',
     GRANT: (id: string) => `/access/grants/${encodeURIComponent(id)}`,
   },
@@ -106,7 +107,7 @@ export const API_ENDPOINTS = {
     BASE: '/task-reports',
     SUBMIT: '/task-reports/submit',
     MY_REPORTS: '/task-reports/my',
-    ALL_REPORTS: '/task-reports',
+    ALL_REPORTS: '/task-reports/all',
   },
 
   // Holiday Management

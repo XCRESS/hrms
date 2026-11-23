@@ -14,9 +14,12 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { employeeDisplayName } from '@/components/hr/employeeDirectory/employeeName';
-import type { AccessGrant } from '@/types';
+import type { AccessGrant, AccessPermission } from '@/types';
 
-const PERMISSION = 'attendance.view' as const;
+const PERMISSION_OPTIONS: { value: AccessPermission; label: string; where: string }[] = [
+    { value: 'attendance.view', label: 'Attendance', where: 'a Team Attendance view on their dashboard' },
+    { value: 'taskReports.view', label: 'Task reports', where: 'Team reports on their Task Reports page' },
+];
 const PREVIEW = 6;
 
 type EditorState = { mode: 'add' } | { mode: 'edit'; grant: AccessGrant };
@@ -31,7 +34,7 @@ export default function AccessGrants() {
     const handleRemove = async (grant: AccessGrant) => {
         const ok = await confirm({
             title: 'Remove access?',
-            description: `${grant.user.name} will no longer see attendance for these ${grant.employees.length} employee(s). Their own reporting line is unaffected.`,
+            description: `${grant.user.name} loses "${grant.permissionLabel}" for these ${grant.employees.length} employee(s). Their own reporting line is unaffected.`,
             confirmText: 'Remove',
             destructive: true,
         });
@@ -56,7 +59,7 @@ export default function AccessGrants() {
                         Additional access
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                        Let someone see attendance for specific employees outside their reporting line.
+                        Let someone see attendance or task reports for specific employees outside their reporting line.
                     </p>
                 </div>
                 <Button onClick={() => setEditor({ mode: 'add' })} className="shrink-0">
@@ -132,7 +135,7 @@ export default function AccessGrants() {
                     <GrantEditor
                         key={editor.mode === 'edit' ? editor.grant._id : 'new'}
                         grant={editor.mode === 'edit' ? editor.grant : null}
-                        takenUserIds={grants.map((g) => g.user._id)}
+                        grants={grants}
                         onDone={() => setEditor(null)}
                     />
                 )}
@@ -142,10 +145,10 @@ export default function AccessGrants() {
 }
 
 function GrantEditor({
-    grant, takenUserIds, onDone,
+    grant, grants, onDone,
 }: {
     grant: AccessGrant | null;
-    takenUserIds: string[];
+    grants: AccessGrant[];
     onDone: () => void;
 }) {
     const { toast } = useToast();
@@ -153,13 +156,18 @@ function GrantEditor({
     const { data: employees = [] } = useEmployees({ status: 'active' });
     const upsert = useUpsertAccessGrant();
 
+    const [permission, setPermission] = useState<AccessPermission>(grant?.permission ?? 'attendance.view');
     const [userId, setUserId] = useState(grant?.user._id ?? '');
     const [selected, setSelected] = useState<Set<string>>(() => new Set(grant?.employees.map((e) => e._id)));
     const [search, setSearch] = useState('');
 
+    const alreadyGranted = (userId: string) =>
+        grants.some((g) => g.user._id === userId && g.permission === permission && g._id !== grant?._id);
     const candidates = users
-        .filter((u) => u.role === 'employee' && (u._id === grant?.user._id || !takenUserIds.includes(u._id)))
+        .filter((u) => u.role === 'employee' && !alreadyGranted(u._id))
         .sort((a, b) => a.name.localeCompare(b.name));
+    const userIsValid = !!grant || candidates.some((u) => u._id === userId);
+    const option = PERMISSION_OPTIONS.find((o) => o.value === permission) ?? PERMISSION_OPTIONS[0];
     const grantee = users.find((u) => u._id === userId);
 
     const needle = search.trim().toLowerCase();
@@ -179,7 +187,7 @@ function GrantEditor({
 
     const handleSave = async () => {
         try {
-            await upsert.mutateAsync({ userId, permission: PERMISSION, employeeIds: [...selected] });
+            await upsert.mutateAsync({ userId, permission, employeeIds: [...selected] });
             toast({ variant: 'success', title: 'Access saved' });
             onDone();
         } catch (err) {
@@ -194,17 +202,33 @@ function GrantEditor({
     return (
         <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>{grant ? `Edit access for ${grant.user.name}` : 'Grant attendance access'}</DialogTitle>
+                <DialogTitle>{grant ? `Edit ${grant.permissionLabel.toLowerCase()} for ${grant.user.name}` : 'Grant access'}</DialogTitle>
                 <DialogDescription>
-                    They'll see these employees in a Team Attendance view on their dashboard. View only.
+                    They'll see these employees in {option?.where}. View only.
                 </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
                 {!grant && (
                     <div className="space-y-1">
+                        <Label htmlFor="grant-permission">What they can see</Label>
+                        <Select value={permission} onValueChange={(value) => setPermission(value as AccessPermission)}>
+                            <SelectTrigger id="grant-permission" className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {PERMISSION_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
+                {!grant && (
+                    <div className="space-y-1">
                         <Label htmlFor="grant-user">Person</Label>
-                        <Select value={userId} onValueChange={setUserId}>
+                        <Select value={userIsValid ? userId : ''} onValueChange={setUserId}>
                             <SelectTrigger id="grant-user" className="w-full">
                                 <SelectValue placeholder="Choose a user" />
                             </SelectTrigger>
@@ -259,7 +283,7 @@ function GrantEditor({
 
             <DialogFooter>
                 <Button variant="outline" onClick={onDone}>Cancel</Button>
-                <Button onClick={handleSave} disabled={!userId || selected.size === 0 || upsert.isPending}>
+                <Button onClick={handleSave} disabled={!userId || !userIsValid || selected.size === 0 || upsert.isPending}>
                     {upsert.isPending ? 'Saving...' : 'Save access'}
                 </Button>
             </DialogFooter>

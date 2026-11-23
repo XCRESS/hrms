@@ -1287,7 +1287,7 @@ export interface ThemeContextValue {
   setTheme: (mode: ThemeMode) => void;
 }
 
-export type AccessPermission = 'attendance.view';
+export type AccessPermission = 'attendance.view' | 'taskReports.view';
 
 export type AccessScopeSummary =
   | { scope: 'all' }
@@ -1296,6 +1296,15 @@ export type AccessScopeSummary =
 
 export interface MyAccess {
   permissions: Record<AccessPermission, AccessScopeSummary>;
+}
+
+export interface TeamMember {
+  _id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  department?: string;
+  position?: string;
 }
 
 export interface AccessGrant {

@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { FileSpreadsheet, FileText, X } from 'lucide-react';
 import { formatISTDate } from '../../utils/luxonUtils';
-import { useEmployees, useTaskReports } from '../../hooks/queries';
+import { useEmployees, useTaskReports, useTeamMembers } from '../../hooks/queries';
 import type { TaskReportQueryParams } from '@/types';
 
 interface FilterState {
@@ -14,8 +14,14 @@ interface FilterState {
   endDate: string;
 }
 
-const TaskReportsPage = () => {
+interface TaskReportsPageProps {
+  /** 'team': a supervisor's view of their reporting line; no export, filter limited to their team. */
+  scope?: 'org' | 'team';
+}
+
+const TaskReportsPage = ({ scope = 'org' }: TaskReportsPageProps) => {
   const navigate = useNavigate();
+  const isTeam = scope === 'team';
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<FilterState>({
     employeeId: '',
@@ -24,8 +30,11 @@ const TaskReportsPage = () => {
   });
 
   // React Query hooks
-  const { data: employeesData } = useEmployees();
-  const employees = employeesData || [];
+  const { data: orgEmployees = [] } = useEmployees(undefined, { enabled: !isTeam });
+  const { data: teamMembers = [] } = useTeamMembers('taskReports.view', { enabled: isTeam });
+  const employeeOptions = isTeam
+    ? teamMembers.map((e) => ({ employeeId: e.employeeId, name: `${e.firstName} ${e.lastName}` }))
+    : orgEmployees.map((e) => ({ employeeId: e.employeeId, name: e.fullName || e.name || `${e.firstName} ${e.lastName}` }));
 
   const queryParams: TaskReportQueryParams = {
     page: currentPage,
@@ -77,17 +86,27 @@ const TaskReportsPage = () => {
               <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Employee Task Reports</h1>
-              <p className="text-slate-600 dark:text-slate-400">View and manage all employee task reports</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {isTeam ? 'Team Task Reports' : 'Employee Task Reports'}
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400">
+                {isTeam ? 'Daily reports from the people who report to you' : 'View and manage all employee task reports'}
+              </p>
             </div>
           </div>
-          <Button
-            onClick={() => navigate('/task-reports/generate')}
-            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Generate Report
-          </Button>
+          {isTeam ? (
+            <Button variant="outline" onClick={() => navigate('/task-reports/my')}>
+              My reports
+            </Button>
+          ) : (
+            <Button
+              onClick={() => navigate('/task-reports/generate')}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Generate Report
+            </Button>
+          )}
         </div>
 
         {/* Filter Section */}
@@ -102,10 +121,10 @@ const TaskReportsPage = () => {
                 <SelectValue placeholder="Filter by Employee" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Employees</SelectItem>
-                {employees.map(emp => (
+                <SelectItem value="all">{isTeam ? 'Everyone on my team' : 'All Employees'}</SelectItem>
+                {employeeOptions.map(emp => (
                   <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                    {emp.fullName || emp.name || `${emp.firstName} ${emp.lastName}`}
+                    {emp.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -150,10 +169,7 @@ const TaskReportsPage = () => {
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Task Reports</h2>
               {filters.employeeId && (
                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                  Filtered by employee: {(() => {
-                    const emp = employees.find(e => e.employeeId === filters.employeeId);
-                    return emp ? (emp.fullName || emp.name || `${emp.firstName} ${emp.lastName}`) : filters.employeeId;
-                  })()}
+                  Filtered by employee: {employeeOptions.find(e => e.employeeId === filters.employeeId)?.name ?? filters.employeeId}
                 </p>
               )}
             </div>

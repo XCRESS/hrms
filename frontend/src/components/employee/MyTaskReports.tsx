@@ -1,8 +1,9 @@
 import { useState, useMemo, ChangeEvent } from "react";
-import { FileText, Calendar, Eye, X, Plus, Send, Edit, Save, Trash2, PlusCircle } from "lucide-react";
+import { FileText, Calendar, Eye, X, Plus, Send, Edit, Save, Trash2, PlusCircle, Users } from "lucide-react";
+import { Link } from "react-router";
 import { useToast } from "../ui/toast";
 import { formatISTDate } from "../../utils/luxonUtils";
-import { useMyTaskReports, useSubmitTaskReport } from '@/hooks/queries';
+import { useMyAccess, useMyTaskReports, useSubmitTaskReport } from '@/hooks/queries';
 import {
   Dialog,
   DialogContent,
@@ -29,12 +30,6 @@ interface ProcessedTaskReport extends TaskReport {
 interface DateRange {
   startDate: string;
   endDate: string;
-}
-
-// Interface for task report submission
-interface TaskReportSubmission {
-  tasks: string[];
-  date: string;
 }
 
 export default function MyTaskReports() {
@@ -79,10 +74,6 @@ export default function MyTaskReports() {
 
   const totalRecords = taskReportsData?.pagination?.total || taskReports.length;
   const totalPages = taskReportsData?.pagination?.totalPages || Math.ceil(totalRecords / recordsPerPage);
-
-  const formatDateForInput = (date: Date): string => {
-    return new Date(date).toISOString().slice(0, 10);
-  };
 
   const handlePageChange = (newPage: number): void => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -228,6 +219,10 @@ export default function MyTaskReports() {
     setEditTasks([]);
   };
 
+  const { data: myAccess } = useMyAccess();
+  const teamAccess = myAccess?.permissions['taskReports.view'];
+  const teamSize = teamAccess?.scope === 'team' ? teamAccess.count : 0;
+
   return (
     <div className="max-w-6xl mx-auto mt-8 p-4 sm:p-6 lg:p-8 bg-white dark:bg-slate-800 rounded-xl shadow-xl relative">
       {/* Header */}
@@ -239,6 +234,15 @@ export default function MyTaskReports() {
           <div>
             <h2 className="text-2xl font-bold text-purple-700 dark:text-purple-300">My Task Reports</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">Submit and manage your daily task reports</p>
+            {teamSize > 0 && (
+              <Link
+                to="/task-reports/team"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                <Users className="w-4 h-4" aria-hidden="true" />
+                Team reports ({teamSize})
+              </Link>
+            )}
           </div>
         </div>
 

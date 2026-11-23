@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
-import { API_ENDPOINTS } from '@/lib/apiEndpoints';
-import type { AccessGrant, ApiResponse, MyAccess, UpsertAccessGrantDto } from '@/types';
+import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
+import type { AccessGrant, AccessPermission, ApiResponse, MyAccess, TeamMember, UpsertAccessGrantDto } from '@/types';
 
 /** Who the current user can act on, per permission. */
 export const useMyAccess = (options?: { enabled?: boolean }) => {
@@ -13,6 +13,19 @@ export const useMyAccess = (options?: { enabled?: boolean }) => {
       return data.data ?? null;
     },
     staleTime: 1000 * 60 * 5,
+    enabled: options?.enabled ?? true,
+  });
+};
+
+/** Active employees the current user can see for one permission. */
+export const useTeamMembers = (permission: AccessPermission, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: queryKeys.access.team(permission),
+    queryFn: async () => {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ACCESS.TEAM, { permission });
+      const { data } = await axiosInstance.get<ApiResponse<{ employees: TeamMember[] }>>(endpoint);
+      return data.data?.employees ?? [];
+    },
     enabled: options?.enabled ?? true,
   });
 };

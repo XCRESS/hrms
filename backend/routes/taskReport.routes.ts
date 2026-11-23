@@ -3,6 +3,7 @@ import { submitTaskReportSchema } from "../validators/content.schemas.js";
 import { Router } from "express";
 import { getTaskReports, getMyTaskReports, submitTaskReport } from "../controllers/taskReport.controllers.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { requirePermission } from "../middlewares/access.middleware.js";
 import type { IAuthRequest } from "../types/index.js";
 import type { Response, NextFunction } from "express";
 
@@ -20,7 +21,6 @@ router.get("/", authMiddleware(), (req: IAuthRequest, res: Response, next: NextF
 // Employee can get their own task reports
 router.get("/my", authMiddleware(), getMyTaskReports);
 
-// HR/Admin can get all task reports with filters
-router.get("/all", authMiddleware(["admin", "hr"]), getTaskReports);
+router.get("/all", authMiddleware(), requirePermission("taskReports.view"), getTaskReports);
 
 export default router;

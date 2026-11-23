@@ -17,6 +17,12 @@ export const PERMISSIONS = {
     reportingLine: true,
     grantable: true,
   },
+  'taskReports.view': {
+    label: 'View task reports',
+    orgWide: ['admin', 'hr'],
+    reportingLine: true,
+    grantable: true,
+  },
 } as const satisfies Record<string, PermissionRule>;
 
 export type Permission = keyof typeof PERMISSIONS;

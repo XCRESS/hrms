@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import type { Response } from 'express';
 import TaskReport from '../models/TaskReport.model.js';
 import Employee from '../models/Employee.model.js';
+import { scopeIncludes } from '../services/access/index.js';
 import logger from '../utils/logger.js';
 import type { IAuthRequest } from '../types/index.js';
 
@@ -181,11 +182,13 @@ export const getMyTaskReports = asyncHandler(async (req: IAuthRequest, res: Resp
 
 export const getTaskReports = asyncHandler(async (req: IAuthRequest, res: Response) => {
   const { employeeId, startDate, endDate } = req.query;
-  const filter: { employee?: unknown; date?: { $gte?: Date; $lte?: Date } } = {};
+  const scope = req.accessScope ?? { kind: 'all' as const };
+  const filter: { employee?: unknown; date?: { $gte?: Date; $lte?: Date } } =
+    scope.kind === 'all' ? {} : { employee: { $in: scope.ids } };
 
   if (employeeId && typeof employeeId === 'string') {
-    const employee = await Employee.findOne({ employeeId });
-    if (employee) {
+    const employee = await Employee.findOne({ employeeId }).select('_id').lean();
+    if (employee && scopeIncludes(scope, employee._id)) {
       filter.employee = employee._id;
     } else {
       res.json(formatResponse(true, 'No reports found for this employee ID.', { records: [] }));

@@ -8,8 +8,9 @@ import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { formatResponse } from '../utils/response.js';
 import { paramValue } from '../utils/helpers.js';
 import type { IAuthRequest, UserRole } from '../types/index.js';
-import type { UpsertAccessGrantInput } from '../validators/access.schemas.js';
-import { PERMISSIONS, PERMISSION_KEYS, resolveScope, type Permission } from '../services/access/index.js';
+import type { TeamQuery, UpsertAccessGrantInput } from '../validators/access.schemas.js';
+import { getValidatedQuery } from '../middlewares/zodValidation.middleware.js';
+import { PERMISSIONS, PERMISSION_KEYS, employeeScopeFilter, resolveScope, type Permission } from '../services/access/index.js';
 
 type ScopeSummary = { scope: 'all' } | { scope: 'team'; count: number } | { scope: 'none' };
 
@@ -27,6 +28,21 @@ export const getMyAccess = asyncHandler(async (req: IAuthRequest, res: Response)
   );
 
   res.json(formatResponse(true, 'Access retrieved', { permissions: Object.fromEntries(entries) }));
+});
+
+/** Active employees the caller can see for one permission; feeds team filters. */
+export const getTeamMembers = asyncHandler(async (req: IAuthRequest, res: Response) => {
+  const { permission } = getValidatedQuery<TeamQuery>(req);
+  const scope = await resolveScope(req.user!, permission);
+
+  const employees = scope.kind === 'some' && scope.ids.length === 0
+    ? []
+    : await Employee.find({ isActive: true, ...employeeScopeFilter(scope) })
+      .select('_id employeeId firstName lastName department position')
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
+
+  res.json(formatResponse(true, 'Team retrieved', { employees }));
 });
 
 interface PopulatedGrant {

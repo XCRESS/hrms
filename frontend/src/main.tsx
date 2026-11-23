@@ -135,6 +135,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
                                                 <Route index element={<RequireRole roles={HR_ONLY}><TaskReportsManage /></RequireRole>} />
                                                 <Route path="generate" element={<RequireRole roles={HR_ONLY}><TaskReportGenerator /></RequireRole>} />
                                                 <Route path="my" element={<MyTaskReports />} />
+                                                <Route path="team" element={<TaskReportsManage scope="team" />} />
                                             </Route>
 
                                             <Route path="/salary-slips">

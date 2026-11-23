@@ -40,6 +40,7 @@ export const queryKeys = {
   access: {
     all: () => ['access'] as const,
     me: () => ['access', 'me'] as const,
+    team: (permission: string) => ['access', 'team', permission] as const,
     grants: () => ['access', 'grants'] as const,
   },
 

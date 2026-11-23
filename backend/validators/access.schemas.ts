@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { objectIdSchema } from './common.schemas.js';
-import { GRANTABLE_PERMISSIONS, type Permission } from '../services/access/permissions.js';
+import { GRANTABLE_PERMISSIONS, PERMISSION_KEYS, type Permission } from '../services/access/permissions.js';
 
 export const upsertAccessGrantSchema = z.object({
   userId: objectIdSchema,
@@ -10,3 +10,9 @@ export const upsertAccessGrantSchema = z.object({
 });
 
 export type UpsertAccessGrantInput = z.infer<typeof upsertAccessGrantSchema>;
+
+export const teamQuerySchema = z.object({
+  permission: z.enum(PERMISSION_KEYS as [Permission, ...Permission[]]),
+});
+
+export type TeamQuery = z.infer<typeof teamQuerySchema>;
