@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import useAuth from "../../../hooks/authjwt";
 import BackButton from "../../ui/BackButton";
 import { formatIndianNumber } from "../../../utils/indianNumber";
 import {
@@ -30,6 +29,7 @@ import {
     useDeleteSalaryStructure
 } from "../../../hooks/queries";
 import { SalaryStructure, Employee, SalaryEarnings } from "../../../types";
+import { errorMessage } from '@/lib/errorMessage';
 
 interface SalaryStructureManagementProps {
     onBack?: () => void;
@@ -65,8 +65,6 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
 
     const { toast } = useToast();
     const confirm = useConfirm();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const user = useAuth();
 
     // React Query hooks
     const { data: employeesData } = useEmployees();
@@ -176,10 +174,10 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
                 title: "Success",
                 description: "Salary structure deleted successfully"
             });
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to delete salary structure",
+                description: errorMessage(error, "Failed to delete salary structure"),
                 variant: "destructive"
             });
         }
@@ -220,10 +218,10 @@ const SalaryStructureManagement: React.FC<SalaryStructureManagementProps> = ({ o
             });
             setShowForm(false);
             handleFormBack();
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to save salary structure",
+                description: errorMessage(error, "Failed to save salary structure"),
                 variant: "destructive"
             });
         }

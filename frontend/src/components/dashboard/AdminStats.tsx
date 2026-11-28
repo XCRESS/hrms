@@ -1,4 +1,4 @@
-import { Users, UserCheck, UserX, FileText, Calendar, LucideIcon } from "lucide-react";
+import { UserCheck, UserX, FileText, Calendar, LucideIcon } from "lucide-react";
 
 interface SummaryData {
   presentToday?: number;
@@ -85,7 +85,7 @@ const AdminStats = ({
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        {stats.map((stat, index) => (
+        {stats.map((_, index) => (
           <div key={index} className="bg-card rounded-xl shadow-lg p-3 sm:p-5 animate-pulse">
             <div className="flex justify-between items-center">
               <div className="h-3 sm:h-4 bg-muted rounded w-3/4"></div>

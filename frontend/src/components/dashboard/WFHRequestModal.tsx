@@ -9,12 +9,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface Location {
+export interface WFHLocation {
   latitude?: number;
   longitude?: number;
+  accuracy?: number;
 }
 
-interface Geofence {
+export interface WFHGeofence {
+  canRequestWFH?: boolean;
   distance?: number | null;
   radius?: number;
   nearestOffice?: string;
@@ -22,10 +24,12 @@ interface Geofence {
   message?: string;
 }
 
-interface Context {
-  geofence?: Geofence;
-  location?: Location;
+export interface WFHRequestContext {
+  geofence?: WFHGeofence;
+  location?: WFHLocation | null;
   locationError?: string;
+  /** When the check-in was attempted; the server records it as the check-in time on approval. */
+  attemptedAt: string;
 }
 
 interface WFHRequestModalProps {
@@ -33,7 +37,7 @@ interface WFHRequestModalProps {
   onClose: () => void;
   onSubmit: (reason: string) => void;
   submitting?: boolean;
-  context?: Context | null;
+  context?: WFHRequestContext | null;
 }
 
 const WFHRequestModal = ({

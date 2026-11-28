@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, TouchEvent, KeyboardEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, TouchEvent } from 'react';
 import { Trophy, Play, RotateCcw, Pause, Star, X } from 'lucide-react';
 import { useTetrisLeaderboard, useSaveTetrisScore } from '../../hooks/queries';
 
@@ -95,8 +95,8 @@ const GiftGame = () => {
   const saveTetrisScoreMutation = useSaveTetrisScore();
 
   // Format leaderboard data
-  const leaderboard: LeaderboardEntry[] = leaderboardData?.leaderboard?.map((entry: LeaderboardEntry) => ({
-    name: entry.name,
+  const leaderboard: LeaderboardEntry[] = leaderboardData?.leaderboard?.map((entry) => ({
+    name: entry.playerName,
     score: entry.score,
     level: entry.level,
     rank: entry.rank

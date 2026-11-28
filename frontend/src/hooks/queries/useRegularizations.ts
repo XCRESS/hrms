@@ -16,7 +16,7 @@ export const useRegularizationRequests = (options?: { params?: RegularizationQue
     queryKey: queryKeys.regularizations.allRequests(options?.params),
     queryFn: async () => {
       // Backend returns { success, regs: RegularizationRequest[] }
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, (options?.params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, options?.params);
       const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] }>(endpoint);
       return data.regs || [];
     },
@@ -32,7 +32,7 @@ export const useRegularizationRequestsWithMeta = (options?: { params?: Regulariz
   return useQuery({
     queryKey: [...queryKeys.regularizations.allRequests(options?.params), 'meta'],
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, (options?.params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.REGULARIZATIONS.ALL_REGULARIZATIONS, options?.params);
       const { data } = await axiosInstance.get<{ success: boolean; regs: RegularizationRequest[] } & RequestListMeta>(endpoint);
       return { rows: data.regs || [], pagination: data.pagination, statusCounts: data.statusCounts ?? {} };
     },

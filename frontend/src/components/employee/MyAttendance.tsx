@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, BarChart3, TrendingUp } from "lucide-react";
+import React, { useState, type JSX } from "react";
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import useAuth from "../../hooks/authjwt";
 import { formatISTDate } from "../../utils/luxonUtils";
-import { useHolidays, useEmployeeAttendanceWithAbsents } from "@/hooks/queries";
+import { useEmployeeAttendanceWithAbsents } from "@/hooks/queries";
+import type { AttendanceDayRecord, EmployeeAttendanceReport } from "@/types";
 
 // Types
 interface AttendanceFlags {
@@ -19,44 +20,21 @@ interface AttendanceRecord {
   status: 'present' | 'absent' | 'half-day' | 'weekend' | 'holiday' | 'leave';
   checkIn: Date | null;
   checkOut: Date | null;
-  workHours?: number;
-  comments?: string;
-  reason?: string;
+  workHours?: number | null;
+  comments?: string | null;
+  reason?: string | null;
   flags: AttendanceFlags;
   holidayTitle?: string;
 }
 
-interface AttendanceStatistics {
-  total: number;
-  present: number;
-  absent: number;
-  halfDay: number;
-  weekend: number;
-  holiday: number;
-  leave: number;
-  late: number;
-  totalWorkHours: number;
-  attendancePercentage: string;
-  workingDays: number;
-  avgHoursPerDay: string;
-  incompleteCheckouts: number;
-}
-
-interface AttendancePercentage {
-  totalWorkingDays: number;
-  percentage: number;
-}
+type AttendanceStatistics = EmployeeAttendanceReport['statistics'];
+type AttendancePercentage = EmployeeAttendanceReport['attendancePercentage'];
 
 interface DateRange {
   startDate: string;
   endDate: string;
 }
 
-interface EffectiveDateRange {
-  requestedStartDate: string;
-  effectiveStartDate: string;
-  joiningDate: string;
-}
 
 interface MainCard {
   title: string;
@@ -72,7 +50,6 @@ interface MainCard {
 }
 
 interface AttendanceAnalyticsProps {
-  attendance: AttendanceRecord[];
   statistics: AttendanceStatistics | null;
   loading: boolean;
   attendancePercentage: AttendancePercentage | null;
@@ -80,7 +57,6 @@ interface AttendanceAnalyticsProps {
 
 // Enhanced Personal Attendance Analytics with Premium UX
 const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({
-  attendance,
   statistics,
   loading,
   attendancePercentage
@@ -196,7 +172,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({
       </div>
 
       {/* Secondary Stats */}
-      {((stats!.absent > 0) || (stats!.halfDay > 0) || (stats!.late > 0) || (stats!.weekend > 0) || (stats!.holiday > 0) || (stats!.leave > 0) || (stats!.incompleteCheckouts > 0)) && (
+      {((stats!.absent > 0) || (stats!.halfDay > 0) || (stats!.late > 0) || (stats!.weekend > 0) || (stats!.holiday > 0) || (stats!.leave > 0)) && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-200 dark:border-slate-700">
           <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Additional Insights</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -242,13 +218,6 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({
                 <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Leave Days</p>
               </div>
             )}
-            {stats!.incompleteCheckouts > 0 && (
-              <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
-                <AlertCircle className="w-6 h-6 text-orange-500 mb-2" />
-                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats!.incompleteCheckouts}</p>
-                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Invalid Days</p>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -258,27 +227,17 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({
 
 export default function MyAttendance() {
   const user = useAuth();
-  // Core data states - optimized with sliding window
-  const [allAttendanceData, setAllAttendanceData] = useState<AttendanceRecord[]>([]); // Pre-loaded data for entire range
-  const [displayedData, setDisplayedData] = useState<AttendanceRecord[]>([]); // Current window of data
-  const [currentWindowIndex, setCurrentWindowIndex] = useState<number>(0); // Index for sliding window
+  const [currentWindowIndex, setCurrentWindowIndex] = useState<number>(0);
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), // First day of current month
     endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10) // Last day of current month
   });
-  const [joiningDate, setJoiningDate] = useState<string | null>(null);
-  const [effectiveDateRange, setEffectiveDateRange] = useState<EffectiveDateRange | null>(null);
 
   const recordsPerPage = 15;
 
-  // Fetch holidays using React Query
-  const { data: holidays = [] } = useHolidays();
-
-  // Fetch attendance data using React Query
   const {
     data: attendanceData,
     isLoading: loading,
-    refetch: refetchAttendance
   } = useEmployeeAttendanceWithAbsents({
     employeeId: user?.employeeId,
     startDate: dateRange.startDate,
@@ -291,23 +250,19 @@ export default function MyAttendance() {
   const apiData = attendanceData?.data;
   const statistics = apiData?.statistics || null;
   const attendancePercentage = apiData?.attendancePercentage || null;
+  const [joiningDate, setJoiningDate] = useState<string | null>(null);
 
-  // Process attendance data from React Query when it changes
-  useEffect(() => {
-    if (apiData) {
-      const allRecords = apiData.records || [];
+  const [windowSource, setWindowSource] = useState(apiData);
+  if (apiData !== windowSource) {
+    setWindowSource(apiData);
+    setCurrentWindowIndex(0);
+    // Kept across range changes so the label doesn't vanish while the next range loads.
+    if (apiData?.employee?.joiningDate) setJoiningDate(apiData.employee.joiningDate);
+  }
 
-      // Store joining date and effective date range info
-      if (apiData.employee?.joiningDate) {
-        setJoiningDate(apiData.employee.joiningDate);
-      }
-      if (apiData.dateRange) {
-        setEffectiveDateRange(apiData.dateRange);
-      }
-
-      // Process and store all data with proper status prioritization
-      const processedRecords = allRecords.map((record: any) => {
-        let finalStatus = record.status || 'absent';
+  const allAttendanceData: AttendanceRecord[] = (apiData?.records || [])
+    .map((record: AttendanceDayRecord): AttendanceRecord => {
+        let finalStatus = (record.status || 'absent') as AttendanceRecord['status'];
 
         // Only override status for flag-based statuses if there's no actual check-in
         if (!record.checkIn) {
@@ -329,29 +284,13 @@ export default function MyAttendance() {
           flags: record.flags || {},
           holidayTitle: record.holidayTitle || (record.flags?.isHoliday ? 'Holiday' : undefined)
         };
-      });
+    })
+    .sort((a: AttendanceRecord, b: AttendanceRecord) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      // Sort records by date in descending order
-      const sortedRecords = processedRecords.sort((a: AttendanceRecord, b: AttendanceRecord) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      setAllAttendanceData(sortedRecords);
-      updateCurrentWindow(sortedRecords, 0);
-    }
-  }, [apiData]);
-
-  // Update current window (no API call needed)
-  const updateCurrentWindow = (data: AttendanceRecord[] = allAttendanceData, windowIndex: number = currentWindowIndex) => {
-    // Calculate window
-    const startIndex = windowIndex * recordsPerPage;
-    const endIndex = startIndex + recordsPerPage;
-    const windowData = data.slice(startIndex, endIndex);
-
-    setDisplayedData(windowData);
-    setCurrentWindowIndex(windowIndex);
-  };
-
-  // React Query automatically refetches when dateRange or employeeId changes
-  // No manual useEffect needed!
+  const displayedData = allAttendanceData.slice(
+    currentWindowIndex * recordsPerPage,
+    (currentWindowIndex + 1) * recordsPerPage
+  );
 
   const formatTime = (date: Date | null): string => date ? new Date(date).toLocaleTimeString('en-IN', {
     hour: '2-digit', minute: '2-digit', hour12: true
@@ -477,7 +416,7 @@ export default function MyAttendance() {
   const handlePageChange = (newPage: number): void => {
     const totalPages = Math.ceil(allAttendanceData.length / recordsPerPage);
     if (newPage >= 1 && newPage <= totalPages) {
-      updateCurrentWindow(allAttendanceData, newPage - 1);
+      setCurrentWindowIndex(newPage - 1);
     }
   };
 
@@ -544,27 +483,10 @@ export default function MyAttendance() {
       {/* Enhanced Analytics */}
       {displayedData.length > 0 && (
         <AttendanceAnalytics
-          attendance={allAttendanceData}
           statistics={statistics}
           loading={loading}
           attendancePercentage={attendancePercentage}
         />
-      )}
-
-      {/* Joining Date Notice */}
-      {effectiveDateRange && effectiveDateRange.requestedStartDate !== effectiveDateRange.effectiveStartDate && (
-        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-            <div className="text-sm">
-              <p className="text-blue-800 dark:text-blue-200 font-medium">Date range adjusted</p>
-              <p className="text-blue-700 dark:text-blue-300">
-                Attendance records are shown from your joining date ({new Date(effectiveDateRange.joiningDate).toLocaleDateString()}) onwards.
-                Requested start date was {new Date(effectiveDateRange.requestedStartDate).toLocaleDateString()}.
-              </p>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Records Info */}

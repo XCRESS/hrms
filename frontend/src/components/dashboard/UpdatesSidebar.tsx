@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Bell, Calendar, FileText, Shield } from "lucide-react";
 import PolicyModal from "../ui/PolicyModal";
 import AnnouncementModal from "../ui/AnnouncementModal";
@@ -51,6 +51,7 @@ const UpdatesSidebar = ({
   onTabChange
 }: UpdatesSidebarProps) => {
   const [activeTab, setActiveTab] = useState<TabId>(initialActiveTab);
+  const [syncedInitialTab, setSyncedInitialTab] = useState(initialActiveTab);
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
@@ -59,10 +60,10 @@ const UpdatesSidebar = ({
   // Fetch active policies using React Query - uses employee-accessible endpoint
   const { data: policies = [], isLoading: policiesLoading } = useActivePolicies();
 
-  // Update activeTab when initialActiveTab prop changes
-  useEffect(() => {
+  if (initialActiveTab !== syncedInitialTab) {
+    setSyncedInitialTab(initialActiveTab);
     setActiveTab(initialActiveTab);
-  }, [initialActiveTab]);
+  }
 
   const handlePolicyClick = (policyId: string) => {
     setSelectedPolicyId(policyId);
@@ -148,7 +149,9 @@ const UpdatesSidebar = ({
                           {policy.category}
                         </span>
                         {policy.acknowledgmentRequired && (
-                          <Shield className="h-3 w-3 text-orange-500" title="Acknowledgment Required" />
+                          <span title="Acknowledgment Required">
+                            <Shield className="h-3 w-3 text-orange-500" aria-label="Acknowledgment Required" />
+                          </span>
                         )}
                       </div>
                       <button className="text-cyan-600 dark:text-cyan-400 text-[10px] sm:text-xs hover:underline font-semibold">Read policy</button>

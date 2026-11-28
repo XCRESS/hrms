@@ -1,5 +1,5 @@
 import { useState, ChangeEvent } from 'react';
-import { Upload, X, File, Plus } from 'lucide-react';
+import { X, File, Plus } from 'lucide-react';
 import { useToast } from './toast';
 import { useUploadDocument, useDeleteDocument } from '@/hooks/queries';
 import type { DocumentType } from '@/types';

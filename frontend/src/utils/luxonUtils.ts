@@ -9,7 +9,6 @@ import { DateTime, DateTimeFormatOptions, DurationLike } from 'luxon';
 
 // Constants
 const IST_ZONE = 'Asia/Kolkata';
-const IST_OFFSET = '+05:30';
 
 /**
  * Get current date/time in IST

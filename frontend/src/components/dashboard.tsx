@@ -26,9 +26,9 @@ import HelpDeskModal, { type HelpDeskData } from "./HelpDeskModal";
 import ExpenseModal from "./ExpenseModal";
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from "./ui/toast";
-import RegularizationModal from "./dashboard/RegularizationModal";
+import RegularizationModal, { type RegularizationPrefill } from "./dashboard/RegularizationModal";
 import TaskReportModal from "./dashboard/TaskReportModal";
-import WFHRequestModal from "./dashboard/WFHRequestModal";
+import WFHRequestModal, { type WFHGeofence, type WFHRequestContext } from "./dashboard/WFHRequestModal";
 import AbsentEmployeesModal from "./AbsentEmployeesModal";
 import PresentEmployeesModal from "./PresentEmployeesModal";
 import NonWorkingDayWarningModal from "./dashboard/NonWorkingDayWarningModal";
@@ -55,7 +55,7 @@ import { acquireBestFix } from "@/utils/geolocation";
 import EnablePushCard from "./notifications/EnablePushCard";
 
 // Types
-import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto, CreateHelpInquiryDto } from "@/types";
+import { Holiday, Leave, HelpInquiry, RegularizationRequest, Employee, EffectiveSettings, Location, LeaveRequestDto, CreateHelpInquiryDto, type ApiError } from "@/types";
 
 
 interface DashboardModals {
@@ -81,14 +81,25 @@ interface DashboardLoading {
 interface DashboardAppState {
     isCheckedIn: boolean;
     dailyCycleComplete: boolean;
-    regularizationPrefillData: any | null;
+    regularizationPrefillData: RegularizationPrefill | null;
     taskReportSetting: 'na' | 'optional' | 'mandatory';
-    pendingWFHContext: any | null;
+    pendingWFHContext: WFHRequestContext | null;
     checkoutLocationRequired: boolean;
     wfhRequestPending: boolean;
     nonWorkingDayWarningData: NonWorkingDayWarning | null;
-    pendingCheckInData?: any | null;
 }
+
+/** lib/axios rejects with ApiError (an Error); fetch failures are plain TypeErrors. */
+type CaughtError = ApiError & Partial<Error>;
+
+/** `errors` on a rejected check-in/out (backend buildGeofenceErrorDetails). */
+interface GeofenceErrorDetails {
+    geofence?: WFHGeofence;
+    locationInaccurate?: boolean;
+}
+
+const validationSuffix = (error: CaughtError): string =>
+    error.validationDetails?.length ? `. Details: ${error.validationDetails.map(d => d.message).join(", ")}` : '';
 
 interface DashboardState {
     modals: DashboardModals;
@@ -99,23 +110,7 @@ interface DashboardState {
 type DashboardAction =
     | { type: 'SET_MODAL'; modal: keyof DashboardModals; value: boolean }
     | { type: 'SET_LOADING'; field: keyof DashboardLoading; value: boolean }
-    | { type: 'SET_APP_STATE'; field: keyof DashboardAppState; value: any };
-
-// Local interface to match AttendanceStats requirements
-interface DashboardAttendanceReport {
-    attendancePercentage?: {
-        totalWorkingDays: number;
-        presentDays: number;
-        absentDays: number;
-        percentage: number;
-    };
-    statistics?: {
-        weekend: number;
-        holiday: number;
-        halfDay: number;
-        leave: number;
-    };
-}
+    | { type: 'SET_APP_STATE'; field: keyof DashboardAppState; value: DashboardAppState[keyof DashboardAppState] };
 
 // Component loading skeleton
 const ComponentSkeleton = () => (
@@ -159,7 +154,6 @@ const dashboardInitialState: DashboardState = {
         checkoutLocationRequired: false,
         wfhRequestPending: false,
         nonWorkingDayWarningData: null,
-        pendingCheckInData: null,
     }
 };
 
@@ -246,7 +240,7 @@ const HRMSDashboard: React.FC = () => {
 
     // The hook returns { success, data: { attendancePercentage, statistics, records, ... } }
     // Extract the actual report data for AttendanceStats
-    const monthAttendanceData = monthAttendanceDataRaw?.data as DashboardAttendanceReport | undefined;
+    const monthAttendanceData = monthAttendanceDataRaw?.data;
 
     const { data: effectiveSettings, refetch: refetchSettings } = useEffectiveSettings();
 
@@ -292,7 +286,7 @@ const HRMSDashboard: React.FC = () => {
     const setLoading = useCallback((field: keyof DashboardLoading, value: boolean) =>
         dispatch({ type: 'SET_LOADING', field, value }), []);
 
-    const setAppState = useCallback((field: keyof DashboardAppState, value: any) =>
+    const setAppState = useCallback(<K extends keyof DashboardAppState>(field: K, value: DashboardAppState[K]) =>
         dispatch({ type: 'SET_APP_STATE', field, value }), []);
 
     const scrollToPendingRequests = useCallback(() => {
@@ -402,7 +396,7 @@ const HRMSDashboard: React.FC = () => {
                     manageLoading: requireLocation || locationSetting !== 'na'
                 });
                 locationData = result || undefined;
-            } catch (locError: any) {
+            } catch (locError) {
                 console.warn("Location fetch failed:", locError);
 
                 if (requireLocation && geofenceSettings?.allowWFHBypass) {
@@ -420,7 +414,8 @@ const HRMSDashboard: React.FC = () => {
                             message: 'Location access failed or timed out'
                         },
                         location: null,
-                        locationError: locError.message || 'Location unavailable'
+                        locationError: (locError as { message?: string } | null)?.message || 'Location unavailable',
+                        attemptedAt: new Date().toISOString()
                     });
                     setModal('showWFHModal', true);
                     return;
@@ -436,14 +431,15 @@ const HRMSDashboard: React.FC = () => {
                 title: "Checked In",
                 description: "You have successfully checked in for today."
             });
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as CaughtError;
             console.error("Check-in error:", error);
 
             let title = "Check-in Issue";
             let description = "An unexpected error occurred.";
             let variant: "warning" | "error" | "success" | "default" = "warning";
 
-            const errorDetails = error?.data?.errors || error?.data?.details;
+            const errorDetails = error.data?.errors as GeofenceErrorDetails | undefined;
             const geofenceDetails = errorDetails?.geofence;
 
             // An imprecise fix is not the same as being off-site, and must be
@@ -464,7 +460,8 @@ const HRMSDashboard: React.FC = () => {
             if (geofenceDetails?.canRequestWFH && locationData) {
                 setAppState('pendingWFHContext', {
                     geofence: geofenceDetails,
-                    location: locationData
+                    location: locationData,
+                    attemptedAt: locationData.capturedAt ?? new Date().toISOString()
                 });
                 setModal('showWFHModal', true);
 
@@ -477,7 +474,7 @@ const HRMSDashboard: React.FC = () => {
                 return;
             }
 
-            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            if (error.name === 'TypeError' && error.message?.includes('Failed to fetch')) {
                 title = "Network Error";
                 description = "Unable to connect to server. Please check your internet connection and try again.";
                 variant = "error";
@@ -488,22 +485,19 @@ const HRMSDashboard: React.FC = () => {
                 } else if (description.includes("No linked employee")) {
                     description = "Your user account is not linked to an employee profile. Please contact HR.";
                     variant = "warning";
-                } else if (error.status >= 400 && error.status < 500) {
+                } else if ((error.status ?? 0) >= 400 && (error.status ?? 0) < 500) {
                     variant = "warning";
-                } else if (error.status >= 500) {
+                } else if ((error.status ?? 0) >= 500) {
                     variant = "error";
                 }
-                if (error.data.details && error.data.details.validation) {
-                    const validationErrors = Object.values(error.data.details.validation).join(", ");
-                    description += `. Details: ${validationErrors}`;
-                }
+                description += validationSuffix(error);
             } else {
                 description = error.message || "Please try again.";
                 if (error.message === "No linked employee profile found for user") {
                     description = "Your user account is not linked to an employee profile. Please contact HR.";
                 } else if (error.message === "Already checked in for today") {
                     description = "You have already checked in for today.";
-                } else if (error.status >= 500) {
+                } else if ((error.status ?? 0) >= 500) {
                     title = "Server Error";
                     description = "Server error occurred. Please try again in a few moments.";
                     variant = "error";
@@ -532,8 +526,7 @@ const HRMSDashboard: React.FC = () => {
         }
 
         try {
-            const settings: any = effectiveSettings || {};
-            const generalSettings = settings.general || {};
+            const generalSettings = effectiveSettings?.general ?? {};
             const taskReportSettingValue = generalSettings.taskReportSetting || 'na';
             const locationSettingValue = generalSettings.locationSetting || 'na';
             const geofenceSettings = generalSettings.geofence || {};
@@ -574,21 +567,20 @@ const HRMSDashboard: React.FC = () => {
             });
             setAppState('isCheckedIn', false);
             setAppState('dailyCycleComplete', true);
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as CaughtError;
             console.error("Check-out error:", error);
 
             let title = "Check-out Failed";
             let description = "An unexpected error occurred during check-out.";
             let variant: "error" | "warning" = "error";
 
-            if (error?.response?.data?.message) {
-                description = error.response.data.message;
-                if (error.response.status === 400) {
+            if (error.message) {
+                description = error.message;
+                if (error.status === 400) {
                     variant = "warning";
                     title = "Check-out Not Allowed";
                 }
-            } else if (error.message) {
-                description = error.message;
             }
 
             toast({
@@ -621,14 +613,15 @@ const HRMSDashboard: React.FC = () => {
             setAppState('isCheckedIn', false);
             setAppState('dailyCycleComplete', true);
             setModal('showTaskReportModal', false);
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as CaughtError;
             console.error("Check-out error:", error);
 
             let title = "Check-out Failed";
             let description = "An unexpected error occurred during check-out.";
             let variant: "error" | "warning" = "error";
 
-            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            if (error.name === 'TypeError' && error.message?.includes('Failed to fetch')) {
                 title = "Network Error";
                 description = "Unable to connect to server. Please check your internet connection and try again.";
             }
@@ -639,14 +632,11 @@ const HRMSDashboard: React.FC = () => {
                     variant = "warning";
                 } else if (description.includes("Already checked out")) {
                     variant = "warning";
-                } else if (error.status >= 400 && error.status < 500) {
+                } else if ((error.status ?? 0) >= 400 && (error.status ?? 0) < 500) {
                     variant = "warning";
                 }
 
-                if (error.data.details && error.data.details.validation) {
-                    const validationErrors = Object.values(error.data.details.validation).join(", ");
-                    description += `. Details: ${validationErrors}`;
-                }
+                description += validationSuffix(error);
             }
             else {
                 description = error.message || description;
@@ -681,8 +671,9 @@ const HRMSDashboard: React.FC = () => {
         setLoading('wfhRequestLoading', true);
         try {
             const payload = {
+                ...(pendingWFHContext.location || {}),
                 reason,
-                ...(pendingWFHContext.location || {})
+                capturedAt: pendingWFHContext.attemptedAt
             };
 
             await requestWFHMutation.mutateAsync(payload);
@@ -693,7 +684,8 @@ const HRMSDashboard: React.FC = () => {
             });
             handleWFHModalClose();
             setAppState('wfhRequestPending', true);
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as CaughtError;
             console.error("WFH request error:", error);
             const description = error.data?.message || error.message || "Failed to submit WFH request. Please try again.";
             toast({
@@ -721,16 +713,13 @@ const HRMSDashboard: React.FC = () => {
             const title = "Leave Request Failed";
             let description = "Failed to submit leave request.";
 
-            const apiError = error as { message?: string; validationDetails?: Array<{ field: string; message: string }> };
+            const apiError = error as CaughtError;
 
             if (apiError.message) {
                 description = apiError.message;
             }
-
-            // Show validation details if available
-            if (apiError.validationDetails && apiError.validationDetails.length > 0) {
-                const validationMessages = apiError.validationDetails.map(d => d.message).join(", ");
-                description = validationMessages;
+            if (apiError.validationDetails?.length) {
+                description = apiError.validationDetails.map(d => d.message).join(", ");
             }
 
             toast({
@@ -757,7 +746,8 @@ const HRMSDashboard: React.FC = () => {
                 description: "Your help desk inquiry has been submitted."
             });
             setModal('showHelpModal', false);
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as CaughtError;
             console.error("Help inquiry error:", error);
 
             let title = "Submission Failed";
@@ -766,10 +756,7 @@ const HRMSDashboard: React.FC = () => {
             if (error.data && error.data.message) {
                 description = error.data.message;
 
-                if (error.data.details && error.data.details.validation) {
-                    const validationErrors = Object.values(error.data.details.validation).join(", ");
-                    description += `. Details: ${validationErrors}`;
-                }
+                description += validationSuffix(error);
             }
             else {
                 description = error.message || description;
@@ -783,7 +770,7 @@ const HRMSDashboard: React.FC = () => {
         }
     };
 
-    const handleRegularizationFromReminder = (prefillData: any) => {
+    const handleRegularizationFromReminder = (prefillData: RegularizationPrefill) => {
         setAppState('regularizationPrefillData', prefillData);
         setModal('showRegularizationModal', true);
     };
@@ -812,7 +799,7 @@ const HRMSDashboard: React.FC = () => {
             ...h,
             type: 'help' as const,
             displayDate: h.createdAt,
-            displayReason: (h as any).description || h.message || '',
+            displayReason: h.description || h.message || '',
             status: h.status || 'pending',
         })),
         ...(myRegularizations || []).map((r: RegularizationRequest) => ({
@@ -947,7 +934,6 @@ const HRMSDashboard: React.FC = () => {
                                         <Suspense fallback={<ComponentSkeleton />}>
                                             <LeaveRequestsTable
                                                 leaveRequests={allRequests}
-                                                helpInquiries={[]}
                                                 loadingLeaveRequests={false}
                                                 onNewRequest={() => setModal('showLeaveModal', true)}
                                                 onNewHelpRequest={() => setModal('showHelpModal', true)}
@@ -1071,7 +1057,8 @@ const HRMSDashboard: React.FC = () => {
                             description: "Your expense has been submitted for review."
                         });
                         setModal('showExpenseModal', false);
-                    } catch (error: any) {
+                    } catch (caught) {
+            const error = caught as CaughtError;
                         toast({
                             variant: "error",
                             title: "Submission Failed",

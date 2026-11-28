@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
+import { saveBlob } from '@/lib/saveBlob';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
 import type { ApiResponse, Expense, ExpenseStatus, CreateExpenseDto, ExpenseQueryParams } from '@/types';
@@ -29,7 +30,7 @@ export const useAllExpenses = (params?: ExpenseQueryParams, options?: { enabled?
   return useQuery({
     queryKey: queryKeys.expenses.allExpenses(params),
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.ALL_EXPENSES, params as any);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.ALL_EXPENSES, params);
       const { data } = await axiosInstance.get<{ success: boolean; expenses: Expense[] }>(endpoint);
       return data.expenses || [];
     },
@@ -123,3 +124,13 @@ export const useBulkUpdateExpenseStatus = () => {
     },
   });
 };
+
+/** Download the filtered expense list as an Excel report (HR/Admin). */
+export const useExportExpenses = () =>
+  useMutation({
+    mutationFn: async (params: ExpenseQueryParams & { search?: string }) => {
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.EXPORT, params);
+      const { data } = await axiosInstance.get<Blob>(endpoint, { responseType: 'blob' });
+      saveBlob(data, `Expenses_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    },
+  });

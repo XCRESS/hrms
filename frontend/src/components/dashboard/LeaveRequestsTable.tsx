@@ -1,4 +1,4 @@
-import { memo, useMemo, ReactNode } from "react";
+import { memo, ReactNode } from "react";
 import { Paperclip, HelpCircle, AlertCircle, CheckCircle } from "lucide-react";
 
 interface BaseRequest {
@@ -45,7 +45,6 @@ type Request = LeaveRequest | HelpRequest | RegularizationRequest;
 
 interface LeaveRequestsTableProps {
   leaveRequests: Request[];
-  helpInquiries?: HelpRequest[];
   loadingLeaveRequests: boolean;
   onNewRequest: () => void;
   onNewHelpRequest: () => void;
@@ -63,55 +62,33 @@ interface StatusConfig {
 // 🚀 OPTIMIZED: Leave Requests Table with memoization
 const LeaveRequestsTable = memo<LeaveRequestsTableProps>(({
   leaveRequests,
-  helpInquiries = [],
   loadingLeaveRequests,
   onNewRequest,
   onNewHelpRequest,
   formatLeaveType
 }) => {
-  // Ensure we're safely accessing arrays and handling undefined values
   const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
-  const safeHelpInquiries = Array.isArray(helpInquiries) ? helpInquiries : [];
 
-  // 🚀 OPTIMIZED: Process leave requests with better error handling (memoized)
-  const processedLeaveRequests = useMemo(() =>
-    safeLeaveRequests
-      .filter((request): request is Request => request && typeof request === 'object' && !!(request.id || request._id))
-      .map(request => ({
-        ...request,
-        // Ensure we have an id (backend might use _id instead of id)
-        id: request.id || request._id,
-        // Type is already set in dashboard.jsx for allRequests
-        // Map fields that might have different names in backend vs mock data
-        leaveType: 'leaveType' in request ? (request.leaveType || 'vacation') : undefined,
-        displayDate: request.displayDate || ('leaveDate' in request ? request.leaveDate : undefined) || ('date' in request ? request.date : undefined),
-        displayReason: request.displayReason || ('leaveReason' in request ? request.leaveReason : undefined) || request.reason || request.description || '',
-        status: request.status || 'pending',
-        requestedCheckIn: 'requestedCheckIn' in request ? request.requestedCheckIn : undefined,
-        requestedCheckOut: 'requestedCheckOut' in request ? request.requestedCheckOut : undefined,
-        reviewComment: 'reviewComment' in request ? request.reviewComment : undefined,
-    })), [safeLeaveRequests]);
-
-  // Process help inquiries with better error handling for both backend and mock data formats
-  const _processedHelpInquiries = safeHelpInquiries
-    .filter((inquiry): inquiry is HelpRequest => inquiry && typeof inquiry === 'object' && !!(inquiry.id || inquiry._id))
-    .map(inquiry => ({
-      ...inquiry,
-      // Ensure we have an id (backend might use _id instead of id)
-      id: inquiry.id || inquiry._id,
-      type: 'help' as const,
-      // Map fields that might have different names in backend vs mock data
-      title: inquiry.title || inquiry.subject || 'Help Inquiry',
-      status: inquiry.status || 'pending',
-      displayDate: inquiry.createdAt || ('date' in inquiry ? inquiry.date : undefined),
-      displayReason: inquiry.message || inquiry.description || ''
+  const processedLeaveRequests = safeLeaveRequests
+    .filter((request): request is Request => request && typeof request === 'object' && !!(request.id || request._id))
+    .map(request => ({
+      ...request,
+      id: request.id || request._id,
+      leaveType: 'leaveType' in request ? (request.leaveType || 'vacation') : undefined,
+      displayDate: request.displayDate || ('leaveDate' in request ? request.leaveDate : undefined) || ('date' in request ? request.date : undefined),
+      displayReason: request.displayReason
+        || ('leaveReason' in request ? request.leaveReason : undefined)
+        || ('reason' in request ? request.reason : undefined)
+        || ('description' in request ? request.description : undefined)
+        || '',
+      status: request.status || 'pending',
+      requestedCheckIn: 'requestedCheckIn' in request ? request.requestedCheckIn : undefined,
+      requestedCheckOut: 'requestedCheckOut' in request ? request.requestedCheckOut : undefined,
+      reviewComment: 'reviewComment' in request ? request.reviewComment : undefined,
     }));
 
-  // Combine all requests and sort by date
-  const allRequests = [
-    ...processedLeaveRequests,
-    // help requests are now merged in dashboard.jsx, so skip here
-  ].sort((a, b) => {
+  // Help inquiries are already merged into leaveRequests by the dashboard.
+  const allRequests = [...processedLeaveRequests].sort((a, b) => {
     // Handle cases where dates might be invalid
     const dateA = a.displayDate instanceof Date ? a.displayDate : new Date(a.displayDate || 0);
     const dateB = b.displayDate instanceof Date ? b.displayDate : new Date(b.displayDate || 0);

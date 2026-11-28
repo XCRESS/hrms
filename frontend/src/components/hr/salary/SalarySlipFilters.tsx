@@ -4,11 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter } from "lucide-react";
-import type { SalarySlipFilters as FilterState, EmployeeReference, MonthOption } from "../../../types";
+import type { SalarySlipFilters as FilterState, Employee, MonthOption } from "../../../types";
 
 interface SalarySlipFiltersProps {
   filters: FilterState;
-  employees: EmployeeReference[];
+  employees: Pick<Employee, 'employeeId' | 'firstName' | 'lastName' | 'fullName'>[];
   months: MonthOption[];
   onFilterChange: (key: keyof FilterState, value: string | number) => void;
 }

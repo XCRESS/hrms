@@ -48,7 +48,7 @@ interface CurrentAnnouncement extends AnnouncementFormData {
 const targetAudienceOptions: TargetAudience[] = ['all', 'employees', 'hr', 'admin'];
 const statusOptions: AnnouncementStatus[] = ['draft', 'published'];
 
-const AnnouncementsPage = (): JSX.Element => {
+const AnnouncementsPage = () => {
   const userObject = useAuth() as User | null;
   const [message, setMessage] = useState<Message>({ type: '', content: '' });
   const [showModal, setShowModal] = useState(false);

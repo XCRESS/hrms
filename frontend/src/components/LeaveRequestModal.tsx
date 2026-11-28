@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, CalendarDays, CalendarRange, Info } from "lucide-react";
 
@@ -40,13 +40,12 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
     leaveMode === 'multi' ? endDate : ''
   );
 
-  // When switching to single mode, sync endDate with startDate
-  useEffect(() => {
-    if (leaveMode === "single") {
-      setEndDate(startDate);
-      setLeaveType("full-day"); // reset type when switching
-    }
-  }, [leaveMode, startDate]);
+  const switchMode = (mode: LeaveMode) => {
+    if (mode === leaveMode) return;
+    if (mode === "multi") setEndDate(startDate);
+    else setLeaveType("full-day");
+    setLeaveMode(mode);
+  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,7 +82,7 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setLeaveMode("single")}
+                onClick={() => switchMode("single")}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all duration-200 ${
                   leaveMode === "single"
                     ? "border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-400 shadow-sm"
@@ -95,7 +94,7 @@ const LeaveRequestModal = ({ isOpen, onClose, onSubmit, isLoading }: LeaveReques
               </button>
               <button
                 type="button"
-                onClick={() => setLeaveMode("multi")}
+                onClick={() => switchMode("multi")}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all duration-200 ${
                   leaveMode === "multi"
                     ? "border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-400 shadow-sm"

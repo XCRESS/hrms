@@ -16,7 +16,7 @@ export const useWFHRequests = (params?: WFHRequestQueryParams, options?: { enabl
     queryKey: queryKeys.wfh.list(params),
     queryFn: async () => {
       // Backend returns { success, data: { requests } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.WFH.BASE, (params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.WFH.BASE, params);
       const { data } = await axiosInstance.get<ApiResponse<{ requests: WFHRequest[] }>>(endpoint);
       return data.data?.requests || [];
     },

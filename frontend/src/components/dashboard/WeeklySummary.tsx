@@ -4,7 +4,6 @@ import { LucideIcon } from "lucide-react";
 // declarations, so deep-importing silently typed every chart as `any`.
 // The root entry is ESM and tree-shakes fine under Rollup.
 import {
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -16,7 +15,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
   Line,
   ComposedChart,
 } from 'recharts';
@@ -25,7 +23,6 @@ import {
   TrendingUp,
   Target,
   Calendar,
-  AlertCircle,
   CheckCircle,
   Timer,
   Award
@@ -134,6 +131,60 @@ interface CustomTooltipProps {
   }>;
   label?: string;
 }
+
+const MetricCard = ({ icon, title, value, subtitle, color = "blue", trend }: MetricCardProps) => {
+  const Icon = icon;
+  return (
+  <div className="bg-card rounded-xl p-4 border border-border shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="flex items-center justify-between mb-3">
+      <div className={`p-2.5 rounded-lg ${
+        color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
+        color === 'green' ? 'bg-green-100 dark:bg-green-900/30' :
+        color === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' :
+        color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30' :
+        'bg-muted dark:bg-gray-900/30'
+      }`}>
+        <Icon size={20} className={`${
+          color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+          color === 'green' ? 'text-green-600 dark:text-green-400' :
+          color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+          color === 'amber' ? 'text-amber-600 dark:text-amber-400' :
+          'text-muted-foreground'
+        }`} />
+      </div>
+      {trend && (
+        <div className={`flex items-center text-sm ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <TrendingUp size={14} className={trend < 0 ? 'rotate-180' : ''} />
+          <span className="ml-1">{Math.abs(trend)}%</span>
+        </div>
+      )}
+    </div>
+    <div className="space-y-1">
+      <p className="text-2xl font-bold text-foreground">{value}</p>
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      {subtitle && (
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      )}
+    </div>
+  </div>
+  );
+};
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
+        <p className="font-medium text-foreground mb-1">{label}</p>
+        {payload.map((entry, index) => (
+          <p key={index} className="text-sm" style={{ color: entry.color }}>
+            {`${entry.dataKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: ${entry.value}${entry.dataKey.includes('Hours') || entry.dataKey.includes('hours') ? 'h' : entry.dataKey.includes('productivity') || entry.dataKey.includes('Productivity') ? '%' : ''}`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 const WeeklySummary = ({ attendanceReport }: WeeklySummaryProps) => {
   const monthlyMetrics = useMemo<MonthlyMetrics>(() => {
@@ -294,60 +345,6 @@ const WeeklySummary = ({ attendanceReport }: WeeklySummaryProps) => {
   const productivityTrendData = monthlyMetrics.recentWorkDays.filter(day =>
     day.status !== 'weekend' && day.status !== 'holiday'
   );
-
-  const MetricCard = ({ icon, title, value, subtitle, color = "blue", trend }: MetricCardProps) => {
-    const Icon = icon;
-    return (
-    <div className="bg-card rounded-xl p-4 border border-border shadow-sm hover:shadow-md transition-all duration-200">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2.5 rounded-lg ${
-          color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
-          color === 'green' ? 'bg-green-100 dark:bg-green-900/30' :
-          color === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' :
-          color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30' :
-          'bg-muted dark:bg-gray-900/30'
-        }`}>
-          <Icon size={20} className={`${
-            color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-            color === 'green' ? 'text-green-600 dark:text-green-400' :
-            color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-            color === 'amber' ? 'text-amber-600 dark:text-amber-400' :
-            'text-muted-foreground'
-          }`} />
-        </div>
-        {trend && (
-          <div className={`flex items-center text-sm ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-            <TrendingUp size={14} className={trend < 0 ? 'rotate-180' : ''} />
-            <span className="ml-1">{Math.abs(trend)}%</span>
-          </div>
-        )}
-      </div>
-      <div className="space-y-1">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
-        )}
-      </div>
-    </div>
-    );
-  };
-
-  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
-          <p className="font-medium text-foreground mb-1">{label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.dataKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: ${entry.value}${entry.dataKey.includes('Hours') || entry.dataKey.includes('hours') ? 'h' : entry.dataKey.includes('productivity') || entry.dataKey.includes('Productivity') ? '%' : ''}`}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="space-y-6">

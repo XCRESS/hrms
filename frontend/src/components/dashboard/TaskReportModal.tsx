@@ -25,15 +25,41 @@ interface SavedDraft {
   postLunchTasks?: string[];
 }
 
+const formatWorkDuration = (hours: number) => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}h ${m}m`;
+};
+
+const loadDraft = () => {
+  const empty = { tasks: [''], preLunchTasks: [''], postLunchTasks: [''] };
+  try {
+    const saved = localStorage.getItem('taskReport_draft');
+    if (!saved) return empty;
+    const parsed: SavedDraft | string[] = JSON.parse(saved);
+    if (Array.isArray(parsed)) {
+      return parsed.length > 0 ? { ...empty, tasks: parsed } : empty;
+    }
+    if (parsed && 'preLunchTasks' in parsed && 'postLunchTasks' in parsed) {
+      return {
+        ...empty,
+        preLunchTasks: parsed.preLunchTasks?.length ? parsed.preLunchTasks : [''],
+        postLunchTasks: parsed.postLunchTasks?.length ? parsed.postLunchTasks : [''],
+      };
+    }
+  } catch {
+    // corrupt or inaccessible draft — fall through to an empty form
+  }
+  return empty;
+};
+
 const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptional = false }: TaskReportModalProps) => {
   const [tasks, setTasks] = useState<string[]>(['']);
   const [preLunchTasks, setPreLunchTasks] = useState<string[]>(['']);
   const [postLunchTasks, setPostLunchTasks] = useState<string[]>(['']);
   const [error, setError] = useState('');
-  const [isHalfDay, setIsHalfDay] = useState(false);
-  const [checkInTime, setCheckInTime] = useState<Date | null>(null);
-  const [workDuration, setWorkDuration] = useState('');
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [wasOpen, setWasOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
@@ -90,94 +116,29 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
     };
   }, [isMobile]);
 
-  // Process attendance data when it changes
-  useEffect(() => {
-    // attendanceRecords is already the array of records (not wrapped)
-    if (!attendanceRecords || attendanceRecords.length === 0) return;
+  const checkInRaw = attendanceRecords[0]?.checkIn;
+  const checkInTime = checkInRaw ? new Date(checkInRaw) : null;
+  const workHours = checkInTime ? (currentTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60) : null;
+  const isHalfDay = workHours !== null && workHours < (attendanceSettings?.minimumWorkHours || 4);
+  const workDuration = workHours !== null ? formatWorkDuration(workHours) : '';
 
-    const record = attendanceRecords[0];
-    if (record.checkIn) {
-      const checkInDateTime = new Date(record.checkIn);
-      setCheckInTime(checkInDateTime);
-
-      const now = new Date();
-      const workHours = (now.getTime() - checkInDateTime.getTime()) / (1000 * 60 * 60);
-      const minimumWorkHours = attendanceSettings?.minimumWorkHours || 4;
-
-      setIsHalfDay(workHours < minimumWorkHours);
-      setWorkDuration(formatWorkDuration(workHours));
-    }
-  }, [attendanceRecords, attendanceSettings]);
-
-  // Update time every minute
   useEffect(() => {
     if (!isOpen) return;
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(now);
-
-      if (checkInTime && attendanceSettings) {
-        const workHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-        setWorkDuration(formatWorkDuration(workHours));
-
-        const minimumWorkHours = attendanceSettings.minimumWorkHours || 4;
-        setIsHalfDay(workHours < minimumWorkHours);
-      }
-    }, 60000);
-
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
-  }, [isOpen, checkInTime, attendanceSettings]);
-
-  // Initialize form when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setError('');
-
-      // Load saved draft first, then set defaults if nothing saved
-      const savedTasks = localStorage.getItem('taskReport_draft');
-      if (savedTasks) {
-        try {
-          const parsed: SavedDraft | string[] = JSON.parse(savedTasks);
-          if (parsed && Object.keys(parsed).length > 0) {
-            // Check if it's structured data with pre/post lunch sections
-            if (typeof parsed === 'object' && 'preLunchTasks' in parsed && 'postLunchTasks' in parsed) {
-              setPreLunchTasks(parsed.preLunchTasks && parsed.preLunchTasks.length > 0 ? parsed.preLunchTasks : ['']);
-              setPostLunchTasks(parsed.postLunchTasks && parsed.postLunchTasks.length > 0 ? parsed.postLunchTasks : ['']);
-              setTasks(['']); // Set default for half-day mode
-            } else if (Array.isArray(parsed) && parsed.length > 0) {
-              // Legacy format - just tasks array
-              setTasks(parsed);
-              setPreLunchTasks(['']); // Set defaults for full-day mode
-              setPostLunchTasks(['']);
-            } else {
-              // Empty or invalid data, set defaults
-              setTasks(['']);
-              setPreLunchTasks(['']);
-              setPostLunchTasks(['']);
-            }
-          } else {
-            // No valid saved data, set defaults
-            setTasks(['']);
-            setPreLunchTasks(['']);
-            setPostLunchTasks(['']);
-          }
-        } catch {
-          // Error parsing, set defaults
-          setTasks(['']);
-          setPreLunchTasks(['']);
-          setPostLunchTasks(['']);
-        }
-      } else {
-        // No saved data, set defaults
-        setTasks(['']);
-        setPreLunchTasks(['']);
-        setPostLunchTasks(['']);
-      }
-
-    }
-    // Dialog handles background scroll locking.
   }, [isOpen]);
+
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      const draft = loadDraft();
+      setError('');
+      setCurrentTime(new Date());
+      setTasks(draft.tasks);
+      setPreLunchTasks(draft.preLunchTasks);
+      setPostLunchTasks(draft.postLunchTasks);
+    }
+  }
 
   // Auto-save tasks
   useEffect(() => {
@@ -197,12 +158,6 @@ const TaskReportModal = ({ isOpen, onClose, onSubmit, onSkip, isLoading, isOptio
       }
     }
   }, [tasks, preLunchTasks, postLunchTasks, isHalfDay]);
-
-  const formatWorkDuration = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.floor((hours - h) * 60);
-    return `${h}h ${m}m`;
-  };
 
   const formatTime = (date: Date | null) => {
     return date ? date.toLocaleTimeString('en-US', {

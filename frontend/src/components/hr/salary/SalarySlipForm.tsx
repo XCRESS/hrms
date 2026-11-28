@@ -32,6 +32,7 @@ import {
     useCompanies
 } from "../../../hooks/queries";
 import { SalarySlip, Employee, SalaryEarnings } from "../../../types";
+import { errorMessage } from '@/lib/errorMessage';
 
 interface SalarySlipFormProps {
     employeeId?: string;
@@ -54,9 +55,18 @@ interface SalaryStructureState {
     mobileAllowance: string;
 }
 
+const earningsToState = (earnings: Partial<SalaryEarnings>): SalaryStructureState => ({
+    basic: String(earnings.basic || ''),
+    hra: String(earnings.hra || ''),
+    conveyance: String(earnings.conveyance || ''),
+    medical: String(earnings.medical || ''),
+    lta: String(earnings.lta || ''),
+    specialAllowance: String(earnings.specialAllowance || ''),
+    mobileAllowance: String(earnings.mobileAllowance || '')
+});
+
 const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmployeeId, onBack, editData = null }) => {
     const [selectedEmployee, setSelectedEmployee] = useState<string>(propEmployeeId || '');
-    const [employeeDetails, setEmployeeDetails] = useState<Employee | null>(null);
     const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
     const [year, setYear] = useState<number>(new Date().getFullYear());
     const [taxRegime, setTaxRegime] = useState<'old' | 'new'>('new');
@@ -86,6 +96,7 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
     const { data: employeesData, isLoading: employeesLoading } = useEmployees();
     const { data: companies } = useCompanies();
     const employees: Employee[] = employeesData || [];
+    const employeeDetails = employees.find(emp => emp.employeeId === selectedEmployee) ?? null;
 
     const { data: salaryStructureData } = useSalaryStructure(selectedEmployee, {
         enabled: !!selectedEmployee
@@ -181,67 +192,40 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
         return result.trim();
     };
 
-    // Load employee details when employee is selected or employees list is loaded
+    const employeeListLoaded = (employeesData?.length ?? 0) > 0;
     useEffect(() => {
-        if (selectedEmployee && employees.length > 0) {
-            const employee = employees.find(emp => emp.employeeId === selectedEmployee);
-            if (employee) {
-                setEmployeeDetails(employee);
-            } else {
-                toast({
-                    title: "Warning",
-                    description: "Employee details not found",
-                    variant: "destructive"
-                });
-            }
+        if (selectedEmployee && employeeListLoaded && !employeeDetails) {
+            toast({
+                title: "Warning",
+                description: "Employee details not found",
+                variant: "destructive"
+            });
         }
-    }, [selectedEmployee, employees, toast]);
+    }, [selectedEmployee, employeeListLoaded, employeeDetails, toast]);
 
-    // Load salary structure from React Query when employee is selected (if not editing)
-    useEffect(() => {
+    const [loadedStructure, setLoadedStructure] = useState<typeof salaryStructureData>(undefined);
+    if (salaryStructureData !== loadedStructure) {
+        setLoadedStructure(salaryStructureData);
         if (salaryStructureData && !isEditing) {
-            const earnings = salaryStructureData.earnings;
-            setSalaryStructure({
-                basic: String(earnings.basic || ''),
-                hra: String(earnings.hra || ''),
-                conveyance: String(earnings.conveyance || ''),
-                medical: String(earnings.medical || ''),
-                lta: String(earnings.lta || ''),
-                specialAllowance: String(earnings.specialAllowance || ''),
-                mobileAllowance: String(earnings.mobileAllowance || '')
-            });
+            setSalaryStructure(earningsToState(salaryStructureData.earnings));
         }
-    }, [salaryStructureData, isEditing]);
+    }
 
-    // Load existing salary slip data if editing
-    useEffect(() => {
-        if (editData) {
-            setSelectedEmployee(editData.employeeId);
-            setMonth(editData.month);
-            setYear(editData.year);
-            setTaxRegime(editData.taxRegime || 'new');
-            setEnableTaxDeduction(editData.enableTaxDeduction !== undefined ? editData.enableTaxDeduction : true);
-
-            const earnings = editData.earnings;
-            setSalaryStructure({
-                basic: String(earnings.basic || ''),
-                hra: String(earnings.hra || ''),
-                conveyance: String(earnings.conveyance || ''),
-                medical: String(earnings.medical || ''),
-                lta: String(earnings.lta || ''),
-                specialAllowance: String(earnings.specialAllowance || ''),
-                mobileAllowance: String(earnings.mobileAllowance || '')
-            });
-
-            const customDeductions = editData.deductions?.customDeductions?.map(d => ({
-                name: d.name,
-                amount: String(d.amount)
-            })) || [];
-
-            setCustomDeductions(customDeductions);
-            setIsEditing(true);
-        }
-    }, [editData]);
+    const [loadedEdit, setLoadedEdit] = useState<SalarySlip | null>(null);
+    if (editData && editData !== loadedEdit) {
+        setLoadedEdit(editData);
+        setSelectedEmployee(editData.employeeId);
+        setMonth(editData.month);
+        setYear(editData.year);
+        setTaxRegime(editData.taxRegime || 'new');
+        setEnableTaxDeduction(editData.enableTaxDeduction ?? true);
+        setSalaryStructure(earningsToState(editData.earnings));
+        setCustomDeductions(editData.deductions?.customDeductions?.map(d => ({
+            name: d.name,
+            amount: String(d.amount)
+        })) || []);
+        setIsEditing(true);
+    }
 
 
     const handleSalaryStructureChange = (field: keyof SalaryStructureState, value: string) => {
@@ -299,10 +283,10 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                 title: "Success",
                 description: "Salary structure saved successfully"
             });
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to save salary structure",
+                description: errorMessage(error, "Failed to save salary structure"),
                 variant: "destructive"
             });
         }
@@ -351,16 +335,16 @@ const SalarySlipForm: React.FC<SalarySlipFormProps> = ({ employeeId: propEmploye
                 enableTaxDeduction
             });
 
-            setSalarySlip(response);
+            setSalarySlip(response ?? null);
             toast({
                 title: "Success",
                 description: isEditing ? "Salary slip updated successfully" : "Salary slip created successfully"
             });
             setActiveTab('preview');
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to save salary slip",
+                description: errorMessage(error, "Failed to save salary slip"),
                 variant: "destructive"
             });
         }

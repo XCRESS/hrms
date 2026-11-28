@@ -133,6 +133,51 @@ export interface Location {
   capturedAt?: string;
 }
 
+/** One calendar day from AttendanceReportService.generateEmployeeReport (absent days included). */
+export interface AttendanceDayRecord {
+  date: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  workHours: number | null;
+  flags?: { isWeekend?: boolean; isHoliday?: boolean; isLeave?: boolean; isLate?: boolean };
+  holidayTitle?: string;
+  comments?: string | null;
+  reason?: string | null;
+}
+
+export interface EmployeeAttendanceReport {
+  employee: {
+    _id: string;
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+    department?: string;
+    position?: string;
+    joiningDate?: string;
+  };
+  period: { startDate: string; endDate: string; totalDays: number };
+  statistics: {
+    total: number;
+    present: number;
+    absent: number;
+    halfDay: number;
+    late: number;
+    leave: number;
+    weekend: number;
+    holiday: number;
+    totalWorkHours: number;
+    averageWorkHours: number;
+  };
+  attendancePercentage: {
+    totalWorkingDays: number;
+    presentDays: number;
+    absentDays: number;
+    percentage: number;
+  };
+  records: AttendanceDayRecord[];
+}
+
 export interface AttendanceRecord {
   _id: string;
   userId: string;
@@ -471,6 +516,7 @@ export interface Policy {
   targetAudience: PolicyTargetAudience;
   acknowledgmentRequired: boolean;
   tags?: string[];
+  version?: number;
   createdBy?: string;
   lastUpdatedBy?: string;
   createdAt: string;
@@ -893,6 +939,8 @@ export interface ApiError {
   isDNSError?: boolean;
   userFriendlyMessage?: string;
   validationDetails?: Array<{ field: string; message: string }>;
+  /** The failed response body, including `errors` (e.g. geofence details on a rejected check-in). */
+  data?: ApiResponse & { errors?: unknown };
 }
 
 export interface PaginatedResponse<T> {
@@ -1011,9 +1059,13 @@ export interface LeaveRequestDto {
   reason: string;
 }
 
+/** Mirrors backend createWFHRequestSchema. `capturedAt` must be within 5 min of now — the server derives the request date from it. */
 export interface WFHRequestDto {
-  date: string;
   reason: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy?: number | null;
+  capturedAt: string;
 }
 
 // Alias for create vs general request dto

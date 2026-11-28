@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useMemo } from 'react';
+import React, { useState, memo, useMemo, type JSX } from 'react';
 import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Heart, Calendar } from 'lucide-react';
 import useAuth from '@/hooks/authjwt';
 import { DateTime } from 'luxon';
@@ -35,22 +35,6 @@ interface EmployeeAttendanceRecord {
   };
 }
 
-interface StatsBreakdown {
-  totalDays: number;
-  weekendDays: number;
-  holidayDays: number;
-  workingDays: number;
-}
-
-interface Stats {
-  total: number;
-  present: number;
-  absent: number;
-  leave: number;
-  weekend: number;
-  breakdown: StatsBreakdown;
-}
-
 interface DateRange {
   startDate: string;
   endDate: string;
@@ -70,25 +54,20 @@ interface EmployeeAttendanceTableProps {
   onRegularizationRequest?: (data: RegularizationPrefillData) => void;
 }
 
-// 🚀 OPTIMIZED: Employee Attendance Table with memoization
+/** Window index (counted back from the month's last 4 days) whose window ends on today, or 0 when today isn't in `days`. */
+const initialWindowIndex = (days: Date[]): number => {
+  const today = new Date().toDateString();
+  const todayIndex = days.findIndex(day => day.toDateString() === today);
+  if (todayIndex === -1) return 0;
+  const startIndex = Math.max(0, Math.min(todayIndex + 1, days.length) - 4);
+  return Math.max(0, days.length - 4 - startIndex);
+};
+
 const EmployeeAttendanceTable = memo(({ onRegularizationRequest }: EmployeeAttendanceTableProps) => {
   const user = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [currentWindowIndex, setCurrentWindowIndex] = useState(0);
-  const [_stats, setStats] = useState<Stats>({
-    total: 0,
-    present: 0,
-    absent: 0,
-    leave: 0,
-    weekend: 0,
-    breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 }
-  });
-  const [allWorkingDays, setAllWorkingDays] = useState<Date[]>([]);
-  const [workingDays, setWorkingDays] = useState<Date[]>([]);
-  const [attendanceData, setAttendanceData] = useState<EmployeeAttendanceRecord[]>([]);
-  const [monthlyAttendanceData, setMonthlyAttendanceData] = useState<EmployeeAttendanceRecord[]>([]);
 
-  // Calculate date range for the selected month
   const dateRange = useMemo<DateRange>(() => {
     const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
     const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
@@ -100,179 +79,83 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }: EmployeeAtten
     };
   }, [selectedMonth]);
 
-  // Fetch attendance data using React Query
   const { data: attendanceResponse, isLoading, error } = useEmployeeAttendanceWithAbsents({
     employeeId: user?.employeeId,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate
   }, { enabled: !!user?.employeeId });
 
-  // Fetch effective settings using React Query
   const { data: effectiveSettings } = useEffectiveSettings(
     attendanceResponse?.data?.employee?.department,
     { enabled: !!attendanceResponse?.data?.employee?.department }
   );
 
-  // 🚀 OPTIMIZED: Get the current 4-day window from all working days (memoized)
-  const getCurrentWindow = useMemo(() => {
-    if (allWorkingDays.length === 0) return [];
+  const responseData = attendanceResponse?.success ? attendanceResponse.data : undefined;
 
-    const maxStartIndex = Math.max(0, allWorkingDays.length - 4);
-    const startIndex = Math.max(0, maxStartIndex - currentWindowIndex);
-    const endIndex = Math.min(startIndex + 4, allWorkingDays.length);
-
-    return allWorkingDays.slice(startIndex, endIndex);
-  }, [allWorkingDays, currentWindowIndex]);
-
-  // Process attendance data when it changes
-  useEffect(() => {
-    if (!attendanceResponse?.success || !attendanceResponse?.data) return;
-
-    const response = attendanceResponse;
-    const allRecords = response.data.records || [];
-
-        // Transform the data to match the admin dashboard format
-        const employeeRecord: EmployeeAttendanceRecord = {
-          employee: {
-            _id: response.data.employee?._id,
-            employeeId: user.employeeId,
-            firstName: response.data.employee?.firstName || user.name?.split(' ')[0] || 'Employee',
-            lastName: response.data.employee?.lastName || user.name?.split(' ').slice(1).join(' ') || '',
-            department: response.data.employee?.department
-          },
-          employeeName: `${response.data.employee?.firstName || user.name?.split(' ')[0] || 'Employee'} ${response.data.employee?.lastName || user.name?.split(' ').slice(1).join(' ') || ''}`,
-          weekData: {}
-        };
-
-        // Transform records into weekData format
-        allRecords.forEach((record: any) => {
-          const year = new Date(record.date).getFullYear();
-          const month = String(new Date(record.date).getMonth() + 1).padStart(2, '0');
-          const day = String(new Date(record.date).getDate()).padStart(2, '0');
-          const dateKey = `${year}-${month}-${day}`;
-
-          // Keep backend status if present (attendance record takes priority)
-          // Only override with flag-based status if no actual attendance record exists
-          let finalStatus = record.status || 'absent';
-
-          // Only override status for flag-based statuses if there's no actual check-in
-          // Priority: Leave > Holiday > Weekend (matching backend logic)
-          if (!record.checkIn) {
-            if (record.flags?.isLeave || record.status === 'leave') {
-              finalStatus = 'leave';
-            } else if (record.flags?.isHoliday) {
-              finalStatus = 'holiday';
-            } else if (record.flags?.isWeekend) {
-              finalStatus = 'weekend';
-            }
-          }
-          // If there's a check-in, trust the backend status (present/half-day/etc.)
-
-          employeeRecord.weekData[dateKey] = {
-            _id: record._id,
-            checkIn: record.checkIn,
-            checkOut: record.checkOut,
-            status: finalStatus,
-            isWorkingDay: !record.flags?.isWeekend && !record.flags?.isHoliday,
-            holidayTitle: record.flags?.isHoliday ? (record.holidayTitle || 'Holiday') : undefined
-          };
-        });
-
-    // Generate all calendar days for the month - trust API data completely
-    const allDays: Date[] = [];
-    const currentDate = new Date(dateRange.firstDay);
-
-    while (currentDate <= dateRange.lastDay) {
-      allDays.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
+  const allWorkingDays: Date[] = [];
+  if (responseData) {
+    for (const d = new Date(dateRange.firstDay); d <= dateRange.lastDay; d.setDate(d.getDate() + 1)) {
+      allWorkingDays.push(new Date(d));
     }
+  }
 
-    setAllWorkingDays(allDays);
-    setMonthlyAttendanceData([employeeRecord]);
-    setAttendanceData([employeeRecord]);
+  const [windowSource, setWindowSource] = useState<typeof responseData>(undefined);
+  if (responseData !== windowSource) {
+    setWindowSource(responseData);
+    if (responseData) setCurrentWindowIndex(initialWindowIndex(allWorkingDays));
+  }
 
-    // Find initial window that includes today (if current month) or last 4 days
-    const today = new Date();
-    const isCurrentMonth = selectedMonth.getFullYear() === today.getFullYear() &&
-                          selectedMonth.getMonth() === today.getMonth();
+  const maxWindowIndex = Math.max(0, allWorkingDays.length - 4);
+  const windowStart = Math.max(0, maxWindowIndex - currentWindowIndex);
+  const workingDays = allWorkingDays.slice(windowStart, windowStart + 4);
 
+  let employeeRecord: EmployeeAttendanceRecord | null = null;
+  if (responseData && user) {
+    const employee = responseData.employee;
+    const firstName = employee?.firstName || user.name?.split(' ')[0] || 'Employee';
+    const lastName = employee?.lastName || user.name?.split(' ').slice(1).join(' ') || '';
+    employeeRecord = {
+      employee: {
+        _id: employee?._id,
+        employeeId: user.employeeId ?? '',
+        firstName,
+        lastName,
+        department: employee?.department
+      },
+      employeeName: `${firstName} ${lastName}`,
+      weekData: {}
+    };
 
-    let initialWindow: Date[];
-    let initialWindowIndex = 0;
+    for (const record of responseData.records || []) {
+      const recordDate = new Date(record.date);
+      const dateKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
 
-    if (isCurrentMonth && allDays.length > 0) {
-      const todayIndex = allDays.findIndex(day =>
-        day.toDateString() === today.toDateString()
-      );
-
-      if (todayIndex !== -1) {
-        const endIndex = Math.min(todayIndex + 1, allDays.length);
-        const startIndex = Math.max(0, endIndex - 4);
-        initialWindow = allDays.slice(startIndex, startIndex + 4);
-        initialWindowIndex = Math.max(0, allDays.length - 4 - startIndex);
-      } else {
-        initialWindow = allDays.slice(-4);
-        initialWindowIndex = 0;
+      // Flag-based statuses apply only without a check-in; priority Leave > Holiday > Weekend, matching the backend.
+      let finalStatus = record.status || 'absent';
+      if (!record.checkIn) {
+        if (record.flags?.isLeave || record.status === 'leave') {
+          finalStatus = 'leave';
+        } else if (record.flags?.isHoliday) {
+          finalStatus = 'holiday';
+        } else if (record.flags?.isWeekend) {
+          finalStatus = 'weekend';
+        }
       }
-    } else {
-      initialWindow = allDays.slice(-4);
-      initialWindowIndex = 0;
+
+      employeeRecord.weekData[dateKey] = {
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        status: finalStatus,
+        isWorkingDay: !record.flags?.isWeekend && !record.flags?.isHoliday,
+        holidayTitle: record.flags?.isHoliday ? (record.holidayTitle || 'Holiday') : undefined
+      };
     }
-
-    setCurrentWindowIndex(initialWindowIndex);
-    setWorkingDays(initialWindow);
-
-    // Calculate stats for the current window
-    updateStatsForWindow([employeeRecord], initialWindow);
-  }, [attendanceResponse, dateRange, selectedMonth, user]);
-
-
-  // Update stats for current window
-  const updateStatsForWindow = (records: EmployeeAttendanceRecord[], windowDays: Date[]): void => {
-    if (windowDays.length === 0 || records.length === 0) {
-      setStats({ total: 0, present: 0, absent: 0, leave: 0, weekend: 0, breakdown: { totalDays: 0, weekendDays: 0, holidayDays: 0, workingDays: 0 } });
-      return;
-    }
-
-    let present = 0, absent = 0, leave = 0, weekend = 0, holiday = 0;
-
-    windowDays.forEach(day => {
-      const attendance = getAttendanceForDay(records[0], day);
-
-      if (attendance.status === 'weekend') {
-        weekend++;
-      } else if (attendance.status === 'holiday') {
-        holiday++;
-      } else if (attendance.status === 'leave') {
-        leave++;
-      } else if (attendance.checkIn || attendance.checkOut) {
-        present++;
-      } else {
-        absent++;
-      }
-    });
-
-    const workingDays = windowDays.length - weekend - holiday;
-
-    setStats({
-      total: windowDays.length,
-      present,
-      absent,
-      leave,
-      weekend,
-      breakdown: {
-        totalDays: windowDays.length,
-        weekendDays: weekend,
-        holidayDays: holiday,
-        workingDays: workingDays
-      }
-    });
-  };
+  }
+  const attendanceData = employeeRecord ? [employeeRecord] : [];
 
   const handleAttendanceClick = (record: EmployeeAttendanceRecord, day: Date): void => {
     const attendanceForDay = getAttendanceForDay(record, day);
 
-    // Create regularization prefill data
     const prefillData: RegularizationPrefillData = {
       date: day,
       checkIn: attendanceForDay.checkIn,
@@ -281,42 +164,14 @@ const EmployeeAttendanceTable = memo(({ onRegularizationRequest }: EmployeeAtten
       reason: attendanceForDay.status === 'absent' ? 'I was present but forgot to check in/out' : undefined
     };
 
-    console.log('Opening regularization for:', {
-      date: day.toISOString().split('T')[0],
-      employee: record.employee?.firstName + ' ' + record.employee?.lastName,
-      existingRecord: attendanceForDay
-    });
-
-    if (onRegularizationRequest) {
-      onRegularizationRequest(prefillData);
-    }
+    onRegularizationRequest?.(prefillData);
   };
 
-  // Navigate the sliding window
   const navigateWindow = (direction: number): void => {
     const newWindowIndex = currentWindowIndex + direction;
-    const maxWindowIndex = Math.max(0, allWorkingDays.length - 4);
-
-    if (newWindowIndex < 0 || newWindowIndex > maxWindowIndex) {
-      return;
-    }
-
+    if (newWindowIndex < 0 || newWindowIndex > maxWindowIndex) return;
     setCurrentWindowIndex(newWindowIndex);
-
-    const newWindow = getCurrentWindow;
-    setWorkingDays(newWindow);
-
-    updateStatsForWindow(monthlyAttendanceData, newWindow);
   };
-
-  // Update window when currentWindowIndex changes
-  useEffect(() => {
-    if (allWorkingDays.length > 0) {
-      const newWindow = getCurrentWindow;
-      setWorkingDays(newWindow);
-      updateStatsForWindow(monthlyAttendanceData, newWindow);
-    }
-  }, [currentWindowIndex, allWorkingDays, monthlyAttendanceData]);
 
   // Handle month change
   const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {

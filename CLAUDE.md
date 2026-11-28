@@ -24,8 +24,8 @@ netstat -ano | findstr :4000 && taskkill //F //PID <pid>
 
 - **`pnpm build` on the frontend does not type-check.** A successful `vite build`
   proves nothing about types. Run `pnpm typecheck` and `pnpm lint` and report
-  actual numbers against these baselines: **typecheck 64**, **lint 112**
-  (100 errors, 12 warnings). Don't increase them; reduce where you touch a file.
+  actual numbers against these baselines: **typecheck 0**, **lint 7**
+  (0 errors, 7 warnings). Don't increase them; reduce where you touch a file.
 - **There is no test suite.** Verify by type-checking, building, and exercising
   code paths directly.
 - The backend type-checks and builds clean. Keep it that way.

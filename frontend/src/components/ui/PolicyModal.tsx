@@ -18,21 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { usePolicy } from "@/hooks/queries";
 
-interface Policy {
-  title: string;
-  category: string;
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  targetAudience: string;
-  version?: number;
-  acknowledgmentRequired?: boolean;
-  effectiveDate: string;
-  expiryDate?: string;
-  content: string;
-  tags?: string[];
-}
-
 interface PolicyModalProps {
-  policyId: string;
+  policyId: string | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -40,7 +27,7 @@ interface PolicyModalProps {
 type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 const PolicyModal = ({ policyId, isOpen, onClose }: PolicyModalProps) => {
-  const { data: policy, isLoading: loading, error } = usePolicy(policyId, {
+  const { data: policy, isLoading: loading, error } = usePolicy(policyId ?? '', {
     enabled: isOpen && !!policyId
   });
 

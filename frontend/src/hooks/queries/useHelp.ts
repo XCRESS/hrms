@@ -15,7 +15,7 @@ export const useAllHelpInquiries = (options?: { params?: HelpInquiryQueryParams;
   return useQuery({
     queryKey: queryKeys.help.allInquiries(options?.params),
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.HELP.ALL_INQUIRIES, (options?.params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.HELP.ALL_INQUIRIES, options?.params);
       const { data } = await axiosInstance.get<ApiResponse<{ inquiries: HelpInquiry[] }>>(endpoint);
       return data.data?.inquiries || [];
     },

@@ -16,7 +16,6 @@ import SalarySlipManagement from '../salary/SalarySlipManagement';
 import BackButton from '../../ui/BackButton';
 import { formatIndianNumber } from '../../../utils/indianNumber';
 import { useSalaryStatistics } from '../../../hooks/queries';
-import type { SalaryStatistics } from '../../../types';
 
 type SectionType = 'overview' | 'structure' | 'slips' | 'payroll';
 
@@ -198,13 +197,13 @@ const SalaryHub: React.FC = () => {
             icon={Calculator}
             iconColor="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
             label="Total Gross Salary"
-            value={`₹${formatIndianNumber(statistics.financial.totalGrossSalary)}`}
+            value={`₹${formatIndianNumber(statistics.financial?.totalGrossSalary)}`}
           />
           <FinancialStatCard
             icon={Users}
             iconColor="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
             label="Without Structure"
-            value={statistics.overview.employeesWithoutStructure}
+            value={statistics.overview?.employeesWithoutStructure ?? 0}
           />
         </div>
       )}

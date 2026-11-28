@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, AttendanceRecord, AttendanceQueryParams, Location, AttendanceRangeData } from '@/types';
+import type { ApiResponse, AttendanceRecord, AttendanceQueryParams, Location, AttendanceRangeData, EmployeeAttendanceReport } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -16,7 +16,7 @@ export const useAttendanceRecords = (params?: AttendanceQueryParams) => {
     queryKey: queryKeys.attendance.records(params),
     queryFn: async () => {
       // Backend returns { success, data: { records, pagination } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.GET_RECORDS, (params || {}) as any);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.GET_RECORDS, params);
       const { data } = await axiosInstance.get<ApiResponse<{ records: AttendanceRecord[] }>>(endpoint);
       return data.data?.records || [];
     },
@@ -31,7 +31,7 @@ export const useMyAttendance = (params?: AttendanceQueryParams, options?: { enab
     queryKey: queryKeys.attendance.myRecords(params),
     queryFn: async () => {
       // Backend returns { success, data: { records, pagination } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.MY_RECORDS, (params || {}) as any);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.MY_RECORDS, params);
       const { data } = await axiosInstance.get<ApiResponse<{ records: AttendanceRecord[] }>>(endpoint);
       return data.data?.records || [];
     },
@@ -66,7 +66,7 @@ export const useAdminAttendanceRange = (startDate: string, endDate: string, opti
     queryKey: queryKeys.attendance.adminRange(startDate, endDate, options),
     queryFn: async () => {
       const params = { startDate, endDate, ...options };
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.ADMIN_RANGE, params as any);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.ADMIN_RANGE, params);
       const { data } = await axiosInstance.get<ApiResponse<AttendanceRangeData>>(endpoint);
       return data.data;
     },
@@ -86,8 +86,8 @@ export const useEmployeeAttendanceWithAbsents = (
     queryKey: queryKeys.attendance.employeeWithAbsents(params),
     queryFn: async () => {
       // Backend returns { success, data: { employee, records, statistics, ... } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.EMPLOYEE_WITH_ABSENTS, (params || {}) as any);
-      const { data } = await axiosInstance.get<ApiResponse<any>>(endpoint);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.ATTENDANCE.EMPLOYEE_WITH_ABSENTS, params);
+      const { data } = await axiosInstance.get<ApiResponse<EmployeeAttendanceReport>>(endpoint);
       // Return full response structure for components that need employee info
       return {
         success: data.success,

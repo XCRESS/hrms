@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import type { ExpenseStatus } from '@/types';
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,11 +29,11 @@ import BackButton from "@/components/ui/BackButton";
 import {
   useAllExpenses,
   useUpdateExpenseStatus,
-  useBulkUpdateExpenseStatus
+  useBulkUpdateExpenseStatus,
+  useExportExpenses
 } from '@/hooks/queries/useExpenses';
 import { formatISTDate } from '@/utils/luxonUtils';
-import axiosInstance from '@/lib/axios';
-import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
+import { errorMessage } from '@/lib/errorMessage';
 
 const ExpenseManagement = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -47,7 +48,7 @@ const ExpenseManagement = () => {
   const { toast } = useToast();
   
   const queryParams = useMemo(() => ({
-    status: statusFilter === 'all' ? undefined : statusFilter as any,
+    status: statusFilter === 'all' ? undefined : statusFilter as ExpenseStatus,
     startDate: startDate || undefined,
     endDate: endDate || undefined
   }), [statusFilter, startDate, endDate]);
@@ -55,6 +56,7 @@ const ExpenseManagement = () => {
   const { data: expenses = [], isLoading, refetch } = useAllExpenses(queryParams);
   const updateStatusMutation = useUpdateExpenseStatus();
   const bulkUpdateMutation = useBulkUpdateExpenseStatus();
+  const exportExpensesMutation = useExportExpenses();
 
   const filteredExpenses = expenses.filter(exp => 
     exp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,11 +75,11 @@ const ExpenseManagement = () => {
         title: `Expense approved`,
         description: `The expense has been successfully approved.`
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: error.response?.data?.message || "Something went wrong"
+        description: errorMessage(error, "Something went wrong")
       });
     }
   };
@@ -96,11 +98,11 @@ const ExpenseManagement = () => {
       });
       setRejectingExpenseId(null);
       setRejectComment('');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: error.response?.data?.message || "Something went wrong"
+        description: errorMessage(error, "Something went wrong")
       });
     }
   };
@@ -128,32 +130,19 @@ const ExpenseManagement = () => {
       });
       setSelectedIds([]);
       setAdminComment('');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "error",
         title: "Bulk Update Failed",
-        description: error.response?.data?.message || "Something went wrong"
+        description: errorMessage(error, "Something went wrong")
       });
     }
   };
 
   const handleExport = async () => {
     try {
-      const exportParams = { ...queryParams, ...(searchTerm ? { search: searchTerm } : {}) };
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.EXPENSES.EXPORT, exportParams as any);
-      const response = await axiosInstance.get(endpoint, {
-        responseType: 'blob'
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Expenses_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
+      await exportExpensesMutation.mutateAsync({ ...queryParams, ...(searchTerm ? { search: searchTerm } : {}) });
+    } catch {
       toast({
         variant: "error",
         title: "Export Failed",
@@ -348,7 +337,7 @@ const ExpenseManagement = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {filteredExpenses.map((expense) => {
-                    const empData: any = expense.employee;
+                    const empData = typeof expense.employee === 'object' ? expense.employee : null;
                     const isSelected = selectedIds.includes(expense._id);
                     const isPending = expense.status === 'pending';
                     

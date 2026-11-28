@@ -4,10 +4,9 @@ import * as XLSX from 'xlsx';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
-import { ArrowLeft, FileSpreadsheet, Calendar, Users, Download, Sparkles } from 'lucide-react';
-import { useEmployees } from '../../hooks/queries';
-import axiosInstance from '../../lib/axios';
-import type { Employee, ApiResponse } from '@/types';
+import { ArrowLeft, FileSpreadsheet, Calendar, Users, Download } from 'lucide-react';
+import { useEmployees, useFetchTaskReports } from '../../hooks/queries';
+import type { Employee } from '@/types';
 
 interface DateRange {
   startDate: string;
@@ -20,21 +19,6 @@ interface ReportDataRow {
   'Summary Report': string;
 }
 
-interface TaskReportApiResponse {
-  success: boolean;
-  data: {
-    reports: Array<{
-      _id: string;
-      date: string;
-      tasks: string[];
-    }>;
-  };
-}
-
-interface ChatApiResponse {
-  response: string;
-}
-
 const TaskReportGenerator = () => {
   const navigate = useNavigate();
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
@@ -43,12 +27,12 @@ const TaskReportGenerator = () => {
     endDate: ''
   });
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // React Query hook
   const { data: employeesData, isLoading } = useEmployees();
+  const fetchTaskReports = useFetchTaskReports();
   const employees = employeesData || [];
 
   // Filter employees based on search term and exclude inactive employees
@@ -106,131 +90,6 @@ const TaskReportGenerator = () => {
     }).filter(task => task.length > 0); // Remove empty tasks after cleaning
   };
 
-  // Generate AI Summary Report
-  const generateAIReport = async () => {
-    if (!isFormValid()) {
-      setError("Please select at least one employee and specify date range.");
-      return;
-    }
-
-    setIsGeneratingAI(true);
-    setError(null);
-
-    try {
-      const reportData: ReportDataRow[] = [];
-      let serialNumber = 1;
-
-      // Fetch task reports for each selected employee
-      for (const employee of selectedEmployees) {
-        try {
-          const params = {
-            employeeId: employee.employeeId,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate,
-            limit: 1000
-          };
-
-          const { data } = await axiosInstance.get<TaskReportApiResponse>('/task-reports', { params });
-
-          if (data.success && data.data.reports && data.data.reports.length > 0) {
-            const allTasks = data.data.reports
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-              .flatMap(report => cleanTasks(report.tasks));
-
-            if (allTasks.length > 0) {
-              // Convert bullet points to AI summary
-              const bulletPoints = allTasks.map(task => `• ${task}`).join('\n');
-
-              try {
-                const { data: aiResponse } = await axiosInstance.post<ChatApiResponse>('/chat', {
-                  message: `Summarize this:\n\n${bulletPoints}`,
-                  conversation_id: null
-                });
-
-                let summary = aiResponse.response;
-
-                // Check if we got the fallback error message and handle it gracefully
-                if (!summary || summary.includes("I apologize, but I couldn't generate a proper response")) {
-                  // Fallback: Create our own summary by joining tasks intelligently
-                  const cleanedTasks = allTasks.slice(0, 10); // Limit to prevent too long summaries
-                  summary = `During the specified period, the employee worked on various tasks including: ${cleanedTasks.join(', ').toLowerCase()}. These activities demonstrate consistent engagement with assigned responsibilities and project deliverables.`;
-                } else {
-                  // Clean up AI response - preserve full summary but clean formatting
-                  summary = summary.trim();
-                  // Replace multiple newlines with single spaces for Excel compatibility
-                  summary = summary.replace(/\n\n+/g, '\n').replace(/\n/g, ' ');
-                  // Remove any bullet points that AI might have included
-                  summary = summary.replace(/^[•\-\*]\s*/gm, '').replace(/^\d+\.\s*/gm, '');
-                }
-
-                reportData.push({
-                  'S.No.': serialNumber++,
-                  'Employee Name': employee.fullName || employee.name || `${employee.firstName} ${employee.lastName}`,
-                  'Summary Report': summary
-                });
-              } catch (aiError) {
-                console.error('AI conversion failed:', aiError);
-                // Don't add data if AI fails - let error show
-                throw aiError;
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Failed to fetch reports for ${employee.fullName || employee.name}:`, err);
-        }
-      }
-
-      if (reportData.length === 0) {
-        setError("No task reports found for the selected employees and date range.");
-        return;
-      }
-
-      // Create Excel workbook with AI summaries
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(reportData);
-
-      // Set column widths
-      const columnWidths = [
-        { wch: 8 },  // S.No.
-        { wch: 25 }, // Employee Name
-        { wch: 60 }  // Summary Report
-      ];
-      ws['!cols'] = columnWidths;
-
-      // Style the header row
-      const headerCells = ['A1', 'B1', 'C1'];
-      headerCells.forEach(cell => {
-        if (ws[cell]) {
-          ws[cell].s = {
-            font: { bold: true },
-            fill: { bgColor: { indexed: 64 }, fgColor: { rgb: "FFFFFF" } },
-            alignment: { horizontal: "center", vertical: "center" }
-          };
-        }
-      });
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, "AI Task Reports");
-
-      // Generate filename with current date
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      const filename = `AI_Task_Reports_${dateRange.startDate}_to_${dateRange.endDate}_${dateStr}.xlsx`;
-
-      // Write and download the file
-      XLSX.writeFile(wb, filename);
-
-      // Show success message
-      setError(null);
-
-    } catch (err) {
-      console.error("Error generating AI report:", err);
-      setError("Failed to generate AI report. Please try again.");
-    } finally {
-      setIsGeneratingAI(false);
-    }
-  };
-
   // Generate Excel report
   const generateReport = async () => {
     if (!isFormValid()) {
@@ -256,11 +115,11 @@ const TaskReportGenerator = () => {
             limit: 1000 // Get all reports in date range
           };
 
-          const { data } = await axiosInstance.get<TaskReportApiResponse>('/task-reports', { params });
+          const { reports } = await fetchTaskReports(params);
 
-          if (data.success && data.data.reports && data.data.reports.length > 0) {
+          if (reports.length > 0) {
             // Combine all tasks for this employee
-            const allTasks = data.data.reports
+            const allTasks = [...reports]
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .flatMap(report => cleanTasks(report.tasks));
 
@@ -530,24 +389,6 @@ const TaskReportGenerator = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Button
-                    onClick={generateAIReport}
-                    disabled={!isFormValid() || isGeneratingAI}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-                  >
-                    {isGeneratingAI ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Generating AI Report...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        AI Generate Report
-                      </>
-                    )}
-                  </Button>
-
                   <Button
                     onClick={generateReport}
                     disabled={!isFormValid() || isGenerating}

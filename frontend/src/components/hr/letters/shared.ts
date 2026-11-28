@@ -61,10 +61,7 @@ export const removeFields = (doc: LetterDoc, drop: (key: string) => boolean): Le
 export const hasContent = (doc: LetterDoc): boolean =>
   doc.type === 'text' ? Boolean(doc.text?.trim()) : doc.type === 'field' || doc.type === 'table' || Boolean(doc.content?.some(hasContent));
 
-export const errorMessage = (error: unknown, fallback = 'Something went wrong'): string => {
-  const response = (error as { response?: { data?: { message?: string } } }).response;
-  return response?.data?.message ?? (error instanceof Error ? error.message : fallback);
-};
+export { errorMessage } from '@/lib/errorMessage';
 
 export const STATUS_LABEL = { draft: 'Draft', issuing: 'Issuing', issued: 'Issued', sent: 'Sent', void: 'Void' } as const;
 export const STATUS_VARIANT = { draft: 'default', issuing: 'warning', issued: 'primary', sent: 'success', void: 'error' } as const;

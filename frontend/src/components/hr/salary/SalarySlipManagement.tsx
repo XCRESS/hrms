@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import useAuth from "../../../hooks/authjwt";
 import BackButton from "../../ui/BackButton";
 import SalarySlipForm from "./SalarySlipForm";
 import SalarySlipCard from "./SalarySlipCard";
@@ -25,6 +24,7 @@ import {
     useUpdateSalarySlipStatus
 } from "../../../hooks/queries";
 import { SalarySlip, Employee, MonthOption } from "../../../types";
+import { errorMessage } from '@/lib/errorMessage';
 
 interface SalarySlipManagementProps {
     onBack?: () => void;
@@ -54,8 +54,6 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
 
     const { toast } = useToast();
     const confirm = useConfirm();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const user = useAuth();
 
     // React Query hooks
     const { data: employeesData } = useEmployees();
@@ -101,7 +99,7 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
         { value: 12, label: 'December' }
     ];
 
-    const handleFilterChange = (key: string, value: any) => {
+    const handleFilterChange = (key: keyof FilterState, value: string | number) => {
         setFilters(prev => ({
             ...prev,
             [key]: value
@@ -142,10 +140,10 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
                 title: "Success",
                 description: "Salary slip deleted successfully"
             });
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to delete salary slip",
+                description: errorMessage(error, "Failed to delete salary slip"),
                 variant: "destructive"
             });
         }
@@ -163,10 +161,10 @@ const SalarySlipManagement: React.FC<SalarySlipManagementProps> = ({ onBack }) =
                 title: "Success",
                 description: `Salary slip ${newStatus === 'finalized' ? 'published' : 'unpublished'} successfully`
             });
-        } catch (error: any) {
+        } catch (error) {
             toast({
                 title: "Error",
-                description: error.message || `Failed to ${newStatus === 'finalized' ? 'publish' : 'unpublish'} salary slip`,
+                description: errorMessage(error, `Failed to ${newStatus === 'finalized' ? 'publish' : 'unpublish'} salary slip`),
                 variant: "destructive"
             });
         }

@@ -45,7 +45,7 @@ export const useAllLeaves = (options?: { params?: LeaveQueryParams; enabled?: bo
     queryKey: queryKeys.leaves.allLeaves(options?.params),
     queryFn: async () => {
       // Backend returns { success, leaves: Leave[] }
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, (options?.params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, options?.params);
       const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] }>(endpoint);
       return data.leaves || [];
     },
@@ -61,7 +61,7 @@ export const useAllLeavesWithMeta = (options?: { params?: LeaveQueryParams; enab
   return useQuery({
     queryKey: [...queryKeys.leaves.allLeaves(options?.params), 'meta'],
     queryFn: async () => {
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, (options?.params || {}) as Record<string, string | number | boolean>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.LEAVES.ALL_LEAVES, options?.params);
       const { data } = await axiosInstance.get<{ success: boolean; leaves: Leave[] } & RequestListMeta>(endpoint);
       return { rows: data.leaves || [], pagination: data.pagination, statusCounts: data.statusCounts ?? {} };
     },

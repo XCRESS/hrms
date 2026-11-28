@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Camera, Trash2, User, Loader2 } from 'lucide-react';
 import { useToast } from './toast';
 import { useUploadDocument, useDeleteDocument } from '@/hooks/queries';
@@ -41,12 +41,7 @@ const AvatarViewer = ({
   const deleteMutation = useDeleteDocument();
   const busy = uploadMutation.isPending || deleteMutation.isPending;
 
-  // Dialog handles Escape, scroll locking, focus trapping and the portal.
-
-  // Reset the confirmation prompt whenever the viewer is reopened.
-  useEffect(() => {
-    if (!open) setConfirmingRemove(false);
-  }, [open]);
+  if (!open && confirmingRemove) setConfirmingRemove(false);
 
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];

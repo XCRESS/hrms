@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
+import { saveBlob } from '@/lib/saveBlob';
 import { queryKeys } from '@/lib/queryKeys';
 import { queryClient } from '@/lib/queryClient';
 import { API_ENDPOINTS } from '@/lib/apiEndpoints';
@@ -124,15 +125,6 @@ export const uploadAssistantFile = async (file: File): Promise<AssistantFileSumm
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return data.data!;
-};
-
-const saveBlob = (blob: Blob, name: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
 };
 
 export const useDownloadAssistantFile = () =>

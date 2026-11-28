@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios';
 import { queryKeys } from '@/lib/queryKeys';
 import { API_ENDPOINTS, buildEndpointWithQuery } from '@/lib/apiEndpoints';
-import type { ApiResponse, Policy, CreatePolicyDto, UpdatePolicyDto, PolicyQueryParams, PolicyStatus } from '@/types';
+import type { ApiResponse, Policy, CreatePolicyDto, UpdatePolicyDto, PolicyQueryParams } from '@/types';
 
 // ============================================================================
 // QUERIES
@@ -26,10 +26,11 @@ export const usePolicies = (params?: PolicyQueryParams) => {
     queryKey: queryKeys.policies.list(params),
     queryFn: async () => {
       // Backend returns { success, data: { policies, pagination } } via formatResponse
-      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.POLICIES.BASE, (params || {}) as Record<string, string | number | boolean | null | undefined>);
+      const endpoint = buildEndpointWithQuery(API_ENDPOINTS.POLICIES.BASE, params);
       const { data } = await axiosInstance.get<ApiResponse<PoliciesResponse>>(endpoint);
       return data.data || { policies: [], pagination: { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 } };
     },
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -51,14 +52,14 @@ export const useActivePolicies = () => {
 /**
  * Get single policy by ID
  */
-export const usePolicy = (id: string) => {
+export const usePolicy = (id: string, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.policies.detail(id),
     queryFn: async () => {
       const { data } = await axiosInstance.get<ApiResponse<Policy>>(API_ENDPOINTS.POLICIES.GET_BY_ID(id));
       return data.data;
     },
-    enabled: !!id,
+    enabled: !!id && (options?.enabled ?? true),
   });
 };
 
@@ -106,26 +107,6 @@ export const useUpdatePolicy = () => {
       if (updatedPolicy) {
         queryClient.setQueryData(queryKeys.policies.detail(updatedPolicy._id), updatedPolicy);
       }
-    },
-  });
-};
-
-/**
- * Update policy status (Admin/HR)
- */
-export const useUpdatePolicyStatus = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ policyId, status }: { policyId: string; status: PolicyStatus }) => {
-      const { data } = await axiosInstance.put<ApiResponse<Policy>>(
-        API_ENDPOINTS.POLICIES.UPDATE_STATUS(policyId),
-        { status }
-      );
-      return data.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.policies.all() });
     },
   });
 };

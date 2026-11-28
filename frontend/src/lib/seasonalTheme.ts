@@ -10,7 +10,7 @@ export interface SeasonalStore {
 
 export type SeasonalAction = { apply: CustomTheme } | { revert: true } | null;
 
-/** owned = themes the festival registry manages; others (e.g. effect #5's Independence) are left alone. */
+/** owned = themes the festival registry manages; others (e.g. ThemeContext's date-driven Independence theme) are left alone. */
 export function decideSeasonalTheme(
   theme: CustomTheme | null,
   current: CustomTheme,

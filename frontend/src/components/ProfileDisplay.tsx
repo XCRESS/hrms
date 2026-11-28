@@ -11,7 +11,6 @@ import {
 import { useNavigate } from "react-router";
 import { useProfile } from "@/hooks/queries";
 import { useEffect, useState, ReactNode } from "react";
-import type { Employee } from "@/types";
 import AvatarViewer from "@/components/ui/AvatarViewer";
 import useProfilePicture from "@/hooks/useProfilePicture";
 

@@ -29,7 +29,7 @@ interface CurrentHoliday extends HolidayFormData {
   _id?: string;
 }
 
-const HolidaysPage = (): JSX.Element => {
+const HolidaysPage = () => {
   const user = useAuth() as User | null;
   const [message, setMessage] = useState<Message>({ type: '', content: '' });
 
@@ -80,7 +80,7 @@ const HolidaysPage = (): JSX.Element => {
   const openEditModal = (holiday: Holiday): void => {
     resetMessages();
     setIsEditing(true);
-    setCurrentHoliday({ ...holiday, date: formatDateForInput(holiday.date) });
+    setCurrentHoliday({ ...holiday, description: holiday.description ?? "", date: formatDateForInput(holiday.date) });
     setShowModal(true);
   };
 

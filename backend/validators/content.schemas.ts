@@ -61,7 +61,9 @@ export type CreatePolicyInput = z.infer<typeof createPolicySchema>;
 export type SubmitTaskReportInput = z.infer<typeof submitTaskReportSchema>;
 
 /** Policy updates: partial of create; controller merges what's present. */
-export const updatePolicySchema = nullishPartial(createPolicySchema);
+export const updatePolicySchema = nullishPartial(createPolicySchema).extend({
+  isActive: z.boolean().optional(),
+});
 
 /** Office location updates; `coordinates` accepted as an alternative to lat/lng. */
 export const updateOfficeLocationSchema = nullishPartial(createOfficeLocationSchema).extend({

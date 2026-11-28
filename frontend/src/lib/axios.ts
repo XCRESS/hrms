@@ -84,12 +84,13 @@ axiosInstance.interceptors.response.use(
   (error: AxiosError<ApiResponse>) => {
     adoptRefreshedToken(error.response?.headers);
 
-    const customError: ApiError = {
-      message: 'An error occurred',
+    // A real Error so callers' `err instanceof Error ? err.message : fallback` shows the server's message.
+    const customError: ApiError & Error = Object.assign(new Error('An error occurred'), {
       status: error.response?.status || 500,
       endpoint: error.config?.url,
       timestamp: new Date().toISOString(),
-    };
+      data: error.response?.data,
+    });
 
     const authMessage = handleAuthFailure(error.response?.status, error.response?.data as { message?: string; code?: string } | undefined);
     if (authMessage) {

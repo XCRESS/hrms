@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Clock } from "lucide-react";
 import {
@@ -11,17 +11,17 @@ import {
 import { useRequestRegularization } from "@/hooks/queries";
 import * as dateFnsTz from 'date-fns-tz';
 
-interface PrefillData {
+export interface RegularizationPrefill {
   date?: string | Date;
-  checkIn?: string | Date;
-  suggestedCheckOut?: string | Date;
+  checkIn?: string | Date | null;
+  suggestedCheckOut?: string | Date | null;
 }
 
 interface RegularizationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  prefillData?: PrefillData | null;
+  prefillData?: RegularizationPrefill | null;
 }
 
 export default function RegularizationModal({ isOpen, onClose, onSuccess, prefillData = null }: RegularizationModalProps) {
@@ -32,51 +32,32 @@ export default function RegularizationModal({ isOpen, onClose, onSuccess, prefil
   const [message, setMessage] = useState<string | null>(null);
   const regularizationMutation = useRequestRegularization();
 
-  // Effect to handle prefilled data
-  useEffect(() => {
-    if (prefillData && isOpen) {
-      // Set date (fix UTC/IST conversion issue)
-      if (prefillData.date) {
-        const date = new Date(prefillData.date);
-        // Use local date formatting to avoid UTC conversion issues
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-        setDate(dateStr);
-      }
+  const [syncedOpen, setSyncedOpen] = useState(false);
+  const [syncedPrefill, setSyncedPrefill] = useState(prefillData);
 
-      // Set check-in time
-      if (prefillData.checkIn) {
-        const checkInTime = new Date(prefillData.checkIn).toTimeString().slice(0, 5);
-        setCheckIn(checkInTime);
-      }
-
-      // Set suggested check-out time
-      if (prefillData.suggestedCheckOut) {
-        const checkOutTime = new Date(prefillData.suggestedCheckOut).toTimeString().slice(0, 5);
-        setCheckOut(checkOutTime);
-      }
-
-      // Set a default reason for missing checkout
-      setReason("Forgot to check out on this day. Please regularize my attendance record.");
-    }
-  }, [prefillData, isOpen]);
-
-  // Reset form when modal closes or opens without prefill data
-  useEffect(() => {
+  if (isOpen !== syncedOpen || prefillData !== syncedPrefill) {
+    setSyncedOpen(isOpen);
+    setSyncedPrefill(prefillData);
     if (!isOpen) {
       setDate("");
       setCheckIn("");
       setCheckOut("");
       setReason("");
       setMessage(null);
-    } else if (isOpen && !prefillData) {
-      // Set default times when opening modal without prefill data
+    } else if (prefillData) {
+      if (prefillData.date) {
+        // Local-date formatting; toISOString would shift the day across the UTC/IST boundary.
+        const d = new Date(prefillData.date);
+        setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      }
+      if (prefillData.checkIn) setCheckIn(new Date(prefillData.checkIn).toTimeString().slice(0, 5));
+      if (prefillData.suggestedCheckOut) setCheckOut(new Date(prefillData.suggestedCheckOut).toTimeString().slice(0, 5));
+      setReason("Forgot to check out on this day. Please regularize my attendance record.");
+    } else {
       setCheckIn("09:30");
       setCheckOut("17:30");
     }
-  }, [isOpen, prefillData]);
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

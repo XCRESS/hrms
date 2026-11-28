@@ -14,7 +14,7 @@
  *    while it is clean.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { SettingsFormData } from './types';
 import type { GlobalSettings, DepartmentSettings } from '@/types';
 import {
@@ -84,17 +84,14 @@ export const useSettingsForm = ({
 }: UseSettingsFormArgs): UseSettingsFormResult => {
   const [formData, setFormData] = useState<SettingsFormData>(DEFAULT_SETTINGS_FORM);
   const [dirty, setDirty] = useState<DirtyMap>(NO_SECTIONS_DIRTY);
+  const [synced, setSynced] = useState<{ serverData: ServerSettings | undefined; scopeKey: string }>({
+    serverData: undefined,
+    scopeKey,
+  });
 
-  // Tracked in a ref so the sync effect can read current dirty state without
-  // listing it as a dependency (which would re-run the effect on every edit).
-  const dirtyRef = useRef<DirtyMap>(NO_SECTIONS_DIRTY);
-  dirtyRef.current = dirty;
-
-  const previousScopeRef = useRef<string>(scopeKey);
-
-  useEffect(() => {
-    const scopeChanged = previousScopeRef.current !== scopeKey;
-    previousScopeRef.current = scopeKey;
+  if (synced.serverData !== serverData || synced.scopeKey !== scopeKey) {
+    const scopeChanged = synced.scopeKey !== scopeKey;
+    setSynced({ serverData, scopeKey });
 
     if (!serverData) {
       // Switching to a scope with no saved document yet: show defaults rather
@@ -103,29 +100,21 @@ export const useSettingsForm = ({
         setFormData(DEFAULT_SETTINGS_FORM);
         setDirty(NO_SECTIONS_DIRTY);
       }
-      return;
-    }
-
-    const next = toFormData(serverData);
-
-    if (scopeChanged) {
-      setFormData(next);
+    } else if (scopeChanged) {
+      setFormData(toFormData(serverData));
       setDirty(NO_SECTIONS_DIRTY);
-      return;
+    } else {
+      // Same scope: only adopt server values for sections the user has not
+      // edited, so a background refetch cannot discard unsaved work.
+      const next = toFormData(serverData);
+      setFormData((current) => ({
+        attendance: dirty.attendance ? current.attendance : next.attendance,
+        notifications: dirty.notifications ? current.notifications : next.notifications,
+        general: dirty.general ? current.general : next.general,
+        requestRetention: dirty.requestRetention ? current.requestRetention : next.requestRetention,
+      }));
     }
-
-    // Same scope: only adopt server values for sections the user has not
-    // edited, so a background refetch cannot discard unsaved work.
-    setFormData((current) => {
-      const currentDirty = dirtyRef.current;
-      return {
-        attendance: currentDirty.attendance ? current.attendance : next.attendance,
-        notifications: currentDirty.notifications ? current.notifications : next.notifications,
-        general: currentDirty.general ? current.general : next.general,
-        requestRetention: currentDirty.requestRetention ? current.requestRetention : next.requestRetention,
-      };
-    });
-  }, [serverData, scopeKey]);
+  }
 
   const setSection = useCallback(
     <K extends SettingsSection>(section: K, value: SettingsFormData[K]) => {

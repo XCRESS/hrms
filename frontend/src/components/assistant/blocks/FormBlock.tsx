@@ -15,7 +15,7 @@ import { useSubmitHelpInquiry } from '@/hooks/queries/useHelp';
 import { useSubmitTaskReport } from '@/hooks/queries/useTaskReports';
 import { useCheckOut } from '@/hooks/queries/useAttendance';
 import { acquireBestFix } from '@/utils/geolocation';
-import type { CreateHelpInquiryDto, CreateWFHRequestDto, LeaveRequestDto } from '@/types';
+import type { CreateHelpInquiryDto, LeaveRequestDto } from '@/types';
 import type { DraftKind, HelpFields, HolidayFields, LeaveFields, RegularizationFields, TaskReportCheckoutFields, WFHFields } from '../types';
 import { type DraftEntry, lastOf } from './draftEntries';
 import { useDraftVersions } from './useDraftVersions';
@@ -166,7 +166,7 @@ export function FormBlock({ entries }: { entries: DraftEntry[] }) {
       case 'wfh': {
         const w = fields as WFHFields;
         const location = await acquireBestFix().catch(() => undefined);
-        await requestWFH.mutateAsync({ reason: w.reason.trim(), ...(location ?? {}) } as unknown as CreateWFHRequestDto);
+        await requestWFH.mutateAsync({ ...(location ?? {}), reason: w.reason.trim(), capturedAt: location?.capturedAt ?? new Date().toISOString() });
         return { summary: 'Work-from-home request sent to HR', link: '/requests', committedFields: { ...w } };
       }
       case 'regularization': {

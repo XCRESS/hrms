@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -22,17 +22,15 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import useAuth from '../../hooks/authjwt';
 import BackButton from '../ui/BackButton';
 import {
   usePolicies,
   useCreatePolicy,
   useUpdatePolicy,
-  useUpdatePolicyStatus,
   useDeletePolicy,
   usePermanentDeletePolicy,
 } from '@/hooks/queries';
-import type { Policy, PolicyCategory, PolicyPriority, PolicyTargetAudience, User } from '@/types';
+import type { Policy, PolicyCategory, PolicyPriority, PolicyTargetAudience } from '@/types';
 
 interface PolicyFormData {
   title: string;
@@ -53,9 +51,7 @@ interface PaginationState {
   itemsPerPage: number;
 }
 
-interface PoliciesPageProps {
-  onBack?: () => void;
-}
+const ITEMS_PER_PAGE = 10;
 
 const CATEGORIES: PolicyCategory[] = [
   'General',
@@ -79,7 +75,7 @@ const TARGET_AUDIENCES: PolicyTargetAudience[] = [
   'Specific Departments',
 ];
 
-const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
+const PoliciesPage = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -98,41 +94,27 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
     tags: [],
   });
 
-  // Pagination
-  const [pagination, setPagination] = useState<PaginationState>({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { toast } = useToast();
   const confirm = useConfirm();
-  const user = useAuth() as User | null;
 
-  // Fetch policies using React Query
   const { data: policiesData, isLoading: loading } = usePolicies({
-    page: pagination.currentPage,
-    limit: pagination.itemsPerPage,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
   });
 
   const policies = policiesData?.policies || [];
-
-  // Sync pagination state with API response
-  useEffect(() => {
-    if (policiesData?.pagination) {
-      setPagination(prev => ({
-        ...prev,
-        totalPages: policiesData.pagination.totalPages,
-        totalItems: policiesData.pagination.totalItems,
-      }));
-    }
-  }, [policiesData?.pagination]);
+  const pagination: PaginationState = {
+    currentPage,
+    itemsPerPage: ITEMS_PER_PAGE,
+    totalPages: policiesData?.pagination?.totalPages ?? 1,
+    totalItems: policiesData?.pagination?.totalItems ?? 0,
+  };
 
   // Mutations
   const createPolicyMutation = useCreatePolicy();
   const updatePolicyMutation = useUpdatePolicy();
-  const updatePolicyStatusMutation = useUpdatePolicyStatus();
   const deletePolicyMutation = useDeletePolicy();
   const permanentDeletePolicyMutation = usePermanentDeletePolicy();
 
@@ -214,7 +196,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
     }
 
     try {
-      await updatePolicyStatusMutation.mutateAsync({
+      await updatePolicyMutation.mutateAsync({
         id: policy._id,
         isActive: true,
       });
@@ -335,10 +317,7 @@ const PoliciesPage = ({ onBack }: PoliciesPageProps): JSX.Element => {
   };
 
   const handlePageChange = (newPage: number): void => {
-    setPagination((prev) => ({
-      ...prev,
-      currentPage: newPage,
-    }));
+    setCurrentPage(newPage);
   };
 
   const getPriorityColor = (priority: PolicyPriority): string => {

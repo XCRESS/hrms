@@ -1,6 +1,17 @@
 import React from 'react';
 import { TestTube, Send, Save, RotateCcw } from 'lucide-react';
-import { NotificationSettingsData } from './types';
+import type { HrEmailTypes, NotificationSettingsData } from './types';
+
+type NestedSection = 'milestoneTypes' | 'hrEmailTypes' | 'dailyHrAttendanceReport';
+
+const HR_EMAIL_TYPE_OPTIONS: { key: keyof HrEmailTypes; label: string; desc: string }[] = [
+    { key: 'leaveRequests', label: 'Leave Requests', desc: 'Notifications when employees submit leave requests' },
+    { key: 'wfhRequests', label: 'Work From Home Requests', desc: 'Notifications when employees request to work from home' },
+    { key: 'regularizationRequests', label: 'Regularization Requests', desc: 'Notifications for attendance regularization requests' },
+    { key: 'helpRequests', label: 'Help Requests', desc: 'Notifications when employees need assistance' },
+    { key: 'employeeMilestones', label: 'Employee Milestones', desc: 'Work anniversary notifications' },
+    { key: 'expenseRequests', label: 'Expense Requests', desc: 'Notifications for employee reimbursement claims' },
+];
 import AttendanceNudgeSettings from './AttendanceNudgeSettings';
 
 interface NotificationSettingsProps {
@@ -43,15 +54,19 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     lateThreshold = '09:55',
     workEndTime = '18:00'
 }) => {
-    const updateField = (field: keyof NotificationSettingsData, value: any) => {
+    const updateField = <K extends keyof NotificationSettingsData>(field: K, value: NotificationSettingsData[K]) => {
         onUpdate({ ...notifications, [field]: value });
     };
 
-    const updateNestedField = (parent: keyof NotificationSettingsData, field: string, value: any) => {
+    const updateNestedField = <P extends NestedSection, F extends keyof NotificationSettingsData[P]>(
+        parent: P,
+        field: F,
+        value: NotificationSettingsData[P][F]
+    ) => {
         onUpdate({
             ...notifications,
             [parent]: {
-                ...(notifications[parent] as any),
+                ...notifications[parent],
                 [field]: value
             }
         });
@@ -295,14 +310,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                     <p className="text-sm text-slate-600 dark:text-slate-400">Choose which email notifications HR team should receive</p>
                 </div>
                 <div className="space-y-3 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
-                    {[
-                        { key: 'leaveRequests', label: 'Leave Requests', desc: 'Notifications when employees submit leave requests' },
-                        { key: 'wfhRequests', label: 'Work From Home Requests', desc: 'Notifications when employees request to work from home' },
-                        { key: 'regularizationRequests', label: 'Regularization Requests', desc: 'Notifications for attendance regularization requests' },
-                        { key: 'helpRequests', label: 'Help Requests', desc: 'Notifications when employees need assistance' },
-                        { key: 'employeeMilestones', label: 'Employee Milestones', desc: 'Work anniversary notifications' },
-                        { key: 'expenseRequests', label: 'Expense Requests', desc: 'Notifications for employee reimbursement claims' }
-                    ].map(type => (
+                    {HR_EMAIL_TYPE_OPTIONS.map(type => (
                         <div key={type.key} className="flex items-center justify-between">
                             <div>
                                 <h4 className="font-medium text-slate-900 dark:text-slate-100">{type.label}</h4>
@@ -310,7 +318,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                             </div>
                             <input
                                 type="checkbox"
-                                checked={notifications.hrEmailTypes?.[type.key as keyof typeof notifications.hrEmailTypes] ?? true}
+                                checked={notifications.hrEmailTypes?.[type.key] ?? true}
                                 onChange={(e) => updateNestedField('hrEmailTypes', type.key, e.target.checked)}
                                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                             />

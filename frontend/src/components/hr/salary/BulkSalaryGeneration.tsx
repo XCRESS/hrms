@@ -21,8 +21,8 @@ import type { BulkGenerationResponse, BulkGenerationResult, MonthOption } from "
 interface Employee {
   _id: string;
   employeeId: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   department?: string;
   position?: string;
 }

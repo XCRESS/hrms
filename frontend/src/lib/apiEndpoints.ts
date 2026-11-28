@@ -217,7 +217,6 @@ export const API_ENDPOINTS = {
     GET_ACTIVE: '/policies/active',
     GET_BY_ID: (id: string) => `/policies/${id}`,
     UPDATE: (id: string) => `/policies/${id}`,
-    UPDATE_STATUS: (id: string) => `/policies/${id}/status`,
     DELETE: (id: string) => `/policies/${id}`,
     STATISTICS: '/policies/statistics',
   },
@@ -288,18 +287,20 @@ export const API_ENDPOINTS = {
   },
 } as const;
 
-// Helper function to build query string
-export const buildQueryString = (params: Record<string, string | number | boolean | undefined | null> = {}): string => {
-  const filteredParams = Object.entries(params)
-    .filter(([, value]) => value !== null && value !== undefined && value !== '')
-    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+type QueryValue = string | number | boolean | undefined | null;
+/** Mapped rather than Record<string, …> so named interfaces (no index signature) are accepted. */
+type QueryParams<T> = { [K in keyof T]: QueryValue };
 
-  const queryString = new URLSearchParams(filteredParams as Record<string, string>).toString();
+export const buildQueryString = <T extends QueryParams<T>>(params: T = {} as T): string => {
+  const entries = Object.entries(params as Record<string, QueryValue>)
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([key, value]) => [key, String(value)]);
+
+  const queryString = new URLSearchParams(entries).toString();
   return queryString ? `?${queryString}` : '';
 };
 
-// Helper function to build full URL with query params
-export const buildEndpointWithQuery = (endpoint: string, params: Record<string, string | number | boolean | undefined | null> = {}): string => {
+export const buildEndpointWithQuery = <T extends QueryParams<T>>(endpoint: string, params: T = {} as T): string => {
   const queryString = buildQueryString(params);
   return `${endpoint}${queryString}`;
 };

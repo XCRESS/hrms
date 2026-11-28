@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import { Receipt, Calendar, Pencil } from "lucide-react";
 import type { CreateExpenseDto, Expense } from "@/types";
 
@@ -19,29 +19,27 @@ interface ExpenseModalProps {
   editingExpense?: Expense | null;
 }
 
+const toDateInput = (d: string | Date) => new Date(d).toISOString().split('T')[0];
+
 const ExpenseModal = ({ isOpen, onClose, onSubmit, isLoading, editingExpense }: ExpenseModalProps) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [item, setItem] = useState("");
-  const [amount, setAmount] = useState<string>("");
+  const [date, setDate] = useState(() => toDateInput(editingExpense?.date ?? new Date()));
+  const [item, setItem] = useState(editingExpense?.item ?? "");
+  const [amount, setAmount] = useState<string>(editingExpense?.amount.toString() ?? "");
+  const [loadedExpense, setLoadedExpense] = useState(editingExpense);
 
   const isEditMode = !!editingExpense;
 
-  // Populate form when editing
-  useEffect(() => {
-    if (editingExpense) {
-      setDate(new Date(editingExpense.date).toISOString().split('T')[0]);
-      setItem(editingExpense.item);
-      setAmount(editingExpense.amount.toString());
-    } else {
-      resetForm();
-    }
-  }, [editingExpense]);
-
-  const resetForm = () => {
-    setDate(new Date().toISOString().split('T')[0]);
-    setItem("");
-    setAmount("");
+  const fillForm = (expense?: Expense | null) => {
+    setDate(toDateInput(expense?.date ?? new Date()));
+    setItem(expense?.item ?? "");
+    setAmount(expense?.amount.toString() ?? "");
   };
+  const resetForm = () => fillForm(null);
+
+  if (editingExpense !== loadedExpense) {
+    setLoadedExpense(editingExpense);
+    fillForm(editingExpense);
+  }
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

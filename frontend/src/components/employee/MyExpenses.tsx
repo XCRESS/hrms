@@ -19,6 +19,7 @@ import ExpenseModal from "@/components/ExpenseModal";
 import { useMyExpenses, useCreateExpense, useUpdateExpense } from '@/hooks/queries/useExpenses';
 import { formatISTDate } from '@/utils/luxonUtils';
 import type { Expense } from '@/types';
+import { errorMessage } from '@/lib/errorMessage';
 
 const MyExpenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,11 +40,11 @@ const MyExpenses = () => {
         description: "Your expense has been submitted for review."
       });
       setIsModalOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "error",
         title: "Submission Failed",
-        description: error.response?.data?.message || "Something went wrong"
+        description: errorMessage(error, "Something went wrong")
       });
     }
   };
@@ -59,11 +60,11 @@ const MyExpenses = () => {
       });
       setEditingExpense(null);
       setIsModalOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "error",
         title: "Update Failed",
-        description: error.response?.data?.message || "Something went wrong"
+        description: errorMessage(error, "Something went wrong")
       });
     }
   };

@@ -71,7 +71,7 @@ const MySalarySlips: React.FC = () => {
 
   // Fetch salary slips
   const { data: salarySlipsData, isLoading: loading } = useEmployeeSalarySlips(
-    user?.employeeId,
+    user?.employeeId ?? '',
     queryParams,
     { enabled: !!user?.employeeId }
   );
@@ -111,7 +111,7 @@ const MySalarySlips: React.FC = () => {
         title: "Success",
         description: "PDF download initiated"
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to download PDF",

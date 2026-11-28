@@ -18,6 +18,77 @@ const readSeasonalStore = (): SeasonalStore => ({
   autoEnabled: localStorage.getItem('auto_seasonal_theme') !== 'false',
 });
 
+const readStored = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+/** The slice of storage the date-driven themes read and write. */
+interface SeasonalState {
+  theme: CustomTheme;
+  stored: string | null;
+  autoApplied: string | null;
+}
+
+const readSeasonalState = (theme: CustomTheme): SeasonalState => ({
+  theme,
+  stored: readStored(CUSTOM_THEME_KEY),
+  autoApplied: readStored(AUTO_APPLIED_KEY),
+});
+
+/** Date-driven themes (Independence, Christmas, New Year) that override 'default'. Pure: returns the next state, or null. */
+const autoSeasonalStep = (s: SeasonalState, now: Date, autoEnabled: boolean): SeasonalState | null => {
+  const month = now.getMonth();
+  const day = now.getDate();
+  const switchTo = (theme: CustomTheme, autoApplied = s.autoApplied): SeasonalState => ({ theme, stored: theme, autoApplied });
+
+  if (autoEnabled && month === 7 && day >= 10 && day <= 15) {
+    return s.theme === 'default' ? switchTo('independence', 'independence') : null;
+  }
+
+  if (s.theme === 'independence' && s.autoApplied === 'independence') {
+    return switchTo('default', null);
+  }
+
+  const isDefaultOrChristmas = !s.stored || s.stored === 'default' || s.stored === 'christmas';
+  const shouldAutoApply = s.theme === 'default' || (s.theme === 'christmas' && isDefaultOrChristmas);
+  if (!shouldAutoApply || !autoEnabled) return null;
+
+  if (month === 11) {
+    if (day > 25) return switchTo('newyear');
+    return s.stored === 'default' && s.theme !== 'christmas' ? switchTo('christmas') : null;
+  }
+  if (month === 0) return switchTo('newyear');
+  return null;
+};
+
+const settleSeasonal = (start: SeasonalState, now: Date, autoEnabled: boolean): SeasonalState => {
+  let s = start;
+  for (let i = 0; i < 3; i++) {
+    const next = autoSeasonalStep(s, now, autoEnabled);
+    if (!next || next.theme === s.theme) break;
+    s = next;
+  }
+  return s;
+};
+
+const persistSeasonal = (before: SeasonalState, after: SeasonalState): void => {
+  try {
+    if (after.stored !== before.stored && after.stored) localStorage.setItem(CUSTOM_THEME_KEY, after.stored);
+    if (after.autoApplied !== before.autoApplied) {
+      if (after.autoApplied) localStorage.setItem(AUTO_APPLIED_KEY, after.autoApplied);
+      else localStorage.removeItem(AUTO_APPLIED_KEY);
+    }
+  } catch {
+    // Storage blocked: seasonal theming is cosmetic, skip it.
+  }
+};
+
+const autoSeasonalEnabled = () => readStored('auto_seasonal_theme') !== 'false';
+
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 interface ThemeProviderProps {
@@ -25,11 +96,19 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system'); // 'light', 'dark', 'system'
-  const [customTheme, setCustomTheme] = useState<CustomTheme>('default'); // 'default', 'christmas', 'ocean', 'forest'
+  const [themeMode, setThemeMode] = useState<ThemeMode>(
+    () => (readStored(THEME_MODE_KEY) as ThemeMode | null) || 'system'
+  );
+  const [bootSeasonal] = useState(() => {
+    const before = readSeasonalState((readStored(CUSTOM_THEME_KEY) as CustomTheme | null) || 'default');
+    return { before, after: settleSeasonal(before, new Date(), autoSeasonalEnabled()) };
+  });
+  const [customTheme, setCustomTheme] = useState<CustomTheme>(bootSeasonal.after.theme);
 
-  // Initialize themes from localStorage
-  // 1. applyTheme - Memoized
+  useEffect(() => {
+    persistSeasonal(bootSeasonal.before, bootSeasonal.after);
+  }, [bootSeasonal]);
+
   const applyTheme = useCallback((mode: ThemeMode, custom: CustomTheme) => {
     const root = window.document.documentElement;
     root.classList.remove('dark', 'light');
@@ -46,18 +125,26 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     }
   }, []);
 
-  // 2. State Updaters - Memoized
   const updateThemeMode = useCallback((newMode: ThemeMode) => {
     setThemeMode(newMode);
-    localStorage.setItem(THEME_MODE_KEY, newMode);
-    applyTheme(newMode, customTheme);
-  }, [customTheme, applyTheme]);
+    try {
+      localStorage.setItem(THEME_MODE_KEY, newMode);
+    } catch {
+      // Storage blocked: the mode still applies for this session.
+    }
+  }, []);
 
   const updateCustomTheme = useCallback((newCustom: CustomTheme) => {
-    setCustomTheme(newCustom);
-    localStorage.setItem(CUSTOM_THEME_KEY, newCustom);
-    applyTheme(themeMode, newCustom);
-  }, [themeMode, applyTheme]);
+    const before = { ...readSeasonalState(newCustom), stored: newCustom };
+    const after = settleSeasonal(before, new Date(), autoSeasonalEnabled());
+    try {
+      localStorage.setItem(CUSTOM_THEME_KEY, newCustom);
+    } catch {
+      // Storage blocked: the theme still applies for this session.
+    }
+    persistSeasonal(before, after);
+    setCustomTheme(after.theme);
+  }, []);
 
   const setSeasonalTheme = useCallback((theme: CustomTheme | null) => {
     try {
@@ -101,17 +188,10 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     updateThemeMode(newMode);
   }, [themeMode, updateThemeMode]);
 
-  // 3. Init Effect
   useEffect(() => {
-    const savedMode = (localStorage.getItem(THEME_MODE_KEY) as ThemeMode) || 'system';
-    const savedCustom = (localStorage.getItem(CUSTOM_THEME_KEY) as CustomTheme) || 'default';
+    applyTheme(themeMode, customTheme);
+  }, [themeMode, customTheme, applyTheme]);
 
-    setThemeMode(savedMode);
-    setCustomTheme(savedCustom);
-    applyTheme(savedMode, savedCustom);
-  }, [applyTheme]);
-
-  // 4. System Theme Listener
   useEffect(() => {
     if (themeMode !== 'system') return;
 
@@ -121,52 +201,6 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [themeMode, customTheme, applyTheme]);
-
-  // 5. Auto Seasonal Theme
-  useEffect(() => {
-    const now = new Date();
-    const month = now.getMonth();
-    const day = now.getDate();
-
-    const savedCustom = localStorage.getItem(CUSTOM_THEME_KEY);
-    const isDefaultOrChristmas = !savedCustom || savedCustom === 'default' || savedCustom === 'christmas';
-    const shouldAutoApply = customTheme === 'default' || (customTheme === 'christmas' && isDefaultOrChristmas);
-
-    const autoSeasonalEnabled = localStorage.getItem('auto_seasonal_theme') !== 'false';
-
-    // Independence Day window: 10th - 15th August
-    const isIndependenceWindow = month === 7 && day >= 10 && day <= 15;
-
-    if (autoSeasonalEnabled && isIndependenceWindow) {
-      // Only take over when the user hasn't picked a theme of their own
-      if (customTheme === 'default') {
-        localStorage.setItem(AUTO_APPLIED_KEY, 'independence');
-        updateCustomTheme('independence');
-      }
-      return;
-    }
-
-    // Outside the window: undo an Independence theme we applied automatically
-    if (customTheme === 'independence' && localStorage.getItem(AUTO_APPLIED_KEY) === 'independence') {
-      localStorage.removeItem(AUTO_APPLIED_KEY);
-      updateCustomTheme('default');
-      return;
-    }
-
-    if (shouldAutoApply) {
-      if (autoSeasonalEnabled) {
-        if (month === 11) { // December
-          if (day > 25) {
-             if (customTheme !== 'newyear') updateCustomTheme('newyear');
-          } else {
-             if (savedCustom === 'default' && customTheme !== 'christmas') updateCustomTheme('christmas');
-          }
-        } else if (month === 0) { // January
-           if (customTheme !== 'newyear') updateCustomTheme('newyear');
-        }
-      }
-    }
-  }, [customTheme, updateCustomTheme]);
 
   return (
     <ThemeContext.Provider value={{
