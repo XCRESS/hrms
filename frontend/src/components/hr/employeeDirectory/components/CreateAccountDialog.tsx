@@ -75,7 +75,7 @@ export function CreateAccountDialog({
             name: form.name.trim(),
             email: form.email.trim(),
             password: form.password,
-            role: form.role,
+            role: canCreatePrivileged ? form.role : 'employee',
             ...(form.employeeId ? { employeeId: form.employeeId } : {}),
         });
     };
@@ -140,16 +140,29 @@ export function CreateAccountDialog({
 
                     <div>
                         <Label htmlFor="account-role">Role</Label>
-                        <Select value={form.role} onValueChange={(v) => set('role', v)}>
-                            <SelectTrigger id="account-role" className="mt-1 h-11 w-full">
+                        <Select
+                            value={canCreatePrivileged ? form.role : 'employee'}
+                            onValueChange={(v) => set('role', v)}
+                            disabled={!canCreatePrivileged}
+                        >
+                            <SelectTrigger
+                                id="account-role"
+                                className="mt-1 h-11 w-full"
+                                aria-describedby={canCreatePrivileged ? undefined : 'account-role-hint'}
+                            >
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="employee">Employee</SelectItem>
-                                {canCreatePrivileged && <SelectItem value="hr">HR</SelectItem>}
-                                {canCreatePrivileged && <SelectItem value="admin">Admin</SelectItem>}
+                                <SelectItem value="hr">HR</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
                         </Select>
+                        {!canCreatePrivileged && (
+                            <p id="account-role-hint" className="mt-1 text-sm text-muted-foreground">
+                                Only an admin can create HR or admin accounts.
+                            </p>
+                        )}
                     </div>
 
                     <div>
